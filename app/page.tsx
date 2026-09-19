@@ -52,6 +52,8 @@ const navItems = [
   { label: 'الإضافي', icon: Clock3 },
   { label: 'المهام', icon: ClipboardCheck },
   { label: 'التقارير', icon: BarChart3 },
+  { label: 'الإشعارات', icon: Bell },
+  { label: 'سجل العمليات', icon: ClipboardCheck },
 ]
 
 const productionData = [
@@ -93,6 +95,25 @@ export default function Page() {
     return movements.filter((movement) => `${movement.type} ${movement.detail}`.includes(search.trim()))
   }, [search])
 
+  const moduleSummary: Record<string, { title: string; description: string; stats: string[]; rows: string[][] }> = {
+    'المواد الخام': { title: 'المواد الخام', description: 'إدارة الأصناف، الموردين، الدُفعات، الصلاحية وحركات الاستلام والاستهلاك.', stats: ['٢٤ صنف', '٣ موردين', '٤ أصناف منخفضة'], rows: [['RM-001', 'ذرة صفراء', 'المواد الخام', '١٨,٤٠٠ كجم'], ['RM-002', 'كسب صويا', 'المواد الخام', '٦,٢٥٠ كجم'], ['RM-003', 'نخالة قمح', 'المواد الخام', '٩,٨٠٠ كجم']] },
+    'المستودعات': { title: 'المستودعات الثلاثة', description: 'سجل حركات متكامل من الاستلام حتى التحويل والتصنيع والمنتج النهائي.', stats: ['١ المواد الخام', '٢ التصنيع', '٣ المنتجات النهائية'], rows: [['WH-01', 'مستودع المواد الخام', '٢٤ صنف', '١٢٨,٤٠٠ ر.ع'], ['WH-02', 'مستودع التصنيع', 'أوامر جارية', '٣ أوامر'], ['WH-03', 'مستودع المنتجات', '١٢ منتج', '٥٦,٢٢٠ كجم']] },
+    'التصنيع': { title: 'التصنيع والإنتاج', description: 'أوامر إنتاج، وصفات BOM، الاستهلاك الفعلي، الفاقد وفروقات الإنتاج.', stats: ['PR-1048 قيد المراجعة', '٩٢٪ كفاءة', '١.٨٪ فاقد'], rows: [['PR-1048', 'علف تسمين مواشي', '١٢,٥٠٠ كجم', 'مكتمل'], ['PR-1047', 'علف دواجن بادئ', '٨,٠٠٠ كجم', 'قيد التنفيذ'], ['PR-1046', 'علف أغنام', '٦,٥٠٠ كجم', 'بانتظار التخطيط']] },
+    'المنتجات': { title: 'المنتجات والوصفات', description: 'المنتجات النهائية، أسعار البيع، تكلفة الإنتاج والوصفات المرتبطة بها.', stats: ['١٢ منتج نشط', '١٢ وصفة BOM', '٣ أصناف منخفضة'], rows: [['FG-001', 'علف تسمين مواشي', '٢٥٠ ر.ع/طن', 'متوفر'], ['FG-002', 'علف دواجن بادئ', '٢١٥ ر.ع/طن', 'متوفر'], ['FG-003', 'علف أغنام', '٢٣٠ ر.ع/طن', 'منخفض']] },
+    'المبيعات': { title: 'المبيعات والسحب', description: 'فواتير البيع، السحب الداخلي، العملاء، التحصيل والضريبة القابلة للتهيئة.', stats: ['٣٨ فاتورة', '٤٢,٦٨٠ ر.ع', '٣ مستحقات'], rows: [['INV-2038', 'شركة الخليج للأعلاف', '١,٢٠٠ كجم', 'مدفوعة'], ['INV-2037', 'مزارع الباطنة', '٨٠٠ كجم', 'آجلة'], ['WD-091', 'سحب داخلي للمجمع', '٣٥٠ كجم', 'معتمد']] },
+    'العملاء والموردين': { title: 'العملاء والموردون', description: 'دليل الأطراف التجارية والفواتير المدينة والدائنة ومواعيد الاستحقاق.', stats: ['١٨ عميل', '٣ موردين', '٥ مستحقات'], rows: [['C-001', 'شركة الخليج للأعلاف', 'عميل', '١,٢٨٠ ر.ع'], ['S-001', 'المطاحن العمانية', 'مورد', '٨,٤٠٠ ر.ع'], ['C-002', 'مزارع الباطنة', 'عميل', '٢,١٠٠ ر.ع']] },
+    'الحسابات': { title: 'الحسابات والضريبة', description: 'الإيرادات والمصروفات والمقبوضات والمدفوعات وتقارير الضريبة بإعداد مركزي.', stats: ['إيرادات ٤٢,٦٨٠ ر.ع', 'مصروفات ١٨,٣٢٠ ر.ع', 'ضريبة قابلة للتعديل'], rows: [['إيرادات المبيعات', '٤٢,٦٨٠ ر.ع', 'دخل', 'مُرحل'], ['رواتب ونقل', '١٢,٨٠٠ ر.ع', 'مصروف', 'مُرحل'], ['ضريبة القيمة المضافة', 'إعدادات الشركة', 'ضريبة', 'قابل للتعديل']] },
+    'الموظفين': { title: 'الموظفون والموارد البشرية', description: 'ملفات الموظفين، الأقسام، الرواتب، الحالة وسجل النشاط.', stats: ['٤٨ موظف', '٦ أقسام', '٩٢٪ حضور'], rows: [['EMP-001', 'خالد البلوشي', 'الإنتاج', 'نشط'], ['EMP-002', 'سالم الحارثي', 'المستودعات', 'نشط'], ['EMP-003', 'نورة العامرية', 'الحسابات', 'نشط']] },
+    'الحضور والانصراف': { title: 'الحضور والانصراف والبصمة', description: 'واجهة استيراد CSV/API أو إدخال يدوي جاهزة للربط مع أجهزة البصمة.', stats: ['٤٤ حاضر', '٢ غائب', '٢ متأخر'], rows: [['خالد البلوشي', '٠٦:٥٨', '١٥:١٢', 'مكتمل'], ['سالم الحارثي', '٠٧:٢٠', '١٥:٠٥', 'متأخر'], ['نورة العامرية', '٠٧:٠٠', '—', 'غياب جزئي']] },
+    'الإضافي': { title: 'الإضافي والموافقات', description: 'حساب الساعات الإضافية وفق جدول الموظف وقواعد الشركة مع اعتماد المدير.', stats: ['١٨.٥ ساعة', '٣ بانتظار الاعتماد', '١,٢٤٠ ر.ع'], rows: [['خالد البلوشي', '٢.٥ ساعة', '١٠٪', 'بانتظار الاعتماد'], ['سالم الحارثي', '٤ ساعات', '١٥٪', 'معتمد'], ['فريق الصيانة', '١٢ ساعة', '١٥٪', 'معتمد']] },
+    'المهام': { title: 'المهام والتواصل الداخلي', description: 'مهام المكتب الافتراضي والمصنع والمجمع مع المسؤولية والموعد النهائي والتعليقات.', stats: ['١٢ مهمة مفتوحة', '٧ متأخرة', '٢٤ مكتملة'], rows: [['TASK-089', 'مراجعة فاقد PR-1048', 'عالية', 'متأخرة'], ['TASK-088', 'تجهيز شحنة العميل', 'عاجلة', 'قيد التنفيذ'], ['TASK-087', 'تحديث سجل البصمة', 'متوسطة', 'مكتملة']] },
+    'التقارير': { title: 'التقارير والتحليلات', description: 'تقارير المخزون والتصنيع والمبيعات والحسابات والموظفين مع تصفية وتصدير.', stats: ['١٨ تقريراً', 'تصدير Excel', 'طباعة PDF'], rows: [['تقرير حركة المخزون', 'سبتمبر ٢٠٢٦', 'كل المستودعات', 'جاهز'], ['مقارنة الاستهلاك', 'PR-1048', 'مواد خام', 'جاهز'], ['ملخص الربح والخسارة', 'شهري', 'الحسابات', 'جاهز']] },
+    'الإشعارات': { title: 'الإشعارات', description: 'تنبيهات المخزون والإنتاج والفروقات والفواتير والمهام دون تكرار للعمليات الجماعية.', stats: ['٤ غير مقروءة', '٢ منخفض المخزون', '١ اعتماد'], rows: [['مخزون منخفض', 'كسب الصويا وصل للحد الأدنى', 'منذ ١٨ دقيقة', 'جديد'], ['فروقات إنتاج', 'PR-1048 يحتاج سبباً', 'منذ ٤٢ دقيقة', 'جديد'], ['مهمة متأخرة', 'مراجعة الفاقد', 'اليوم', 'مفتوح']] },
+    'سجل العمليات': { title: 'سجل العمليات والتدقيق', description: 'أثر كامل لكل تغيير: المستخدم، الكيان، الوقت، القيم قبل وبعد والمرجع.', stats: ['٢,٤٨١ حركة', 'آخر تحديث الآن', 'تتبع كامل'], rows: [['محمد البلوشي', 'إكمال أمر إنتاج', 'PR-1048', 'اليوم ١٠:٢٢'], ['سالم الحارثي', 'تحويل مخزون', 'MOV-2480', 'اليوم ٠٩:٤٢'], ['نورة العامرية', 'تغيير سعر منتج', 'FG-002', 'أمس ١٦:٠٥']] },
+  }
+
+  const activeModule = moduleSummary[activeNav]
+
   return (
     <main dir="rtl" className="min-h-screen bg-[#f6f8f7] text-[#152925]">
       <aside className={`fixed inset-y-0 right-0 z-40 flex w-[264px] flex-col border-l border-[#dfe7e3] bg-[#123c35] text-white transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -133,6 +154,7 @@ export default function Page() {
         </header>
 
         <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
+          {activeNav === 'لوحة التحكم' ? <>
           <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">لوحة التحكم</span></div><h2 className="text-2xl font-bold tracking-tight">نظرة عامة على المصنع</h2><p className="mt-1 text-sm text-[#788983]">تابع أداء العمليات والمخزون والمبيعات من مكان واحد.</p></div>
             <div className="flex items-center gap-2"><button className="flex items-center gap-2 rounded-xl border border-[#dfe7e3] bg-white px-3.5 py-2.5 text-xs font-medium text-[#53655e] shadow-sm"><CalendarDays size={15} /> ١٢ - ١٩ سبتمبر ٢٠٢٦</button><button className="rounded-xl bg-[#123c35] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#1d594d]">تقرير سريع</button></div>
@@ -156,10 +178,19 @@ export default function Page() {
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-4"><MiniStat label="المواد الخام" value="٢٤" suffix="صنف" icon={Boxes} /><MiniStat label="المنتجات الجاهزة" value="١٢" suffix="منتج" icon={PackageCheck} /><MiniStat label="حضور اليوم" value="٩٢٪" suffix="من ٤٨ موظف" icon={Users} /><MiniStat label="المهام المتأخرة" value="٠٧" suffix="مهمة" icon={ClipboardCheck} /></div>
+          </> : activeModule ? <ModuleView module={activeModule} /> : null}
         </div>
       </div>
     </main>
   )
+}
+
+function ModuleView({ module }: { module: { title: string; description: string; stats: string[]; rows: string[][] } }) {
+  return <div>
+    <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">{module.title}</span></div><h2 className="text-2xl font-bold tracking-tight">{module.title}</h2><p className="mt-1 text-sm text-[#788983]">{module.description}</p></div><div className="flex gap-2"><button className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#53655e]">تصدير Excel</button><button className="rounded-xl bg-[#123c35] px-4 py-2.5 text-xs font-bold text-white">إضافة جديد</button></div></div>
+    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">{module.stats.map((stat) => <div key={stat} className="rounded-2xl border border-[#e1e9e5] bg-white p-4 text-sm font-bold text-[#30453d] shadow-[0_4px_22px_rgba(31,65,53,0.04)]">{stat}</div>)}</div>
+    <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold">السجل التشغيلي</h3><p className="mt-1 text-xs text-[#899892]">بيانات قابلة للبحث والتصفية والتدقيق</p></div><div className="flex gap-2"><input placeholder="بحث..." className="h-9 rounded-lg border border-[#dfe7e3] px-3 text-xs outline-none focus:border-[#1d7f72]" /><select className="rounded-lg border border-[#dfe7e3] bg-white px-3 text-xs text-[#53655e]"><option>كل الحالات</option><option>نشط</option><option>مكتمل</option><option>متأخر</option></select></div></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-right"><thead><tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]"><th className="pb-3 font-medium">المرجع</th><th className="pb-3 font-medium">التفاصيل</th><th className="pb-3 font-medium">القيمة / الحالة</th><th className="pb-3 font-medium">الحالة</th></tr></thead><tbody>{module.rows.map((row) => <tr key={row[0]} className="border-b border-[#f0f4f2] last:border-0"><td className="py-4 text-xs font-semibold text-[#50635b]">{row[0]}</td><td className="py-4 text-xs text-[#53655e]">{row[1]}</td><td className="py-4 text-xs text-[#53655e]">{row[2]}</td><td className="py-4"><span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">{row[3]}</span></td></tr>)}</tbody></table></div></section>
+  </div>
 }
 
 function MetricCard({ label, value, change, detail, icon: Icon, tone, negative = false }: { label: string; value: string; change: string; detail: string; icon: typeof Warehouse; tone: 'teal' | 'gold' | 'blue' | 'red'; negative?: boolean }) {
