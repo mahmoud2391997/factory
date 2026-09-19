@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Menu,
   PackageCheck,
+  Plus,
   Search,
   Settings,
   ShoppingCart,
@@ -89,6 +90,8 @@ export default function Page() {
   const [period, setPeriod] = useState('هذا الأسبوع')
   const [activeNav, setActiveNav] = useState('لوحة التحكم')
   const [search, setSearch] = useState('')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [toast, setToast] = useState('')
 
   const visibleMovements = useMemo(() => {
     if (!search.trim()) return movements
@@ -178,18 +181,41 @@ export default function Page() {
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-4"><MiniStat label="المواد الخام" value="٢٤" suffix="صنف" icon={Boxes} /><MiniStat label="المنتجات الجاهزة" value="١٢" suffix="منتج" icon={PackageCheck} /><MiniStat label="حضور اليوم" value="٩٢٪" suffix="من ٤٨ موظف" icon={Users} /><MiniStat label="المهام المتأخرة" value="٠٧" suffix="مهمة" icon={ClipboardCheck} /></div>
-          </> : activeModule ? <ModuleView module={activeModule} /> : null}
+          </> : activeModule ? <ModuleView module={activeModule} onCreate={() => setIsCreateOpen(true)} /> : null}
+          {isCreateOpen && <CreateRecordDialog moduleTitle={activeModule?.title ?? activeNav} onClose={() => setIsCreateOpen(false)} onSaved={() => { setIsCreateOpen(false); setToast('تم حفظ السجل بنجاح وإضافته إلى سجل العمليات') }} />}
+          {toast && <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">{toast}<button className="mr-3 text-white/60 hover:text-white" onClick={() => setToast('')}>×</button></div>}
         </div>
       </div>
     </main>
   )
 }
 
-function ModuleView({ module }: { module: { title: string; description: string; stats: string[]; rows: string[][] } }) {
+function ModuleView({ module, onCreate }: { module: { title: string; description: string; stats: string[]; rows: string[][] }; onCreate: () => void }) {
   return <div>
-    <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">{module.title}</span></div><h2 className="text-2xl font-bold tracking-tight">{module.title}</h2><p className="mt-1 text-sm text-[#788983]">{module.description}</p></div><div className="flex gap-2"><button className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#53655e]">تصدير Excel</button><button className="rounded-xl bg-[#123c35] px-4 py-2.5 text-xs font-bold text-white">إضافة جديد</button></div></div>
+    <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">{module.title}</span></div><h2 className="text-2xl font-bold tracking-tight">{module.title}</h2><p className="mt-1 text-sm text-[#788983]">{module.description}</p></div><div className="flex gap-2"><button className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#53655e]">تصدير Excel</button><button onClick={onCreate} className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1d594d]"><Plus size={15} />إضافة جديد</button></div></div>
     <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">{module.stats.map((stat) => <div key={stat} className="rounded-2xl border border-[#e1e9e5] bg-white p-4 text-sm font-bold text-[#30453d] shadow-[0_4px_22px_rgba(31,65,53,0.04)]">{stat}</div>)}</div>
     <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold">السجل التشغيلي</h3><p className="mt-1 text-xs text-[#899892]">بيانات قابلة للبحث والتصفية والتدقيق</p></div><div className="flex gap-2"><input placeholder="بحث..." className="h-9 rounded-lg border border-[#dfe7e3] px-3 text-xs outline-none focus:border-[#1d7f72]" /><select className="rounded-lg border border-[#dfe7e3] bg-white px-3 text-xs text-[#53655e]"><option>كل الحالات</option><option>نشط</option><option>مكتمل</option><option>متأخر</option></select></div></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-right"><thead><tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]"><th className="pb-3 font-medium">المرجع</th><th className="pb-3 font-medium">التفاصيل</th><th className="pb-3 font-medium">القيمة / الحالة</th><th className="pb-3 font-medium">الحالة</th></tr></thead><tbody>{module.rows.map((row) => <tr key={row[0]} className="border-b border-[#f0f4f2] last:border-0"><td className="py-4 text-xs font-semibold text-[#50635b]">{row[0]}</td><td className="py-4 text-xs text-[#53655e]">{row[1]}</td><td className="py-4 text-xs text-[#53655e]">{row[2]}</td><td className="py-4"><span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">{row[3]}</span></td></tr>)}</tbody></table></div></section>
+  </div>
+}
+
+function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: () => void }) {
+  const isProduction = moduleTitle.includes('تصنيع')
+  const isSales = moduleTitle.includes('مبيعات')
+  const isMaterial = moduleTitle.includes('مواد خام')
+  const [name, setName] = useState('')
+  const [quantity, setQuantity] = useState('')
+  const [notes, setNotes] = useState('')
+
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#123c35]/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="create-record-title">
+    <div className="w-full max-w-lg rounded-2xl border border-[#dfe7e3] bg-white p-6 shadow-2xl">
+      <div className="mb-5 flex items-start justify-between gap-4"><div><div className="mb-1 text-[10px] font-semibold text-[#1d7f72]">سجل تشغيلي جديد</div><h2 id="create-record-title" className="text-lg font-bold">إضافة إلى {moduleTitle}</h2><p className="mt-1 text-xs text-[#899892]">سيتم تسجيل العملية مع المستخدم والوقت في سجل التدقيق.</p></div><button aria-label="إغلاق" onClick={onClose} className="text-xl text-[#899892] hover:text-[#123c35]">×</button></div>
+      <div className="flex flex-col gap-4">
+        <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">{isProduction ? 'المنتج والوصفة' : isSales ? 'العميل / الجهة' : isMaterial ? 'اسم المادة الخام' : 'الاسم أو المرجع'}<input value={name} onChange={(event) => setName(event.target.value)} autoFocus placeholder={isProduction ? 'مثال: علف تسمين مواشي' : 'اكتب القيمة'} className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
+        {(isProduction || isSales || isMaterial) && <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">الكمية <input value={quantity} onChange={(event) => setQuantity(event.target.value)} type="number" min="0" placeholder="0" className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>}
+        <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">ملاحظات <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="سبب العملية أو تفاصيل إضافية" className="resize-none rounded-xl border border-[#dfe7e3] px-3 py-2 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
+      </div>
+      <div className="mt-6 flex justify-start gap-2"><button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button><button onClick={onSaved} disabled={!name.trim()} className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">حفظ وتسجيل الحركة</button></div>
+    </div>
   </div>
 }
 
