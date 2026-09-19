@@ -92,6 +92,7 @@ export default function Page() {
   const [search, setSearch] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const [moduleRows, setModuleRows] = useState<Record<string, string[][]>>({})
 
   const visibleMovements = useMemo(() => {
     if (!search.trim()) return movements
@@ -116,6 +117,17 @@ export default function Page() {
   }
 
   const activeModule = moduleSummary[activeNav]
+    ? { ...moduleSummary[activeNav], rows: moduleRows[activeNav] ?? moduleSummary[activeNav].rows }
+    : undefined
+
+  const handleRecordSaved = (row: string[]) => {
+    setModuleRows((current) => ({
+      ...current,
+      [activeNav]: [row, ...(current[activeNav] ?? moduleSummary[activeNav]?.rows ?? [])],
+    }))
+    setIsCreateOpen(false)
+    setToast('تم حفظ السجل بنجاح وإضافته إلى سجل العمليات')
+  }
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f6f8f7] text-[#152925]">
@@ -182,7 +194,7 @@ export default function Page() {
 
           <div className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-4"><MiniStat label="المواد الخام" value="٢٤" suffix="صنف" icon={Boxes} /><MiniStat label="المنتجات الجاهزة" value="١٢" suffix="منتج" icon={PackageCheck} /><MiniStat label="حضور اليوم" value="٩٢٪" suffix="من ٤٨ موظف" icon={Users} /><MiniStat label="المهام المتأخرة" value="٠٧" suffix="مهمة" icon={ClipboardCheck} /></div>
           </> : activeModule ? <ModuleView module={activeModule} onCreate={() => setIsCreateOpen(true)} /> : null}
-          {isCreateOpen && <CreateRecordDialog moduleTitle={activeModule?.title ?? activeNav} onClose={() => setIsCreateOpen(false)} onSaved={() => { setIsCreateOpen(false); setToast('تم حفظ السجل بنجاح وإضافته إلى سجل العمليات') }} />}
+          {isCreateOpen && <CreateRecordDialog moduleTitle={activeModule?.title ?? activeNav} onClose={() => setIsCreateOpen(false)} onSaved={handleRecordSaved} />}
           {toast && <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">{toast}<button className="mr-3 text-white/60 hover:text-white" onClick={() => setToast('')}>×</button></div>}
         </div>
       </div>
@@ -198,7 +210,7 @@ function ModuleView({ module, onCreate }: { module: { title: string; description
   </div>
 }
 
-function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: () => void }) {
+function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: (row: string[]) => void }) {
   const isProduction = moduleTitle.includes('تصنيع')
   const isSales = moduleTitle.includes('مبيعات')
   const isMaterial = moduleTitle.includes('مواد خام')
@@ -214,7 +226,7 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
         {(isProduction || isSales || isMaterial) && <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">الكمية <input value={quantity} onChange={(event) => setQuantity(event.target.value)} type="number" min="0" placeholder="0" className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>}
         <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">ملاحظات <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="سبب العملية أو تفاصيل إضافية" className="resize-none rounded-xl border border-[#dfe7e3] px-3 py-2 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
       </div>
-      <div className="mt-6 flex justify-start gap-2"><button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button><button onClick={onSaved} disabled={!name.trim()} className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">حفظ وتسجيل الحركة</button></div>
+      <div className="mt-6 flex justify-start gap-2"><button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button><button onClick={() => onSaved([`${moduleTitle.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`, name.trim(), quantity.trim() || '—', 'جديد'])} disabled={!name.trim()} className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">حفظ وتسجيل الحركة</button></div>
     </div>
   </div>
 }
