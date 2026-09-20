@@ -14,13 +14,17 @@
 
 ## متغيرات البيئة المطلوبة (Project → Settings → Environment Variables)
 
-| Variable | مطلوب للـ Build | مطلوب للـ Runtime | ملاحظات |
-|----------|------------------|-------------------|---------|
-| `DATABASE_URL` | مُفضّل | ✅ | بدونها يتخطى `migrate deploy` أثناء البناء؛ الـ API يحتاجها وقت التشغيل |
-| `JWT_SECRET` | لا | ✅ | جلسات الدخول |
-| `SETUP_TOKEN` | لا | ✅ | تهيئة أول Admin عبر `/api/setup/bootstrap` |
+| Variable | مطلوب | ملاحظات |
+|----------|--------|---------|
+| `DATABASE_URL` **أو** `POSTGRES_PRISMA_URL` / `POSTGRES_URL` | ✅ | أي واحد يكفي — التطبيق يوحّدهم تلقائيًا |
+| `JWT_SECRET` | ✅ | جلسات الدخول |
+| `SETUP_TOKEN` | ✅ | تهيئة أول Admin عبر `/api/setup/bootstrap` |
 
-إذا ظهر خطأ Prisma `DATABASE_URL resolved to an empty string` فهذا يعني أن المتغير مضبوط كسلسلة فارغة — احذفه أو ضع رابط Postgres حقيقي (مثلاً Neon / Supabase / Vercel Postgres).
+### لو عندك Vercel Postgres
+Storage → Postgres عادةً يضيف `POSTGRES_URL` و`POSTGRES_PRISMA_URL` تلقائيًا.  
+بعد الربط: **Redeploy**، ثم افتح `/api/health` وتأكد أن `databaseReachable: true`.
+
+إذا ظهر خطأ Prisma `DATABASE_URL resolved to an empty string` فهذا يعني أن كل متغيرات قاعدة البيانات فاضية — اربط Postgres أو الصق connection string يدويًا.
 
 ## سلوك `pnpm vercel-build`
 
