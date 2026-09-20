@@ -1,18 +1,20 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
   BarChart3,
   Bell,
   Boxes,
   CalendarDays,
-  ChevronDown,
   ClipboardCheck,
   Clock3,
   Factory,
   FileText,
   LayoutDashboard,
+  Loader2,
+  LogOut,
   Menu,
   PackageCheck,
   Plus,
@@ -24,6 +26,8 @@ import {
   Warehouse,
   X,
 } from 'lucide-react'
+import { useAuth } from '@/components/providers/auth-provider'
+import { apiGetWarehouses } from '@/lib/auth/client'
 import {
   Area,
   AreaChart,
@@ -57,7 +61,7 @@ import { getModuleDefinition } from '@/lib/modules'
 import { getModuleFormDefinition, toModuleRowValue } from '@/lib/module-schema'
 
 const navItems = [
-  { label: 'لوحة التحكم', icon: LayoutDashboard, active: true },
+  { label: 'لوحة التحكم', icon: LayoutDashboard },
   { label: 'المواد الخام', icon: Boxes },
   { label: 'المستودعات', icon: Warehouse },
   { label: 'التصنيع', icon: Factory },
@@ -74,11 +78,28 @@ const navItems = [
   { label: 'سجل العمليات', icon: ClipboardCheck },
 ]
 
+type WarehouseDto = {
+  id: string
+  key: string
+  nameAr: string
+  isActive: boolean
+  locations: Array<{ id: string; code: string; nameAr: string }>
+}
+
 function formatOMR(value: number) {
   return new Intl.NumberFormat('ar-OM', { style: 'currency', currency: 'OMR', maximumFractionDigits: 0 }).format(value)
 }
 
+function getInitials(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '؟'
+  if (parts.length === 1) return parts[0]!.slice(0, 1)
+  return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`
+}
+
 export default function Page() {
+  const router = useRouter()
+  const { user, loading: authLoading, logout, canAccessModule } = useAuth()
   const storageKey = (name: string) => `factory:v1:${name}`
 
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -88,14 +109,76 @@ export default function Page() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [moduleSearch, setModuleSearch] = useState('')
+  const [warehouses, setWarehouses] = useState<WarehouseDto[]>([])
+  const [warehousesLoading, setWarehousesLoading] = useState(false)
+  const [warehousesError, setWarehousesError] = useState('')
+  const [warehousesRefreshKey, setWarehousesRefreshKey] = useState(0)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const [persistedModuleRows, setPersistedModuleRows] = useLocalStorageState<Record<string, ModuleRow[]>>(storageKey('moduleRows'), {})
   const [auditMovements, setAuditMovements] = useLocalStorageState<Movement[]>(storageKey('movements'), seedMovements)
+
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => canAccessModule(item.label)),
+    [canAccessModule],
+  )
+
+  useEffect(() => {
+    if (!authLoading && !user) router.replace('/login')
+  }, [authLoading, user, router])
+
+  useEffect(() => {
+    if (!user) return
+    if (!visibleNavItems.some((item) => item.label === activeNav)) {
+      setActiveNav(visibleNavItems[0]?.label ?? 'لوحة التحكم')
+    }
+  }, [user, visibleNavItems, activeNav])
+
+  useEffect(() => {
+    if (!user || activeNav !== 'المستودعات') return
+    let cancelled = false
+    ;(async () => {
+      setWarehousesLoading(true)
+      setWarehousesError('')
+      const result = await apiGetWarehouses()
+      if (cancelled) return
+      if (result.success && result.data?.warehouses) {
+        setWarehouses(result.data.warehouses)
+      } else {
+        setWarehouses([])
+        setWarehousesError(result.message ?? 'تعذر تحميل المستودعات من قاعدة البيانات')
+      }
+      setWarehousesLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user, activeNav, warehousesRefreshKey])
 
   const visibleMovements = useMemo(() => {
     if (!search.trim()) return auditMovements
     return auditMovements.filter((movement) => `${movement.type} ${movement.detail}`.includes(search.trim()))
   }, [auditMovements, search])
+
+  if (authLoading || !user) {
+    return (
+      <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f6f8f7] text-[#152925]">
+        <div className="flex items-center gap-3 text-sm text-[#53655e]">
+          <Loader2 className="animate-spin" size={18} />
+          جاري التحقق من الجلسة...
+        </div>
+      </main>
+    )
+  }
+
+  const primaryRole = user.roles[0]?.nameAr ?? 'مستخدم'
+  const firstName = user.fullName.trim().split(/\s+/)[0] ?? user.fullName
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await logout()
+    router.replace('/login')
+  }
 
   const activeModuleSeed = moduleSummarySeed[activeNav]
   const activeModule = activeModuleSeed
@@ -197,7 +280,7 @@ export default function Page() {
         <div className="px-4 pt-6">
           <div className="mb-3 px-3 text-[10px] font-semibold tracking-[0.18em] text-white/35">القائمة الرئيسية</div>
           <nav className="flex flex-col gap-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon
               const active = activeNav === item.label
               return <button key={item.label} onClick={() => { setActiveNav(item.label); setMobileOpen(false) }} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-right text-[13px] transition ${active ? 'bg-[#d6ad61] font-bold text-[#123c35] shadow-md shadow-black/10' : 'text-white/70 hover:bg-white/8 hover:text-white'}`}><Icon size={18} strokeWidth={active ? 2.4 : 1.8} /><span>{item.label}</span>{item.label === 'الإشعارات' && <span className="mr-auto grid size-5 place-items-center rounded-full bg-[#d96c52] text-[10px] text-white">4</span>}</button>
@@ -207,9 +290,17 @@ export default function Page() {
         <div className="mt-auto border-t border-white/10 p-4">
           <button className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-[13px] text-white/70 hover:bg-white/8 hover:text-white"><Settings size={18} /><span>الإعدادات</span></button>
           <div className="mt-3 flex items-center gap-3 rounded-xl bg-white/8 p-3">
-            <div className="grid size-9 place-items-center rounded-full bg-[#d6ad61] text-sm font-bold text-[#123c35]">م</div>
-            <div className="min-w-0"><div className="truncate text-xs font-semibold">محمد البلوشي</div><div className="text-[10px] text-white/45">مدير النظام</div></div>
-            <ChevronDown size={16} className="mr-auto text-white/45" />
+            <div className="grid size-9 place-items-center rounded-full bg-[#d6ad61] text-sm font-bold text-[#123c35]">{getInitials(user.fullName)}</div>
+            <div className="min-w-0"><div className="truncate text-xs font-semibold">{user.fullName}</div><div className="truncate text-[10px] text-white/45">{primaryRole}</div></div>
+            <button
+              type="button"
+              aria-label="تسجيل الخروج"
+              disabled={loggingOut}
+              onClick={handleLogout}
+              className="mr-auto rounded-lg p-1.5 text-white/55 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+            >
+              {loggingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
+            </button>
           </div>
         </div>
       </aside>
@@ -217,7 +308,7 @@ export default function Page() {
       <div className="lg:mr-[264px]">
         <header className="sticky top-0 z-30 flex h-[82px] items-center gap-4 border-b border-[#e1e9e5] bg-[#f6f8f7]/95 px-5 backdrop-blur md:px-8">
           <button aria-label="فتح القائمة" className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 lg:hidden" onClick={() => setMobileOpen(true)}><Menu size={20} /></button>
-          <div className="hidden text-right sm:block"><div className="text-[11px] text-[#71817c]">الخميس، ١٩ سبتمبر ٢٠٢٦</div><h1 className="mt-1 text-xl font-bold">صباح الخير، محمد</h1></div>
+          <div className="hidden text-right sm:block"><div className="text-[11px] text-[#71817c]">الخميس، ١٩ سبتمبر ٢٠٢٦</div><h1 className="mt-1 text-xl font-bold">صباح الخير، {firstName}</h1></div>
           <div className="relative mr-auto w-full max-w-[310px]"><Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa9a3]" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث سريع في النظام..." className="h-10 w-full rounded-xl border border-[#dfe7e3] bg-white pr-10 pl-4 text-xs outline-none transition placeholder:text-[#a2aea9] focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></div>
           <button aria-label="الإشعارات" className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] hover:text-[#123c35]"><Bell size={18} /><span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#d96c52] text-[9px] text-white">4</span></button>
         </header>
@@ -247,12 +338,100 @@ export default function Page() {
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-4"><MiniStat label="المواد الخام" value="٢٤" suffix="صنف" icon={Boxes} /><MiniStat label="المنتجات الجاهزة" value="١٢" suffix="منتج" icon={PackageCheck} /><MiniStat label="حضور اليوم" value="٩٢٪" suffix="من ٤٨ موظف" icon={Users} /><MiniStat label="المهام المتأخرة" value="٠٧" suffix="مهمة" icon={ClipboardCheck} /></div>
-          </> : activeNav === 'سجل العمليات' ? <AuditLogView movements={auditMovements} search={moduleSearch} onSearchChange={setModuleSearch} onExport={() => handleExportAuditLog(auditMovements)} /> : activeModule ? <ModuleView module={activeModule} search={moduleSearch} onSearchChange={setModuleSearch} onCreate={() => setIsCreateOpen(true)} onExport={() => handleExportModule(activeModule.title, activeModule.rows)} onRowUpdated={handleRecordUpdated} onRowDeleted={handleRecordDeleted} onRowStatusChanged={handleRecordStatusChanged} /> : null}
+          </> : activeNav === 'سجل العمليات' ? (
+            <AuditLogView movements={auditMovements} search={moduleSearch} onSearchChange={setModuleSearch} onExport={() => handleExportAuditLog(auditMovements)} />
+          ) : activeNav === 'المستودعات' ? (
+            <WarehousesDbView
+              warehouses={warehouses}
+              loading={warehousesLoading}
+              error={warehousesError}
+              onRetry={() => setWarehousesRefreshKey((value) => value + 1)}
+            />
+          ) : activeModule ? (
+            <ModuleView module={activeModule} search={moduleSearch} onSearchChange={setModuleSearch} onCreate={() => setIsCreateOpen(true)} onExport={() => handleExportModule(activeModule.title, activeModule.rows)} onRowUpdated={handleRecordUpdated} onRowDeleted={handleRecordDeleted} onRowStatusChanged={handleRecordStatusChanged} />
+          ) : null}
           {isCreateOpen && <CreateRecordDialog moduleTitle={activeModule?.title ?? activeNav} onClose={() => setIsCreateOpen(false)} onSaved={handleRecordSaved} />}
           {toast && <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">{toast}<button className="mr-3 text-white/60 hover:text-white" onClick={() => setToast('')}>×</button></div>}
         </div>
       </div>
     </main>
+  )
+}
+
+function WarehousesDbView({
+  warehouses,
+  loading,
+  error,
+  onRetry,
+}: {
+  warehouses: WarehouseDto[]
+  loading: boolean
+  error: string
+  onRetry?: () => void
+}) {
+  return (
+    <div>
+      <div className="mb-7">
+        <div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]">
+          <span>الرئيسية</span>
+          <span>/</span>
+          <span className="text-[#1d7f72]">المستودعات</span>
+        </div>
+        <h2 className="text-2xl font-bold tracking-tight">المستودعات الثلاثة</h2>
+        <p className="mt-1 text-sm text-[#788983]">بيانات حية من قاعدة البيانات — المواد الخام، التصنيع، والمنتجات النهائية.</p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-[#e1e9e5] bg-white p-8 text-sm text-[#53655e]">
+          <Loader2 className="animate-spin" size={18} />
+          جاري تحميل المستودعات من الخادم...
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-[#f0d0c8] bg-[#fff5f2] p-5">
+          <div className="text-sm font-semibold text-[#ad5e46]">{error}</div>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-3 rounded-xl bg-[#123c35] px-4 py-2 text-xs font-bold text-white"
+            >
+              إعادة المحاولة
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          {warehouses.map((warehouse) => (
+            <section
+              key={warehouse.id}
+              className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold tracking-wide text-[#899892]">{warehouse.key}</div>
+                  <h3 className="mt-1 text-lg font-bold text-[#123c35]">{warehouse.nameAr}</h3>
+                </div>
+                <span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">
+                  {warehouse.isActive ? 'نشط' : 'موقوف'}
+                </span>
+              </div>
+              <div className="text-xs text-[#71817c]">المواقع الداخلية</div>
+              <ul className="mt-2 space-y-2">
+                {warehouse.locations.map((location) => (
+                  <li
+                    key={location.id}
+                    className="flex items-center justify-between rounded-xl bg-[#f6f8f7] px-3 py-2 text-xs"
+                  >
+                    <span className="font-semibold text-[#30453d]">{location.nameAr}</span>
+                    <span className="text-[#899892]">{location.code}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
