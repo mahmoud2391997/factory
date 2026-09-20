@@ -7,7 +7,6 @@ import {
   Bell,
   CalendarDays,
   ChevronDown,
-  ChevronLeft,
   Factory,
   Loader2,
   LogOut,
@@ -71,7 +70,7 @@ export function ErpShell() {
   const permissions = user?.permissions ?? []
 
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [expandedMain, setExpandedMain] = useState('inventory')
+  const [expandedMain, setExpandedMain] = useState('')
   const [activeMainId, setActiveMainId] = useState('dashboard')
   const [activeSubId, setActiveSubId] = useState('overview')
   const [toast, setToast] = useState('')
@@ -156,6 +155,26 @@ export function ErpShell() {
     setMobileOpen(false)
   }
 
+  const toggleMain = (mainId: string) => {
+    setExpandedMain((current) => (current === mainId ? '' : mainId))
+  }
+
+  const openMain = (mainId: string) => {
+    const main = visibleMains.find((item) => item.id === mainId)
+    if (!main) return
+    const firstSub = main.subs.filter((sub) => canAccessSub(permissions, sub, main))[0]
+    if (!firstSub) {
+      toggleMain(mainId)
+      return
+    }
+    // If already on this main and expanded, collapse. Otherwise expand + open first page.
+    if (activeMainId === mainId && expandedMain === mainId) {
+      setExpandedMain('')
+      return
+    }
+    selectNav(mainId, firstSub.id)
+  }
+
   const entityKey = activeSub?.entityKey ?? 'dashboard'
   const schema = entityKey === 'dashboard' ? undefined : getEntitySchema(entityKey)
   const records = entityStore[entityKey] ?? []
@@ -193,67 +212,94 @@ export function ErpShell() {
   return (
     <main dir="rtl" className="min-h-screen bg-[#f6f8f7] text-[#152925]">
       <aside
-        className={`fixed inset-y-0 right-0 z-40 flex w-[280px] flex-col border-l border-[#dfe7e3] bg-[#123c35] text-white transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 z-40 flex w-[300px] flex-col border-l border-[#dfe7e3] bg-[#123c35] text-white transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        <div className="flex h-[82px] items-center gap-3 border-b border-white/10 px-5">
-          <div className="grid size-10 place-items-center rounded-xl bg-[#d6ad61] text-[#123c35]">
-            <Factory size={22} strokeWidth={2.4} />
+        <div className="flex h-[88px] items-center gap-3 border-b border-white/10 px-5">
+          <div className="grid size-11 place-items-center rounded-xl bg-[#d6ad61] text-[#123c35]">
+            <Factory size={24} strokeWidth={2.4} />
           </div>
           <div>
-            <div className="text-lg font-bold tracking-tight">مزارع الخليج</div>
-            <div className="text-[11px] text-white/55">نظام ERP للمصنع</div>
+            <div className="text-xl font-bold tracking-tight">مزارع الخليج</div>
+            <div className="text-xs text-white/55">نظام ERP للمصنع</div>
           </div>
           <button
             aria-label="إغلاق"
             className="mr-auto rounded-lg p-1 text-white/70 hover:bg-white/10 lg:hidden"
             onClick={() => setMobileOpen(false)}
           >
-            <X size={19} />
+            <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
           {visibleMains.map((main) => {
             const Icon = main.icon
-            const open = expandedMain === main.id || activeMainId === main.id
+            const isExpanded = expandedMain === main.id
+            const isActiveMain = activeMainId === main.id
             const subs = main.subs.filter((sub) => canAccessSub(permissions, sub, main))
+            const hasSubs = main.id !== 'dashboard' && subs.length > 0
+
             return (
-              <div key={main.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const firstSub = main.subs.filter((sub) => canAccessSub(permissions, sub, main))[0]
-                    if (firstSub) selectNav(main.id, firstSub.id)
-                    else setExpandedMain(main.id)
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-[13px] transition ${
-                    activeMainId === main.id
-                      ? 'bg-white/10 font-bold text-white'
-                      : 'text-white/70 hover:bg-white/8 hover:text-white'
+              <div key={main.id} className="rounded-xl">
+                <div
+                  className={`flex items-center rounded-xl transition ${
+                    isActiveMain ? 'bg-white/12 text-white' : 'text-white/75 hover:bg-white/8 hover:text-white'
                   }`}
                 >
-                  <Icon size={18} />
-                  <span className="flex-1">{main.label}</span>
-                  {main.id !== 'dashboard' ? (
-                    open ? <ChevronDown size={16} className="opacity-60" /> : <ChevronLeft size={16} className="opacity-60" />
+                  <button
+                    type="button"
+                    onClick={() => openMain(main.id)}
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-right text-[15px] font-semibold"
+                  >
+                    <Icon size={20} strokeWidth={isActiveMain ? 2.4 : 2} />
+                    <span className="truncate">{main.label}</span>
+                  </button>
+                  {hasSubs ? (
+                    <button
+                      type="button"
+                      aria-label={isExpanded ? 'طي القائمة' : 'فتح القائمة'}
+                      aria-expanded={isExpanded}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleMain(main.id)
+                      }}
+                      className="ml-1 mr-2 grid size-9 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+                    >
+                      <ChevronDown
+                        size={18}
+                        className={`transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                      />
+                    </button>
                   ) : null}
-                </button>
-                {open && main.id !== 'dashboard' ? (
-                  <div className="mb-2 mr-4 mt-1 space-y-0.5 border-r border-white/10 pr-2">
-                    {subs.map((sub) => (
-                      <button
-                        key={sub.id}
-                        type="button"
-                        onClick={() => selectNav(main.id, sub.id)}
-                        className={`block w-full rounded-lg px-3 py-2 text-right text-[12px] transition ${
-                          activeMainId === main.id && activeSubId === sub.id
-                            ? 'bg-[#d6ad61] font-bold text-[#123c35]'
-                            : 'text-white/60 hover:bg-white/8 hover:text-white'
-                        }`}
-                      >
-                        {sub.label}
-                      </button>
-                    ))}
+                </div>
+
+                {hasSubs ? (
+                  <div
+                    className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+                      isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="mb-2 mr-3 mt-1 space-y-1 border-r border-white/15 pr-2">
+                        {subs.map((sub) => {
+                          const isActiveSub = isActiveMain && activeSubId === sub.id
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() => selectNav(main.id, sub.id)}
+                              className={`block w-full rounded-lg px-3 py-2.5 text-right text-[14px] transition ${
+                                isActiveSub
+                                  ? 'bg-[#d6ad61] font-bold text-[#123c35]'
+                                  : 'font-medium text-white/65 hover:bg-white/8 hover:text-white'
+                              }`}
+                            >
+                              {sub.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -263,12 +309,12 @@ export function ErpShell() {
 
         <div className="border-t border-white/10 p-4">
           <div className="flex items-center gap-3 rounded-xl bg-white/8 p-3">
-            <div className="grid size-9 place-items-center rounded-full bg-[#d6ad61] text-sm font-bold text-[#123c35]">
+            <div className="grid size-10 place-items-center rounded-full bg-[#d6ad61] text-sm font-bold text-[#123c35]">
               {getInitials(user.fullName)}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-xs font-semibold">{user.fullName}</div>
-              <div className="truncate text-[10px] text-white/45">{primaryRole}</div>
+              <div className="truncate text-sm font-semibold">{user.fullName}</div>
+              <div className="truncate text-xs text-white/45">{primaryRole}</div>
             </div>
             <button
               type="button"
@@ -287,36 +333,35 @@ export function ErpShell() {
         </div>
       </aside>
 
-      <div className="lg:mr-[280px]">
-        <header className="sticky top-0 z-30 flex h-[82px] items-center gap-4 border-b border-[#e1e9e5] bg-[#f6f8f7]/95 px-5 backdrop-blur md:px-8">
+      <div className="lg:mr-[300px]">
+        <header className="sticky top-0 z-30 flex h-[88px] items-center gap-4 border-b border-[#e1e9e5] bg-[#f6f8f7]/95 px-5 backdrop-blur md:px-8">
           <button
             aria-label="فتح القائمة"
             className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
-            <Menu size={20} />
+            <Menu size={22} />
           </button>
           <div className="hidden text-right sm:block">
-            <div className="text-[11px] text-[#71817c]">نظام تخطيط موارد المصنع</div>
-            <h1 className="mt-1 text-xl font-bold">مرحباً، {firstName}</h1>
+            <div className="text-xs text-[#71817c]">نظام تخطيط موارد المصنع</div>
+            <h1 className="mt-1 text-2xl font-bold">مرحباً، {firstName}</h1>
           </div>
           <div className="mr-auto flex items-center gap-2">
             <button aria-label="إشعارات" className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c]">
-              <Bell size={18} />
+              <Bell size={20} />
             </button>
           </div>
         </header>
 
-        {/* Subtabs bar for active main module */}
         {activeMain && activeMain.id !== 'dashboard' && visibleSubs.length > 0 ? (
           <div className="border-b border-[#e1e9e5] bg-white px-5 md:px-8">
-            <div className="flex gap-1 overflow-x-auto py-2">
+            <div className="flex gap-1.5 overflow-x-auto py-2.5">
               {visibleSubs.map((sub) => (
                 <button
                   key={sub.id}
                   type="button"
                   onClick={() => selectNav(activeMain.id, sub.id)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                  className={`whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-semibold transition ${
                     activeSubId === sub.id
                       ? 'bg-[#123c35] text-white'
                       : 'text-[#53655e] hover:bg-[#f5f8f6]'
