@@ -3,6 +3,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  transpilePackages: ['@erp/database', '@erp/shared'],
   images: {
     unoptimized: true,
   },
