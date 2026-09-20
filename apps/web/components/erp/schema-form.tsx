@@ -21,17 +21,17 @@ export function SchemaForm({
         const value = values[field.key]
         const error = errors[field.key]
         const common =
-          'w-full rounded-xl border border-[#dfe7e3] bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/15'
+          'w-full rounded-xl border border-[#dfe7e3] bg-white px-3.5 py-3.5 text-base outline-none transition focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/15'
 
         return (
           <label
             key={field.key}
-            className={`block space-y-1.5 text-sm ${field.type === 'textarea' || field.type === 'checkbox' ? 'sm:col-span-2' : ''}`}
+            className={`block space-y-2 text-base ${field.type === 'textarea' || field.type === 'checkbox' ? 'sm:col-span-2' : ''}`}
           >
-            <span className="font-semibold text-[#30453d]">
+            <span className="text-base font-semibold text-[#30453d]">
               {field.label}
               {field.required ? <span className="text-[#ad5e46]"> *</span> : null}
-              {field.unit ? <span className="mr-1 text-[11px] font-normal text-[#899892]">({field.unit})</span> : null}
+              {field.unit ? <span className="mr-1 text-sm font-normal text-[#899892]">({field.unit})</span> : null}
             </span>
 
             {field.type === 'textarea' ? (
@@ -56,14 +56,14 @@ export function SchemaForm({
                 ))}
               </select>
             ) : field.type === 'checkbox' ? (
-              <div className="flex items-center gap-2 rounded-xl border border-[#dfe7e3] bg-[#fafcfb] px-3 py-2.5">
+              <div className="flex items-center gap-2 rounded-xl border border-[#dfe7e3] bg-[#fafcfb] px-3 py-3">
                 <input
                   type="checkbox"
                   checked={Boolean(value ?? field.defaultValue ?? false)}
                   onChange={(e) => onChange(field.key, e.target.checked)}
                   className="size-4 accent-[#123c35]"
                 />
-                <span className="text-xs text-[#53655e]">تفعيل</span>
+                <span className="text-sm text-[#53655e]">تفعيل</span>
               </div>
             ) : field.type === 'number' ? (
               <input
@@ -93,7 +93,7 @@ export function SchemaForm({
               />
             )}
 
-            {error ? <span className="text-[11px] font-semibold text-[#ad5e46]">{error}</span> : null}
+            {error ? <span className="text-xs font-semibold text-[#ad5e46]">{error}</span> : null}
           </label>
         )
       })}
