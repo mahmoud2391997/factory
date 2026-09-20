@@ -39,13 +39,6 @@ export async function apiMe() {
     method: 'GET',
     credentials: 'include',
   })
-  if (res.status === 401) {
-    const refreshed = await apiRefresh()
-    if (refreshed.ok) {
-      const retry = await fetch('/api/auth/me', { method: 'GET', credentials: 'include' })
-      return parseJson<{ user: AuthUser }>(retry)
-    }
-  }
   return parseJson<{ user: AuthUser }>(res)
 }
 

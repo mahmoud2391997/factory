@@ -16,5 +16,6 @@ export type AuthApiResponse<T> = {
   success: boolean
   data?: T
   message?: string
+  code?: string
   errors?: Array<{ path?: string; message: string }>
 }
