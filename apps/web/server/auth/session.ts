@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 
 import { prisma } from '@/server/db'
 import { getAccessTokenFromRequest, verifyAccessToken } from '@/server/auth/jwt'
+import { getDemoSessionUser, isDemoMode, isDemoUserId } from '@/server/demo'
 
 export type SessionUser = {
   id: string
@@ -13,6 +14,14 @@ export type SessionUser = {
 }
 
 export async function getSessionUserById(userId: string): Promise<SessionUser | null> {
+  if (isDemoUserId(userId)) {
+    return getDemoSessionUser()
+  }
+
+  if (isDemoMode()) {
+    return null
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
