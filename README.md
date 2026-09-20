@@ -57,3 +57,21 @@ curl -X POST http://localhost:3000/api/setup/bootstrap \
 ```
 
 5. افتح `/login` وادخل بنفس البريد وكلمة المرور.
+
+## Vercel — إذا فشل Login بـ 500
+
+افتح `/api/health` على الدومين. يجب أن ترى:
+
+```json
+{ "success": true, "data": { "databaseConfigured": true, "jwtConfigured": true, "databaseReachable": true, "bootstrapped": true } }
+```
+
+إذا كانت القيم `false`، أضف في Vercel → Settings → Environment Variables (Production + Preview):
+
+| Variable | مثال |
+|----------|------|
+| `DATABASE_URL` | `postgresql://USER:PASS@HOST/DB?sslmode=require` |
+| `JWT_SECRET` | سلسلة عشوائية طويلة |
+| `SETUP_TOKEN` | توكن سري للتهيئة الأولى |
+
+ثم أعد Deploy. بعد نجاح الاتصال نفّذ bootstrap مرة واحدة (بالـ SETUP_TOKEN) لإنشاء أول مستخدم.

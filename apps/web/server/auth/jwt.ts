@@ -2,11 +2,13 @@ import { SignJWT, jwtVerify } from 'jose'
 import type { NextRequest } from 'next/server'
 import type { NextResponse } from 'next/server'
 
+import { getJwtSecretRaw } from '@/server/env'
+
 const ACCESS_COOKIE = 'access_token'
 const REFRESH_COOKIE = 'refresh_token'
 
 function getJwtSecret() {
-  const secret = process.env.JWT_SECRET
+  const secret = getJwtSecretRaw()
   if (!secret) throw new Error('JWT_SECRET is missing')
   return new TextEncoder().encode(secret)
 }
@@ -80,4 +82,3 @@ export function clearAuthCookies(res: NextResponse) {
   res.cookies.set(ACCESS_COOKIE, '', { ...cookieOptions(), maxAge: 0 })
   res.cookies.set(REFRESH_COOKIE, '', { ...cookieOptions(), maxAge: 0 })
 }
-

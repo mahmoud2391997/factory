@@ -3,10 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  const isPublic =
+  const allowWithoutSession =
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth/login') ||
     pathname.startsWith('/api/auth/refresh') ||
+    pathname.startsWith('/api/auth/me') ||
     pathname.startsWith('/api/health') ||
     pathname.startsWith('/api/setup/') ||
     pathname.startsWith('/_next') ||
@@ -14,7 +15,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith('/icon') ||
     pathname.startsWith('/apple-icon')
 
-  if (isPublic) return NextResponse.next()
+  if (allowWithoutSession) return NextResponse.next()
 
   const access = req.cookies.get('access_token')?.value
   const refresh = req.cookies.get('refresh_token')?.value
@@ -38,5 +39,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image).*)'],
+  // Skip static files like /script.js so they don't get HTML login redirects.
+  matcher: ['/((?!_next/static|_next/image|.*\\..*).*)'],
 }
