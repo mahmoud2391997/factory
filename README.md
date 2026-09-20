@@ -24,6 +24,12 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## MVP behavior (what works now)
+
+- **Persisted records**: adding a new record in any module is persisted in the browser via `localStorage` (so it survives refresh).
+- **Audit log**: every created record also appends an entry to **سجل العمليات**.
+- **Export**: the **تصدير Excel** button exports a `.csv` file (Excel-compatible) for modules and for the audit log.
+
 ## Learn More
 
 To learn more, take a look at the following resources:

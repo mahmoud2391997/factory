@@ -39,6 +39,20 @@ import {
   YAxis,
 } from 'recharts'
 
+import {
+  createModuleRow,
+  createMovementFromRow,
+  formatRelativeTimeAr,
+  moduleSummarySeed,
+  productionData,
+  seedMovements,
+  stockData,
+  type Movement,
+  type ModuleRow,
+} from '@/lib/factory'
+import { downloadCsv } from '@/lib/csv'
+import { useLocalStorageState } from '@/lib/storage'
+
 const navItems = [
   { label: 'لوحة التحكم', icon: LayoutDashboard, active: true },
   { label: 'المواد الخام', icon: Boxes },
@@ -57,77 +71,79 @@ const navItems = [
   { label: 'سجل العمليات', icon: ClipboardCheck },
 ]
 
-const productionData = [
-  { name: 'السبت', production: 18, sales: 14 },
-  { name: 'الأحد', production: 25, sales: 18 },
-  { name: 'الإثنين', production: 21, sales: 20 },
-  { name: 'الثلاثاء', production: 32, sales: 25 },
-  { name: 'الأربعاء', production: 28, sales: 22 },
-  { name: 'الخميس', production: 38, sales: 30 },
-  { name: 'الجمعة', production: 35, sales: 27 },
-]
-
-const stockData = [
-  { name: 'ذرة صفراء', value: 42, color: '#1d7f72' },
-  { name: 'كسب صويا', value: 28, color: '#c79546' },
-  { name: 'نخالة قمح', value: 18, color: '#7d9b61' },
-  { name: 'إضافات', value: 12, color: '#d8b878' },
-]
-
-const movements = [
-  { id: 'MOV-2481', type: 'إنتاج مكتمل', detail: 'علف تسمين مواشي - دفعة #PR-1048', amount: '+ 12,500 كجم', time: 'منذ 18 دقيقة', tone: 'success' },
-  { id: 'MOV-2480', type: 'صرف مواد خام', detail: 'ذرة صفراء - أمر إنتاج #PR-1048', amount: '- 8,200 كجم', time: 'منذ 42 دقيقة', tone: 'warning' },
-  { id: 'MOV-2479', type: 'فاتورة مبيعات', detail: 'شركة الخليج للأعلاف', amount: '- 4,500 كجم', time: 'منذ ساعة', tone: 'info' },
-  { id: 'MOV-2478', type: 'استلام مواد', detail: 'كسب صويا - شركة المطاحن العمانية', amount: '+ 25,000 كجم', time: 'اليوم، 08:40', tone: 'success' },
-]
-
 function formatOMR(value: number) {
   return new Intl.NumberFormat('ar-OM', { style: 'currency', currency: 'OMR', maximumFractionDigits: 0 }).format(value)
 }
 
 export default function Page() {
+  const storageKey = (name: string) => `factory:v1:${name}`
+
   const [mobileOpen, setMobileOpen] = useState(false)
   const [period, setPeriod] = useState('هذا الأسبوع')
   const [activeNav, setActiveNav] = useState('لوحة التحكم')
   const [search, setSearch] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [toast, setToast] = useState('')
-  const [moduleRows, setModuleRows] = useState<Record<string, string[][]>>({})
   const [moduleSearch, setModuleSearch] = useState('')
 
+  const [persistedModuleRows, setPersistedModuleRows] = useLocalStorageState<Record<string, ModuleRow[]>>(storageKey('moduleRows'), {})
+  const [auditMovements, setAuditMovements] = useLocalStorageState<Movement[]>(storageKey('movements'), seedMovements)
+
   const visibleMovements = useMemo(() => {
-    if (!search.trim()) return movements
-    return movements.filter((movement) => `${movement.type} ${movement.detail}`.includes(search.trim()))
-  }, [search])
+    if (!search.trim()) return auditMovements
+    return auditMovements.filter((movement) => `${movement.type} ${movement.detail}`.includes(search.trim()))
+  }, [auditMovements, search])
 
-  const moduleSummary: Record<string, { title: string; description: string; stats: string[]; rows: string[][] }> = {
-    'المواد الخام': { title: 'المواد الخام', description: 'إدارة الأصناف، الموردين، الدُفعات، الصلاحية وحركات الاستلام والاستهلاك.', stats: ['٢٤ صنف', '٣ موردين', '٤ أصناف منخفضة'], rows: [['RM-001', 'ذرة صفراء', 'المواد الخام', '١٨,٤٠٠ كجم'], ['RM-002', 'كسب صويا', 'المواد الخام', '٦,٢٥٠ كجم'], ['RM-003', 'نخالة قمح', 'المواد الخام', '٩,٨٠٠ كجم']] },
-    'المستودعات': { title: 'المستودعات الثلاثة', description: 'سجل حركات متكامل من الاستلام حتى التحويل والتصنيع والمنتج النهائي.', stats: ['١ المواد الخام', '٢ التصنيع', '٣ المنتجات النهائية'], rows: [['WH-01', 'مستودع المواد الخام', '٢٤ صنف', '١٢٨,٤٠٠ ر.ع'], ['WH-02', 'مستودع التصنيع', 'أوامر جارية', '٣ أوامر'], ['WH-03', 'مستودع المنتجات', '١٢ منتج', '٥٦,٢٢٠ كجم']] },
-    'التصنيع': { title: 'التصنيع والإنتاج', description: 'أوامر إنتاج، وصفات BOM، الاستهلاك الفعلي، الفاقد وفروقات الإنتاج.', stats: ['PR-1048 قيد المراجعة', '٩٢٪ كفاءة', '١.٨٪ فاقد'], rows: [['PR-1048', 'علف تسمين مواشي', '١٢,٥٠٠ كجم', 'مكتمل'], ['PR-1047', 'علف دواجن بادئ', '٨,٠٠٠ كجم', 'قيد التنفيذ'], ['PR-1046', 'علف أغنام', '٦,٥٠٠ كجم', 'بانتظار التخطيط']] },
-    'المنتجات': { title: 'المنتجات والوصفات', description: 'المنتجات النهائية، أسعار البيع، تكلفة الإنتاج والوصفات المرتبطة بها.', stats: ['١٢ منتج نشط', '١٢ وصفة BOM', '٣ أصناف منخفضة'], rows: [['FG-001', 'علف تسمين مواشي', '٢٥٠ ر.ع/طن', 'متوفر'], ['FG-002', 'علف دواجن بادئ', '٢١٥ ر.ع/طن', 'متوفر'], ['FG-003', 'علف أغنام', '٢٣٠ ر.ع/طن', 'منخفض']] },
-    'المبيعات': { title: 'المبيعات والسحب', description: 'فواتير البيع، السحب الداخلي، العملاء، التحصيل والضريبة القابلة للتهيئة.', stats: ['٣٨ فاتورة', '٤٢,٦٨٠ ر.ع', '٣ مستحقات'], rows: [['INV-2038', 'شركة الخليج للأعلاف', '١,٢٠٠ كجم', 'مدفوعة'], ['INV-2037', 'مزارع الباطنة', '٨٠٠ كجم', 'آجلة'], ['WD-091', 'سحب داخلي للمجمع', '٣٥٠ كجم', 'معتمد']] },
-    'العملاء والموردين': { title: 'العملاء والموردون', description: 'دليل الأطراف التجارية والفواتير المدينة والدائنة ومواعيد الاستحقاق.', stats: ['١٨ عميل', '٣ موردين', '٥ مستحقات'], rows: [['C-001', 'شركة الخليج للأعلاف', 'عميل', '١,٢٨٠ ر.ع'], ['S-001', 'المطاحن العمانية', 'مورد', '٨,٤٠٠ ر.ع'], ['C-002', 'مزارع الباطنة', 'عميل', '٢,١٠٠ ر.ع']] },
-    'الحسابات': { title: 'الحسابات والضريبة', description: 'الإيرادات والمصروفات والمقبوضات والمدفوعات وتقارير الضريبة بإعداد مركزي.', stats: ['إيرادات ٤٢,٦٨٠ ر.ع', 'مصروفات ١٨,٣٢٠ ر.ع', 'ضريبة قابلة للتعديل'], rows: [['إيرادات المبيعات', '٤٢,٦٨٠ ر.ع', 'دخل', 'مُرحل'], ['رواتب ونقل', '١٢,٨٠٠ ر.ع', 'مصروف', 'مُرحل'], ['ضريبة القيمة المضافة', 'إعدادات الشركة', 'ضريبة', 'قابل للتعديل']] },
-    'الموظفين': { title: 'الموظفون والموارد البشرية', description: 'ملفات الموظفين، الأقسام، الرواتب، الحالة وسجل النشاط.', stats: ['٤٨ موظف', '٦ أقسام', '٩٢٪ حضور'], rows: [['EMP-001', 'خالد البلوشي', 'الإنتاج', 'نشط'], ['EMP-002', 'سالم الحارثي', 'المستودعات', 'نشط'], ['EMP-003', 'نورة العامرية', 'الحسابات', 'نشط']] },
-    'الحضور والانصراف': { title: 'الحضور والانصراف والبصمة', description: 'واجهة استيراد CSV/API أو إدخال يدوي جاهزة للربط مع أجهزة البصمة.', stats: ['٤٤ حاضر', '٢ غائب', '٢ متأخر'], rows: [['خالد البلوشي', '٠٦:٥٨', '١٥:١٢', 'مكتمل'], ['سالم الحارثي', '٠٧:٢٠', '١٥:٠٥', 'متأخر'], ['نورة العامرية', '٠٧:٠٠', '—', 'غياب جزئي']] },
-    'الإضافي': { title: 'الإضافي والموافقات', description: 'حساب الساعات الإضافية وفق جدول الموظف وقواعد الشركة مع اعتماد المدير.', stats: ['١٨.٥ ساعة', '٣ بانتظار الاعتماد', '١,٢٤٠ ر.ع'], rows: [['خالد البلوشي', '٢.٥ ساعة', '١٠٪', 'بانتظار الاعتماد'], ['سالم الحارثي', '٤ ساعات', '١٥٪', 'معتمد'], ['فريق الصيانة', '١٢ ساعة', '١٥٪', 'معتمد']] },
-    'المهام': { title: 'المهام والتواصل الداخلي', description: 'مهام المكتب الافتراضي والمصنع والمجمع مع المسؤولية والموعد النهائي والتعليقات.', stats: ['١٢ مهمة مفتوحة', '٧ متأخرة', '٢٤ مكتملة'], rows: [['TASK-089', 'مراجعة فاقد PR-1048', 'عالية', 'متأخرة'], ['TASK-088', 'تجهيز شحنة العميل', 'عاجلة', 'قيد التنفيذ'], ['TASK-087', 'تحديث سجل البصمة', 'متوسطة', 'مكتملة']] },
-    'التقارير': { title: 'التقارير والتحليلات', description: 'تقارير المخزون والتصنيع والمبيعات والحسابات والموظفين مع تصفية وتصدير.', stats: ['١٨ تقريراً', 'تصدير Excel', 'طباعة PDF'], rows: [['تقرير حركة المخزون', 'سبتمبر ٢٠٢٦', 'كل المستودعات', 'جاهز'], ['مقارنة الاستهلاك', 'PR-1048', 'مواد خام', 'جاهز'], ['ملخص الربح والخسارة', 'شهري', 'الحسابات', 'جاهز']] },
-    'الإشعارات': { title: 'الإشعارات', description: 'تنبيهات المخزون والإنتاج والفروقات والفواتير والمهام دون تكرار للعمليات الجماعية.', stats: ['٤ غير مقروءة', '٢ منخفض المخزون', '١ اعتماد'], rows: [['مخزون منخفض', 'كسب الصويا وصل للحد الأدنى', 'منذ ١٨ دقيقة', 'جديد'], ['فروقات إنتاج', 'PR-1048 يحتاج سبباً', 'منذ ٤٢ دقيقة', 'جديد'], ['مهمة متأخرة', 'مراجعة الفاقد', 'اليوم', 'مفتوح']] },
-    'سجل العمليات': { title: 'سجل العمليات والتدقيق', description: 'أثر كامل لكل تغيير: المستخدم، الكيان، الوقت، القيم قبل وبعد والمرجع.', stats: ['٢,٤٨١ حركة', 'آخر تحديث الآن', 'تتبع كامل'], rows: [['محمد البلوشي', 'إكمال أمر إنتاج', 'PR-1048', 'اليوم ١٠:٢٢'], ['سالم الحارثي', 'تحويل مخزون', 'MOV-2480', 'اليوم ٠٩:٤٢'], ['نورة العامرية', 'تغيير سعر منتج', 'FG-002', 'أمس ١٦:٠٥']] },
-  }
-
-  const activeModule = moduleSummary[activeNav]
-    ? { ...moduleSummary[activeNav], rows: moduleRows[activeNav] ?? moduleSummary[activeNav].rows }
+  const activeModuleSeed = moduleSummarySeed[activeNav]
+  const activeModule = activeModuleSeed
+    ? { ...activeModuleSeed, rows: persistedModuleRows[activeNav] ?? activeModuleSeed.rows }
     : undefined
 
-  const handleRecordSaved = (row: string[]) => {
-    setModuleRows((current) => ({
+  const handleRecordSaved = (row: ModuleRow) => {
+    setPersistedModuleRows((current) => ({
       ...current,
-      [activeNav]: [row, ...(current[activeNav] ?? moduleSummary[activeNav]?.rows ?? [])],
+      [activeNav]: [row, ...(current[activeNav] ?? activeModuleSeed?.rows ?? [])],
     }))
+    setAuditMovements((current) => [createMovementFromRow(activeNav, row), ...current])
     setIsCreateOpen(false)
     setToast('تم حفظ السجل بنجاح وإضافته إلى سجل العمليات')
+  }
+
+  const handleExportModule = (moduleTitle: string, rows: ModuleRow[]) => {
+    const csvRows: string[][] = [
+      ['المرجع', 'التفاصيل', 'القيمة', 'الحالة', 'ملاحظات', 'التاريخ'],
+      ...rows.map((row) => [
+        row.ref,
+        row.detail,
+        row.value,
+        row.status,
+        row.notes ?? '',
+        new Intl.DateTimeFormat('ar-OM', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(row.createdAt)),
+      ]),
+    ]
+
+    downloadCsv({
+      filename: `${moduleTitle}.csv`,
+      rows: csvRows,
+    })
+  }
+
+  const handleExportAuditLog = (rows: Movement[]) => {
+    const csvRows: string[][] = [
+      ['رقم الحركة', 'نوع العملية', 'التفاصيل', 'الكمية', 'الوقت'],
+      ...rows.map((movement) => [
+        movement.id,
+        movement.type,
+        movement.detail,
+        movement.amount,
+        new Intl.DateTimeFormat('ar-OM', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(movement.createdAt)),
+      ]),
+    ]
+
+    downloadCsv({
+      filename: `سجل-العمليات.csv`,
+      rows: csvRows,
+    })
   }
 
   return (
@@ -189,12 +205,12 @@ export default function Page() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-            <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"><div className="mb-5 flex items-center justify-between"><div><h3 className="font-bold">آخر حركات المخزون</h3><p className="mt-1 text-xs text-[#899892]">كل العمليات المسجلة في المستودعات</p></div><button className="text-xs font-semibold text-[#1d7f72] hover:underline">عرض الكل</button></div><div className="overflow-x-auto"><table className="w-full min-w-[570px] text-right"><thead><tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]"><th className="pb-3 font-medium">رقم الحركة</th><th className="pb-3 font-medium">نوع العملية</th><th className="pb-3 font-medium">التفاصيل</th><th className="pb-3 font-medium">الكمية</th><th className="pb-3 font-medium">الوقت</th></tr></thead><tbody>{visibleMovements.map((movement) => <tr key={movement.id} className="border-b border-[#f0f4f2] last:border-0"><td className="py-3 text-[11px] font-semibold text-[#50635b]">{movement.id}</td><td className="py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${movement.tone === 'success' ? 'bg-[#e6f4ef] text-[#19725f]' : movement.tone === 'warning' ? 'bg-[#fff4dd] text-[#9b6b1f]' : 'bg-[#e8f1f8] text-[#32729a]'}`}>{movement.type}</span></td><td className="py-3 text-xs text-[#53655e]">{movement.detail}</td><td className={`py-3 text-xs font-bold ${movement.amount.startsWith('+') ? 'text-[#19725f]' : 'text-[#ad5e46]'}`}>{movement.amount}</td><td className="py-3 text-[10px] text-[#a0ada7]">{movement.time}</td></tr>)}</tbody></table></div></section>
+            <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"><div className="mb-5 flex items-center justify-between"><div><h3 className="font-bold">آخر حركات المخزون</h3><p className="mt-1 text-xs text-[#899892]">كل العمليات المسجلة في المستودعات</p></div><button onClick={() => setActiveNav('سجل العمليات')} className="text-xs font-semibold text-[#1d7f72] hover:underline">عرض الكل</button></div><div className="overflow-x-auto"><table className="w-full min-w-[570px] text-right"><thead><tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]"><th className="pb-3 font-medium">رقم الحركة</th><th className="pb-3 font-medium">نوع العملية</th><th className="pb-3 font-medium">التفاصيل</th><th className="pb-3 font-medium">الكمية</th><th className="pb-3 font-medium">الوقت</th></tr></thead><tbody>{visibleMovements.map((movement) => <tr key={movement.id} className="border-b border-[#f0f4f2] last:border-0"><td className="py-3 text-[11px] font-semibold text-[#50635b]">{movement.id}</td><td className="py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${movement.tone === 'success' ? 'bg-[#e6f4ef] text-[#19725f]' : movement.tone === 'warning' ? 'bg-[#fff4dd] text-[#9b6b1f]' : 'bg-[#e8f1f8] text-[#32729a]'}`}>{movement.type}</span></td><td className="py-3 text-xs text-[#53655e]">{movement.detail}</td><td className={`py-3 text-xs font-bold ${movement.amount.startsWith('+') ? 'text-[#19725f]' : 'text-[#ad5e46]'}`}>{movement.amount}</td><td className="py-3 text-[10px] text-[#a0ada7]">{formatRelativeTimeAr(movement.createdAt)}</td></tr>)}</tbody></table></div></section>
             <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"><div className="mb-5 flex items-center justify-between"><div><h3 className="font-bold">تنبيهات تحتاج انتباهك</h3><p className="mt-1 text-xs text-[#899892]">معلومات مهمة من عمليات اليوم</p></div><button className="grid size-8 place-items-center rounded-lg bg-[#f5f8f6] text-[#75857f]"><Bell size={15} /></button></div><div className="flex flex-col gap-3"><AlertItem icon={AlertTriangle} title="مخزون منخفض" text="مادة كسب الصويا وصلت إلى الحد الأدنى" tone="red" /><AlertItem icon={ClipboardCheck} title="أمر إنتاج مكتمل" text="PR-1048 جاهز للمراجعة والإغلاق" tone="teal" /><AlertItem icon={Clock3} title="موافقة مطلوبة" text="ساعات إضافية لـ ٣ موظفين" tone="gold" /></div><button className="mt-5 w-full rounded-xl border border-[#dfe7e3] py-2.5 text-xs font-semibold text-[#53655e] hover:bg-[#f8faf9]">عرض كل التنبيهات</button></section>
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-4"><MiniStat label="المواد الخام" value="٢٤" suffix="صنف" icon={Boxes} /><MiniStat label="المنتجات الجاهزة" value="١٢" suffix="منتج" icon={PackageCheck} /><MiniStat label="حضور اليوم" value="٩٢٪" suffix="من ٤٨ موظف" icon={Users} /><MiniStat label="المهام المتأخرة" value="٠٧" suffix="مهمة" icon={ClipboardCheck} /></div>
-          </> : activeModule ? <ModuleView module={activeModule} search={moduleSearch} onSearchChange={setModuleSearch} onCreate={() => setIsCreateOpen(true)} /> : null}
+          </> : activeNav === 'سجل العمليات' ? <AuditLogView movements={auditMovements} search={moduleSearch} onSearchChange={setModuleSearch} onExport={() => handleExportAuditLog(auditMovements)} /> : activeModule ? <ModuleView module={activeModule} search={moduleSearch} onSearchChange={setModuleSearch} onCreate={() => setIsCreateOpen(true)} onExport={() => handleExportModule(activeModule.title, activeModule.rows)} /> : null}
           {isCreateOpen && <CreateRecordDialog moduleTitle={activeModule?.title ?? activeNav} onClose={() => setIsCreateOpen(false)} onSaved={handleRecordSaved} />}
           {toast && <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">{toast}<button className="mr-3 text-white/60 hover:text-white" onClick={() => setToast('')}>×</button></div>}
         </div>
@@ -203,28 +219,135 @@ export default function Page() {
   )
 }
 
-function ModuleView({ module, search, onSearchChange, onCreate }: { module: { title: string; description: string; stats: string[]; rows: string[][] }; search: string; onSearchChange: (value: string) => void; onCreate: () => void }) {
+function ModuleView({ module, search, onSearchChange, onCreate, onExport }: { module: { title: string; description: string; stats: string[]; rows: ModuleRow[] }; search: string; onSearchChange: (value: string) => void; onCreate: () => void; onExport: () => void }) {
   const [status, setStatus] = useState('كل الحالات')
   const filteredRows = module.rows.filter((row) => {
-    const matchesSearch = row.join(' ').includes(search.trim())
-    const matchesStatus = status === 'كل الحالات' || row[3] === status
+    const matchesSearch = `${row.ref} ${row.detail} ${row.value} ${row.status} ${row.notes ?? ''}`.includes(search.trim())
+    const matchesStatus = status === 'كل الحالات' || row.status === status
     return matchesSearch && matchesStatus
   })
 
   return <div>
-    <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">{module.title}</span></div><h2 className="text-2xl font-bold tracking-tight">{module.title}</h2><p className="mt-1 text-sm text-[#788983]">{module.description}</p></div><div className="flex gap-2"><button className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#53655e]">تصدير Excel</button><button onClick={onCreate} className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1d594d]"><Plus size={15} />إضافة جديد</button></div></div>
+    <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">{module.title}</span></div><h2 className="text-2xl font-bold tracking-tight">{module.title}</h2><p className="mt-1 text-sm text-[#788983]">{module.description}</p></div><div className="flex gap-2"><button onClick={onExport} className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#53655e] hover:bg-[#f8faf9]">تصدير Excel</button><button onClick={onCreate} className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1d594d]"><Plus size={15} />إضافة جديد</button></div></div>
     <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">{module.stats.map((stat) => <div key={stat} className="rounded-2xl border border-[#e1e9e5] bg-white p-4 text-sm font-bold text-[#30453d] shadow-[0_4px_22px_rgba(31,65,53,0.04)]">{stat}</div>)}</div>
-    <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold">السجل التشغيلي</h3><p className="mt-1 text-xs text-[#899892]">بيانات قابلة للبحث والتصفية والتدقيق</p></div><div className="flex gap-2"><input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="بحث..." aria-label="بحث في السجل" className="h-9 rounded-lg border border-[#dfe7e3] px-3 text-xs outline-none focus:border-[#1d7f72]" /><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="تصفية حسب الحالة" className="rounded-lg border border-[#dfe7e3] bg-white px-3 text-xs text-[#53655e]"><option>كل الحالات</option><option>نشط</option><option>مكتمل</option><option>متأخر</option><option>جديد</option><option>معتمد</option></select></div></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-right"><thead><tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]"><th className="pb-3 font-medium">المرجع</th><th className="pb-3 font-medium">التفاصيل</th><th className="pb-3 font-medium">القيمة / الحالة</th><th className="pb-3 font-medium">الحالة</th></tr></thead><tbody>{filteredRows.length > 0 ? filteredRows.map((row) => <tr key={row[0]} className="border-b border-[#f0f4f2] last:border-0"><td className="py-4 text-xs font-semibold text-[#50635b]">{row[0]}</td><td className="py-4 text-xs text-[#53655e]">{row[1]}</td><td className="py-4 text-xs text-[#53655e]">{row[2]}</td><td className="py-4"><span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">{row[3]}</span></td></tr>) : <tr><td colSpan={4} className="py-12 text-center text-xs text-[#899892]">لا توجد سجلات مطابقة للبحث أو الحالة المحددة.</td></tr>}</tbody></table></div></section>
+    <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-bold">السجل التشغيلي</h3>
+          <p className="mt-1 text-xs text-[#899892]">بيانات قابلة للبحث والتصفية والتدقيق</p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="بحث..."
+            aria-label="بحث في السجل"
+            className="h-9 rounded-lg border border-[#dfe7e3] px-3 text-xs outline-none focus:border-[#1d7f72]"
+          />
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            aria-label="تصفية حسب الحالة"
+            className="rounded-lg border border-[#dfe7e3] bg-white px-3 text-xs text-[#53655e]"
+          >
+            <option>كل الحالات</option>
+            <option>نشط</option>
+            <option>مكتمل</option>
+            <option>متأخر</option>
+            <option>جديد</option>
+            <option>معتمد</option>
+          </select>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px] text-right">
+          <thead>
+            <tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]">
+              <th className="pb-3 font-medium">المرجع</th>
+              <th className="pb-3 font-medium">التفاصيل</th>
+              <th className="pb-3 font-medium">القيمة / الحالة</th>
+              <th className="pb-3 font-medium">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.length > 0 ? (
+              filteredRows.map((row) => (
+                <tr key={row.ref} className="border-b border-[#f0f4f2] last:border-0">
+                  <td className="py-4 text-xs font-semibold text-[#50635b]">{row.ref}</td>
+                  <td className="py-4 text-xs text-[#53655e]">{row.detail}</td>
+                  <td className="py-4 text-xs text-[#53655e]">{row.value}</td>
+                  <td className="py-4">
+                    <span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">{row.status}</span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="py-12 text-center text-xs text-[#899892]">
+                  لا توجد سجلات مطابقة للبحث أو الحالة المحددة.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 }
 
-function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: (row: string[]) => void }) {
+function AuditLogView({ movements, search, onSearchChange, onExport }: { movements: Movement[]; search: string; onSearchChange: (value: string) => void; onExport: () => void }) {
+  const filtered = movements.filter((movement) => `${movement.id} ${movement.type} ${movement.detail} ${movement.amount}`.includes(search.trim()))
+
+  return <div>
+    <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-2 flex items-center gap-2 text-xs text-[#7c8c86]"><span>الرئيسية</span><span>/</span><span className="text-[#1d7f72]">سجل العمليات</span></div><h2 className="text-2xl font-bold tracking-tight">سجل العمليات والتدقيق</h2><p className="mt-1 text-sm text-[#788983]">كل العمليات المسجلة (بما في ذلك السجلات التي تضيفها في الـ MVP).</p></div><div className="flex gap-2"><button onClick={onExport} className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-xs font-semibold text-[#53655e] hover:bg-[#f8faf9]">تصدير Excel</button></div></div>
+    <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-bold">سجل العمليات</h3>
+          <p className="mt-1 text-xs text-[#899892]">بحث وعرض زمني للعمليات</p>
+        </div>
+        <div className="flex gap-2">
+          <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="بحث..." aria-label="بحث في سجل العمليات" className="h-9 rounded-lg border border-[#dfe7e3] px-3 text-xs outline-none focus:border-[#1d7f72]" />
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-right">
+          <thead>
+            <tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]">
+              <th className="pb-3 font-medium">رقم الحركة</th>
+              <th className="pb-3 font-medium">نوع العملية</th>
+              <th className="pb-3 font-medium">التفاصيل</th>
+              <th className="pb-3 font-medium">الكمية</th>
+              <th className="pb-3 font-medium">الوقت</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length > 0 ? filtered.map((movement) => (
+              <tr key={movement.id} className="border-b border-[#f0f4f2] last:border-0">
+                <td className="py-3 text-[11px] font-semibold text-[#50635b]">{movement.id}</td>
+                <td className="py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${movement.tone === 'success' ? 'bg-[#e6f4ef] text-[#19725f]' : movement.tone === 'warning' ? 'bg-[#fff4dd] text-[#9b6b1f]' : 'bg-[#e8f1f8] text-[#32729a]'}`}>{movement.type}</span></td>
+                <td className="py-3 text-xs text-[#53655e]">{movement.detail}</td>
+                <td className={`py-3 text-xs font-bold ${movement.amount.startsWith('+') ? 'text-[#19725f]' : movement.amount.startsWith('-') ? 'text-[#ad5e46]' : 'text-[#53655e]'}`}>{movement.amount}</td>
+                <td className="py-3 text-[10px] text-[#a0ada7]">{formatRelativeTimeAr(movement.createdAt)}</td>
+              </tr>
+            )) : (
+              <tr><td colSpan={5} className="py-12 text-center text-xs text-[#899892]">لا توجد عمليات مطابقة للبحث.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+}
+
+function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: (row: ModuleRow) => void }) {
   const isProduction = moduleTitle.includes('تصنيع')
   const isSales = moduleTitle.includes('مبيعات')
   const isMaterial = moduleTitle.includes('مواد خام')
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [notes, setNotes] = useState('')
+  const [status, setStatus] = useState('جديد')
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-[#123c35]/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="create-record-title">
     <div className="w-full max-w-lg rounded-2xl border border-[#dfe7e3] bg-white p-6 shadow-2xl">
@@ -232,9 +355,40 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
       <div className="flex flex-col gap-4">
         <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">{isProduction ? 'المنتج والوصفة' : isSales ? 'العميل / الجهة' : isMaterial ? 'اسم المادة الخام' : 'الاسم أو المرجع'}<input value={name} onChange={(event) => setName(event.target.value)} autoFocus placeholder={isProduction ? 'مثال: علف تسمين مواشي' : 'اكتب القيمة'} className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
         {(isProduction || isSales || isMaterial) && <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">الكمية <input value={quantity} onChange={(event) => setQuantity(event.target.value)} type="number" min="0" placeholder="0" className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>}
+        <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">الحالة
+          <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-xl border border-[#dfe7e3] bg-white px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10">
+            <option>جديد</option>
+            <option>قيد التنفيذ</option>
+            <option>مكتمل</option>
+            <option>متأخر</option>
+            <option>معتمد</option>
+            <option>نشط</option>
+          </select>
+        </label>
         <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">ملاحظات <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="سبب العملية أو تفاصيل إضافية" className="resize-none rounded-xl border border-[#dfe7e3] px-3 py-2 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
       </div>
-      <div className="mt-6 flex justify-start gap-2"><button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button><button onClick={() => onSaved([`${moduleTitle.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`, name.trim(), quantity.trim() || '—', 'جديد'])} disabled={!name.trim()} className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">حفظ وتسجيل الحركة</button></div>
+      <div className="mt-6 flex justify-start gap-2">
+        <button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button>
+        <button
+          onClick={() => {
+            const unit = isProduction || isSales || isMaterial ? 'كجم' : ''
+            const value = quantity.trim() ? `${quantity.trim()}${unit ? ` ${unit}` : ''}` : '—'
+            onSaved(
+              createModuleRow({
+                moduleTitle,
+                detail: name.trim(),
+                value,
+                status,
+                notes: notes.trim() || undefined,
+              }),
+            )
+          }}
+          disabled={!name.trim()}
+          className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          حفظ وتسجيل الحركة
+        </button>
+      </div>
     </div>
   </div>
 }
