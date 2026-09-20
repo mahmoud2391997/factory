@@ -15,6 +15,7 @@ export type ModuleRow = {
   value: string
   status: string
   notes?: string
+  data?: Record<string, unknown>
   createdAt: number
 }
 
@@ -257,6 +258,7 @@ export function createModuleRow(params: {
   value: string
   status: string
   notes?: string
+  data?: Record<string, unknown>
   createdAt?: number
 }): ModuleRow {
   const createdAt = params.createdAt ?? Date.now()
@@ -267,6 +269,7 @@ export function createModuleRow(params: {
     value: params.value,
     status: params.status,
     notes: params.notes,
+    data: params.data,
     createdAt,
   }
 }
