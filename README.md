@@ -70,8 +70,10 @@ curl -X POST http://localhost:3000/api/setup/bootstrap \
 
 | Variable | مثال |
 |----------|------|
-| `DATABASE_URL` | `postgresql://USER:PASS@HOST/DB?sslmode=require` |
+| `DATABASE_URL` أو `POSTGRES_PRISMA_URL` / `POSTGRES_URL` | رابط Postgres (Vercel Storage أو Neon) |
 | `JWT_SECRET` | سلسلة عشوائية طويلة |
 | `SETUP_TOKEN` | توكن سري للتهيئة الأولى |
+
+أسهل طريقة: من مشروع Vercel → **Storage** → أنشئ/اربط **Postgres** → اربطه بالمشروع → Redeploy.
 
 ثم أعد Deploy. بعد نجاح الاتصال نفّذ bootstrap مرة واحدة (بالـ SETUP_TOKEN) لإنشاء أول مستخدم.

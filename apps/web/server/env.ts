@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 
+import { ensureDatabaseUrlEnv, resolveDatabaseUrl } from '@erp/database/env'
+
 export function getDatabaseUrl() {
-  const value = process.env.DATABASE_URL?.trim() ?? ''
-  return value.length > 0 ? value : null
+  return ensureDatabaseUrlEnv() ?? resolveDatabaseUrl()
 }
 
 export function getJwtSecretRaw() {
@@ -15,7 +16,8 @@ export function assertAuthEnv() {
     return {
       ok: false as const,
       status: 503,
-      message: 'إعداد قاعدة البيانات ناقص: عيّن DATABASE_URL في بيئة التشغيل (Vercel Environment Variables)',
+      message:
+        'إعداد قاعدة البيانات ناقص: عيّن DATABASE_URL (أو POSTGRES_PRISMA_URL / POSTGRES_URL من Vercel Postgres) في Environment Variables ثم أعد النشر',
       code: 'DATABASE_URL_MISSING',
     }
   }
@@ -55,7 +57,7 @@ export function toApiError(error: unknown) {
       status: 503,
       body: {
         success: false as const,
-        message: 'تعذر الاتصال بقاعدة البيانات. تحقق من DATABASE_URL وأن قاعدة Postgres متاحة.',
+        message: 'تعذر الاتصال بقاعدة البيانات. تحقق من DATABASE_URL / POSTGRES_URL وأن Postgres متاح.',
         code: 'DATABASE_UNAVAILABLE',
       },
     }
