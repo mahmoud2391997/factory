@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
-import { ensureDatabaseUrlEnv, resolveDatabaseUrl } from '@erp/database/env'
+import { DEMO_JWT_SECRET, isDemoMode } from '@/server/demo'
+import { ensureDatabaseUrlEnv, resolveDatabaseUrl } from '@/server/db-url'
 
 export function getDatabaseUrl() {
   return ensureDatabaseUrlEnv() ?? resolveDatabaseUrl()
@@ -8,18 +9,15 @@ export function getDatabaseUrl() {
 
 export function getJwtSecretRaw() {
   const value = process.env.JWT_SECRET?.trim() ?? ''
-  return value.length > 0 ? value : null
+  if (value.length > 0) return value
+  // Default so auth cookies work even before Vercel env is configured.
+  return DEMO_JWT_SECRET
 }
 
 export function assertAuthEnv() {
-  if (!getDatabaseUrl()) {
-    return {
-      ok: false as const,
-      status: 503,
-      message:
-        'إعداد قاعدة البيانات ناقص: عيّن DATABASE_URL (أو POSTGRES_PRISMA_URL / POSTGRES_URL من Vercel Postgres) في Environment Variables ثم أعد النشر',
-      code: 'DATABASE_URL_MISSING',
-    }
+  // Demo mode: no Postgres URL — still allow JWT-based demo login.
+  if (isDemoMode()) {
+    return { ok: true as const, demo: true as const }
   }
   if (!getJwtSecretRaw()) {
     return {
@@ -29,7 +27,7 @@ export function assertAuthEnv() {
       code: 'JWT_SECRET_MISSING',
     }
   }
-  return { ok: true as const }
+  return { ok: true as const, demo: false as const }
 }
 
 export function toApiError(error: unknown) {

@@ -2,12 +2,13 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, CheckCircle2, Factory, Loader2, Lock, Mail, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Factory, Info, Loader2, Lock, Mail, XCircle } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
 
 type HealthData = {
   status: string
+  demoMode?: boolean
   databaseConfigured: boolean
   databaseEnvKey: string | null
   jwtConfigured: boolean
@@ -15,6 +16,7 @@ type HealthData = {
   bootstrapped: boolean
   userCount: number | null
   databaseError: string | null
+  demoCredentials?: { email: string; password: string } | null
 }
 
 type HealthResponse = {
@@ -60,7 +62,13 @@ export default function LoginPage() {
       try {
         const res = await fetch('/api/health', { credentials: 'include' })
         const json = (await res.json()) as HealthResponse
-        if (!cancelled) setHealth(json.data ?? null)
+        if (!cancelled) {
+          setHealth(json.data ?? null)
+          if (json.data?.demoMode && json.data.demoCredentials) {
+            setEmail(json.data.demoCredentials.email)
+            setPassword(json.data.demoCredentials.password)
+          }
+        }
       } catch {
         if (!cancelled) setHealth(null)
       } finally {
@@ -96,7 +104,11 @@ export default function LoginPage() {
     )
   }
 
-  const setupBlocked = health ? !health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable : false
+  const demoMode = Boolean(health?.demoMode)
+  const setupBlocked =
+    !demoMode && health
+      ? !health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable
+      : false
 
   return (
     <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#0f2f2a] text-white">
@@ -116,11 +128,26 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {!healthLoading && demoMode ? (
+            <div className="mb-5 rounded-2xl border border-[#d6ad61]/40 bg-[#fff9ec] p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs font-bold text-[#9b6b1f]">
+                <Info size={15} />
+                وضع تجريبي نشط (بدون قاعدة بيانات)
+              </div>
+              <p className="text-[11px] leading-5 text-[#53655e]">
+                اضغط «دخول النظام» مباشرة. الحساب الافتراضي:
+                <br />
+                <span className="font-semibold text-[#123c35]">admin@factory.local</span> /{' '}
+                <span className="font-semibold text-[#123c35]">Admin123!</span>
+              </p>
+            </div>
+          ) : null}
+
           {!healthLoading && health && setupBlocked ? (
             <div className="mb-5 rounded-2xl border border-[#f0d0c8] bg-[#fff8f5] p-4">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#ad5e46]">
                 <AlertTriangle size={15} />
-                إعداد السيرفر غير مكتمل — الدخول لن يعمل قبل هذه الخطوات
+                إعداد السيرفر غير مكتمل
               </div>
               <div className="space-y-2">
                 <StatusRow
@@ -129,39 +156,16 @@ export default function LoginPage() {
                   detail={
                     health.databaseConfigured
                       ? `موجود: ${health.databaseEnvKey}`
-                      : 'أضف DATABASE_URL أو اربط Vercel Postgres (يعطي POSTGRES_URL)'
+                      : 'أضف DATABASE_URL أو اربط Vercel Postgres'
                   }
                 />
-                <StatusRow
-                  ok={health.jwtConfigured}
-                  label="JWT_SECRET"
-                  detail={health.jwtConfigured ? 'موجود' : 'أضفه من Vercel → Settings → Environment Variables'}
-                />
+                <StatusRow ok={health.jwtConfigured} label="JWT_SECRET" detail={health.jwtConfigured ? 'موجود' : 'ناقص'} />
                 <StatusRow
                   ok={health.databaseReachable}
                   label="الاتصال بقاعدة البيانات"
-                  detail={
-                    health.databaseReachable
-                      ? 'متصل'
-                      : health.databaseError ?? 'تحقق من الرابط أو نفّذ Redeploy بعد إضافة المتغيرات'
-                  }
-                />
-                <StatusRow
-                  ok={health.bootstrapped}
-                  label="تهيئة أول مستخدم (bootstrap)"
-                  detail={
-                    health.bootstrapped
-                      ? `موجود (${health.userCount} مستخدم)`
-                      : 'بعد تجهيز الـ DB نفّذ bootstrap مرة واحدة (انظر README)'
-                  }
+                  detail={health.databaseReachable ? 'متصل' : health.databaseError ?? 'غير متصل'}
                 />
               </div>
-              <ol className="mt-3 list-decimal space-y-1 pr-4 text-[11px] leading-5 text-[#53655e]">
-                <li>Vercel → مشروعك → Storage → Postgres → Create / Connect</li>
-                <li>أو Environment Variables → أضف DATABASE_URL + JWT_SECRET + SETUP_TOKEN</li>
-                <li>Redeploy للمشروع</li>
-                <li>حدّث هذه الصفحة وتأكد أن العلامات خضراء</li>
-              </ol>
             </div>
           ) : null}
 
@@ -215,7 +219,9 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-5 text-center text-[11px] leading-5 text-[#899892]">
-            الجلسة محمية بصلاحيات الأدوار. بعد الدخول تظهر فقط الشاشات المسموح بها لحسابك.
+            {demoMode
+              ? 'البيانات التجريبية محلية في المتصفح حتى تربط Postgres على Vercel.'
+              : 'الجلسة محمية بصلاحيات الأدوار. بعد الدخول تظهر فقط الشاشات المسموح بها لحسابك.'}
           </p>
         </div>
       </div>
