@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "pnpm -C apps/web dev",
     "dev:web": "pnpm -C apps/web dev",
-    "build": "pnpm -C packages/database prisma migrate deploy --schema prisma/schema.prisma && pnpm -C packages/database prisma generate --schema prisma/schema.prisma && pnpm -C apps/web build",
+    "build": "bash scripts/vercel-build.sh",
     "build:web": "pnpm -C apps/web build",
-    "vercel-build": "pnpm -C packages/database prisma migrate deploy --schema prisma/schema.prisma && pnpm -C packages/database prisma generate --schema prisma/schema.prisma && pnpm -C apps/web build",
+    "vercel-build": "bash scripts/vercel-build.sh",
     "start": "pnpm -C apps/web start",
     "start:web": "pnpm -C apps/web start",
     "db:studio": "pnpm -C packages/database prisma studio",
