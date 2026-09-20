@@ -21,3 +21,4 @@ packages/database/generated
 
 # Logs
 *.log
+.env
