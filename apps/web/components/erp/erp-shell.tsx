@@ -283,14 +283,18 @@ export function ErpShell() {
                       isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
                     }`}
                   >
-                    <div className="min-h-0 overflow-hidden">
-                      <div className="mb-2 mr-3 mt-1 space-y-1 border-r border-white/15 pr-2">
+                    <div className="min-h-0 overflow-hidden" {...(!isExpanded ? { inert: true } : {})}>
+                      <div
+                        className="mb-2 mr-3 mt-1 space-y-1 border-r border-white/15 pr-2"
+                        aria-hidden={!isExpanded}
+                      >
                         {subs.map((sub) => {
                           const isActiveSub = isActiveMain && activeSubId === sub.id
                           return (
                             <button
                               key={sub.id}
                               type="button"
+                              tabIndex={isExpanded ? 0 : -1}
                               onClick={() => selectNav(main.id, sub.id)}
                               className={`block w-full rounded-lg px-3.5 py-3 text-right text-[15px] transition ${
                                 isActiveSub
