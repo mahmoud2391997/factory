@@ -1,39 +1,45 @@
-# factory
+# ERP — مصنع أعلاف (عُمان)
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+نظام ERP مخصص لمصنع أعلاف في سلطنة عمان، مبني كتطبيق ويب حديث (Next.js + NestJS + PostgreSQL + Prisma) مع واجهة عربية/RTL وتتبع كامل للحركات.
 
-## Built with v0
+## بنية المشروع (Monorepo)
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+```
+apps/
+  web/          # Next.js (واجهة ERP)
+  api/          # NestJS (REST API)
+packages/
+  database/     # Prisma schema + migrations + seed + generated client
+  shared/       # Types/Zod مشتركة
+docs/           # تصميم معماري + نموذج بيانات + تدفقات
+```
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_0xMF45flCUb7ncKfPwIIMHD8WpY0)
+## التشغيل (Development)
 
-## Getting Started
-
-First, run the development server:
+### 1) تثبيت الاعتمادات
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+```
+
+### 2) تشغيل الواجهة (Web)
+
+```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+افتح `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3) تشغيل الـ API
 
-## MVP behavior (what works now)
+```bash
+pnpm dev:api
+```
 
-- **Persisted records**: adding a new record in any module is persisted in the browser via `localStorage` (so it survives refresh).
-- **Audit log**: every created record also appends an entry to **سجل العمليات**.
-- **Export**: the **تصدير Excel** button exports a `.csv` file (Excel-compatible) for modules and for the audit log.
+## وثائق التصميم
 
-## Learn More
+- `docs/implementation-plan.md`
+- `docs/data-model.md`
+- `docs/workflows.md`
+- `docs/rbac.md`
 
-To learn more, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
