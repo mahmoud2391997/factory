@@ -52,6 +52,7 @@ import {
 } from '@/lib/factory'
 import { downloadCsv } from '@/lib/csv'
 import { useLocalStorageState } from '@/lib/storage'
+import { getModuleFormDefinition, toModuleRowValue } from '@/lib/module-schema'
 
 const navItems = [
   { label: 'لوحة التحكم', icon: LayoutDashboard, active: true },
@@ -221,6 +222,14 @@ export default function Page() {
 
 function ModuleView({ module, search, onSearchChange, onCreate, onExport }: { module: { title: string; description: string; stats: string[]; rows: ModuleRow[] }; search: string; onSearchChange: (value: string) => void; onCreate: () => void; onExport: () => void }) {
   const [status, setStatus] = useState('كل الحالات')
+  const statusOptions = useMemo(() => {
+    const statusField = getModuleFormDefinition(module.title).fields.find((field) => field.key === 'status')
+    const suggested = statusField?.datalist ?? []
+    const fromRows = Array.from(new Set(module.rows.map((row) => row.status))).filter(Boolean)
+    const all = Array.from(new Set([...fromRows, ...suggested]))
+    return ['كل الحالات', ...all]
+  }, [module.rows, module.title])
+
   const filteredRows = module.rows.filter((row) => {
     const matchesSearch = `${row.ref} ${row.detail} ${row.value} ${row.status} ${row.notes ?? ''}`.includes(search.trim())
     const matchesStatus = status === 'كل الحالات' || row.status === status
@@ -250,12 +259,11 @@ function ModuleView({ module, search, onSearchChange, onCreate, onExport }: { mo
             aria-label="تصفية حسب الحالة"
             className="rounded-lg border border-[#dfe7e3] bg-white px-3 text-xs text-[#53655e]"
           >
-            <option>كل الحالات</option>
-            <option>نشط</option>
-            <option>مكتمل</option>
-            <option>متأخر</option>
-            <option>جديد</option>
-            <option>معتمد</option>
+            {statusOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -341,49 +349,145 @@ function AuditLogView({ movements, search, onSearchChange, onExport }: { movemen
 }
 
 function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: (row: ModuleRow) => void }) {
-  const isProduction = moduleTitle.includes('تصنيع')
-  const isSales = moduleTitle.includes('مبيعات')
-  const isMaterial = moduleTitle.includes('مواد خام')
-  const [name, setName] = useState('')
-  const [quantity, setQuantity] = useState('')
-  const [notes, setNotes] = useState('')
-  const [status, setStatus] = useState('جديد')
+  const definition = useMemo(() => getModuleFormDefinition(moduleTitle), [moduleTitle])
+  const quantityUnit = definition.fields.find((field) => field.key === 'quantity')?.unit
+
+  const defaultStatus = definition.fields.find((field) => field.key === 'status')?.defaultValue ?? 'جديد'
+  const [form, setForm] = useState<{ detail: string; quantity: string; status: string; notes: string }>({
+    detail: '',
+    quantity: '',
+    status: defaultStatus,
+    notes: '',
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const datalistId = useMemo(() => `module-status-${moduleTitle.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]/g, '')}`, [moduleTitle])
+  const statusField = definition.fields.find((field) => field.key === 'status')
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-[#123c35]/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="create-record-title">
     <div className="w-full max-w-lg rounded-2xl border border-[#dfe7e3] bg-white p-6 shadow-2xl">
       <div className="mb-5 flex items-start justify-between gap-4"><div><div className="mb-1 text-[10px] font-semibold text-[#1d7f72]">سجل تشغيلي جديد</div><h2 id="create-record-title" className="text-lg font-bold">إضافة إلى {moduleTitle}</h2><p className="mt-1 text-xs text-[#899892]">سيتم تسجيل العملية مع المستخدم والوقت في سجل التدقيق.</p></div><button aria-label="إغلاق" onClick={onClose} className="text-xl text-[#899892] hover:text-[#123c35]">×</button></div>
       <div className="flex flex-col gap-4">
-        <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">{isProduction ? 'المنتج والوصفة' : isSales ? 'العميل / الجهة' : isMaterial ? 'اسم المادة الخام' : 'الاسم أو المرجع'}<input value={name} onChange={(event) => setName(event.target.value)} autoFocus placeholder={isProduction ? 'مثال: علف تسمين مواشي' : 'اكتب القيمة'} className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
-        {(isProduction || isSales || isMaterial) && <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">الكمية <input value={quantity} onChange={(event) => setQuantity(event.target.value)} type="number" min="0" placeholder="0" className="h-11 rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>}
-        <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">الحالة
-          <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-xl border border-[#dfe7e3] bg-white px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10">
-            <option>جديد</option>
-            <option>قيد التنفيذ</option>
-            <option>مكتمل</option>
-            <option>متأخر</option>
-            <option>معتمد</option>
-            <option>نشط</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">ملاحظات <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="سبب العملية أو تفاصيل إضافية" className="resize-none rounded-xl border border-[#dfe7e3] px-3 py-2 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10" /></label>
+        {definition.fields.map((field) => {
+          const error = errors[field.key]
+          const common = 'rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10'
+
+          if (field.type === 'textarea') {
+            return (
+              <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+                {field.label}
+                <textarea
+                  value={field.key === 'notes' ? form.notes : ''}
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, notes: event.target.value }))
+                    setErrors((current) => ({ ...current, [field.key]: '' }))
+                  }}
+                  rows={3}
+                  placeholder={field.placeholder}
+                  className={`resize-none ${common} py-2 ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+                />
+                {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+              </label>
+            )
+          }
+
+          if (field.key === 'status') {
+            return (
+              <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+                {field.label}
+                <input
+                  list={statusField?.datalist?.length ? datalistId : undefined}
+                  value={form.status}
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, status: event.target.value }))
+                    setErrors((current) => ({ ...current, [field.key]: '' }))
+                  }}
+                  className={`h-11 ${common} ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+                />
+                {statusField?.datalist?.length ? (
+                  <datalist id={datalistId}>
+                    {statusField.datalist.map((item) => (
+                      <option key={item} value={item} />
+                    ))}
+                  </datalist>
+                ) : null}
+                {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+              </label>
+            )
+          }
+
+          if (field.type === 'number' || field.key === 'quantity') {
+            return (
+              <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+                {field.label}
+                <input
+                  value={form.quantity}
+                  onChange={(event) => {
+                    setForm((current) => ({ ...current, quantity: event.target.value }))
+                    setErrors((current) => ({ ...current, [field.key]: '' }))
+                  }}
+                  type="number"
+                  min={field.min}
+                  placeholder={field.placeholder}
+                  className={`h-11 ${common} ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+                />
+                {quantityUnit && <span className="text-[10px] font-medium text-[#899892]">{quantityUnit}</span>}
+                {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+              </label>
+            )
+          }
+
+          return (
+            <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+              {field.label}
+              <input
+                value={form.detail}
+                onChange={(event) => {
+                  setForm((current) => ({ ...current, detail: event.target.value }))
+                  setErrors((current) => ({ ...current, [field.key]: '' }))
+                }}
+                autoFocus={field.key === 'detail'}
+                placeholder={field.placeholder}
+                className={`h-11 ${common} ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+              />
+              {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+            </label>
+          )
+        })}
       </div>
       <div className="mt-6 flex justify-start gap-2">
         <button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button>
         <button
           onClick={() => {
-            const unit = isProduction || isSales || isMaterial ? 'كجم' : ''
-            const value = quantity.trim() ? `${quantity.trim()}${unit ? ` ${unit}` : ''}` : '—'
+            const parsed = definition.schema.safeParse({
+              detail: form.detail,
+              status: form.status,
+              notes: form.notes,
+              quantity: form.quantity.trim() ? form.quantity : undefined,
+            })
+
+            if (!parsed.success) {
+              const nextErrors: Record<string, string> = {}
+              for (const issue of parsed.error.issues) {
+                const key = issue.path[0]
+                if (typeof key === 'string' && !nextErrors[key]) nextErrors[key] = issue.message
+              }
+              setErrors(nextErrors)
+              return
+            }
+
             onSaved(
               createModuleRow({
                 moduleTitle,
-                detail: name.trim(),
-                value,
-                status,
-                notes: notes.trim() || undefined,
+                detail: parsed.data.detail,
+                value: toModuleRowValue(parsed.data, quantityUnit),
+                status: parsed.data.status,
+                notes: parsed.data.notes?.trim() ? parsed.data.notes.trim() : undefined,
+                data: parsed.data,
               }),
             )
           }}
-          disabled={!name.trim()}
+          disabled={!form.detail.trim()}
           className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           حفظ وتسجيل الحركة
