@@ -80,28 +80,28 @@ export function EntityPage({
     <div>
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm text-[#7c8c86]">
+          <div className="mb-2 flex items-center gap-2 text-base text-[#7c8c86]">
             <span>{mainLabel}</span>
             <span>/</span>
             <span className="text-[#1d7f72]">{schema.title}</span>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight">{schema.title}</h2>
-          <p className="mt-1.5 text-base text-[#788983]">{schema.description}</p>
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{schema.title}</h2>
+          <p className="mt-2 text-lg text-[#788983]">{schema.description}</p>
         </div>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={exportCsv}
-            className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-2.5 text-sm font-semibold text-[#53655e] hover:bg-[#f8faf9]"
+            className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-3 text-base font-semibold text-[#53655e] hover:bg-[#f8faf9]"
           >
             تصدير Excel
           </button>
           <button
             type="button"
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1d594d]"
+            className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-3 text-base font-bold text-white hover:bg-[#1d594d]"
           >
-            <Plus size={16} />
+            <Plus size={18} />
             إضافة جديد
           </button>
         </div>
@@ -110,16 +110,16 @@ export function EntityPage({
       <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-bold">السجلات</h3>
-            <p className="mt-1 text-sm text-[#899892]">{filtered.length} سجل — الحقول مطابقة لنموذج البيانات</p>
+            <h3 className="text-xl font-bold">السجلات</h3>
+            <p className="mt-1 text-base text-[#899892]">{filtered.length} سجل — الحقول مطابقة لنموذج البيانات</p>
           </div>
           <div className="relative">
-            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa9a3]" />
+            <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa9a3]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="بحث..."
-              className="h-10 rounded-lg border border-[#dfe7e3] pr-10 pl-3 text-sm outline-none focus:border-[#1d7f72]"
+              className="h-11 rounded-lg border border-[#dfe7e3] pr-10 pl-3 text-base outline-none focus:border-[#1d7f72]"
             />
           </div>
         </div>
@@ -127,7 +127,7 @@ export function EntityPage({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-right">
             <thead>
-              <tr className="border-b border-[#edf2ef] text-sm text-[#97a49f]">
+              <tr className="border-b border-[#edf2ef] text-base text-[#97a49f]">
                 <th className="pb-3 font-medium">المعرّف</th>
                 {columns.map((col) => (
                   <th key={col.key} className="pb-3 font-medium">
@@ -140,16 +140,16 @@ export function EntityPage({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 2} className="py-10 text-center text-base text-[#899892]">
+                  <td colSpan={columns.length + 2} className="py-10 text-center text-lg text-[#899892]">
                     لا توجد سجلات — أضف أول سجل من النموذج
                   </td>
                 </tr>
               ) : (
                 filtered.map((row) => (
                   <tr key={row.id} className="border-b border-[#f0f4f2] last:border-0">
-                    <td className="py-3.5 text-sm font-semibold text-[#50635b]">{row.id}</td>
+                    <td className="py-4 text-base font-semibold text-[#50635b]">{row.id}</td>
                     {columns.map((col) => (
-                      <td key={col.key} className="py-3.5 text-sm text-[#53655e]">
+                      <td key={col.key} className="py-4 text-base text-[#53655e]">
                         {formatCell(row.values[col.key])}
                       </td>
                     ))}
