@@ -21,17 +21,17 @@ export function SchemaForm({
         const value = values[field.key]
         const error = errors[field.key]
         const common =
-          'w-full rounded-xl border border-[#dfe7e3] bg-white px-3 py-3 text-[15px] outline-none transition focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/15'
+          'w-full rounded-xl border border-[#dfe7e3] bg-white px-3.5 py-3.5 text-base outline-none transition focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/15'
 
         return (
           <label
             key={field.key}
-            className={`block space-y-1.5 text-sm ${field.type === 'textarea' || field.type === 'checkbox' ? 'sm:col-span-2' : ''}`}
+            className={`block space-y-2 text-base ${field.type === 'textarea' || field.type === 'checkbox' ? 'sm:col-span-2' : ''}`}
           >
-            <span className="text-[15px] font-semibold text-[#30453d]">
+            <span className="text-base font-semibold text-[#30453d]">
               {field.label}
               {field.required ? <span className="text-[#ad5e46]"> *</span> : null}
-              {field.unit ? <span className="mr-1 text-xs font-normal text-[#899892]">({field.unit})</span> : null}
+              {field.unit ? <span className="mr-1 text-sm font-normal text-[#899892]">({field.unit})</span> : null}
             </span>
 
             {field.type === 'textarea' ? (
