@@ -7,14 +7,123 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// NOTE: هذا مجرد skeleton أولي. سيتم توسيعه في خطوة التصميم التفصيلي.
+enum UserRoleKey {
+  SUPER_ADMIN
+  MANAGEMENT
+  WAREHOUSE
+  PRODUCTION
+  ACCOUNTANT
+  HR
+  SALES
+}
+
+enum WarehouseKey {
+  WH_RAW
+  WH_MFG
+  WH_FG
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   fullName     String
   isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+
+  roles UserRole[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id          String      @id @default(cuid())
+  key         UserRoleKey @unique
+  nameAr      String
+  description String?
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  nameAr      String
+  description String?
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model CompanySettings {
+  id String @id @default(cuid())
+
+  currencyCode String @default("OMR")
+
+  // variance threshold in percent (e.g. 2.50)
+  productionVarianceThresholdPct Decimal @default(0.00) @db.Decimal(5, 2)
+
+  taxRegistrationNumber String?
+  taxRatePct            Decimal @default(0.00) @db.Decimal(5, 2)
+  taxInclusivePricing   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Warehouse {
+  id       String       @id @default(cuid())
+  key      WarehouseKey @unique
+  nameAr   String
+  isActive Boolean      @default(true)
+
+  locations WarehouseLocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WarehouseLocation {
+  id          String    @id @default(cuid())
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  code     String
+  nameAr   String
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
 }
 
