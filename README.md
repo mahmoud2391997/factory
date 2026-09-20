@@ -40,3 +40,20 @@ pnpm dev
 - `docs/workflows.md`
 - `docs/rbac.md`
 
+
+
+## تسجيل الدخول (Day 1)
+
+1. اضبط `apps/web/.env` من `.env.example`
+2. شغّل Postgres ثم: `pnpm db:deploy`
+3. شغّل التطبيق: `pnpm dev`
+4. أول مرة فقط — تهيئة النظام:
+
+```bash
+curl -X POST http://localhost:3000/api/setup/bootstrap \
+  -H 'Content-Type: application/json' \
+  -H "x-setup-token: $SETUP_TOKEN" \
+  -d '{"email":"admin@factory.local","password":"Admin123!","fullName":"مدير النظام"}'
+```
+
+5. افتح `/login` وادخل بنفس البريد وكلمة المرور.

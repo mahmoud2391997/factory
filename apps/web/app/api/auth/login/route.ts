@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { prisma } from '@/server/db'
 import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
+import { getSessionUserById } from '@/server/auth/session'
 
 export const runtime = 'nodejs'
 
@@ -17,7 +18,11 @@ export async function POST(req: NextRequest) {
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, message: 'بيانات الدخول غير صحيحة', errors: parsed.error.issues.map((i) => ({ path: String(i.path[0] ?? ''), message: i.message })) },
+      {
+        success: false,
+        message: 'بيانات الدخول غير صحيحة',
+        errors: parsed.error.issues.map((i) => ({ path: String(i.path[0] ?? ''), message: i.message })),
+      },
       { status: 400 },
     )
   }
@@ -34,13 +39,22 @@ export async function POST(req: NextRequest) {
 
   const accessToken = await issueAccessToken({ sub: user.id })
   const refreshToken = await issueRefreshToken({ sub: user.id })
+  const sessionUser = await getSessionUserById(user.id)
 
   const res = NextResponse.json({
     success: true,
-    data: { user: { id: user.id, email: user.email, fullName: user.fullName } },
+    data: {
+      user: sessionUser ?? {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        isActive: user.isActive,
+        roles: [],
+        permissions: [],
+      },
+    },
     message: 'تم تسجيل الدخول بنجاح',
   })
   setAuthCookies(res, { accessToken, refreshToken })
   return res
 }
-
