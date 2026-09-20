@@ -19,7 +19,7 @@
 ## 2) الاستراتيجية التنفيذية (Phased but demo-first)
 
 ### المرحلة A — الأساس (Foundation)
-- Monorepo: `apps/web` (Next.js) + `apps/api` (NestJS) + `packages/database` (Prisma) + `packages/shared`.
+- Monorepo: `apps/web` (Next.js Full-Stack) + `packages/database` (Prisma) + `packages/shared`.
 - Postgres + Prisma migrations.
 - Auth: JWT + Refresh Tokens + Password hashing + Rate limiting.
 - RBAC: Roles/Permissions + Guards.
@@ -92,27 +92,31 @@
 - استهلاك للإنتاج: Debit WIP / Credit Raw Inventory.
 - إنتاج نهائي: Debit Finished Goods / Credit WIP.
 
-## 4) وحدات الـ API (NestJS Modules)
+## 4) وحدات الـ API (Next.js Route Handlers)
 
 ```
-auth/
-rbac/
-users/
-settings/
-audit/
-suppliers/
-materials/
-warehouses/
-inventory/
-purchasing/
-manufacturing/
-products/
-sales/
-accounting/
-tax/
-reports/
-notifications/
-integrations/
+api/auth
+api/rbac
+api/users
+api/settings
+api/audit-logs
+api/suppliers
+api/materials
+api/warehouses
+api/inventory
+api/purchases
+api/goods-receipts
+api/production
+api/products
+api/recipes
+api/sales
+api/customers
+api/withdrawals
+api/accounting
+api/taxes
+api/reports
+api/notifications
+api/integrations
 ```
 
 ## 5) واجهة المستخدم (Arabic-first ERP UX)
