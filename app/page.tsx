@@ -41,6 +41,7 @@ import {
 
 import {
   createModuleRow,
+  createMovementFromAction,
   createMovementFromRow,
   formatRelativeTimeAr,
   moduleSummarySeed,
@@ -52,6 +53,7 @@ import {
 } from '@/lib/factory'
 import { downloadCsv } from '@/lib/csv'
 import { useLocalStorageState } from '@/lib/storage'
+import { getModuleDefinition } from '@/lib/modules'
 import { getModuleFormDefinition, toModuleRowValue } from '@/lib/module-schema'
 
 const navItems = [
@@ -108,6 +110,40 @@ export default function Page() {
     setAuditMovements((current) => [createMovementFromRow(activeNav, row), ...current])
     setIsCreateOpen(false)
     setToast('تم حفظ السجل بنجاح وإضافته إلى سجل العمليات')
+  }
+
+  const handleRecordUpdated = (row: ModuleRow) => {
+    setPersistedModuleRows((current) => ({
+      ...current,
+      [activeNav]: (current[activeNav] ?? activeModuleSeed?.rows ?? []).map((existing) => (existing.ref === row.ref ? row : existing)),
+    }))
+    setAuditMovements((current) => [createMovementFromAction({ moduleTitle: activeNav, action: 'update', row }), ...current])
+    setIsCreateOpen(false)
+    setToast('تم تعديل السجل بنجاح وإضافته إلى سجل العمليات')
+  }
+
+  const handleRecordDeleted = (row: ModuleRow) => {
+    setPersistedModuleRows((current) => ({
+      ...current,
+      [activeNav]: (current[activeNav] ?? activeModuleSeed?.rows ?? []).filter((existing) => existing.ref !== row.ref),
+    }))
+    setAuditMovements((current) => [createMovementFromAction({ moduleTitle: activeNav, action: 'delete', row }), ...current])
+    setToast('تم حذف السجل وتسجيل العملية')
+  }
+
+  const handleRecordStatusChanged = (row: ModuleRow, nextStatus: string) => {
+    setPersistedModuleRows((current) => {
+      const rows = current[activeNav] ?? activeModuleSeed?.rows ?? []
+      const updated = rows.map((existing) =>
+        existing.ref === row.ref ? { ...existing, status: nextStatus } : existing,
+      )
+      return { ...current, [activeNav]: updated }
+    })
+    setAuditMovements((current) => [
+      createMovementFromAction({ moduleTitle: activeNav, action: 'status', row: { ...row, status: nextStatus }, previousStatus: row.status }),
+      ...current,
+    ])
+    setToast('تم تحديث الحالة وتسجيل العملية')
   }
 
   const handleExportModule = (moduleTitle: string, rows: ModuleRow[]) => {
@@ -211,7 +247,7 @@ export default function Page() {
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-4"><MiniStat label="المواد الخام" value="٢٤" suffix="صنف" icon={Boxes} /><MiniStat label="المنتجات الجاهزة" value="١٢" suffix="منتج" icon={PackageCheck} /><MiniStat label="حضور اليوم" value="٩٢٪" suffix="من ٤٨ موظف" icon={Users} /><MiniStat label="المهام المتأخرة" value="٠٧" suffix="مهمة" icon={ClipboardCheck} /></div>
-          </> : activeNav === 'سجل العمليات' ? <AuditLogView movements={auditMovements} search={moduleSearch} onSearchChange={setModuleSearch} onExport={() => handleExportAuditLog(auditMovements)} /> : activeModule ? <ModuleView module={activeModule} search={moduleSearch} onSearchChange={setModuleSearch} onCreate={() => setIsCreateOpen(true)} onExport={() => handleExportModule(activeModule.title, activeModule.rows)} /> : null}
+          </> : activeNav === 'سجل العمليات' ? <AuditLogView movements={auditMovements} search={moduleSearch} onSearchChange={setModuleSearch} onExport={() => handleExportAuditLog(auditMovements)} /> : activeModule ? <ModuleView module={activeModule} search={moduleSearch} onSearchChange={setModuleSearch} onCreate={() => setIsCreateOpen(true)} onExport={() => handleExportModule(activeModule.title, activeModule.rows)} onRowUpdated={handleRecordUpdated} onRowDeleted={handleRecordDeleted} onRowStatusChanged={handleRecordStatusChanged} /> : null}
           {isCreateOpen && <CreateRecordDialog moduleTitle={activeModule?.title ?? activeNav} onClose={() => setIsCreateOpen(false)} onSaved={handleRecordSaved} />}
           {toast && <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">{toast}<button className="mr-3 text-white/60 hover:text-white" onClick={() => setToast('')}>×</button></div>}
         </div>
@@ -220,15 +256,35 @@ export default function Page() {
   )
 }
 
-function ModuleView({ module, search, onSearchChange, onCreate, onExport }: { module: { title: string; description: string; stats: string[]; rows: ModuleRow[] }; search: string; onSearchChange: (value: string) => void; onCreate: () => void; onExport: () => void }) {
+function ModuleView({
+  module,
+  search,
+  onSearchChange,
+  onCreate,
+  onExport,
+  onRowUpdated,
+  onRowDeleted,
+  onRowStatusChanged,
+}: {
+  module: { title: string; description: string; stats: string[]; rows: ModuleRow[] }
+  search: string
+  onSearchChange: (value: string) => void
+  onCreate: () => void
+  onExport: () => void
+  onRowUpdated: (row: ModuleRow) => void
+  onRowDeleted: (row: ModuleRow) => void
+  onRowStatusChanged: (row: ModuleRow, nextStatus: string) => void
+}) {
   const [status, setStatus] = useState('كل الحالات')
+  const [editingRow, setEditingRow] = useState<ModuleRow | null>(null)
+
+  const moduleDefinition = useMemo(() => getModuleDefinition(module.title), [module.title])
   const statusOptions = useMemo(() => {
-    const statusField = getModuleFormDefinition(module.title).fields.find((field) => field.key === 'status')
-    const suggested = statusField?.datalist ?? []
+    const suggested = moduleDefinition?.statusOptions ?? []
     const fromRows = Array.from(new Set(module.rows.map((row) => row.status))).filter(Boolean)
     const all = Array.from(new Set([...fromRows, ...suggested]))
-    return ['كل الحالات', ...all]
-  }, [module.rows, module.title])
+    return ['كل الحالات', ...all].filter(Boolean)
+  }, [module.rows, module.title, moduleDefinition])
 
   const filteredRows = module.rows.filter((row) => {
     const matchesSearch = `${row.ref} ${row.detail} ${row.value} ${row.status} ${row.notes ?? ''}`.includes(search.trim())
@@ -268,30 +324,72 @@ function ModuleView({ module, search, onSearchChange, onCreate, onExport }: { mo
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-right">
+        <table className="w-full min-w-[860px] text-right">
           <thead>
             <tr className="border-b border-[#edf2ef] text-[11px] text-[#97a49f]">
-              <th className="pb-3 font-medium">المرجع</th>
-              <th className="pb-3 font-medium">التفاصيل</th>
-              <th className="pb-3 font-medium">القيمة / الحالة</th>
-              <th className="pb-3 font-medium">الحالة</th>
+              {(moduleDefinition?.columns?.length ? moduleDefinition.columns : [
+                { key: 'ref', label: 'المرجع' },
+                { key: 'detail', label: 'التفاصيل' },
+                { key: 'value', label: 'القيمة' },
+                { key: 'status', label: 'الحالة' },
+              ]).map((col) => (
+                <th key={col.key} className="pb-3 font-medium">{col.label}</th>
+              ))}
+              <th className="pb-3 font-medium">إجراءات</th>
             </tr>
           </thead>
           <tbody>
             {filteredRows.length > 0 ? (
               filteredRows.map((row) => (
                 <tr key={row.ref} className="border-b border-[#f0f4f2] last:border-0">
-                  <td className="py-4 text-xs font-semibold text-[#50635b]">{row.ref}</td>
-                  <td className="py-4 text-xs text-[#53655e]">{row.detail}</td>
-                  <td className="py-4 text-xs text-[#53655e]">{row.value}</td>
+                  {(moduleDefinition?.columns?.length
+                    ? moduleDefinition.columns.map((col) => (
+                        <td key={col.key} className="py-4 text-xs text-[#53655e]">{col.render(row)}</td>
+                      ))
+                    : (
+                      <>
+                        <td className="py-4 text-xs font-semibold text-[#50635b]">{row.ref}</td>
+                        <td className="py-4 text-xs text-[#53655e]">{row.detail}</td>
+                        <td className="py-4 text-xs text-[#53655e]">{row.value}</td>
+                        <td className="py-4"><span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">{row.status}</span></td>
+                      </>
+                    )
+                  )}
                   <td className="py-4">
-                    <span className="rounded-full bg-[#e6f4ef] px-2.5 py-1 text-[10px] font-semibold text-[#19725f]">{row.status}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        className="rounded-lg border border-[#dfe7e3] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#53655e] hover:bg-[#f8faf9]"
+                        onClick={() => setEditingRow(row)}
+                      >
+                        تعديل
+                      </button>
+                      <button
+                        className="rounded-lg border border-[#f0c9c1] bg-[#fbeae6] px-2.5 py-1.5 text-[11px] font-semibold text-[#b55e49] hover:bg-[#f8d9d2]"
+                        onClick={() => {
+                          if (typeof window !== 'undefined' && window.confirm('هل أنت متأكد من الحذف؟')) onRowDeleted(row)
+                        }}
+                      >
+                        حذف
+                      </button>
+                      {moduleDefinition?.statusOptions?.length ? (
+                        <select
+                          value={row.status}
+                          onChange={(event) => onRowStatusChanged(row, event.target.value)}
+                          className="rounded-lg border border-[#dfe7e3] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#53655e]"
+                          aria-label="تغيير الحالة"
+                        >
+                          {moduleDefinition.statusOptions.map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="py-12 text-center text-xs text-[#899892]">
+                <td colSpan={(moduleDefinition?.columns?.length ?? 4) + 1} className="py-12 text-center text-xs text-[#899892]">
                   لا توجد سجلات مطابقة للبحث أو الحالة المحددة.
                 </td>
               </tr>
@@ -300,7 +398,154 @@ function ModuleView({ module, search, onSearchChange, onCreate, onExport }: { mo
         </table>
       </div>
     </section>
+    {editingRow && (
+      <EditRecordDialog
+        moduleTitle={module.title}
+        row={editingRow}
+        onClose={() => setEditingRow(null)}
+        onSaved={(nextRow) => {
+          setEditingRow(null)
+          onRowUpdated(nextRow)
+        }}
+      />
+    )}
   </div>
+}
+
+function EditRecordDialog({ moduleTitle, row, onClose, onSaved }: { moduleTitle: string; row: ModuleRow; onClose: () => void; onSaved: (row: ModuleRow) => void }) {
+  const moduleDefinition = useMemo(() => getModuleDefinition(moduleTitle), [moduleTitle])
+  const [raw, setRaw] = useState<Record<string, string>>(() => {
+    const data = (row.data ?? {}) as Record<string, unknown>
+    return {
+      detail: row.detail,
+      status: row.status,
+      notes: row.notes ?? '',
+      quantity: typeof data.quantity === 'number' ? `${data.quantity}` : '',
+      supplier: typeof data.supplier === 'string' ? data.supplier : '',
+      batchNo: typeof data.batchNo === 'string' ? data.batchNo : '',
+      expiryDate: typeof data.expiryDate === 'string' ? data.expiryDate : '',
+      recipeName: typeof data.recipeName === 'string' ? data.recipeName : '',
+      plannedKg: typeof data.plannedKg === 'number' ? `${data.plannedKg}` : '',
+      producedKg: typeof data.producedKg === 'number' ? `${data.producedKg}` : '',
+      lossPercent: typeof data.lossPercent === 'number' ? `${data.lossPercent}` : '',
+      productName: typeof data.productName === 'string' ? data.productName : '',
+      pricePerTon: typeof data.pricePerTon === 'number' ? `${data.pricePerTon}` : '',
+    }
+  })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  if (!moduleDefinition) return null
+
+  const datalistId = `module-status-edit-${moduleTitle.replace(/\s+/g, '-')}`
+  const statusField = moduleDefinition.fields.find((field) => field.key === 'status')
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#123c35]/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="edit-record-title">
+      <div className="w-full max-w-lg rounded-2xl border border-[#dfe7e3] bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <div className="mb-1 text-[10px] font-semibold text-[#1d7f72]">تعديل سجل</div>
+            <h2 id="edit-record-title" className="text-lg font-bold">تعديل {row.ref}</h2>
+            <p className="mt-1 text-xs text-[#899892]">سيتم تسجيل التعديل في سجل العمليات.</p>
+          </div>
+          <button aria-label="إغلاق" onClick={onClose} className="text-xl text-[#899892] hover:text-[#123c35]">×</button>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {moduleDefinition.fields.map((field) => {
+            const error = errors[field.key]
+            const common = 'rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10'
+
+            if (field.type === 'textarea') {
+              return (
+                <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+                  {field.label}
+                  <textarea
+                    value={raw[field.key] ?? ''}
+                    onChange={(event) => {
+                      setRaw((current) => ({ ...current, [field.key]: event.target.value }))
+                      setErrors((current) => ({ ...current, [field.key]: '' }))
+                    }}
+                    rows={3}
+                    placeholder={field.placeholder}
+                    className={`resize-none ${common} py-2 ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+                  />
+                  {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+                </label>
+              )
+            }
+
+            if (field.key === 'status') {
+              return (
+                <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+                  {field.label}
+                  <input
+                    list={statusField?.datalist?.length ? datalistId : undefined}
+                    value={raw.status ?? ''}
+                    onChange={(event) => {
+                      setRaw((current) => ({ ...current, status: event.target.value }))
+                      setErrors((current) => ({ ...current, status: '' }))
+                    }}
+                    className={`h-11 ${common} ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+                  />
+                  {statusField?.datalist?.length ? (
+                    <datalist id={datalistId}>
+                      {statusField.datalist.map((item) => <option key={item} value={item} />)}
+                    </datalist>
+                  ) : null}
+                  {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+                </label>
+              )
+            }
+
+            const inputType = field.type === 'number' ? 'number' : 'text'
+            return (
+              <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
+                {field.label}
+                <input
+                  value={raw[field.key] ?? ''}
+                  onChange={(event) => {
+                    setRaw((current) => ({ ...current, [field.key]: event.target.value }))
+                    setErrors((current) => ({ ...current, [field.key]: '' }))
+                  }}
+                  type={inputType}
+                  min={field.min}
+                  placeholder={field.placeholder}
+                  className={`h-11 ${common} ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
+                />
+                {field.unit ? <span className="text-[10px] font-medium text-[#899892]">{field.unit}</span> : null}
+                {error && <span className="text-[10px] font-semibold text-[#b55e49]">{error}</span>}
+              </label>
+            )
+          })}
+        </div>
+
+        <div className="mt-6 flex justify-start gap-2">
+          <button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button>
+          <button
+            onClick={() => {
+              const candidate = { ...raw }
+              const parsed = moduleDefinition.schema.safeParse(candidate)
+              if (!parsed.success) {
+                const nextErrors: Record<string, string> = {}
+                for (const issue of parsed.error.issues) {
+                  const key = issue.path[0]
+                  if (typeof key === 'string' && !nextErrors[key]) nextErrors[key] = issue.message
+                }
+                setErrors(nextErrors)
+                return
+              }
+              const patch = moduleDefinition.toRowPatch(parsed.data)
+              onSaved({ ...row, ...patch })
+            }}
+            className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white"
+          >
+            حفظ التعديل
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function AuditLogView({ movements, search, onSearchChange, onExport }: { movements: Movement[]; search: string; onSearchChange: (value: string) => void; onExport: () => void }) {
@@ -349,26 +594,32 @@ function AuditLogView({ movements, search, onSearchChange, onExport }: { movemen
 }
 
 function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: string; onClose: () => void; onSaved: (row: ModuleRow) => void }) {
-  const definition = useMemo(() => getModuleFormDefinition(moduleTitle), [moduleTitle])
-  const quantityUnit = definition.fields.find((field) => field.key === 'quantity')?.unit
+  const moduleDefinition = useMemo(() => getModuleDefinition(moduleTitle), [moduleTitle])
 
-  const defaultStatus = definition.fields.find((field) => field.key === 'status')?.defaultValue ?? 'جديد'
-  const [form, setForm] = useState<{ detail: string; quantity: string; status: string; notes: string }>({
+  // Fallback to the generic schema for modules not yet modeled.
+  const genericDefinition = useMemo(() => getModuleFormDefinition(moduleTitle), [moduleTitle])
+
+  const fields = moduleDefinition?.fields ?? genericDefinition.fields
+  const schema = moduleDefinition?.schema ?? genericDefinition.schema
+  const quantityUnit = fields.find((field) => field.key === 'quantity')?.unit
+
+  const defaultStatus = fields.find((field) => field.key === 'status')?.defaultValue ?? 'جديد'
+  const [raw, setRaw] = useState<Record<string, string>>(() => ({
     detail: '',
     quantity: '',
     status: defaultStatus,
     notes: '',
-  })
+  }))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const datalistId = useMemo(() => `module-status-${moduleTitle.replace(/\s+/g, '-').replace(/[^\w\u0600-\u06FF-]/g, '')}`, [moduleTitle])
-  const statusField = definition.fields.find((field) => field.key === 'status')
+  const statusField = fields.find((field) => field.key === 'status')
 
   return <div className="fixed inset-0 z-50 grid place-items-center bg-[#123c35]/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="create-record-title">
     <div className="w-full max-w-lg rounded-2xl border border-[#dfe7e3] bg-white p-6 shadow-2xl">
       <div className="mb-5 flex items-start justify-between gap-4"><div><div className="mb-1 text-[10px] font-semibold text-[#1d7f72]">سجل تشغيلي جديد</div><h2 id="create-record-title" className="text-lg font-bold">إضافة إلى {moduleTitle}</h2><p className="mt-1 text-xs text-[#899892]">سيتم تسجيل العملية مع المستخدم والوقت في سجل التدقيق.</p></div><button aria-label="إغلاق" onClick={onClose} className="text-xl text-[#899892] hover:text-[#123c35]">×</button></div>
       <div className="flex flex-col gap-4">
-        {definition.fields.map((field) => {
+        {fields.map((field) => {
           const error = errors[field.key]
           const common = 'rounded-xl border border-[#dfe7e3] px-3 text-sm font-normal outline-none focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/10'
 
@@ -377,9 +628,9 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
               <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
                 {field.label}
                 <textarea
-                  value={field.key === 'notes' ? form.notes : ''}
+                  value={raw[field.key] ?? ''}
                   onChange={(event) => {
-                    setForm((current) => ({ ...current, notes: event.target.value }))
+                    setRaw((current) => ({ ...current, [field.key]: event.target.value }))
                     setErrors((current) => ({ ...current, [field.key]: '' }))
                   }}
                   rows={3}
@@ -397,9 +648,9 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
                 {field.label}
                 <input
                   list={statusField?.datalist?.length ? datalistId : undefined}
-                  value={form.status}
+                  value={raw.status ?? ''}
                   onChange={(event) => {
-                    setForm((current) => ({ ...current, status: event.target.value }))
+                    setRaw((current) => ({ ...current, status: event.target.value }))
                     setErrors((current) => ({ ...current, [field.key]: '' }))
                   }}
                   className={`h-11 ${common} ${error ? 'border-[#b55e49] focus:border-[#b55e49] focus:ring-[#b55e49]/10' : ''}`}
@@ -421,9 +672,9 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
               <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
                 {field.label}
                 <input
-                  value={form.quantity}
+                  value={raw[field.key] ?? ''}
                   onChange={(event) => {
-                    setForm((current) => ({ ...current, quantity: event.target.value }))
+                    setRaw((current) => ({ ...current, [field.key]: event.target.value }))
                     setErrors((current) => ({ ...current, [field.key]: '' }))
                   }}
                   type="number"
@@ -441,9 +692,9 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
             <label key={field.key} className="flex flex-col gap-2 text-xs font-semibold text-[#53655e]">
               {field.label}
               <input
-                value={form.detail}
+                value={raw[field.key] ?? ''}
                 onChange={(event) => {
-                  setForm((current) => ({ ...current, detail: event.target.value }))
+                  setRaw((current) => ({ ...current, [field.key]: event.target.value }))
                   setErrors((current) => ({ ...current, [field.key]: '' }))
                 }}
                 autoFocus={field.key === 'detail'}
@@ -459,12 +710,7 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
         <button onClick={onClose} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-semibold text-[#53655e]">إلغاء</button>
         <button
           onClick={() => {
-            const parsed = definition.schema.safeParse({
-              detail: form.detail,
-              status: form.status,
-              notes: form.notes,
-              quantity: form.quantity.trim() ? form.quantity : undefined,
-            })
+            const parsed = schema.safeParse(raw)
 
             if (!parsed.success) {
               const nextErrors: Record<string, string> = {}
@@ -476,6 +722,13 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
               return
             }
 
+            if (moduleDefinition) {
+              const patch = moduleDefinition.toRowPatch(parsed.data)
+              onSaved(createModuleRow({ moduleTitle, ...patch }))
+              return
+            }
+
+            // Generic fallback
             onSaved(
               createModuleRow({
                 moduleTitle,
@@ -487,7 +740,7 @@ function CreateRecordDialog({ moduleTitle, onClose, onSaved }: { moduleTitle: st
               }),
             )
           }}
-          disabled={!form.detail.trim()}
+          disabled={!raw.detail?.trim()}
           className="rounded-xl bg-[#123c35] px-5 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           حفظ وتسجيل الحركة

@@ -7,6 +7,9 @@ export type Movement = {
   amount: string
   createdAt: number
   tone: MovementTone
+  action?: 'create' | 'update' | 'delete' | 'status'
+  moduleTitle?: string
+  recordRef?: string
 }
 
 export type ModuleRow = {
@@ -275,31 +278,44 @@ export function createModuleRow(params: {
 }
 
 export function createMovementFromRow(moduleTitle: string, row: ModuleRow): Movement {
+  return createMovementFromAction({ moduleTitle, action: 'create', row })
+}
+
+export function createMovementFromAction(params: { moduleTitle: string; action: 'create' | 'update' | 'delete' | 'status'; row: ModuleRow; previousStatus?: string }) {
   const id = `MOV-${`${row.createdAt}`.slice(-4)}`
 
   const isProduction = moduleTitle.includes('تصنيع')
   const isSales = moduleTitle.includes('مبيعات')
   const isMaterial = moduleTitle.includes('مواد خام')
 
+  const actionLabel = params.action === 'create' ? 'إضافة' : params.action === 'update' ? 'تعديل' : params.action === 'delete' ? 'حذف' : 'تغيير حالة'
+
   const type = isProduction
-    ? 'إنتاج جديد'
+    ? `${actionLabel} أمر إنتاج`
     : isSales
-      ? 'فاتورة/عملية مبيعات'
+      ? `${actionLabel} مبيعات`
       : isMaterial
-        ? 'عملية مواد خام'
-        : `سجل ${moduleTitle}`
+        ? `${actionLabel} مواد خام`
+        : `${actionLabel} ${moduleTitle}`
 
   const tone: MovementTone = isProduction ? 'success' : isSales ? 'info' : isMaterial ? 'warning' : 'info'
   const amountPrefix = isSales ? '-' : '+'
   const amount = row.value && row.value !== '—' ? `${amountPrefix} ${row.value}` : '—'
+  const statusSuffix =
+    params.action === 'status'
+      ? ` • ${params.previousStatus ? `${params.previousStatus} → ` : ''}${row.status}`
+      : ''
 
   return {
     id,
     type,
-    detail: `${row.detail}${row.notes ? ` • ${row.notes}` : ''}`,
+    detail: `${row.detail}${row.notes ? ` • ${row.notes}` : ''}${statusSuffix}`,
     amount,
     createdAt: row.createdAt,
     tone,
+    action: params.action,
+    moduleTitle,
+    recordRef: row.ref,
   }
 }
 
