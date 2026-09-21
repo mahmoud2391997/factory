@@ -118,14 +118,13 @@ export default function LoginPage() {
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-md items-center px-5 py-10">
         <div className="w-full rounded-3xl border border-white/10 bg-white/95 p-7 text-[#152925] shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur">
-          <div className="mb-7 flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-2xl bg-[#123c35] text-[#d6ad61]">
-              <Factory size={24} strokeWidth={2.4} />
+          <div className="mb-7 text-center">
+            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-[#123c35] text-[#d6ad61]">
+              <Factory size={28} strokeWidth={2.4} />
             </div>
-            <div>
-              <div className="text-xl font-bold tracking-tight text-[#123c35]">مصنع الخليج للأعلاف</div>
-              <div className="text-xs text-[#71817c]">تسجيل الدخول لنظام إدارة المصنع</div>
-            </div>
+            <div className="text-2xl font-bold tracking-tight text-[#123c35]">مصنع الخليج للأعلاف</div>
+            <div className="mt-1.5 text-sm font-medium text-[#53655e]">نظام إدارة المصنع — تسجيل الدخول</div>
+            <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-[#d6ad61]" />
           </div>
 
           {!healthLoading && demoMode ? (
@@ -220,8 +219,8 @@ export default function LoginPage() {
 
           <p className="mt-5 text-center text-[11px] leading-5 text-[#899892]">
             {demoMode
-              ? 'البيانات التجريبية محلية في المتصفح حتى تربط Postgres على Vercel.'
-              : 'الجلسة محمية بصلاحيات الأدوار. بعد الدخول تظهر فقط الشاشات المسموح بها لحسابك.'}
+              ? 'وضع تجريبي لمصنع الأعلاف — البيانات محلية حتى تربط قاعدة البيانات على السيرفر.'
+              : 'نظام مصنع محمي بالصلاحيات. بعد الدخول تظهر فقط الشاشات المسموح بها لحسابك.'}
           </p>
         </div>
       </div>
