@@ -251,6 +251,16 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'معتمد', label: 'معتمد' },
       ] },
     ],
+    seed: [
+      {
+        docNo: 'ADJ-001',
+        warehouseKey: 'WH_RAW',
+        itemCode: 'RAW-SOY',
+        quantityDelta: -50,
+        reason: 'تسوية جرد دوري بعد وزن الميزان',
+        status: 'معتمد',
+      },
+    ],
   },
 
   supplier: {
@@ -490,6 +500,18 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'مؤكد', label: 'مؤكد' },
       ] },
     ],
+    seed: [
+      {
+        docNo: 'WD-001',
+        partyName: 'شركة الباطنة التجارية',
+        productCode: 'FG-BROILER',
+        quantity: 800,
+        warehouseKey: 'WH_FG',
+        withdrawDate: '2026-09-18',
+        reason: 'سحب طلبية عميل',
+        status: 'مؤكد',
+      },
+    ],
   },
 
   salesPayment: {
@@ -513,6 +535,16 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'مستلم', label: 'مستلم' },
         { value: 'ملغي', label: 'ملغي' },
       ] },
+    ],
+    seed: [
+      {
+        docNo: 'PAY-001',
+        invoiceDocNo: 'INV-2038',
+        amount: 1280,
+        paymentDate: '2026-09-19',
+        method: 'تحويل',
+        status: 'مستلم',
+      },
     ],
   },
 
@@ -566,6 +598,19 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'مسودة', label: 'مسودة' },
         { value: 'مرحّل', label: 'مرحّل' },
       ] },
+    ],
+    seed: [
+      {
+        docNo: 'JE-001',
+        entryDate: '2026-09-18',
+        referenceType: 'GoodsReceipt',
+        referenceId: 'GR-001',
+        debitAccount: '1100',
+        creditAccount: '2100',
+        amount: 4500,
+        memo: 'استلام مواد خام — قيد تجريبي',
+        status: 'مرحّل',
+      },
     ],
   },
 
@@ -640,6 +685,16 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'غياب', label: 'غياب' },
       ] },
     ],
+    seed: [
+      {
+        employeeCode: 'EMP-001',
+        date: '2026-09-20',
+        checkIn: '07:55',
+        checkOut: '16:05',
+        source: 'يدوي',
+        status: 'حضور كامل',
+      },
+    ],
   },
 
   overtime: {
@@ -659,6 +714,15 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'معتمد', label: 'معتمد' },
         { value: 'مرفوض', label: 'مرفوض' },
       ] },
+    ],
+    seed: [
+      {
+        employeeCode: 'EMP-001',
+        date: '2026-09-19',
+        hours: 2,
+        reason: 'إكمال أمر إنتاج مسائي',
+        status: 'معتمد',
+      },
     ],
   },
 
@@ -718,6 +782,16 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
       { key: 'at', label: 'الوقت', type: 'text', column: true },
       { key: 'notes', label: 'تفاصيل', type: 'textarea', column: true },
     ],
+    seed: [
+      {
+        action: 'إنشاء',
+        entity: 'PurchaseOrder',
+        entityId: 'PO-001',
+        userName: 'مدير النظام',
+        at: '2026-09-18 10:22',
+        notes: 'إنشاء أمر شراء تجريبي',
+      },
+    ],
   },
 
   companySettings: {
@@ -756,6 +830,15 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
         { value: 'متأخر', label: 'متأخر' },
       ] },
       { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ],
+    seed: [
+      {
+        title: 'مراجعة أرصدة مستودع المواد',
+        assignee: 'سعيد الشحري',
+        dueDate: '2026-09-22',
+        status: 'قيد التنفيذ',
+        notes: 'قبل استلام الشحنة القادمة',
+      },
     ],
   },
 }

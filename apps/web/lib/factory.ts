@@ -131,7 +131,7 @@ export const moduleSummarySeed: Record<string, ModuleSummary> = {
     stats: ['٣٨ فاتورة', '٤٢,٦٨٠ ر.ع', '٣ مستحقات'],
     rows: [
       { ref: 'INV-2038', detail: 'شركة الخليج للأعلاف', value: '١,٢٠٠ كجم', status: 'مدفوعة', createdAt: now - minutes(75) },
-      { ref: 'INV-2037', detail: 'مزارع الباطنة', value: '٨٠٠ كجم', status: 'آجلة', createdAt: now - minutes(155) },
+      { ref: 'INV-2037', detail: 'شركة الباطنة التجارية', value: '٨٠٠ كجم', status: 'آجلة', createdAt: now - minutes(155) },
       { ref: 'WD-091', detail: 'سحب داخلي للمجمع', value: '٣٥٠ كجم', status: 'معتمد', createdAt: now - minutes(310) },
     ],
   },
@@ -142,7 +142,7 @@ export const moduleSummarySeed: Record<string, ModuleSummary> = {
     rows: [
       { ref: 'C-001', detail: 'شركة الخليج للأعلاف', value: '١,٢٨٠ ر.ع', status: 'عميل', createdAt: now - minutes(600) },
       { ref: 'S-001', detail: 'المطاحن العمانية', value: '٨,٤٠٠ ر.ع', status: 'مورد', createdAt: now - minutes(890) },
-      { ref: 'C-002', detail: 'مزارع الباطنة', value: '٢,١٠٠ ر.ع', status: 'عميل', createdAt: now - minutes(1010) },
+      { ref: 'C-002', detail: 'شركة الباطنة التجارية', value: '٢,١٠٠ ر.ع', status: 'عميل', createdAt: now - minutes(1010) },
     ],
   },
   'الحسابات': {
