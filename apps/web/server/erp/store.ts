@@ -124,17 +124,43 @@ async function persist(state: ErpState, storage: StorageKind) {
   }
 }
 
-export async function loadState(): Promise<{ state: ErpState; storage: StorageKind }> {
-  if (await databaseEnabled()) {
-    const existing = await readPostgres()
-    if (existing) return { state: existing, storage: 'postgres' }
-    const created = await createInitialState()
-    created.revision = 1
+let seedInFlight: Promise<ErpState> | null = null
+
+async function createPostgresDocument() {
+  const created = await createInitialState()
+  created.revision = 1
+  try {
     await prisma.erpDocument.create({
       data: { id: DOC_ID, version: created.revision, payload: created },
     })
-    await writeLocalCopy(created).catch((error) => console.error('[erp/backup]', error))
-    return { state: created, storage: 'postgres' }
+  } catch (error) {
+    // Concurrent cold starts / parallel login requests both try to seed once.
+    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code: unknown }).code) : ''
+    if (code === 'P2002') {
+      const raced = await readPostgres()
+      if (raced) return raced
+    }
+    throw error
+  }
+  await writeLocalCopy(created).catch((err) => console.error('[erp/backup]', err))
+  return created
+}
+
+async function ensurePostgresState() {
+  const existing = await readPostgres()
+  if (existing) return existing
+  if (!seedInFlight) {
+    seedInFlight = createPostgresDocument().finally(() => {
+      seedInFlight = null
+    })
+  }
+  return seedInFlight
+}
+
+export async function loadState(): Promise<{ state: ErpState; storage: StorageKind }> {
+  if (await databaseEnabled()) {
+    const state = await ensurePostgresState()
+    return { state, storage: 'postgres' }
   }
 
   const existing = await readFileState()

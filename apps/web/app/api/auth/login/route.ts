@@ -39,19 +39,31 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.toLowerCase().trim()
     const password = parsed.data.password
 
-    const loaded = await loadState()
-    const erpUser = loaded.state.users.find((item) => item.email.toLowerCase() === email && item.active)
-    if (erpUser && (await bcrypt.compare(password, erpUser.passwordHash))) {
-      const accessToken = await issueAccessToken({ sub: erpUser.id })
-      const refreshToken = await issueRefreshToken({ sub: erpUser.id })
-      const sessionUser = await getSessionUserById(erpUser.id)
-      const res = NextResponse.json({
-        success: true,
-        data: { user: sessionUser, demoMode: isDemoMode(), storage: loaded.storage },
-        message: isDemoMode() ? 'تم تسجيل الدخول' : 'تم تسجيل الدخول بنجاح',
-      })
-      setAuthCookies(res, { accessToken, refreshToken })
-      return res
+    // ERP document store is preferred, but must not block Prisma-user login on remote
+    // cold-start races / seed failures (those previously surfaced as AUTH_INTERNAL_ERROR).
+    let storage: 'postgres' | 'file' | undefined
+    try {
+      const loaded = await loadState()
+      storage = loaded.storage
+      const erpUser = loaded.state.users.find((item) => item.email.toLowerCase() === email && item.active)
+      if (erpUser && (await bcrypt.compare(password, erpUser.passwordHash))) {
+        const accessToken = await issueAccessToken({ sub: erpUser.id })
+        const refreshToken = await issueRefreshToken({ sub: erpUser.id })
+        const sessionUser = await getSessionUserById(erpUser.id)
+        const res = NextResponse.json({
+          success: true,
+          data: { user: sessionUser, demoMode: isDemoMode(), storage },
+          message: isDemoMode() ? 'تم تسجيل الدخول' : 'تم تسجيل الدخول بنجاح',
+        })
+        setAuthCookies(res, { accessToken, refreshToken })
+        return res
+      }
+    } catch (error) {
+      console.error('[auth/login] loadState', error)
+      if (isDemoMode()) {
+        const mapped = toApiError(error)
+        return NextResponse.json(mapped.body, { status: mapped.status })
+      }
     }
 
     if (isDemoMode()) {
@@ -91,6 +103,7 @@ export async function POST(req: NextRequest) {
           permissions: [],
         },
         demoMode: false,
+        storage,
       },
       message: 'تم تسجيل الدخول بنجاح',
     })

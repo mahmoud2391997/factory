@@ -72,6 +72,32 @@ export function toApiError(error: unknown) {
     }
   }
 
+  if (
+    message.includes('إصدار بيانات المصنع') ||
+    message.includes('ملف البيانات تالف') ||
+    message.includes('schemaVersion')
+  ) {
+    return {
+      status: 503,
+      body: {
+        success: false as const,
+        message: 'بيانات المصنع المحفوظة غير متوافقة مع هذا الإصدار. أعد تهيئة الوثيقة التشغيلية أو امسح صف ErpDocument ثم أعد الدخول.',
+        code: 'ERP_STATE_INVALID',
+      },
+    }
+  }
+
+  if (message.includes('P2002') || message.includes('Unique constraint')) {
+    return {
+      status: 503,
+      body: {
+        success: false as const,
+        message: 'تهيئة النظام جارية على السيرفر. أعد محاولة تسجيل الدخول بعد لحظات.',
+        code: 'ERP_SEED_RACE',
+      },
+    }
+  }
+
   return {
     status: 500,
     body: {
