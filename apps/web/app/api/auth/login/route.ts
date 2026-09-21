@@ -60,10 +60,6 @@ export async function POST(req: NextRequest) {
       }
     } catch (error) {
       console.error('[auth/login] loadState', error)
-      if (isDemoMode()) {
-        const mapped = toApiError(error)
-        return NextResponse.json(mapped.body, { status: mapped.status })
-      }
     }
 
     if (isDemoMode()) {

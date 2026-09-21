@@ -1,4 +1,5 @@
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
@@ -17,8 +18,18 @@ const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 export type StorageKind = 'postgres' | 'file'
 
+/** In-memory fallback for serverless hosts where the app directory is read-only. */
+let memoryState: ErpState | null = null
+
 function dataDir() {
-  return process.env.ERP_DATA_DIR?.trim() || path.join(process.cwd(), 'data')
+  const configured = process.env.ERP_DATA_DIR?.trim()
+  if (configured) return configured
+  // Vercel / Lambda: only /tmp is writable. Writing under process.cwd() throws EROFS
+  // and previously broke demo login with AUTH_INTERNAL_ERROR.
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join(os.tmpdir(), 'erp-data')
+  }
+  return path.join(process.cwd(), 'data')
 }
 
 function statePath() {
@@ -51,9 +62,12 @@ function asState(value: unknown): ErpState {
 }
 
 async function readFileState() {
+  if (memoryState) return memoryState
   try {
     const raw = await readFile(statePath(), 'utf8')
-    return asState(JSON.parse(raw))
+    const state = asState(JSON.parse(raw))
+    memoryState = state
+    return state
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw error
@@ -73,6 +87,7 @@ async function pruneBackups(dir: string) {
 }
 
 export async function writeLocalCopy(state: ErpState) {
+  memoryState = state
   const dir = dataDir()
   const backups = path.join(dir, 'backups')
   await mkdir(backups, { recursive: true })
@@ -84,6 +99,16 @@ export async function writeLocalCopy(state: ErpState) {
   const day = new Date().toISOString().slice(0, 10)
   await writeFile(path.join(backups, `erp-${day}.json`), body)
   await pruneBackups(backups)
+}
+
+async function writeFileState(state: ErpState) {
+  try {
+    await writeLocalCopy(state)
+  } catch (error) {
+    // Keep serving from memory when disk is unavailable (common on misconfigured hosts).
+    memoryState = state
+    console.error('[erp/file]', error)
+  }
 }
 
 async function databaseEnabled() {
@@ -115,13 +140,12 @@ async function writePostgres(state: ErpState, expectedRevision: number) {
 async function persist(state: ErpState, storage: StorageKind) {
   const expected = state.revision
   state.revision = expected + 1
-  if (storage === 'postgres') await writePostgres(state, expected)
-  try {
-    await writeLocalCopy(state)
-  } catch (error) {
-    if (storage === 'file') throw error
-    console.error('[erp/backup]', error)
+  if (storage === 'postgres') {
+    await writePostgres(state, expected)
+    await writeLocalCopy(state).catch((error) => console.error('[erp/backup]', error))
+    return
   }
+  await writeFileState(state)
 }
 
 let seedInFlight: Promise<ErpState> | null = null
@@ -167,7 +191,7 @@ export async function loadState(): Promise<{ state: ErpState; storage: StorageKi
   if (existing) return { state: existing, storage: 'file' }
   const created = await createInitialState()
   created.revision = 1
-  await writeLocalCopy(created)
+  await writeFileState(created)
   return { state: created, storage: 'file' }
 }
 
