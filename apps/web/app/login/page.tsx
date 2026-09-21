@@ -123,7 +123,7 @@ export default function LoginPage() {
               <Factory size={24} strokeWidth={2.4} />
             </div>
             <div>
-              <div className="text-xl font-bold tracking-tight text-[#123c35]">مزارع الخليج</div>
+              <div className="text-xl font-bold tracking-tight text-[#123c35]">مصنع الخليج للأعلاف</div>
               <div className="text-xs text-[#71817c]">تسجيل الدخول لنظام إدارة المصنع</div>
             </div>
           </div>

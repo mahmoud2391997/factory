@@ -5,7 +5,7 @@ import { AuthProvider } from '@/components/providers/auth-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'مزارع الخليج | نظام إدارة مصنع الأعلاف',
+  title: 'مصنع الخليج للأعلاف | نظام إدارة المصنع',
   description: 'منصة إدارة متكاملة لمصنع الأعلاف والعمليات الصناعية في سلطنة عمان',
   generator: 'v0.app',
   icons: {
