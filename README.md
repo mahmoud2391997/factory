@@ -35,6 +35,7 @@ pnpm dev
 
 ## وثائق التصميم
 
+- `docs/dev-plan-2-weeks.md` — تقرير خطة أسبوعين + أسئلة الاستضافة وشكل المنتج
 - `docs/implementation-plan.md`
 - `docs/data-model.md`
 - `docs/workflows.md`
