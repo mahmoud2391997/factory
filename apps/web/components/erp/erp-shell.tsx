@@ -222,8 +222,8 @@ export function ErpShell() {
             <Factory size={26} strokeWidth={2.4} />
           </div>
           <div>
-            <div className="text-2xl font-bold tracking-tight">مزارع الخليج</div>
-            <div className="text-sm text-white/55">نظام ERP للمصنع</div>
+            <div className="text-2xl font-bold tracking-tight">مصنع الخليج للأعلاف</div>
+            <div className="text-sm text-white/55">نظام إدارة المصنع (ERP)</div>
           </div>
           <button
             aria-label="إغلاق"
