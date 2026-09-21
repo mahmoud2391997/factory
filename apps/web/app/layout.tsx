@@ -46,7 +46,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <body className="antialiased">
         <AuthProvider>{children}</AuthProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === '1' ? <Analytics /> : null}
       </body>
     </html>
   )
