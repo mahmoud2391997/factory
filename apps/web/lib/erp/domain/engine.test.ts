@@ -1,0 +1,236 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+
+import { code128Values } from './barcode'
+import { actorFromUser, applyCommand, defaultClock } from './engine'
+import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
+import { profitAndLoss, trialBalance, vatReturn } from './reports'
+import { buildSeedState, createClock, emptyState } from './seed'
+import type { Actor, ErpState } from './types'
+
+function actor(state: ErpState, id: string): Actor {
+  const found = actorFromUser(state, id)
+  assert.ok(found)
+  return found
+}
+
+test('CODE128 checksum for HI is 20', () => {
+  const codes = code128Values('HI')
+  assert.deepEqual(codes, [104, 40, 41, 20, 106])
+})
+
+test('seeded factory keeps a balanced ledger and Oman VAT invoice', () => {
+  const state = buildSeedState()
+  const tb = trialBalance(state)
+  assert.equal(tb.balanced, true)
+  assert.ok(state.materials.length >= 6)
+  assert.ok(state.purchaseOrders.some((order) => order.status === 'PENDING_APPROVAL'))
+  const invoice = state.invoices.find((item) => item.status === 'PARTIAL')
+  assert.ok(invoice)
+  assert.equal(invoice.subtotal, 90)
+  assert.equal(invoice.vatAmount, 4.5)
+  assert.equal(invoice.total, 94.5)
+  const soya = state.materials.find((item) => item.code === 'RM-SOYA')!
+  const soyaQty = state.balances.filter((row) => row.itemId === soya.id).reduce((sum, row) => sum + row.qty, 0)
+  assert.ok(soyaQty < soya.minQty)
+  const unreadLow = state.notifications.filter((item) => item.kind === 'LOW_STOCK' && !item.read)
+  assert.equal(unreadLow.length, 1)
+  assert.match(unreadLow[0]!.title, /الصويا/)
+  const beef = state.products.find((item) => item.code === 'FG-BEEF')!
+  const fg = state.balances.find((row) => row.itemId === beef.id && row.warehouse === 'WH_FG')
+  assert.equal(fg?.qty, 1500)
+  const pnl = profitAndLoss(state)
+  assert.equal(pnl.revenue, 90)
+  const vat = vatReturn(state, '2026-09')
+  assert.equal(vat.outputVat, 4.5)
+  assert.ok(vat.inputVat > 0)
+})
+
+test('operations cannot approve a purchase order', () => {
+  const state = buildSeedState()
+  const pending = state.purchaseOrders.find((order) => order.status === 'PENDING_APPROVAL')!
+  const result = applyCommand(state, actor(state, 'user-ops'), {
+    action: 'decidePurchaseOrder',
+    input: { id: pending.id, decision: 'APPROVED' },
+  })
+  assert.equal(result.ok, false)
+})
+
+test('goods cannot be received before approval or above the order', () => {
+  const clock = createClock('2026-09-21T08:00:00.000Z')
+  let state = emptyState('x')
+  const gm = actor(state, 'user-gm')
+  state = must(state, gm, clock, {
+    action: 'createMaterial',
+    input: { code: 'RM-TEST', nameAr: 'اختبار', category: 'حبوب', minQty: 1, vatTreatment: 'ZERO' },
+  })
+  state = must(state, gm, clock, {
+    action: 'createSupplier',
+    input: { nameAr: 'مورد اختبار' },
+  })
+  const materialId = state.materials[0]!.id
+  const supplierId = state.suppliers[0]!.id
+  state = must(state, gm, clock, {
+    action: 'createPurchaseOrder',
+    input: { supplierId, lines: [{ materialId, qty: 100, unitCost: 1 }] },
+  })
+  const poId = state.purchaseOrders[0]!.id
+  const early = applyCommand(
+    state,
+    gm,
+    { action: 'receiveGoods', input: { purchaseOrderId: poId, lines: [{ materialId, qty: 10, batchNo: 'B1' }] } },
+    clock,
+  )
+  assert.equal(early.ok, false)
+  state = must(state, gm, clock, { action: 'decidePurchaseOrder', input: { id: poId, decision: 'APPROVED' } })
+  const over = applyCommand(
+    state,
+    gm,
+    { action: 'receiveGoods', input: { purchaseOrderId: poId, lines: [{ materialId, qty: 101, batchNo: 'B1' }] } },
+    clock,
+  )
+  assert.equal(over.ok, false)
+  state = must(state, gm, clock, {
+    action: 'receiveGoods',
+    input: { purchaseOrderId: poId, lines: [{ materialId, qty: 40, batchNo: 'B1' }] },
+  })
+  assert.equal(state.purchaseOrders[0]!.status, 'PARTIALLY_RECEIVED')
+  assert.equal(state.balances[0]!.qty, 40)
+  const tb = trialBalance(state)
+  assert.equal(tb.balanced, true)
+})
+
+test('transfer cannot make stock negative and production needs the manufacturing warehouse', () => {
+  const state = buildSeedState()
+  const gm = actor(state, 'user-gm')
+  const corn = state.materials.find((item) => item.code === 'RM-CORN')!
+  const moved = applyCommand(state, gm, {
+    action: 'transferStock',
+    input: {
+      from: 'WH_RAW',
+      to: 'WH_MFG',
+      lines: [{ itemType: 'MATERIAL', itemId: corn.id, batchNo: 'B-CORN-0901', qty: 999999 }],
+    },
+  })
+  assert.equal(moved.ok, false)
+
+  const broiler = state.products.find((item) => item.code === 'FG-BROILER')!
+  const recipe = state.recipes.find((item) => item.productId === broiler.id)!
+  let next = must(state, gm, defaultClock(), {
+    action: 'createProductionOrder',
+    input: { productId: broiler.id, recipeId: recipe.id, plannedQty: 1000 },
+  })
+  const order = next.productionOrders[0]!
+  assert.equal(order.expected.find((line) => line.materialId === corn.id)?.expectedQty, 580)
+  const completed = applyCommand(next, gm, {
+    action: 'completeProduction',
+    input: {
+      productionOrderId: order.id,
+      actualOutputQty: 1000,
+      actuals: order.expected.map((line) => ({ materialId: line.materialId, actualQty: line.expectedQty })),
+    },
+  })
+  assert.equal(completed.ok, false)
+})
+
+test('variance above the threshold requires a reason', () => {
+  const state = buildSeedState()
+  const gm = actor(state, 'user-gm')
+  const beef = state.products.find((item) => item.code === 'FG-BEEF')!
+  const recipe = state.recipes.find((item) => item.productId === beef.id)!
+  const corn = state.materials.find((item) => item.code === 'RM-CORN')!
+  let next = must(state, gm, defaultClock(), {
+    action: 'transferStock',
+    input: {
+      from: 'WH_RAW',
+      to: 'WH_MFG',
+      lines: recipe.items.map((item) => ({
+        itemType: 'MATERIAL' as const,
+        itemId: item.materialId,
+        batchNo:
+          item.materialId === corn.id
+            ? 'B-CORN-0901'
+            : state.balances.find((row) => row.itemId === item.materialId && row.warehouse === 'WH_RAW')!.batchNo,
+        qty: item.materialId === corn.id ? item.qty * 1.1 : item.qty,
+      })),
+    },
+  })
+  next = must(next, gm, defaultClock(), {
+    action: 'createProductionOrder',
+    input: { productId: beef.id, recipeId: recipe.id, plannedQty: 1000 },
+  })
+  const order = next.productionOrders[0]!
+  const denied = applyCommand(next, gm, {
+    action: 'completeProduction',
+    input: {
+      productionOrderId: order.id,
+      actualOutputQty: 1000,
+      actuals: order.expected.map((line) => ({
+        materialId: line.materialId,
+        actualQty: line.materialId === corn.id ? line.expectedQty * 1.1 : line.expectedQty,
+      })),
+    },
+  })
+  assert.equal(denied.ok, false)
+  if (!denied.ok) assert.match(denied.error, /سبب الانحراف/)
+  const allowed = applyCommand(next, gm, {
+    action: 'completeProduction',
+    input: {
+      productionOrderId: order.id,
+      actualOutputQty: 1000,
+      varianceReason: 'رطوبة أعلى في الذرة',
+      actuals: order.expected.map((line) => ({
+        materialId: line.materialId,
+        actualQty: line.materialId === corn.id ? line.expectedQty * 1.1 : line.expectedQty,
+      })),
+    },
+  })
+  assert.equal(allowed.ok, true)
+  if (allowed.ok) assert.equal(trialBalance(allowed.state).balanced, true)
+})
+
+test('invoice cannot sell more than finished goods', () => {
+  const state = buildSeedState()
+  const gm = actor(state, 'user-gm')
+  const customer = state.customers[0]!
+  const beef = state.products.find((item) => item.code === 'FG-BEEF')!
+  let next = must(state, gm, defaultClock(), {
+    action: 'createInvoice',
+    input: { customerId: customer.id, lines: [{ productId: beef.id, qty: 5000 }] },
+  })
+  const result = applyCommand(next, gm, { action: 'confirmInvoice', input: { id: next.invoices[0]!.id } })
+  assert.equal(result.ok, false)
+})
+
+test('expense approval and payroll post balanced journals', () => {
+  const state = buildSeedState()
+  const gm = actor(state, 'user-gm')
+  const acc = actor(state, 'user-acc')
+  assert.ok(acc.permissions.includes('accounting.manage'))
+  assert.equal(acc.permissions.includes('approvals.decide'), false)
+  const expense = state.expenses.find((item) => item.status === 'PENDING_APPROVAL')!
+  const posted = applyCommand(state, gm, { action: 'decideExpense', input: { id: expense.id, decision: 'POSTED' } })
+  assert.equal(posted.ok, true)
+  const payroll = state.payrolls[0]!
+  const approved = applyCommand(posted.ok ? posted.state : state, gm, {
+    action: 'decidePayroll',
+    input: { id: payroll.id, decision: 'APPROVED' },
+  })
+  assert.equal(approved.ok, true)
+  if (!approved.ok) return
+  const paid = applyCommand(approved.state, acc, { action: 'payPayroll', input: { id: payroll.id } })
+  assert.equal(paid.ok, true)
+  if (paid.ok) assert.equal(trialBalance(paid.state).balanced, true)
+})
+
+test('accountant does not receive warehouse permissions by default', () => {
+  assert.equal(DEFAULT_ROLE_PERMISSIONS.ACCOUNTANT.includes('inventory.adjust'), false)
+  assert.equal(DEFAULT_ROLE_PERMISSIONS.OPERATIONS.includes('accounting.manage'), false)
+  assert.equal(DEFAULT_ROLE_PERMISSIONS.GM.includes('users.manage'), true)
+})
+
+function must(state: ErpState, who: Actor, clock: ReturnType<typeof defaultClock>, command: Parameters<typeof applyCommand>[2]) {
+  const result = applyCommand(state, who, command, clock)
+  if (!result.ok) throw new Error(result.error)
+  return result.state
+}

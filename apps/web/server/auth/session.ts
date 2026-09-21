@@ -1,8 +1,10 @@
 import type { NextRequest } from 'next/server'
 
+import { ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import { prisma } from '@/server/db'
 import { getAccessTokenFromRequest, verifyAccessToken } from '@/server/auth/jwt'
-import { getDemoSessionUser, isDemoMode, isDemoUserId } from '@/server/demo'
+import { isDemoMode } from '@/server/demo'
+import { loadState } from '@/server/erp/store'
 
 export type SessionUser = {
   id: string
@@ -14,8 +16,21 @@ export type SessionUser = {
 }
 
 export async function getSessionUserById(userId: string): Promise<SessionUser | null> {
-  if (isDemoUserId(userId)) {
-    return getDemoSessionUser()
+  try {
+    const loaded = await loadState()
+    const erpUser = loaded.state.users.find((item) => item.id === userId && item.active)
+    if (erpUser) {
+      return {
+        id: erpUser.id,
+        email: erpUser.email,
+        fullName: erpUser.fullName,
+        isActive: true,
+        roles: [{ key: erpUser.role, nameAr: ROLE_LABELS[erpUser.role] }],
+        permissions: [...loaded.state.rolePermissions[erpUser.role]],
+      }
+    }
+  } catch (error) {
+    console.error('[session/erp]', error)
   }
 
   if (isDemoMode()) {

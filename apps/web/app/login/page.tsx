@@ -133,12 +133,27 @@ export default function LoginPage() {
                 <Info size={15} />
                 وضع تجريبي نشط (بدون قاعدة بيانات)
               </div>
-              <p className="text-[11px] leading-5 text-[#53655e]">
-                اضغط «دخول النظام» مباشرة. الحساب الافتراضي:
-                <br />
-                <span className="font-semibold text-[#123c35]">admin@factory.local</span> /{' '}
-                <span className="font-semibold text-[#123c35]">Admin123!</span>
-              </p>
+              <p className="text-[11px] leading-5 text-[#53655e]">كلمة المرور لكل الحسابات: Admin123!</p>
+              <div className="mt-3 grid gap-2">
+                {[
+                  ['gm@factory.local', 'المدير العام'],
+                  ['accounts@factory.local', 'المحاسب والموارد البشرية'],
+                  ['ops@factory.local', 'المستودع والإنتاج والمبيعات'],
+                ].map(([account, label]) => (
+                  <button
+                    key={account}
+                    type="button"
+                    onClick={() => {
+                      setEmail(account)
+                      setPassword('Admin123!')
+                    }}
+                    className="rounded-xl border border-[#ead7ad] bg-white px-3 py-2 text-right text-[11px] font-semibold text-[#123c35]"
+                  >
+                    {label}
+                    <span className="mt-0.5 block font-normal text-[#71817c]">{account}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 

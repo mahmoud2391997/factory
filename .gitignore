@@ -26,3 +26,7 @@ packages/database/generated
 *.log
 .env
 
+# Operational data and local backups
+data/
+apps/web/data/
+

@@ -9,7 +9,7 @@ import {
   verifyRefreshToken,
 } from '@/server/auth/jwt'
 import { getSessionUserById } from '@/server/auth/session'
-import { getDemoSessionUser, isDemoMode, isDemoUserId } from '@/server/demo'
+import { isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
 
 export const runtime = 'nodejs'
@@ -45,8 +45,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
     }
 
-    const user =
-      isDemoMode() || isDemoUserId(userId) ? (isDemoUserId(userId) ? getDemoSessionUser() : null) : await getSessionUserById(userId)
+    const user = await getSessionUserById(userId)
 
     if (!user) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
@@ -54,7 +53,7 @@ export async function GET(req: NextRequest) {
 
     const res = NextResponse.json({
       success: true,
-      data: { user, demoMode: isDemoMode() || isDemoUserId(userId) },
+      data: { user, demoMode: isDemoMode() },
       message: '',
     })
     if (refreshedAccess) setAccessCookie(res, refreshedAccess)

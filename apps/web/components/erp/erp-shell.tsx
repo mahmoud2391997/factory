@@ -2,46 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  AlertTriangle,
-  Bell,
-  CalendarDays,
-  ChevronDown,
-  Factory,
-  Loader2,
-  LogOut,
-  Menu,
-  ShoppingCart,
-  Warehouse,
-  X,
-} from 'lucide-react'
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bell, ChevronDown, Factory, Loader2, LogOut, Menu, X } from 'lucide-react'
 
+import { LiveWorkspace } from '@/components/erp/live/workspace'
+import type { LiveCtx } from '@/components/erp/live/ctx'
 import { useAuth } from '@/components/providers/auth-provider'
-import { EntityPage, type EntityRecord } from '@/components/erp/entity-page'
-import { canAccessMain, canAccessSub, ERP_NAV } from '@/lib/erp-nav'
-import { getEntitySchema } from '@/lib/erp-schema'
-import { productionData, stockData } from '@/lib/factory'
-import { useLocalStorageState } from '@/lib/storage'
-
-function formatOMR(value: number) {
-  return new Intl.NumberFormat('ar-OM', {
-    style: 'currency',
-    currency: 'OMR',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+import { canAccessMain, canAccessSub, ERP_NAV, findNavByEntity } from '@/lib/erp-nav'
+import type { RoleKey } from '@/lib/erp/domain/permissions'
+import { useErp } from '@/lib/use-erp'
 
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean)
@@ -50,24 +18,12 @@ function getInitials(fullName: string) {
   return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`
 }
 
-function makeId(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-}
-
-function seedRecords(entityKey: string): EntityRecord[] {
-  const schema = getEntitySchema(entityKey)
-  if (!schema?.seed?.length) return []
-  return schema.seed.map((values, index) => ({
-    id: `${schema.docPrefix}-${String(index + 1).padStart(3, '0')}`,
-    createdAt: Date.now() - index * 60_000,
-    values,
-  }))
-}
-
 export function ErpShell() {
   const router = useRouter()
-  const { user, loading: authLoading, logout } = useAuth()
-  const permissions = user?.permissions ?? []
+  const { user, loading: authLoading, logout, refresh } = useAuth()
+  const erp = useErp(Boolean(user))
+  const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
+  const permissions = erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? []
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [expandedMain, setExpandedMain] = useState('dashboard')
@@ -75,13 +31,6 @@ export function ErpShell() {
   const [activeSubId, setActiveSubId] = useState('overview')
   const [toast, setToast] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
-  const [period, setPeriod] = useState('هذا الأسبوع')
-
-  const [entityStore, setEntityStore] = useLocalStorageState<Record<string, EntityRecord[]>>(
-    'factory:v2:entities',
-    {},
-  )
-
   const visibleMains = useMemo(
     () => ERP_NAV.filter((main) => canAccessMain(permissions, main)),
     [permissions],
@@ -113,26 +62,9 @@ export function ErpShell() {
     }
   }, [visibleSubs, activeSubId, activeMain])
 
-  // Seed empty entities once
   useEffect(() => {
-    setEntityStore((current) => {
-      let changed = false
-      const next = { ...current }
-      for (const main of ERP_NAV) {
-        for (const sub of main.subs) {
-          if (sub.entityKey === 'dashboard') continue
-          if (!next[sub.entityKey] || next[sub.entityKey]!.length === 0) {
-            const seeded = seedRecords(sub.entityKey)
-            if (seeded.length > 0) {
-              next[sub.entityKey] = seeded
-              changed = true
-            }
-          }
-        }
-      }
-      return changed ? next : current
-    })
-  }, [setEntityStore])
+    if (erp.message) setToast(erp.message)
+  }, [erp.message])
 
   if (authLoading || !user) {
     return (
@@ -179,38 +111,20 @@ export function ErpShell() {
   }
 
   const entityKey = activeSub?.entityKey ?? 'dashboard'
-  const schema = entityKey === 'dashboard' ? undefined : getEntitySchema(entityKey)
-  const records = entityStore[entityKey] ?? []
-
-  const handleCreate = (values: Record<string, unknown>) => {
-    if (!schema) return
-    const row: EntityRecord = {
-      id: makeId(schema.docPrefix),
-      createdAt: Date.now(),
-      values,
-    }
-    setEntityStore((current) => ({
-      ...current,
-      [entityKey]: [row, ...(current[entityKey] ?? [])],
-    }))
-    setToast('تم حفظ السجل وفق حقول الـ Schema')
-  }
-
-  const handleUpdate = (id: string, values: Record<string, unknown>) => {
-    setEntityStore((current) => ({
-      ...current,
-      [entityKey]: (current[entityKey] ?? []).map((row) => (row.id === id ? { ...row, values } : row)),
-    }))
-    setToast('تم تحديث السجل')
-  }
-
-  const handleDelete = (id: string) => {
-    setEntityStore((current) => ({
-      ...current,
-      [entityKey]: (current[entityKey] ?? []).filter((row) => row.id !== id),
-    }))
-    setToast('تم حذف السجل')
-  }
+  const unread = erp.state?.notifications.filter((item) => !item.read && item.roles.includes(roleKey)).length ?? 0
+  const liveCtx: LiveCtx | null = erp.state
+    ? {
+        state: erp.state,
+        permissions,
+        pending: erp.pending,
+        act: erp.act,
+        navigate: (key) => {
+          const found = findNavByEntity(key)
+          if (found) selectNav(found.main.id, found.sub.id)
+        },
+        refreshUser: refresh,
+      }
+    : null
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#f6f8f7] text-[#152925]">
@@ -355,9 +269,28 @@ export function ErpShell() {
             <h1 className="mt-1 text-3xl font-bold">مرحباً، {firstName}</h1>
           </div>
           <div className="mr-auto flex items-center gap-2">
-            <button aria-label="إشعارات" className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c]">
+            <button
+              type="button"
+              aria-label="إشعارات"
+              className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c]"
+              onClick={() => {
+                const found = findNavByEntity('notification')
+                if (found) selectNav(found.main.id, found.sub.id)
+              }}
+            >
               <Bell size={22} />
+              {unread > 0 ? (
+                <span className="absolute -left-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#ad5e46] px-1 text-[10px] font-bold text-white">
+                  {unread}
+                </span>
+              ) : null}
             </button>
+            {erp.storage ? (
+              <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-bold text-[#53655e] sm:inline">
+                {erp.storage === 'postgres' ? 'تخزين سحابي' : 'نسخة محلية'}
+                {process.env.NEXT_PUBLIC_APP_ENV === 'staging' ? ' — تجريبي' : ''}
+              </span>
+            ) : null}
           </div>
         </header>
 
@@ -383,21 +316,20 @@ export function ErpShell() {
         ) : null}
 
         <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
-          {entityKey === 'dashboard' ? (
-            <DashboardView period={period} setPeriod={setPeriod} />
-          ) : schema ? (
-            <EntityPage
-              schema={schema}
-              records={records}
-              onCreate={handleCreate}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-              mainLabel={activeMain?.label ?? ''}
-            />
-          ) : (
-            <div className="rounded-2xl border border-[#e1e9e5] bg-white p-8 text-sm text-[#53655e]">
-              لا يوجد مخطط لهذه الصفحة بعد.
+          {erp.error ? <div className="mb-4 rounded-xl bg-[#fff5f2] px-4 py-3 text-sm font-semibold text-[#ad5e46]">{erp.error}</div> : null}
+          {erp.loading || !liveCtx ? (
+            <div className="flex items-center gap-3 text-sm text-[#53655e]">
+              <Loader2 className="animate-spin" size={18} />
+              جاري تحميل عمليات المصنع...
             </div>
+          ) : (
+            <LiveWorkspace
+              entityKey={entityKey}
+              mainLabel={activeMain?.label ?? ''}
+              title={activeSub?.label ?? ''}
+              description={activeSub?.description ?? ''}
+              ctx={liveCtx}
+            />
           )}
         </div>
       </div>
@@ -411,115 +343,5 @@ export function ErpShell() {
         </div>
       ) : null}
     </main>
-  )
-}
-
-function DashboardView({
-  period,
-  setPeriod,
-}: {
-  period: string
-  setPeriod: (value: string) => void
-}) {
-  return (
-    <>
-      <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-base text-[#7c8c86]">
-            <span>الرئيسية</span>
-            <span>/</span>
-            <span className="text-[#1d7f72]">لوحة التحكم</span>
-          </div>
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">نظرة عامة على المصنع</h2>
-          <p className="mt-2 text-lg text-[#788983]">المواد الخام → التصنيع → المخزون → المبيعات → الحسابات → التقارير</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 rounded-xl border border-[#dfe7e3] bg-white px-3.5 py-2.5 text-xs font-medium text-[#53655e] shadow-sm">
-            <CalendarDays size={15} /> هذا الأسبوع
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-7 grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
-        <MetricCard label="قيمة المخزون" value={formatOMR(184620)} detail="المستودعات الثلاثة" icon={Warehouse} />
-        <MetricCard label="إنتاج اليوم" value="١٢,٥٠٠ كجم" detail="أمر PR-1048" icon={Factory} />
-        <MetricCard label="مبيعات الشهر" value={formatOMR(42680)} detail="٣٨ فاتورة" icon={ShoppingCart} />
-        <MetricCard label="تنبيهات" value="٣" detail="تحتاج متابعة" icon={AlertTriangle} danger />
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[1.65fr_1fr]">
-        <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
-          <div className="mb-6 flex items-start justify-between">
-            <div>
-              <h3 className="font-bold">الإنتاج والمبيعات</h3>
-              <p className="mt-1 text-xs text-[#899892]">متابعة الأداء الأسبوعي</p>
-            </div>
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="rounded-lg border border-[#e1e9e5] bg-[#fafcfb] px-3 py-2 text-xs text-[#53655e]"
-            >
-              <option>هذا الأسبوع</option>
-              <option>هذا الشهر</option>
-            </select>
-          </div>
-          <div className="h-[235px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={productionData} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="#edf2ef" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9aa9a3', fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9aa9a3', fontSize: 11 }} />
-                <Tooltip contentStyle={{ border: '1px solid #e1e9e5', borderRadius: 10, fontSize: 11, direction: 'rtl' }} />
-                <Area type="monotone" dataKey="production" stroke="#1d7f72" strokeWidth={2.5} fill="#1d7f7222" />
-                <Area type="monotone" dataKey="sales" stroke="#d6ad61" strokeWidth={2.5} fill="#d6ad6122" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-        <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
-          <h3 className="font-bold">توزيع المخزون</h3>
-          <p className="mt-1 text-xs text-[#899892]">حسب المواد الخام</p>
-          <div className="relative h-[190px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={stockData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={56} outerRadius={82} paddingAngle={4} strokeWidth={0}>
-                  {stockData.map((item) => (
-                    <Cell key={item.name} fill={item.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ border: '1px solid #e1e9e5', borderRadius: 10, fontSize: 11, direction: 'rtl' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-      </div>
-    </>
-  )
-}
-
-function MetricCard({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  danger,
-}: {
-  label: string
-  value: string
-  detail: string
-  icon: typeof Warehouse
-  danger?: boolean
-}) {
-  return (
-    <div className="rounded-2xl border border-[#e1e9e5] bg-white p-4 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
-      <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs text-[#71817c]">{label}</span>
-        <div className={`grid size-8 place-items-center rounded-lg ${danger ? 'bg-[#fff5f2] text-[#ad5e46]' : 'bg-[#eef6f3] text-[#1d7f72]'}`}>
-          <Icon size={16} />
-        </div>
-      </div>
-      <div className="text-xl font-bold">{value}</div>
-      <div className="mt-1 text-[11px] text-[#899892]">{detail}</div>
-    </div>
   )
 }

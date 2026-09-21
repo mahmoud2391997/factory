@@ -112,6 +112,16 @@ model Warehouse {
   updatedAt DateTime @updatedAt
 }
 
+/// Versioned operational document for the feed-factory ERP.
+/// Cloud Postgres is the source of truth when DATABASE_URL is set.
+/// A local JSON copy is written beside the app for the on-site backup.
+model ErpDocument {
+  id        String   @id
+  version   Int      @default(0)
+  payload   Json
+  updatedAt DateTime @updatedAt
+}
+
 model WarehouseLocation {
   id          String    @id @default(cuid())
   warehouseId String

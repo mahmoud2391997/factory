@@ -7,6 +7,8 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'مصنع الخليج للأعلاف | نظام إدارة المصنع',
   description: 'منصة إدارة متكاملة لمصنع الأعلاف والعمليات الصناعية في سلطنة عمان',
+  manifest: '/manifest.webmanifest',
+  applicationName: 'مصنع الخليج للأعلاف',
   generator: 'v0.app',
   icons: {
     icon: [

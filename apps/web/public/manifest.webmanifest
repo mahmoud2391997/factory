@@ -1,0 +1,13 @@
+{
+  "name": "مصنع الخليج للأعلاف",
+  "short_name": "أعلاف الخليج",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#123c35",
+  "theme_color": "#123c35",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

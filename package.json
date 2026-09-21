@@ -13,7 +13,10 @@
     "db:studio": "pnpm -C packages/database prisma studio",
     "db:migrate": "pnpm -C packages/database prisma migrate dev",
     "db:deploy": "pnpm -C packages/database prisma migrate deploy",
-    "db:seed": "pnpm -C packages/database prisma db seed"
+    "db:seed": "pnpm -C packages/database prisma db seed",
+    "test:erp": "tsx --test apps/web/lib/erp/domain/engine.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
   }
 }
-

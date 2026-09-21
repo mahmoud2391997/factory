@@ -5,14 +5,9 @@ import { z } from 'zod'
 import { prisma } from '@/server/db'
 import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
 import { getSessionUserById } from '@/server/auth/session'
-import {
-  DEMO_EMAIL,
-  DEMO_PASSWORD,
-  DEMO_USER_ID,
-  getDemoSessionUser,
-  isDemoMode,
-} from '@/server/demo'
+import { isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
+import { loadState } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
 
@@ -44,28 +39,30 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.toLowerCase().trim()
     const password = parsed.data.password
 
-    // Demo mode: no DATABASE_URL — accept built-in credentials without Postgres.
-    if (isDemoMode()) {
-      if (email !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `وضع تجريبي: استخدم ${DEMO_EMAIL} / ${DEMO_PASSWORD}`,
-            code: 'DEMO_INVALID_CREDENTIALS',
-          },
-          { status: 401 },
-        )
-      }
-
-      const accessToken = await issueAccessToken({ sub: DEMO_USER_ID })
-      const refreshToken = await issueRefreshToken({ sub: DEMO_USER_ID })
+    const loaded = await loadState()
+    const erpUser = loaded.state.users.find((item) => item.email.toLowerCase() === email && item.active)
+    if (erpUser && (await bcrypt.compare(password, erpUser.passwordHash))) {
+      const accessToken = await issueAccessToken({ sub: erpUser.id })
+      const refreshToken = await issueRefreshToken({ sub: erpUser.id })
+      const sessionUser = await getSessionUserById(erpUser.id)
       const res = NextResponse.json({
         success: true,
-        data: { user: getDemoSessionUser(), demoMode: true },
-        message: 'تم تسجيل الدخول (وضع تجريبي بدون قاعدة بيانات)',
+        data: { user: sessionUser, demoMode: isDemoMode(), storage: loaded.storage },
+        message: isDemoMode() ? 'تم تسجيل الدخول' : 'تم تسجيل الدخول بنجاح',
       })
       setAuthCookies(res, { accessToken, refreshToken })
       return res
+    }
+
+    if (isDemoMode()) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'بيانات الدخول غير صحيحة. الحسابات التجريبية: gm / accounts / ops @factory.local وكلمة المرور Admin123!',
+          code: 'DEMO_INVALID_CREDENTIALS',
+        },
+        { status: 401 },
+      )
     }
 
     const user = await prisma.user.findUnique({ where: { email } })
