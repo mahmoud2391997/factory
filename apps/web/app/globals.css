@@ -162,6 +162,27 @@
   }
 }
 
+:root {
+  --erp-sidebar: #123c35;
+  --erp-section: #f3e6c4;
+  --erp-section-mark: #d6ad61;
+  --erp-space-1: 0.25rem;
+  --erp-space-2: 0.5rem;
+  --erp-space-3: 0.75rem;
+  --erp-space-4: 1rem;
+  --erp-text-sm: 0.875rem;
+  --erp-radius-lg: 0.75rem;
+}
+
+.erp-nav-section {
+  color: var(--erp-section);
+}
+
+.erp-nav-section:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+}
+
 .dark {
   --erp-bg: #10211d;
   --erp-fg: #e8f3ee;

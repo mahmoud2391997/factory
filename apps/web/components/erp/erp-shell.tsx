@@ -378,16 +378,23 @@ export function ErpShell() {
             if (mains.length === 0) return null
             const sectionOpen = openSections[section.id] !== false
             return (
-              <div key={section.id}>
+              <div key={section.id} className="border-t border-white/10 pt-3 first:border-t-0 first:pt-0">
                 <button
                   type="button"
                   aria-expanded={sectionOpen}
                   aria-controls={`nav-section-${section.id}`}
                   onClick={() => toggleSection(section.id)}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-bold text-white/55 hover:bg-white/8 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61]"
+                  className="erp-nav-section flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61]"
                 >
-                  <span className={iconOnly ? 'sr-only' : ''}>{section.label}</span>
-                  <ChevronDown size={14} aria-hidden className={`shrink-0 transition ${sectionOpen ? '' : '-rotate-90'} ${iconOnly ? 'mx-auto' : ''}`} />
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden className="h-4 w-1 shrink-0 rounded-full bg-[#d6ad61]" />
+                    <span className={iconOnly ? 'sr-only' : 'truncate'}>{section.label}</span>
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    aria-hidden
+                    className={`shrink-0 text-[#d6ad61] transition ${sectionOpen ? '' : '-rotate-90'} ${iconOnly ? 'hidden' : ''}`}
+                  />
                 </button>
                 {sectionOpen ? (
                   <div id={`nav-section-${section.id}`} className="mt-1 space-y-1">
@@ -533,7 +540,7 @@ export function ErpShell() {
       {toast ? (
         <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">
           {toast}
-          <button className="mr-3 text-white/60 hover:text-white" onClick={() => setToast('')}>
+          <button type="button" aria-label="إغلاق" className="mr-3 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]" onClick={() => setToast('')}>
             ×
           </button>
         </div>
