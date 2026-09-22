@@ -480,9 +480,15 @@ export function ErpShell() {
         <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
           {erp.error ? <div className="mb-4 rounded-xl bg-[#fff5f2] px-4 py-3 text-sm font-semibold text-[#ad5e46]">{erp.error}</div> : null}
           {erp.loading || !liveCtx ? (
-            <div className="flex items-center gap-3 text-sm text-[#53655e]">
-              <Loader2 className="animate-spin" size={18} />
-              جاري تحميل عمليات المصنع...
+            <div aria-busy="true" aria-live="polite" className="space-y-4">
+              <span className="sr-only">جاري تحميل عمليات المصنع...</span>
+              <div className="h-8 w-56 animate-pulse rounded-xl bg-[#e1e9e5]" />
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {['a', 'b', 'c'].map((key) => (
+                  <div key={key} className="h-28 animate-pulse rounded-2xl bg-[#e1e9e5]" />
+                ))}
+              </div>
+              <div className="h-72 animate-pulse rounded-2xl bg-[#e1e9e5]" />
             </div>
           ) : (
             <LiveWorkspace
