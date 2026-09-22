@@ -544,7 +544,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         <Card title="آخر الحركات">
           <DataTable
             columns={['النوع', 'الصنف', 'الكمية']}
-            rows={ctx.state.ledger.slice(0, 6).map((row) => [row.type, row.batchNo, qtyFmt(row.qty)])}
+            rows={ctx.state.ledger.slice(0, 6).map((row) => [statusLabel(row.type), row.batchNo, qtyFmt(row.qty)])}
           />
         </Card>
       </div>
