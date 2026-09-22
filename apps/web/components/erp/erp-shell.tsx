@@ -413,7 +413,7 @@ export function ErpShell() {
               type="button"
               aria-label="توسيع الشريط"
               title="توسيع الشريط"
-              className="mb-3 hidden w-full place-items-center rounded-xl border border-[#d6ad61]/50 p-2 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:grid"
+              className="mb-3 grid w-full place-items-center rounded-xl border border-[#d6ad61]/50 p-2 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]"
               onClick={() => setCompact(false)}
             >
               <PanelRightOpen size={18} aria-hidden />
@@ -422,7 +422,7 @@ export function ErpShell() {
             <button
               type="button"
               aria-label="طي الشريط"
-              className="mb-3 hidden w-full items-center justify-center gap-2 rounded-xl border border-[#d6ad61]/50 px-3 py-2 text-sm font-bold text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:flex"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#d6ad61]/50 px-3 py-2 text-sm font-bold text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]"
               onClick={() => setCompact(true)}
             >
               <PanelRightClose size={18} aria-hidden />
