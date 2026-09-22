@@ -107,6 +107,8 @@ model Warehouse {
   isActive Boolean      @default(true)
 
   locations WarehouseLocation[]
+  inventoryBalances InventoryBalance[]
+  ledgerEntries InventoryLedgerEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,11 +131,390 @@ model WarehouseLocation {
 
   code     String
   nameAr   String
-  isActive Boolean  @default(true)
+  isActive Boolean @default(true)
+
+  balances InventoryBalance[]
+  ledgerEntries InventoryLedgerEntry[]
 
   createdAt DateTime @default(now())
 
   @@unique([warehouseId, code])
   @@index([warehouseId])
 }
+
+enum VatTreatment {
+  STANDARD
+  ZERO
+  EXEMPT
+}
+
+enum CatalogItemType {
+  MATERIAL
+  PRODUCT
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CONFIRMED
+  PARTIAL
+  PAID
+  RECEIVED
+  COMPLETED
+  RELEASED
+}
+
+model Material {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  category String
+  unit String
+  minQty Decimal @default(0) @db.Decimal(14, 3)
+  vatTreatment VatTreatment @default(STANDARD)
+  barcode String @unique
+  active Boolean @default(true)
+
+  recipeItems RecipeItem[]
+  purchaseLines PurchaseOrderLine[]
+  receiptLines GoodsReceiptLine[]
+  inventoryBalances InventoryBalance[]
+  ledgerEntries InventoryLedgerEntry[]
+  productionInputs ProductionInput[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  unit String
+  salePrice Decimal @default(0) @db.Decimal(14, 3)
+  vatTreatment VatTreatment @default(STANDARD)
+  barcode String @unique
+  bagKg Decimal @default(0) @db.Decimal(14, 3)
+  active Boolean @default(true)
+
+  recipes Recipe[]
+  inventoryBalances InventoryBalance[]
+  ledgerEntries InventoryLedgerEntry[]
+  productionOrders ProductionOrder[]
+  invoiceLines SalesInvoiceLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Supplier {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  vatNumber String
+  phone String
+  email String
+  address String
+  purchaseOrders PurchaseOrder[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  vatNumber String
+  phone String
+  email String
+  address String
+  invoices SalesInvoice[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  department String
+  jobTitle String
+  basicSalary Decimal @default(0) @db.Decimal(14, 3)
+  active Boolean @default(true)
+  attendance Attendance[]
+  payrollLines PayrollLine[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Recipe {
+  id String @id @default(cuid())
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  nameAr String
+  baseOutputQty Decimal @db.Decimal(14, 3)
+  items RecipeItem[]
+  productionOrders ProductionOrder[]
+  @@index([productId])
+}
+
+model RecipeItem {
+  recipeId String
+  materialId String
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  qty Decimal @db.Decimal(14, 3)
+  @@id([recipeId, materialId])
+  @@index([materialId])
+}
+
+model InventoryBalance {
+  id String @id @default(cuid())
+  warehouseId String
+  locationId String?
+  itemType CatalogItemType
+  materialId String?
+  productId String?
+  batchNo String
+  qty Decimal @default(0) @db.Decimal(14, 3)
+  unitCost Decimal @default(0) @db.Decimal(14, 3)
+  expiryDate DateTime?
+  receivedAt DateTime
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location WarehouseLocation? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  material Material? @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  @@unique([warehouseId, locationId, itemType, materialId, productId, batchNo])
+  @@index([materialId])
+  @@index([productId])
+}
+
+model InventoryLedgerEntry {
+  id String @id @default(cuid())
+  at DateTime @default(now())
+  type String
+  warehouseId String
+  locationId String?
+  itemType CatalogItemType
+  materialId String?
+  productId String?
+  batchNo String
+  qty Decimal @db.Decimal(14, 3)
+  unitCost Decimal @db.Decimal(14, 3)
+  prevQty Decimal @db.Decimal(14, 3)
+  newQty Decimal @db.Decimal(14, 3)
+  refType String
+  refId String
+  userId String
+  notes String
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  location WarehouseLocation? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  material Material? @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  @@index([warehouseId, at])
+  @@index([materialId])
+  @@index([productId])
+  @@index([refType, refId])
+}
+
+model PurchaseOrder {
+  id String @id @default(cuid())
+  number String @unique
+  supplierId String
+  status DocumentStatus @default(PENDING_APPROVAL)
+  notes String
+  createdBy String
+  createdAt DateTime @default(now())
+  decidedBy String?
+  decidedAt DateTime?
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines PurchaseOrderLine[]
+  receipts GoodsReceipt[]
+  @@index([supplierId, status])
+}
+
+model PurchaseOrderLine {
+  id String @id @default(cuid())
+  purchaseOrderId String
+  materialId String
+  qty Decimal @db.Decimal(14, 3)
+  unitCost Decimal @db.Decimal(14, 3)
+  receivedQty Decimal @default(0) @db.Decimal(14, 3)
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  @@index([materialId])
+}
+
+model GoodsReceipt {
+  id String @id @default(cuid())
+  number String @unique
+  purchaseOrderId String
+  at DateTime @default(now())
+  createdBy String
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  lines GoodsReceiptLine[]
+}
+
+model GoodsReceiptLine {
+  id String @id @default(cuid())
+  goodsReceiptId String
+  materialId String
+  qty Decimal @db.Decimal(14, 3)
+  unitCost Decimal @db.Decimal(14, 3)
+  batchNo String
+  expiryDate DateTime?
+  receipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  @@index([materialId])
+}
+
+model ProductionOrder {
+  id String @id @default(cuid())
+  number String @unique
+  productId String
+  recipeId String
+  plannedQty Decimal @db.Decimal(14, 3)
+  status DocumentStatus @default(RELEASED)
+  actualOutputQty Decimal @default(0) @db.Decimal(14, 3)
+  totalCost Decimal @default(0) @db.Decimal(14, 3)
+  unitCost Decimal @default(0) @db.Decimal(14, 3)
+  outputBatch String
+  varianceReason String
+  createdBy String
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Restrict)
+  inputs ProductionInput[]
+  @@index([productId, status])
+}
+
+model ProductionInput {
+  id String @id @default(cuid())
+  productionOrderId String
+  materialId String
+  expectedQty Decimal @db.Decimal(14, 3)
+  actualQty Decimal @db.Decimal(14, 3)
+  wasteQty Decimal @db.Decimal(14, 3)
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  @@index([materialId])
+}
+
+model SalesInvoice {
+  id String @id @default(cuid())
+  number String @unique
+  customerId String
+  status DocumentStatus @default(DRAFT)
+  issuedAt DateTime @default(now())
+  notes String
+  subtotal Decimal @db.Decimal(14, 3)
+  vatAmount Decimal @db.Decimal(14, 3)
+  total Decimal @db.Decimal(14, 3)
+  paidAmount Decimal @default(0) @db.Decimal(14, 3)
+  createdBy String
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lines SalesInvoiceLine[]
+  payments SalesPayment[]
+  @@index([customerId, status])
+}
+
+model SalesInvoiceLine {
+  id String @id @default(cuid())
+  invoiceId String
+  productId String
+  qty Decimal @db.Decimal(14, 3)
+  unitPrice Decimal @db.Decimal(14, 3)
+  vatTreatment VatTreatment
+  vatRatePct Decimal @db.Decimal(5, 2)
+  net Decimal @db.Decimal(14, 3)
+  vat Decimal @db.Decimal(14, 3)
+  total Decimal @db.Decimal(14, 3)
+  batchNo String
+  unitCost Decimal @db.Decimal(14, 3)
+  invoice SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  @@index([productId])
+}
+
+model SalesPayment {
+  id String @id @default(cuid())
+  number String @unique
+  invoiceId String
+  amount Decimal @db.Decimal(14, 3)
+  method String
+  at DateTime @default(now())
+  createdBy String
+  invoice SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+}
+
+model Account {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  type String
+  journalLines JournalLine[]
+}
+
+model JournalEntry {
+  id String @id @default(cuid())
+  number String @unique
+  at DateTime @default(now())
+  memo String
+  refType String
+  refId String
+  lines JournalLine[]
+}
+
+model JournalLine {
+  id String @id @default(cuid())
+  journalEntryId String
+  accountId String
+  debit Decimal @default(0) @db.Decimal(14, 3)
+  credit Decimal @default(0) @db.Decimal(14, 3)
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@index([accountId])
+}
+
+model Attendance {
+  id String @id @default(cuid())
+  employeeId String
+  date DateTime
+  checkIn DateTime
+  checkOut DateTime
+  source String
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  @@unique([employeeId, date])
+}
+
+model PayrollLine {
+  id String @id @default(cuid())
+  payrollRunId String
+  employeeId String
+  basic Decimal @db.Decimal(14, 3)
+  overtimeHours Decimal @db.Decimal(14, 3)
+  overtimeAmount Decimal @db.Decimal(14, 3)
+  allowances Decimal @db.Decimal(14, 3)
+  deductions Decimal @db.Decimal(14, 3)
+  gross Decimal @db.Decimal(14, 3)
+  net Decimal @db.Decimal(14, 3)
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+}
+
+model PayrollRun {
+  id String @id @default(cuid())
+  number String @unique
+  month String
+  status DocumentStatus @default(PENDING_APPROVAL)
+  totalNet Decimal @db.Decimal(14, 3)
+  createdBy String
+  createdAt DateTime @default(now())
+  decidedBy String?
+  lines PayrollLine[]
+}
+
 
