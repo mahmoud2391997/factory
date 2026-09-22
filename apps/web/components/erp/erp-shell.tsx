@@ -200,7 +200,7 @@ export function ErpShell() {
                   <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
                 </Link>
                 {!iconOnly && nodes.length > 0 ? (
-                  <div className="mb-2 mr-4 mt-1 space-y-1">
+                  <div className="mb-2 mr-4 mt-1 space-y-1 border-r border-[#d7e4e2] pr-2">
                     {nodes.map((node) => {
                       const childCurrent = node.children.some((child) => child.href === pathname)
                       const nodeCurrent = pathname === node.href && !childCurrent
@@ -217,7 +217,7 @@ export function ErpShell() {
                             <span className="truncate">{node.label}</span>
                           </Link>
                           {node.children.length > 0 ? (
-                            <div className="mb-1 mr-3 mt-1 space-y-1">
+                            <div className="mb-1 mr-3 mt-1 space-y-1 border-r border-[#d7e4e2] pr-2">
                               {node.children.map((child) => {
                                 const current = pathname === child.href
                                 return (
