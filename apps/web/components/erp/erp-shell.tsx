@@ -17,6 +17,7 @@ import {
   leafMeta,
   pageTabs,
   resolvePath,
+  sidebarNodes,
   visibleDestinations,
 } from '@/lib/erp-routes'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
@@ -181,21 +182,65 @@ export function ErpShell() {
             const Icon = destination.icon
             const active = resolved?.destination?.id === destination.id
             const href = entryHref(destination, permissions)
+            const nodes = sidebarNodes(destination, permissions)
             return (
-              <Link
-                key={destination.id}
-                href={href}
-                aria-current={active ? 'page' : undefined}
-                aria-label={destination.label}
-                title={destination.label}
-                className={`relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
-                  active ? 'bg-white/12 text-white' : 'text-white/80 hover:bg-white/8 hover:text-white'
-                }`}
-              >
-                {active ? <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-[#d6ad61]" /> : null}
-                <Icon size={22} aria-hidden strokeWidth={active ? 2.4 : 2} />
-                <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
-              </Link>
+              <div key={destination.id}>
+                <Link
+                  href={href}
+                  aria-current={active && pathname === href ? 'page' : undefined}
+                  aria-label={destination.label}
+                  title={destination.label}
+                  className={`relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
+                    active ? 'bg-white/12 text-white' : 'text-white/80 hover:bg-white/8 hover:text-white'
+                  }`}
+                >
+                  {active ? <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-[#d6ad61]" /> : null}
+                  <Icon size={22} aria-hidden strokeWidth={active ? 2.4 : 2} />
+                  <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
+                </Link>
+                {!iconOnly && nodes.length > 0 ? (
+                  <div className="mb-2 mr-3 mt-1 space-y-1 border-r border-white/15 pr-2">
+                    {nodes.map((node) => {
+                      const childCurrent = node.children.some((child) => child.href === pathname)
+                      const nodeCurrent = pathname === node.href && !childCurrent
+                      return (
+                        <div key={node.id}>
+                          <Link
+                            href={node.href}
+                            aria-current={nodeCurrent ? 'page' : undefined}
+                            title={node.label}
+                            className={`flex w-full items-center rounded-lg px-3 py-2 text-right text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
+                              nodeCurrent ? 'bg-[#d6ad61] text-[#123c35]' : childCurrent ? 'bg-white/12 text-white' : 'text-white/75 hover:bg-white/8 hover:text-white'
+                            }`}
+                          >
+                            <span className="truncate">{node.label}</span>
+                          </Link>
+                          {node.children.length > 0 ? (
+                            <div className="mb-1 mr-3 mt-1 space-y-1 border-r border-white/10 pr-2">
+                              {node.children.map((child) => {
+                                const current = pathname === child.href
+                                return (
+                                  <Link
+                                    key={child.id}
+                                    href={child.href}
+                                    aria-current={current ? 'page' : undefined}
+                                    title={child.label}
+                                    className={`flex w-full items-center rounded-lg px-3 py-2 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
+                                      current ? 'bg-[#d6ad61] font-bold text-[#123c35]' : 'text-white/70 hover:bg-white/8 hover:text-white'
+                                    }`}
+                                  >
+                                    <span className="truncate">{child.label}</span>
+                                  </Link>
+                                )
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
             )
           })}
         </nav>

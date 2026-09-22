@@ -296,6 +296,42 @@ export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
 
 export type PageTab = { id: string; href: string; label: string }
 
+export type SidebarNode = { id: string; href: string; label: string; children: SidebarNode[] }
+
+/** Same tabs shown on the page, nested for the sidebar. */
+export function sidebarNodes(destination: Destination, permissions: string[]): SidebarNode[] {
+  const groups = destination.groups
+    .map((group) => ({
+      ...group,
+      leaves: group.leaves.filter((leaf) => leaf.tab && canSeeEntity(permissions, leaf.entityKey)),
+    }))
+    .filter((group) => group.leaves.length > 0)
+  if (groups.length === 0) return []
+  if (groups.length === 1) {
+    const leaves = groups[0]!.leaves
+    if (leaves.length < 2) return []
+    return leaves.map((leaf) => ({
+      id: leaf.href,
+      href: leaf.href,
+      label: leafMeta(leaf.entityKey).label,
+      children: [],
+    }))
+  }
+  return groups.map((group) => {
+    const first = group.leaves[0]!
+    const children =
+      group.leaves.length > 1
+        ? group.leaves.map((leaf) => ({
+            id: leaf.href,
+            href: leaf.href,
+            label: leafMeta(leaf.entityKey).label,
+            children: [] as SidebarNode[],
+          }))
+        : []
+    return { id: group.id, href: first.href, label: group.label, children }
+  })
+}
+
 export function breadcrumbs(resolved: ResolvedRoute, permissions: string[]) {
   const meta = leafMeta(resolved.leaf.entityKey)
   const crumbs: Array<{ href: string; label: string }> = [{ href: '/', label: 'الرئيسية' }]
