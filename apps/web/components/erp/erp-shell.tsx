@@ -351,14 +351,15 @@ export function ErpShell() {
           <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#d6ad61] text-[#123c35]">
             <Factory size={26} aria-hidden strokeWidth={2.4} />
           </div>
-          <div className={iconOnly ? 'sr-only' : ''}>
-            <div className="text-2xl font-bold tracking-tight">مصنع الخليج للأعلاف</div>
-            <div className="text-sm text-white/55">نظام إدارة المصنع (ERP)</div>
+          <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
+            <div className="truncate text-xl font-bold tracking-tight">مصنع الخليج للأعلاف</div>
+            <div className="truncate text-sm text-white/70">نظام إدارة المصنع (ERP)</div>
           </div>
           <button
             type="button"
             aria-label={compact ? 'توسيع الشريط' : 'طي الشريط'}
-            className={`${iconOnly ? 'hidden' : 'mr-auto hidden md:grid'} rounded-lg p-1.5 text-white/70 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]`}
+            title={compact ? 'توسيع الشريط' : 'طي الشريط'}
+            className={`${iconOnly ? 'hidden' : 'hidden md:grid'} shrink-0 rounded-lg p-1.5 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]`}
             onClick={() => setCompact((value) => !value)}
           >
             {compact ? <PanelRightOpen size={20} aria-hidden /> : <PanelRightClose size={20} aria-hidden />}
@@ -406,8 +407,29 @@ export function ErpShell() {
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="flex items-center gap-3 rounded-xl bg-white/8 p-3.5">
+        <div className="border-t border-white/10 p-3">
+          {iconOnly ? (
+            <button
+              type="button"
+              aria-label="توسيع الشريط"
+              title="توسيع الشريط"
+              className="mb-3 hidden w-full place-items-center rounded-xl border border-[#d6ad61]/50 p-2 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:grid"
+              onClick={() => setCompact(false)}
+            >
+              <PanelRightOpen size={18} aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="طي الشريط"
+              className="mb-3 hidden w-full items-center justify-center gap-2 rounded-xl border border-[#d6ad61]/50 px-3 py-2 text-sm font-bold text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:flex"
+              onClick={() => setCompact(true)}
+            >
+              <PanelRightClose size={18} aria-hidden />
+              طي الشريط
+            </button>
+          )}
+          <div className={`rounded-xl bg-white/8 ${iconOnly ? 'flex flex-col items-center gap-2 p-2' : 'flex items-center gap-3 p-3.5'}`}>
             <div className="grid size-11 place-items-center rounded-full bg-[#d6ad61] text-base font-bold text-[#123c35]">
               {getInitials(user.fullName)}
             </div>
@@ -424,20 +446,10 @@ export function ErpShell() {
                 await logout()
                 router.replace('/login')
               }}
-              className="mr-auto rounded-lg p-2 text-white/55 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]"
+              className={`${iconOnly ? '' : 'mr-auto'} rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]`}
             >
               {loggingOut ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <LogOut size={18} aria-hidden />}
             </button>
-            {iconOnly ? (
-              <button
-                type="button"
-                aria-label="توسيع الشريط"
-                className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:grid"
-                onClick={() => setCompact(false)}
-              >
-                <PanelRightOpen size={18} aria-hidden />
-              </button>
-            ) : null}
           </div>
         </div>
       </aside>
