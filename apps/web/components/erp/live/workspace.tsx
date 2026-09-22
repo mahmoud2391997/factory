@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { FactoryScreens } from './screens-factory'
 import { InventoryScreens, ProductionScreens, PurchasingScreens, SalesScreens } from './screens-ops'
 import { DashboardScreen, OfficeScreens } from './screens-office'
@@ -7,17 +9,15 @@ import type { LiveCtx } from './ctx'
 
 export function LiveWorkspace({
   entityKey,
-  sectionLabel,
-  mainLabel,
   title,
   description,
+  crumbs,
   ctx,
 }: {
   entityKey: string
-  sectionLabel: string
-  mainLabel: string
   title: string
   description: string
+  crumbs: Array<{ href: string; label: string }>
   ctx: LiveCtx
 }) {
   const body =
@@ -36,13 +36,23 @@ export function LiveWorkspace({
     <div className="space-y-4">
       <nav aria-label="مسار الصفحة" className="text-sm text-[#7c8c86]">
         <ol className="flex flex-wrap items-center gap-2">
-          <li>الرئيسية</li>
-          <li aria-hidden="true">/</li>
-          <li>{sectionLabel}</li>
-          <li aria-hidden="true">/</li>
-          <li>{mainLabel}</li>
-          <li aria-hidden="true">/</li>
-          <li className="font-semibold text-[#1d7f72]" aria-current="page">{title}</li>
+          {crumbs.map((crumb, index) => {
+            const last = index === crumbs.length - 1
+            return (
+              <li key={`${crumb.href}-${index}`} className="flex items-center gap-2">
+                {index > 0 ? <span aria-hidden="true">/</span> : null}
+                {last ? (
+                  <span className="font-semibold text-[#1d7f72]" aria-current="page">
+                    {crumb.label}
+                  </span>
+                ) : (
+                  <Link href={crumb.href} className="hover:text-[#123c35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]">
+                    {crumb.label}
+                  </Link>
+                )}
+              </li>
+            )
+          })}
         </ol>
       </nav>
       {entityKey !== 'dashboard' ? (
