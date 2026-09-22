@@ -161,3 +161,94 @@
     @apply bg-background text-foreground;
   }
 }
+
+.dark {
+  --erp-bg: #10211d;
+  --erp-fg: #e8f3ee;
+  --erp-muted: #c5d5ce;
+  --erp-card: #17312b;
+  --erp-border: #3d5c54;
+  --erp-good: #b7f3d4;
+  --erp-warn: #f0d089;
+  --erp-bad: #f3b5a6;
+  --erp-link: #9be6da;
+}
+
+.dark .erp-app {
+  background: var(--erp-bg);
+  color: var(--erp-fg);
+}
+
+.dark .erp-content {
+  background: var(--erp-bg);
+  color: var(--erp-fg);
+}
+
+.dark .erp-content [class*='bg-white'],
+.dark .erp-content [class*='bg-[#f7faf8]'],
+.dark .erp-content [class*='bg-[#f5f8f6]'],
+.dark .erp-content [class*='bg-[#fff9ec]'] {
+  background-color: var(--erp-card);
+}
+
+.dark .erp-content [class*='bg-[#f6f8f7]'],
+.dark .erp-content [class*='bg-[#e7eeeb]'],
+.dark .erp-content [class*='bg-[#e1e9e5]'] {
+  background-color: var(--erp-bg);
+}
+
+.dark .erp-content [class*='text-[#152925]'],
+.dark .erp-content [class*='text-[#30453d]'],
+.dark .erp-content [class*='text-[#123c35]'],
+.dark .erp-content [class*='text-[#3d524b]'] {
+  color: var(--erp-fg);
+}
+
+.dark .erp-content [class*='text-[#53655e]'],
+.dark .erp-content [class*='text-[#71817c]'],
+.dark .erp-content [class*='text-[#788983]'],
+.dark .erp-content [class*='text-[#7c8c86]'],
+.dark .erp-content [class*='text-[#7d8e88]'],
+.dark .erp-content [class*='text-[#899892]'],
+.dark .erp-content [class*='text-[#8b9a94]'] {
+  color: var(--erp-muted);
+}
+
+.dark .erp-content [class*='text-[#0f6b52]'],
+.dark .erp-content [class*='text-[#19725f]'] {
+  color: var(--erp-good);
+}
+
+.dark .erp-content [class*='text-[#8a5a10]'],
+.dark .erp-content [class*='text-[#9b6b1f]'] {
+  color: var(--erp-warn);
+}
+
+.dark .erp-content [class*='text-[#9a3f2c]'],
+.dark .erp-content [class*='text-[#ad5e46]'] {
+  color: var(--erp-bad);
+}
+
+.dark .erp-content [class*='text-[#1d7f72]'] {
+  color: var(--erp-link);
+}
+
+.dark .erp-content [class*='border-[#e1e9e5]'],
+.dark .erp-content [class*='border-[#dfe7e3]'],
+.dark .erp-content [class*='border-[#edf2ef]'],
+.dark .erp-content [class*='border-[#f3f6f5]'] {
+  border-color: var(--erp-border);
+}
+
+.dark .erp-content [class*='bg-[#fff5f2]'],
+.dark .erp-content [class*='bg-[#fff1ec]'] {
+  background-color: #3a2420;
+}
+
+.dark .erp-content [class*='bg-[#fff6e8]'] {
+  background-color: #3a311c;
+}
+
+.dark .erp-content [class*='bg-[#e7f6f1]'] {
+  background-color: #16362e;
+}

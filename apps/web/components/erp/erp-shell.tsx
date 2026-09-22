@@ -13,8 +13,10 @@ import {
   Loader2,
   LogOut,
   Menu,
+  Moon,
   PanelRightClose,
   PanelRightOpen,
+  Sun,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -29,6 +31,7 @@ import { useErp } from '@/lib/use-erp'
 
 const SECTION_KEY = 'erp-nav-sections'
 const COMPACT_KEY = 'erp-sidebar-compact'
+const THEME_KEY = 'erp-theme'
 
 const SUB_ICONS: Record<string, LucideIcon> = {
   dashboard: Factory,
@@ -111,6 +114,8 @@ export function ErpShell() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [navReady, setNavReady] = useState(false)
   const [compact, setCompact] = useState(false)
+  const [dark, setDark] = useState(false)
+  const [themeReady, setThemeReady] = useState(false)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_SECTIONS.map((section) => [section.id, true])),
   )
@@ -162,6 +167,13 @@ export function ErpShell() {
     } catch {
       /* keep defaults */
     }
+    const storedTheme = localStorage.getItem(THEME_KEY)
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const useDark = storedTheme === 'dark' || (storedTheme !== 'light' && prefersDark)
+    setDark(useDark)
+    document.documentElement.classList.toggle('dark', useDark)
+    document.documentElement.classList.toggle('light', !useDark)
+    setThemeReady(true)
     setNavReady(true)
   }, [])
 
@@ -174,6 +186,13 @@ export function ErpShell() {
     if (!navReady) return
     localStorage.setItem(COMPACT_KEY, compact ? '1' : '0')
   }, [navReady, compact])
+
+  useEffect(() => {
+    if (!themeReady) return
+    document.documentElement.classList.toggle('dark', dark)
+    document.documentElement.classList.toggle('light', !dark)
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light')
+  }, [themeReady, dark])
 
   if (authLoading || !user) {
     return (
@@ -416,7 +435,7 @@ export function ErpShell() {
         </div>
       </aside>
 
-      <div className={iconOnly ? 'md:mr-20' : 'md:mr-80'}>
+      <div className={`erp-content min-h-screen ${iconOnly ? 'md:mr-20' : 'md:mr-80'}`}>
         <header className="sticky top-0 z-30 flex h-[92px] items-center gap-4 border-b border-[#e1e9e5] bg-[#f6f8f7]/95 px-5 backdrop-blur md:px-8">
           <button
             aria-label="فتح القائمة"
@@ -445,6 +464,14 @@ export function ErpShell() {
                   {unread}
                 </span>
               ) : null}
+            </button>
+            <button
+              type="button"
+              aria-label={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}
+              className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+              onClick={() => setDark((value) => !value)}
+            >
+              {dark ? <Sun size={22} aria-hidden /> : <Moon size={22} aria-hidden />}
             </button>
             {erp.storage ? (
               <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-bold text-[#53655e] sm:inline">
