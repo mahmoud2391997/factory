@@ -3,7 +3,7 @@ import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
 import type { Actor, Command, ErpState } from './types'
 import { SCHEMA_VERSION } from './types'
 
-export function createClock(startIso = '2026-09-01T04:00:00.000Z'): Clock & { advance: (hours?: number) => void } {
+export function createClock(startIso = '2026-09-11T05:00:00.000Z'): Clock & { advance: (hours?: number) => void } {
   let time = Date.parse(startIso)
   let serial = 0
   return {
@@ -92,6 +92,7 @@ export function emptyState(passwordHash: string): ErpState {
     attendance: [],
     payrolls: [],
     tasks: [],
+    stoppages: [],
     notifications: [],
     auditLogs: [],
     sequences: {},
@@ -153,6 +154,25 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
   state = step(state, clock, {
     action: 'createSupplier',
     input: { nameAr: 'شركة ظفار للحبوب', vatNumber: 'OM2200002222', phone: '+968 2329 1100', address: 'صلالة' },
+  })
+  state = step(state, clock, {
+    action: 'createMaterial',
+    input: { code: 'RM-BENT', nameAr: 'بنتونيت', category: 'معادن', minQty: 30, vatTreatment: 'STANDARD', unit: 'كجم' },
+  })
+  const bentonite = state.materials.find((item) => item.code === 'RM-BENT')!
+  const mills = state.suppliers.find((item) => item.nameAr.includes('المطاحن'))!
+  state = step(state, clock, {
+    action: 'createPurchaseOrder',
+    input: { supplierId: mills.id, lines: [{ materialId: bentonite.id, qty: 200, unitCost: 0.04 }] },
+  })
+  const bentoniteOrder = state.purchaseOrders[0]!
+  state = step(state, clock, { action: 'decidePurchaseOrder', input: { id: bentoniteOrder.id, decision: 'APPROVED' } })
+  state = step(state, clock, {
+    action: 'receiveGoods',
+    input: {
+      purchaseOrderId: bentoniteOrder.id,
+      lines: [{ materialId: bentonite.id, qty: 200, batchNo: 'B-BENT-0815', expiryDate: '2027-08-01' }],
+    },
   })
   state = step(state, clock, {
     action: 'createCustomer',
@@ -218,11 +238,11 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
   const supplier = state.suppliers.find((item) => item.nameAr.includes('المطاحن'))!
   const receipts: Array<[string, number, number, string, string | null]> = [
     ['RM-CORN', 20000, 0.085, 'B-CORN-0901', '2027-03-01'],
-    ['RM-SOYA', 2500, 0.21, 'B-SOYA-0902', '2027-02-01'],
+    ['RM-SOYA', 3800, 0.21, 'B-SOYA-0902', '2027-02-01'],
     ['RM-BRAN', 9000, 0.045, 'B-BRAN-0901', '2027-01-15'],
     ['RM-LIME', 1200, 0.02, 'B-LIME-0801', null],
-    ['RM-SALT', 400, 0.03, 'B-SALT-0801', null],
-    ['RM-PRE', 180, 1.2, 'B-PRE-0801', '2027-06-01'],
+    ['RM-SALT', 600, 0.03, 'B-SALT-0801', null],
+    ['RM-PRE', 450, 1.2, 'B-PRE-0801', '2027-06-01'],
   ]
   for (const [code, qty, unitCost, batchNo, expiryDate] of receipts) {
     state = step(state, clock, {
@@ -237,13 +257,13 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
     })
   }
 
-  const transferLines: Array<[string, number, string]> = [
-    ['RM-CORN', 1040, 'B-CORN-0901'],
-    ['RM-SOYA', 400, 'B-SOYA-0902'],
-    ['RM-BRAN', 400, 'B-BRAN-0901'],
-    ['RM-LIME', 80, 'B-LIME-0801'],
-    ['RM-SALT', 40, 'B-SALT-0801'],
-    ['RM-PRE', 40, 'B-PRE-0801'],
+  const transferLines: Array<[string, number, string, number]> = [
+    ['RM-CORN', 8840, 'B-CORN-0901', 40],
+    ['RM-SOYA', 3400, 'B-SOYA-0902', 0],
+    ['RM-BRAN', 3400, 'B-BRAN-0901', 0],
+    ['RM-LIME', 680, 'B-LIME-0801', 0],
+    ['RM-SALT', 340, 'B-SALT-0801', 0],
+    ['RM-PRE', 340, 'B-PRE-0801', 0],
   ]
   state = step(state, clock, {
     action: 'transferStock',
@@ -263,18 +283,19 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
   const recipe = state.recipes.find((item) => item.productId === beef)!
   state = step(state, clock, {
     action: 'createProductionOrder',
-    input: { productId: beef, recipeId: recipe.id, plannedQty: 2000 },
+    input: { productId: beef, recipeId: recipe.id, plannedQty: 20000 },
   })
   const production = state.productionOrders[0]!
   state = step(state, clock, {
     action: 'completeProduction',
     input: {
       productionOrderId: production.id,
-      actualOutputQty: 2000,
-      actuals: transferLines.map(([code, actualQty]) => ({
+      actualOutputQty: 17000,
+      varianceReason: 'توقف الخط وخفض السرعة بعد انقطاع الكهرباء',
+      actuals: transferLines.map(([code, actualQty, , wasteQty]) => ({
         materialId: idOf(code),
         actualQty,
-        wasteQty: code === 'RM-CORN' ? 15 : 0,
+        wasteQty,
       })),
     },
   })
@@ -329,6 +350,22 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
   state = step(state, clock, {
     action: 'createTask',
     input: { title: 'مراجعة نقص كسب الصويا قبل اعتماد أمر الشراء', assigneeRole: 'GM', dueDate: '2026-09-22' },
+  })
+
+  const completed = state.productionOrders.find((order) => order.status === 'COMPLETED')!
+  state.stoppages.unshift({
+    id: 'stop-power',
+    at: completed.completedAt ?? completed.createdAt,
+    minutes: 45,
+    area: 'خط الخلط',
+    reason: 'انقطاع تغذية الكهرباء',
+  })
+
+  const broiler = idOf('FG-BROILER')
+  const broilerRecipe = state.recipes.find((item) => item.productId === broiler)!
+  state = step(state, clock, {
+    action: 'createProductionOrder',
+    input: { productId: broiler, recipeId: broilerRecipe.id, plannedQty: 1000 },
   })
 
   return state

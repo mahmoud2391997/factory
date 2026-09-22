@@ -321,6 +321,14 @@ export type Task = {
   createdAt: string
 }
 
+export type PlantStoppage = {
+  id: string
+  at: string
+  minutes: number
+  area: string
+  reason: string
+}
+
 export type Notification = {
   id: string
   kind: 'LOW_STOCK' | 'APPROVAL' | 'EXPIRY' | 'INFO'
@@ -373,6 +381,7 @@ export type ErpState = {
   attendance: Attendance[]
   payrolls: PayrollRun[]
   tasks: Task[]
+  stoppages: PlantStoppage[]
   notifications: Notification[]
   auditLogs: AuditLog[]
   sequences: Record<string, number>

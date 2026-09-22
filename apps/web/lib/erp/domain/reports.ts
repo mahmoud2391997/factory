@@ -1,5 +1,22 @@
 import { almostEqual, money, qty } from './money'
-import type { ErpState, ItemType, WarehouseKey } from './types'
+import type { ErpState, ItemType, SalesInvoice, WarehouseKey } from './types'
+
+const MUSCAT_OFFSET_MS = 4 * 60 * 60 * 1000
+const STALE_DAYS = 7
+
+export function muscatDay(iso: string) {
+  return new Date(Date.parse(iso) + MUSCAT_OFFSET_MS).toISOString().slice(0, 10)
+}
+
+function daysBetween(fromDay: string, toDay: string) {
+  const from = Date.parse(`${fromDay}T00:00:00.000Z`)
+  const to = Date.parse(`${toDay}T00:00:00.000Z`)
+  return Math.round((to - from) / 86_400_000)
+}
+
+function sameDay(iso: string | undefined, day: string) {
+  return Boolean(iso) && muscatDay(iso!) === day
+}
 
 function balanceKey(warehouse: string, itemType: string, itemId: string, batchNo: string) {
   return `${warehouse}|${itemType}|${itemId}|${batchNo}`
@@ -146,6 +163,160 @@ export function itemOnHand(state: ErpState, itemType: ItemType, itemId: string, 
       .filter((row) => row.itemType === itemType && row.itemId === itemId && (!warehouse || row.warehouse === warehouse))
       .reduce((sum, row) => sum + row.qty, 0),
   )
+}
+
+function openInvoice(invoice: SalesInvoice) {
+  return invoice.status === 'DRAFT' || invoice.status === 'CONFIRMED' || invoice.status === 'PARTIAL'
+}
+
+type FactorySnapshot = Pick<
+  ErpState,
+  'materials' | 'customers' | 'balances' | 'ledger' | 'productionOrders' | 'invoices' | 'stoppages'
+>
+
+/** Factory day for the general manager: production, sales, margin, stock, and run quality. */
+export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOString()) {
+  const requested = muscatDay(nowIso)
+  const activity = new Set<string>()
+  for (const order of state.productionOrders) {
+    if (order.status === 'COMPLETED' && order.completedAt) activity.add(muscatDay(order.completedAt))
+  }
+  for (const invoice of state.invoices) {
+    if (invoice.status !== 'DRAFT') activity.add(muscatDay(invoice.issuedAt))
+  }
+  const days = [...activity].sort().reverse()
+  const eligible = days.filter((day) => day <= requested)
+  const day = eligible[0] ?? days[0] ?? requested
+  const month = day.slice(0, 7)
+
+  const touched = state.productionOrders.filter(
+    (order) => sameDay(order.createdAt, day) || sameDay(order.completedAt, day),
+  )
+  const plannedKg = qty(touched.reduce((sum, order) => sum + order.plannedQty, 0))
+  const completedToday = touched.filter((order) => order.status === 'COMPLETED' && sameDay(order.completedAt, day))
+  const actualKg = qty(completedToday.reduce((sum, order) => sum + order.actualOutputQty, 0))
+  const executionPct = plannedKg > 0 ? Math.round((actualKg / plannedKg) * 1000) / 10 : 0
+  const producedCost = money(completedToday.reduce((sum, order) => sum + order.totalCost, 0))
+
+  const posted = (invoice: SalesInvoice) => invoice.status !== 'DRAFT'
+  const salesOn = (invoice: SalesInvoice, match: (iso: string) => boolean) => posted(invoice) && match(invoice.issuedAt)
+  const salesNet = (invoices: SalesInvoice[]) => money(invoices.reduce((sum, invoice) => sum + invoice.subtotal, 0))
+  const todayInvoices = state.invoices.filter((invoice) => salesOn(invoice, (iso) => muscatDay(iso) === day))
+  const monthInvoices = state.invoices.filter((invoice) => salesOn(invoice, (iso) => muscatDay(iso).slice(0, 7) === month && muscatDay(iso) <= day))
+  const openInvoices = state.invoices.filter(openInvoice)
+  const soldKg = qty(todayInvoices.reduce((sum, invoice) => sum + invoice.lines.reduce((lineSum, line) => lineSum + line.qty, 0), 0))
+  const soldNet = salesNet(todayInvoices)
+  const costPerTon = actualKg > 0 ? money((producedCost / actualKg) * 1000) : 0
+  const avgPricePerTon = soldKg > 0 ? money((soldNet / soldKg) * 1000) : 0
+
+  const runningOut = state.materials
+    .filter((material) => material.active && material.minQty > 0)
+    .map((material) => ({
+      id: material.id,
+      nameAr: material.nameAr,
+      unit: material.unit,
+      onHand: itemOnHand(state, 'MATERIAL', material.id),
+      minQty: material.minQty,
+    }))
+    .filter((row) => row.onHand <= row.minQty)
+    .sort((a, b) => a.onHand / a.minQty - b.onHand / b.minQty)
+
+  const outbound = new Set(['PRODUCTION_CONSUMPTION', 'SALE', 'WITHDRAWAL', 'TRANSFER_OUT'])
+  const stagnant = state.materials
+    .filter((material) => material.active)
+    .map((material) => {
+      const onHand = itemOnHand(state, 'MATERIAL', material.id)
+      const moves = state.ledger.filter((entry) => entry.itemType === 'MATERIAL' && entry.itemId === material.id)
+      const lastOut = moves.filter((entry) => outbound.has(entry.type)).sort((a, b) => (a.at < b.at ? 1 : -1))[0]
+      const lastMove = moves.sort((a, b) => (a.at < b.at ? 1 : -1))[0]
+      const since = lastOut?.at ?? lastMove?.at
+      const idleDays = since ? daysBetween(muscatDay(since), day) : STALE_DAYS
+      return { id: material.id, nameAr: material.nameAr, unit: material.unit, onHand, idleDays }
+    })
+    .filter((row) => row.onHand > 0 && row.idleDays >= STALE_DAYS)
+    .sort((a, b) => b.idleDays - a.idleDays)
+
+  const reservedMap = new Map<string, number>()
+  for (const order of state.productionOrders) {
+    if (order.status !== 'RELEASED') continue
+    for (const line of order.expected) {
+      const openQty = qty(Math.max(0, line.expectedQty - line.actualQty))
+      if (openQty <= 0) continue
+      reservedMap.set(line.materialId, qty((reservedMap.get(line.materialId) ?? 0) + openQty))
+    }
+  }
+  for (const row of state.balances) {
+    if (row.warehouse !== 'WH_MFG' || row.itemType !== 'MATERIAL' || row.qty <= 0) continue
+    reservedMap.set(row.itemId, qty((reservedMap.get(row.itemId) ?? 0) + row.qty))
+  }
+  const reserved = [...reservedMap.entries()]
+    .map(([materialId, reservedQty]) => ({
+      id: materialId,
+      nameAr: state.materials.find((item) => item.id === materialId)?.nameAr ?? materialId,
+      unit: state.materials.find((item) => item.id === materialId)?.unit ?? 'كجم',
+      qty: reservedQty,
+    }))
+    .sort((a, b) => b.qty - a.qty)
+
+  const wasteKg = qty(completedToday.reduce((sum, order) => sum + order.expected.reduce((lineSum, line) => lineSum + line.wasteQty, 0), 0))
+  const consumedKg = qty(completedToday.reduce((sum, order) => sum + order.expected.reduce((lineSum, line) => lineSum + line.actualQty, 0), 0))
+  const deviations = completedToday
+    .flatMap((order) =>
+      order.expected
+        .filter((line) => line.expectedQty > 0)
+        .map((line) => ({
+          materialId: line.materialId,
+          nameAr: state.materials.find((item) => item.id === line.materialId)?.nameAr ?? line.materialId,
+          expectedQty: line.expectedQty,
+          actualQty: line.actualQty,
+          diffPct: Math.round(((line.actualQty - line.expectedQty) / line.expectedQty) * 1000) / 10,
+          reason: order.varianceReason,
+        })),
+    )
+    .filter((line) => Math.abs(line.diffPct) >= 0.1)
+    .sort((a, b) => Math.abs(b.diffPct) - Math.abs(a.diffPct))
+
+  const stoppages = (state.stoppages ?? []).filter((item) => muscatDay(item.at) === day)
+
+  return {
+    day,
+    month,
+    shifted: day !== requested,
+    production: { plannedKg, actualKg, executionPct },
+    sales: {
+      today: salesNet(todayInvoices),
+      todayCount: todayInvoices.length,
+      month: salesNet(monthInvoices),
+      monthCount: monthInvoices.length,
+      openCount: openInvoices.length,
+      openOutstanding: money(openInvoices.reduce((sum, invoice) => sum + (invoice.total - invoice.paidAmount), 0)),
+      openOrders: openInvoices.map((invoice) => ({
+        id: invoice.id,
+        number: invoice.number,
+        customer: state.customers.find((item) => item.id === invoice.customerId)?.nameAr ?? invoice.customerId,
+        outstanding: money(invoice.total - invoice.paidAmount),
+        status: invoice.status,
+      })),
+    },
+    profit: {
+      costPerTon,
+      avgPricePerTon,
+      marginPerTon: money(avgPricePerTon - costPerTon),
+    },
+    inventory: {
+      value: money(stockRows(state).reduce((sum, row) => sum + row.value, 0)),
+      runningOut,
+      stagnant,
+      reserved,
+    },
+    operations: {
+      wasteKg,
+      wastePct: consumedKg > 0 ? Math.round((wasteKg / consumedKg) * 1000) / 10 : 0,
+      deviations,
+      stoppages,
+      stoppageMinutes: stoppages.reduce((sum, item) => sum + item.minutes, 0),
+    },
+  }
 }
 
 export function traceProduct(state: ErpState, productId: string) {

@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
-import { itemOnHand, profitAndLoss, stockRows, traceProduct, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
+import { factoryStatus, itemOnHand, profitAndLoss, stockRows, traceProduct, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import type { VatTreatment } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Field, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
-import { can, moneyFmt, partyName, qtyFmt, statusLabel } from './format'
+import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt } from './format'
 
 const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = [
   { value: 'GM', label: 'المدير العام' },
@@ -505,41 +505,167 @@ function Users({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string
+  value: string
+  hint?: string
+  tone?: 'good' | 'warn' | 'bad'
+}) {
+  const toneClass = tone === 'good' ? 'text-[#19725f]' : tone === 'warn' ? 'text-[#9b6b1f]' : tone === 'bad' ? 'text-[#ad5e46]' : ''
   return (
     <div className="rounded-2xl border border-[#e1e9e5] bg-white p-4">
       <div className="text-sm text-[#71817c]">{label}</div>
-      <div className="mt-2 text-xl font-bold">{value}</div>
+      <div className={`mt-2 text-xl font-bold ${toneClass}`}>{value}</div>
+      {hint ? <div className="mt-1 text-xs text-[#8b9a94]">{hint}</div> : null}
     </div>
   )
 }
 
+function NameList({ rows, empty }: { rows: string[]; empty: string }) {
+  if (rows.length === 0) return <p className="text-sm text-[#788983]">{empty}</p>
+  return (
+    <ul className="space-y-1.5 text-sm text-[#30453d]">
+      {rows.map((row) => (
+        <li key={row}>{row}</li>
+      ))}
+    </ul>
+  )
+}
+
 export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
-  const stock = stockRows(ctx.state)
-  const value = stock.reduce((sum, row) => sum + row.value, 0)
-  const pnl = profitAndLoss(ctx.state)
+  const status = useMemo(() => factoryStatus(ctx.state, new Date().toISOString()), [ctx.state])
+  const executionTone = status.production.executionPct >= 95 ? 'good' : status.production.executionPct >= 80 ? 'warn' : 'bad'
+  const marginTone = status.profit.marginPerTon > 0 ? 'good' : status.profit.marginPerTon < 0 ? 'bad' : undefined
   const pending =
     ctx.state.purchaseOrders.filter((order) => order.status === 'PENDING_APPROVAL').length +
     ctx.state.expenses.filter((expense) => expense.status === 'PENDING_APPROVAL').length +
     ctx.state.payrolls.filter((payroll) => payroll.status === 'PENDING_APPROVAL').length +
     ctx.state.adjustments.filter((adjustment) => adjustment.status === 'PENDING_APPROVAL').length
-  const low = ctx.state.notifications.filter((item) => item.kind === 'LOW_STOCK' && !item.read)
+  const dateLabel = dayFmt(status.day)
   return (
     <div className="space-y-5">
       <div>
         <div className="mb-2 text-sm text-[#7c8c86]">الرئيسية / لوحة التحكم</div>
-        <h2 className="text-3xl font-bold">نظرة عامة على المصنع</h2>
-        <p className="mt-2 text-[#788983]">شراء → استلام → تحويل → إنتاج → بيع بفاتورة ضريبية → قيد محاسبي</p>
+        <h2 className="text-3xl font-bold">وضع المصنع اليوم</h2>
+        <p className="mt-2 text-[#788983]">
+          {status.shifted ? `لا يوجد تشغيل بتاريخ اليوم. الأرقام لآخر يوم تشغيل: ${dateLabel}` : dateLabel}
+          {' · '}
+          {ctx.state.company.nameAr}
+        </p>
       </div>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Metric label="قيمة المخزون" value={moneyFmt(value)} />
-        <Metric label="إيرادات مسجّلة" value={moneyFmt(pnl.revenue)} />
-        <Metric label="اعتمادات معلّقة" value={String(pending)} />
-        <Metric label="تنبيهات نقص" value={String(low.length)} />
-      </div>
+
+      <Card title="الإنتاج" hint="المخطط مقابل ما خرج فعلياً من خط الإنتاج.">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label="المخطط اليوم" value={tonsFmt(status.production.plannedKg)} />
+          <Metric label="الفعلي" value={tonsFmt(status.production.actualKg)} />
+          <Metric label="نسبة التنفيذ" value={pctFmt(status.production.executionPct)} tone={status.production.plannedKg > 0 ? executionTone : undefined} />
+        </div>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#e7eeeb]">
+          <div
+            className={`h-full rounded-full ${executionTone === 'good' ? 'bg-[#1d7f72]' : executionTone === 'warn' ? 'bg-[#d6ad61]' : 'bg-[#ad5e46]'}`}
+            style={{ width: `${Math.max(0, Math.min(100, status.production.executionPct))}%` }}
+          />
+        </div>
+      </Card>
+
+      <Card title="المبيعات" hint="صافي الفواتير المؤكدة قبل الضريبة.">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label="مبيعات اليوم" value={moneyFmt(status.sales.today)} hint={status.sales.todayCount ? `${status.sales.todayCount} فاتورة` : 'لا توجد فواتير'} />
+          <Metric label="مبيعات الشهر" value={moneyFmt(status.sales.month)} hint={status.sales.monthCount ? `${status.sales.monthCount} فاتورة` : 'لا توجد فواتير'} />
+          <Metric label="الطلبات المفتوحة" value={String(status.sales.openCount)} hint={status.sales.openCount ? `المتبقي ${moneyFmt(status.sales.openOutstanding)}` : 'لا توجد طلبات مفتوحة'} />
+        </div>
+        {status.sales.openOrders.length > 0 ? (
+          <div className="mt-4">
+            <NameList
+              empty=""
+              rows={status.sales.openOrders.map((order) => `${order.number} — ${order.customer} — ${statusLabel(order.status)} — ${moneyFmt(order.outstanding)}`)}
+            />
+          </div>
+        ) : null}
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="نواقص المخزون">
-          {low.length === 0 ? <p className="text-sm text-[#788983]">لا توجد نواقص مفتوحة</p> : low.map((item) => <p key={item.id} className="mb-2 text-sm">{item.body}</p>)}
+        <Card title="الربحية" hint="متوسط سعر البيع ناقص تكلفة الطن المنتج في هذا اليوم.">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Metric label="تكلفة الطن" value={moneyFmt(status.profit.costPerTon)} />
+            <Metric label="متوسط سعر البيع" value={moneyFmt(status.profit.avgPricePerTon)} />
+            <Metric label="هامش الربح/طن" value={moneyFmt(status.profit.marginPerTon)} tone={marginTone} />
+          </div>
+        </Card>
+        <Card title="المخزون">
+          <div className="grid grid-cols-2 gap-3">
+            <Metric label="قيمة المخزون" value={moneyFmt(status.inventory.value)} />
+            <Metric label="المواد التي ستنفد" value={String(status.inventory.runningOut.length)} tone={status.inventory.runningOut.length ? 'bad' : 'good'} />
+            <Metric label="المواد الراكدة" value={String(status.inventory.stagnant.length)} tone={status.inventory.stagnant.length ? 'warn' : 'good'} />
+            <Metric label="المواد المحجوزة" value={String(status.inventory.reserved.length)} />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card title="المواد التي ستنفد" hint="رصيدها عند الحد الأدنى أو دونه.">
+          <NameList
+            empty="لا توجد مواد قاربت على النفاد"
+            rows={status.inventory.runningOut.map((item) => `${item.nameAr} — الرصيد ${qtyFmt(item.onHand)} ${item.unit} — الحد الأدنى ${qtyFmt(item.minQty)} ${item.unit}`)}
+          />
+        </Card>
+        <Card title="المواد الراكدة" hint="بلا حركة صادرة منذ 7 أيام أو أكثر.">
+          <NameList
+            empty="لا توجد مواد راكدة"
+            rows={status.inventory.stagnant.map((item) => `${item.nameAr} — ${qtyFmt(item.onHand)} ${item.unit} — ${item.idleDays} يوم`)}
+          />
+        </Card>
+        <Card title="المواد المحجوزة" hint="مخصصة لأمر إنتاج مفتوح أو موجودة في مستودع التصنيع.">
+          <NameList
+            empty="لا توجد مواد محجوزة"
+            rows={status.inventory.reserved.map((item) => `${item.nameAr} — ${qtyFmt(item.qty)} ${item.unit}`)}
+          />
+        </Card>
+      </div>
+
+      <Card title="الإنتاج" hint="الهدر، الانحراف عن الوصفة، وتوقفات المصنع في يوم التشغيل.">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} من الكمية المصروفة`} />
+          <Metric
+            label="الانحراف عن الوصفة"
+            value={status.operations.deviations[0] ? pctFmt(status.operations.deviations[0].diffPct) : pctFmt(0)}
+            tone={status.operations.deviations.length ? 'warn' : 'good'}
+            hint={status.operations.deviations.length ? `${status.operations.deviations.length} مواد` : 'ضمن الوصفة'}
+          />
+          <Metric
+            label="توقفات المصنع"
+            value={status.operations.stoppageMinutes ? `${status.operations.stoppageMinutes} د` : 'لا توجد'}
+            tone={status.operations.stoppageMinutes ? 'bad' : 'good'}
+            hint={status.operations.stoppages.length ? `${status.operations.stoppages.length} توقف` : 'الخط يعمل'}
+          />
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <div className="mb-2 text-sm font-semibold text-[#30453d]">الانحراف عن الوصفة</div>
+            <NameList
+              empty="لا يوجد انحراف عن الوصفة"
+              rows={status.operations.deviations.map((line) => `${line.nameAr} — المتوقع ${qtyFmt(line.expectedQty)} والفعلي ${qtyFmt(line.actualQty)} (${pctFmt(line.diffPct)})`)}
+            />
+            {status.operations.deviations[0]?.reason ? <p className="mt-2 text-sm text-[#788983]">السبب: {status.operations.deviations[0].reason}</p> : null}
+          </div>
+          <div>
+            <div className="mb-2 text-sm font-semibold text-[#30453d]">توقفات المصنع</div>
+            <NameList
+              empty="لا توجد توقفات مسجّلة"
+              rows={status.operations.stoppages.map((item) => `${item.area} — ${item.minutes} دقيقة — ${item.reason}`)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="اعتمادات معلّقة">
+          <Metric label="بانتظار اعتماد المدير العام" value={String(pending)} tone={pending ? 'warn' : 'good'} />
         </Card>
         <Card title="آخر الحركات">
           <DataTable

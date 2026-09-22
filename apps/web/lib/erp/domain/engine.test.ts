@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { code128Values } from './barcode'
 import { actorFromUser, applyCommand, defaultClock } from './engine'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
-import { inventoryIntegrity, profitAndLoss, trialBalance, vatReturn } from './reports'
+import { factoryStatus, inventoryIntegrity, profitAndLoss, trialBalance, vatReturn } from './reports'
 import { buildSeedState, createClock, emptyState } from './seed'
 import type { Actor, ErpState } from './types'
 
@@ -38,7 +38,29 @@ test('seeded factory keeps a balanced ledger and Oman VAT invoice', () => {
   assert.match(unreadLow[0]!.title, /الصويا/)
   const beef = state.products.find((item) => item.code === 'FG-BEEF')!
   const fg = state.balances.find((row) => row.itemId === beef.id && row.warehouse === 'WH_FG')
-  assert.equal(fg?.qty, 1500)
+  assert.equal(fg?.qty, 16500)
+  const today = factoryStatus(state, '2026-09-22T08:00:00.000Z')
+  assert.equal(today.shifted, false)
+  assert.equal(today.production.plannedKg, 20000)
+  assert.equal(today.production.actualKg, 17000)
+  assert.equal(today.production.executionPct, 85)
+  assert.equal(today.sales.today, 90)
+  assert.equal(today.sales.month, 90)
+  assert.equal(today.sales.openCount, 1)
+  assert.equal(today.sales.openOutstanding, 44.5)
+  assert.ok(today.profit.costPerTon > 0)
+  assert.equal(today.profit.avgPricePerTon, 180)
+  assert.equal(today.profit.marginPerTon, Math.round((180 - today.profit.costPerTon) * 1000) / 1000)
+  assert.ok(today.inventory.value > 0)
+  assert.ok(today.inventory.runningOut.some((item) => item.nameAr.includes('الصويا')))
+  assert.ok(today.inventory.stagnant.some((item) => item.nameAr === 'بنتونيت'))
+  assert.ok(today.inventory.reserved.length > 0)
+  assert.equal(today.operations.wasteKg, 40)
+  assert.ok(today.operations.deviations.every((line) => line.diffPct === -15))
+  assert.equal(today.operations.stoppageMinutes, 45)
+  const later = factoryStatus(state, '2026-12-01T08:00:00.000Z')
+  assert.equal(later.shifted, true)
+  assert.equal(later.production.actualKg, 17000)
   const pnl = profitAndLoss(state)
   assert.equal(pnl.revenue, 90)
   const vat = vatReturn(state, '2026-09')
@@ -196,7 +218,7 @@ test('invoice cannot sell more than finished goods', () => {
   const beef = state.products.find((item) => item.code === 'FG-BEEF')!
   let next = must(state, gm, defaultClock(), {
     action: 'createInvoice',
-    input: { customerId: customer.id, lines: [{ productId: beef.id, qty: 5000 }] },
+    input: { customerId: customer.id, lines: [{ productId: beef.id, qty: 20000 }] },
   })
   const result = applyCommand(next, gm, { action: 'confirmInvoice', input: { id: next.invoices[0]!.id } })
   assert.equal(result.ok, false)
