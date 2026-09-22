@@ -1,4 +1,16 @@
-import type { ReactNode } from 'react'
+'use client'
+
+import { isValidElement, useState, type ReactNode } from 'react'
+
+const PAGE_SIZE = 8
+
+function cellText(cell: ReactNode): string {
+  if (cell == null || typeof cell === 'boolean') return ''
+  if (typeof cell === 'string' || typeof cell === 'number') return String(cell)
+  if (Array.isArray(cell)) return cell.map((item) => cellText(item)).join(' ')
+  if (isValidElement(cell)) return cellText((cell.props as { children?: ReactNode }).children)
+  return ''
+}
 
 export function Card({
   title,
@@ -26,38 +38,90 @@ export function Card({
 }
 
 export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
+  const [sort, setSort] = useState<{ index: number; dir: 'asc' | 'desc' } | null>(null)
+  const [page, setPage] = useState(0)
+  const sorted = [...rows]
+  if (sort) {
+    const direction = sort.dir === 'asc' ? 1 : -1
+    sorted.sort((a, b) => cellText(a[sort.index]).localeCompare(cellText(b[sort.index]), 'ar', { numeric: true }) * direction)
+  }
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const visible = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[680px] text-right text-sm">
-        <thead>
-          <tr className="border-b border-[#edf2ef] text-[#7d8e88]">
-            {columns.map((column) => (
-              <th key={column} className="px-2 py-2 font-medium">
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="py-8 text-center text-[#899892]">
-                لا توجد سجلات
-              </td>
+    <div className="space-y-3">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-right text-sm">
+          <thead>
+            <tr className="border-b border-[#edf2ef] text-[#3d524b]">
+              {columns.map((column, index) => {
+                const active = sort?.index === index
+                return (
+                  <th key={column} className="px-2 py-2 font-semibold" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                      aria-label={`فرز ${column}`}
+                      onClick={() => {
+                        setPage(0)
+                        setSort((current) =>
+                          current?.index === index ? { index, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { index, dir: 'asc' },
+                        )
+                      }}
+                    >
+                      {column}
+                      <span aria-hidden className="text-xs text-[#53655e]">{active ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span>
+                    </button>
+                  </th>
+                )
+              })}
             </tr>
-          ) : (
-            rows.map((row, index) => (
-              <tr key={index} className="border-b border-[#f3f6f5] last:border-0">
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="px-2 py-3 align-top">
-                    {cell}
-                  </td>
-                ))}
+          </thead>
+          <tbody>
+            {visible.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="py-10 text-center">
+                  <p className="text-base font-semibold text-[#3d524b]">لا توجد سجلات</p>
+                </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              visible.map((row, index) => (
+                <tr key={`${safePage}-${index}`} className="border-b border-[#f3f6f5] last:border-0">
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex} className="px-2 py-3 align-top">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {sorted.length > PAGE_SIZE ? (
+        <div className="flex items-center justify-between gap-3 text-sm text-[#53655e]">
+          <button
+            type="button"
+            className="rounded-lg border border-[#dfe7e3] bg-white px-3 py-1.5 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] disabled:opacity-40"
+            disabled={safePage === 0}
+            onClick={() => setPage(safePage - 1)}
+          >
+            السابق
+          </button>
+          <span>
+            {safePage + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            className="rounded-lg border border-[#dfe7e3] bg-white px-3 py-1.5 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] disabled:opacity-40"
+            disabled={safePage >= pageCount - 1}
+            onClick={() => setPage(safePage + 1)}
+          >
+            التالي
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

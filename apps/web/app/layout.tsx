@@ -43,8 +43,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('erp-theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var root=document.documentElement;root.classList.toggle('dark',d);root.classList.toggle('light',!d);}catch(e){}})();`,
+          }}
+        />
         <AuthProvider>{children}</AuthProvider>
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === '1' ? <Analytics /> : null}
       </body>

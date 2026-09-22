@@ -7,12 +7,14 @@ import type { LiveCtx } from './ctx'
 
 export function LiveWorkspace({
   entityKey,
+  sectionLabel,
   mainLabel,
   title,
   description,
   ctx,
 }: {
   entityKey: string
+  sectionLabel: string
   mainLabel: string
   title: string
   description: string
@@ -32,11 +34,19 @@ export function LiveWorkspace({
 
   return (
     <div className="space-y-4">
+      <nav aria-label="مسار الصفحة" className="text-sm text-[#7c8c86]">
+        <ol className="flex flex-wrap items-center gap-2">
+          <li>الرئيسية</li>
+          <li aria-hidden="true">/</li>
+          <li>{sectionLabel}</li>
+          <li aria-hidden="true">/</li>
+          <li>{mainLabel}</li>
+          <li aria-hidden="true">/</li>
+          <li className="font-semibold text-[#1d7f72]" aria-current="page">{title}</li>
+        </ol>
+      </nav>
       {entityKey !== 'dashboard' ? (
         <div>
-          <div className="mb-2 text-sm text-[#7c8c86]">
-            {mainLabel} / <span className="text-[#1d7f72]">{title}</span>
-          </div>
           <h2 className="text-3xl font-bold">{title}</h2>
           {description ? <p className="mt-2 text-[#788983]">{description}</p> : null}
         </div>

@@ -516,12 +516,14 @@ function Metric({
   hint?: string
   tone?: 'good' | 'warn' | 'bad'
 }) {
-  const toneClass = tone === 'good' ? 'text-[#19725f]' : tone === 'warn' ? 'text-[#9b6b1f]' : tone === 'bad' ? 'text-[#ad5e46]' : ''
+  const toneClass = tone === 'good' ? 'text-[#0f6b52]' : tone === 'warn' ? 'text-[#8a5a10]' : tone === 'bad' ? 'text-[#9a3f2c]' : 'text-[#123c35]'
+  const barClass = tone === 'good' ? 'bg-[#0f6b52]' : tone === 'warn' ? 'bg-[#c8922a]' : tone === 'bad' ? 'bg-[#ad5e46]' : 'bg-[#1d7f72]'
   return (
-    <div className="rounded-2xl border border-[#e1e9e5] bg-white p-4">
-      <div className="text-sm text-[#71817c]">{label}</div>
-      <div className={`mt-2 text-xl font-bold ${toneClass}`}>{value}</div>
-      {hint ? <div className="mt-1 text-xs text-[#8b9a94]">{hint}</div> : null}
+    <div className="relative overflow-hidden rounded-2xl border border-[#e1e9e5] bg-white p-4 ps-5">
+      <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
+      <div className="text-sm font-semibold text-[#3d524b]">{label}</div>
+      <div className={`mt-2 text-3xl font-bold leading-none tracking-tight ${toneClass}`}>{value}</div>
+      {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
     </div>
   )
 }
@@ -550,7 +552,6 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
   return (
     <div className="space-y-5">
       <div>
-        <div className="mb-2 text-sm text-[#7c8c86]">الرئيسية / لوحة التحكم</div>
         <h2 className="text-3xl font-bold">وضع المصنع اليوم</h2>
         <p className="mt-2 text-[#788983]">
           {status.shifted ? `لا يوجد تشغيل بتاريخ اليوم. الأرقام لآخر يوم تشغيل: ${dateLabel}` : dateLabel}
