@@ -221,6 +221,59 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   color: #fff;
 }
 
+.erp-sidebar {
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 18px 45px rgb(15 23 42 / 0.06);
+}
+
+.erp-sidebar > div:first-child {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.erp-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.erp-nav-item {
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.erp-nav-item-active::before {
+  position: absolute;
+  right: -1px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 999px 0 0 999px;
+  background: #0d9488;
+  content: '';
+}
+
+.erp-nav-item:hover {
+  transform: translateX(-1px);
+}
+
+.erp-sidebar-footer {
+  box-shadow: 0 -8px 20px rgb(15 23 42 / 0.03);
+}
+
+.dark .erp-sidebar {
+  border-color: #3f3f46;
+  box-shadow: 0 18px 45px rgb(0 0 0 / 0.18);
+}
+
+.dark .erp-sidebar > div:first-child,
+.dark .erp-sidebar-footer {
+  background: #18181b;
+}
+
+.dark .erp-nav-item-active {
+  border-color: #285c56;
+  background: #193b37;
+  color: #99f6e4;
+}
+
 .dark {
   --erp-bg: #111113;
   --erp-fg: #f4f4f5;

@@ -149,7 +149,7 @@ export function ErpShell() {
         <button type="button" aria-label="إغلاق" className="fixed inset-0 z-30 bg-[#1f1f1f]/40 md:hidden" onClick={() => setMobileOpen(false)} />
       ) : null}
       <aside
-        className={`erp-sidebar fixed z-40 flex w-72 flex-col bg-[#f9fafb] text-[#1f1f1f] transition-transform duration-300 md:inset-y-[15px] md:right-[15px] md:translate-x-0 ${iconOnly ? 'md:w-20' : ''} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-xl' : 'inset-y-0 right-0 translate-x-full'}`}
+        className={`erp-sidebar fixed z-40 flex w-72 flex-col overflow-hidden bg-[#f9fafb] text-[#1f1f1f] transition-[width,transform] duration-300 md:inset-y-[15px] md:right-[15px] md:translate-x-0 ${iconOnly ? 'md:w-20' : ''} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-xl' : 'inset-y-0 right-0 translate-x-full'}`}
       >
         <div className={`flex h-16 items-center gap-2 border-b border-[#e5e7eb] ${iconOnly ? 'justify-center px-2' : 'px-4'}`}>
           <Link href="/" aria-label="الرئيسية" className="erp-mark grid size-8 shrink-0 place-items-center rounded-lg bg-[#1f1f1f] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
@@ -176,7 +176,8 @@ export function ErpShell() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="أقسام النظام">
+        <nav className="erp-sidebar-nav flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="أقسام النظام">
+          {!iconOnly ? <div className="mb-3 px-3 text-[11px] font-semibold tracking-[0.12em] text-[#9ca3af]">مساحة العمل</div> : null}
           {destinations.map((destination) => {
             const Icon = destination.icon
             const active = resolved?.destination?.id === destination.id
@@ -189,10 +190,10 @@ export function ErpShell() {
                   aria-current={active && pathname === href ? 'page' : undefined}
                   aria-label={destination.label}
                   title={destination.label}
-                  className={`relative flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
+                  className={`erp-nav-item relative flex h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
                     active
-                      ? 'border border-[#d1d5db] bg-white text-[#1f1f1f] shadow-sm'
-                      : 'text-[#525252] hover:bg-neutral-200/50'
+                      ? 'erp-nav-item-active border border-[#bde5df] bg-[#e9f7f4] text-[#155e55] shadow-sm'
+                      : 'text-[#525252] hover:bg-white hover:text-[#155e55] hover:shadow-sm'
                   }`}
                 >
                   <Icon size={18} aria-hidden strokeWidth={active ? 2.2 : 2} />
@@ -245,7 +246,7 @@ export function ErpShell() {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-[#d1d5db] p-3">
+        <div className="erp-sidebar-footer mt-auto border-t border-[#e5e7eb] bg-white/60 p-3">
           {iconOnly ? (
             <button
               type="button"
