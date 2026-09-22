@@ -536,6 +536,19 @@ export const ERP_NAV: ErpMainTab[] = [
   },
 ]
 
+/** Visual groups for the sidebar. Ids stay the existing modules so routes do not change. */
+export const NAV_SECTIONS: Array<{ id: string; label: string; mainIds: string[] }> = [
+  { id: 'overview', label: 'نظرة عامة', mainIds: ['dashboard'] },
+  { id: 'operations', label: 'العمليات', mainIds: ['inventory', 'purchasing', 'manufacturing'] },
+  { id: 'sales', label: 'المبيعات', mainIds: ['sales'] },
+  { id: 'hr', label: 'الموارد البشرية', mainIds: ['hr'] },
+  { id: 'admin', label: 'الإدارة', mainIds: ['accounting', 'system'] },
+]
+
+export function sectionForMain(mainId: string) {
+  return NAV_SECTIONS.find((section) => section.mainIds.includes(mainId)) ?? NAV_SECTIONS[NAV_SECTIONS.length - 1]!
+}
+
 export function findNavByEntity(entityKey: string) {
   for (const main of ERP_NAV) {
     for (const sub of main.subs) {

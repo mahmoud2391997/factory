@@ -550,7 +550,6 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
   return (
     <div className="space-y-5">
       <div>
-        <div className="mb-2 text-sm text-[#7c8c86]">الرئيسية / لوحة التحكم</div>
         <h2 className="text-3xl font-bold">وضع المصنع اليوم</h2>
         <p className="mt-2 text-[#788983]">
           {status.shifted ? `لا يوجد تشغيل بتاريخ اليوم. الأرقام لآخر يوم تشغيل: ${dateLabel}` : dateLabel}
