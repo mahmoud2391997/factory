@@ -154,7 +154,7 @@ export function ErpShell() {
             const isExpanded = expandedMain === main.id
             const isActiveMain = activeMainId === main.id
             const subs = main.subs.filter((sub) => canAccessSub(permissions, sub, main))
-            const hasSubs = main.id !== 'dashboard' && subs.length > 0
+            const hasSubs = subs.length > 0
 
             return (
               <div key={main.id} className="rounded-xl">
@@ -294,7 +294,7 @@ export function ErpShell() {
           </div>
         </header>
 
-        {activeMain && activeMain.id !== 'dashboard' && visibleSubs.length > 0 ? (
+        {activeMain && visibleSubs.length > 0 ? (
           <div className="border-b border-[#e1e9e5] bg-white px-5 md:px-8">
             <div className="flex gap-2 overflow-x-auto py-3">
               {visibleSubs.map((sub) => (
