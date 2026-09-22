@@ -1,96 +1,29 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import {
-  Bell,
-  Boxes,
-  ChevronDown,
-  Circle,
-  ClipboardList,
-  Factory,
-  FileText,
-  Loader2,
-  LogOut,
-  Menu,
-  Moon,
-  PanelRightClose,
-  PanelRightOpen,
-  Sun,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { Bell, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Sun, X } from 'lucide-react'
 
 import { LiveWorkspace } from '@/components/erp/live/workspace'
 import type { LiveCtx } from '@/components/erp/live/ctx'
+import { PageTabs } from '@/components/erp/page-tabs'
 import { useAuth } from '@/components/providers/auth-provider'
-import { canAccessMain, canAccessSub, ERP_NAV, findNavByEntity, NAV_SECTIONS, sectionForMain } from '@/lib/erp-nav'
-import type { ErpSubTab } from '@/lib/erp-nav'
+import {
+  breadcrumbs,
+  canSeeEntity,
+  entryHref,
+  hrefForEntity,
+  leafMeta,
+  pageTabs,
+  resolvePath,
+  visibleDestinations,
+} from '@/lib/erp-routes'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { useErp } from '@/lib/use-erp'
 
-const SECTION_KEY = 'erp-nav-sections'
 const COMPACT_KEY = 'erp-sidebar-compact'
 const THEME_KEY = 'erp-theme'
-
-const SUB_ICONS: Record<string, LucideIcon> = {
-  dashboard: Factory,
-  factoryPlanned: ClipboardList,
-  factoryActual: ClipboardList,
-  factoryExecution: ClipboardList,
-  factorySalesToday: FileText,
-  factorySalesMonth: FileText,
-  factoryOpenOrders: ClipboardList,
-  factoryCostPerTon: FileText,
-  factoryAvgPrice: FileText,
-  factoryMargin: FileText,
-  factoryStockValue: Boxes,
-  factoryRunningOut: Boxes,
-  factoryStagnant: Boxes,
-  factoryReserved: Boxes,
-  factoryWaste: Factory,
-  factoryDeviation: Factory,
-  factoryStoppages: Factory,
-  material: Boxes,
-  materialBatch: Boxes,
-  product: Boxes,
-  warehouse: Boxes,
-  inventoryBalance: Boxes,
-  inventoryTransaction: ClipboardList,
-  stockTransfer: ClipboardList,
-  stockAdjustment: ClipboardList,
-  barcode: Circle,
-  supplier: FileText,
-  purchaseOrder: ClipboardList,
-  goodsReceipt: ClipboardList,
-  recipe: ClipboardList,
-  recipeItem: ClipboardList,
-  productionOrder: Factory,
-  customer: FileText,
-  salesInvoice: FileText,
-  withdrawal: ClipboardList,
-  salesPayment: FileText,
-  account: FileText,
-  journalEntry: FileText,
-  expense: FileText,
-  vatReport: FileText,
-  taxSettings: FileText,
-  employee: Circle,
-  attendance: ClipboardList,
-  overtime: ClipboardList,
-  payroll: FileText,
-  report: FileText,
-  notification: Bell,
-  auditLog: ClipboardList,
-  companySettings: Circle,
-  task: ClipboardList,
-  approvals: ClipboardList,
-  users: Circle,
-}
-
-function subIcon(sub: ErpSubTab) {
-  return SUB_ICONS[sub.entityKey] ?? Circle
-}
 
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean)
@@ -101,54 +34,29 @@ function getInitials(fullName: string) {
 
 export function ErpShell() {
   const router = useRouter()
+  const pathname = usePathname()
   const { user, loading: authLoading, logout, refresh } = useAuth()
   const erp = useErp(Boolean(user))
   const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
   const permissions = erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? []
 
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [expandedMain, setExpandedMain] = useState('dashboard')
-  const [activeMainId, setActiveMainId] = useState('dashboard')
-  const [activeSubId, setActiveSubId] = useState('overview')
   const [toast, setToast] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
   const [navReady, setNavReady] = useState(false)
   const [compact, setCompact] = useState(false)
   const [dark, setDark] = useState(false)
   const [themeReady, setThemeReady] = useState(false)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(NAV_SECTIONS.map((section) => [section.id, true])),
-  )
-  const visibleMains = useMemo(
-    () => ERP_NAV.filter((main) => canAccessMain(permissions, main)),
-    [permissions],
-  )
+  const [noticesOpen, setNoticesOpen] = useState(false)
+  const noticesRef = useRef<HTMLDivElement>(null)
 
-  const activeMain = visibleMains.find((m) => m.id === activeMainId) ?? visibleMains[0]
-  const visibleSubs = useMemo(() => {
-    if (!activeMain) return []
-    return activeMain.subs.filter((sub) => canAccessSub(permissions, sub, activeMain))
-  }, [activeMain, permissions])
-
-  const activeSub = visibleSubs.find((s) => s.id === activeSubId) ?? visibleSubs[0]
+  const resolved = resolvePath(pathname)
+  const destinations = visibleDestinations(permissions)
+  const iconOnly = compact && !mobileOpen
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
   }, [authLoading, user, router])
-
-  useEffect(() => {
-    if (!activeMain) return
-    if (!visibleMains.some((m) => m.id === activeMainId)) {
-      setActiveMainId(visibleMains[0]?.id ?? 'dashboard')
-    }
-  }, [visibleMains, activeMainId, activeMain])
-
-  useEffect(() => {
-    if (!activeMain) return
-    if (!visibleSubs.some((s) => s.id === activeSubId)) {
-      setActiveSubId(visibleSubs[0]?.id ?? 'overview')
-    }
-  }, [visibleSubs, activeSubId, activeMain])
 
   useEffect(() => {
     if (erp.message) setToast(erp.message)
@@ -156,11 +64,6 @@ export function ErpShell() {
 
   useEffect(() => {
     try {
-      const storedSections = localStorage.getItem(SECTION_KEY)
-      if (storedSections) {
-        const parsed = JSON.parse(storedSections) as Record<string, boolean>
-        setOpenSections((current) => ({ ...current, ...parsed }))
-      }
       const storedCompact = localStorage.getItem(COMPACT_KEY)
       if (storedCompact === '1' || storedCompact === '0') setCompact(storedCompact === '1')
       else if (window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches) setCompact(true)
@@ -179,11 +82,6 @@ export function ErpShell() {
 
   useEffect(() => {
     if (!navReady) return
-    localStorage.setItem(SECTION_KEY, JSON.stringify(openSections))
-  }, [navReady, openSections])
-
-  useEffect(() => {
-    if (!navReady) return
     localStorage.setItem(COMPACT_KEY, compact ? '1' : '0')
   }, [navReady, compact])
 
@@ -193,6 +91,20 @@ export function ErpShell() {
     document.documentElement.classList.toggle('light', !dark)
     localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light')
   }, [themeReady, dark])
+
+  useEffect(() => {
+    setMobileOpen(false)
+    setNoticesOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!noticesOpen) return
+    const onPointer = (event: MouseEvent) => {
+      if (!noticesRef.current?.contains(event.target as Node)) setNoticesOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    return () => document.removeEventListener('mousedown', onPointer)
+  }, [noticesOpen])
 
   if (authLoading || !user) {
     return (
@@ -207,45 +119,15 @@ export function ErpShell() {
 
   const primaryRole = user.roles[0]?.nameAr ?? 'مستخدم'
   const firstName = user.fullName.trim().split(/\s+/)[0] ?? user.fullName
+  const notices = erp.state?.notifications.filter((item) => item.roles.includes(roleKey)) ?? []
+  const unread = notices.filter((item) => !item.read).length
+  const showNotices = canSeeEntity(permissions, 'notification')
+  const showAudit = canSeeEntity(permissions, 'auditLog')
+  const allowed = resolved ? canSeeEntity(permissions, resolved.leaf.entityKey) : false
+  const meta = resolved ? leafMeta(resolved.leaf.entityKey) : null
+  const tabs = resolved && allowed ? pageTabs(resolved, permissions) : null
+  const crumbs = resolved && allowed ? breadcrumbs(resolved, permissions) : []
 
-  const selectNav = (mainId: string, subId: string) => {
-    setActiveMainId(mainId)
-    setActiveSubId(subId)
-    setExpandedMain(mainId)
-    setMobileOpen(false)
-  }
-
-  /** Chevron only: open/close submenu without changing the active page. */
-  const toggleMain = (mainId: string) => {
-    setExpandedMain((current) => (current === mainId ? '' : mainId))
-  }
-
-  const toggleSection = (sectionId: string) => {
-    setOpenSections((current) => ({ ...current, [sectionId]: current[sectionId] === false }))
-  }
-
-  const iconOnly = compact && !mobileOpen
-
-  /** Label click: always expand and open that section (never collapse). */
-  const openMain = (mainId: string) => {
-    const main = visibleMains.find((item) => item.id === mainId)
-    if (!main) return
-    const firstSub = main.subs.filter((sub) => canAccessSub(permissions, sub, main))[0]
-    if (!firstSub) {
-      setExpandedMain(mainId)
-      setActiveMainId(mainId)
-      return
-    }
-    // Stay on current sub if already inside this main; otherwise open first sub.
-    if (activeMainId === mainId && activeSub) {
-      setExpandedMain(mainId)
-      return
-    }
-    selectNav(mainId, firstSub.id)
-  }
-
-  const entityKey = activeSub?.entityKey ?? 'dashboard'
-  const unread = erp.state?.notifications.filter((item) => !item.read && item.roles.includes(roleKey)).length ?? 0
   const liveCtx: LiveCtx | null = erp.state
     ? {
         state: erp.state,
@@ -253,91 +135,12 @@ export function ErpShell() {
         pending: erp.pending,
         act: erp.act,
         navigate: (key) => {
-          const found = findNavByEntity(key)
-          if (found) selectNav(found.main.id, found.sub.id)
+          const href = hrefForEntity(key)
+          if (href) router.push(href)
         },
         refreshUser: refresh,
       }
-      : null
-
-  const renderMain = (main: (typeof visibleMains)[number]) => {
-    const Icon = main.icon
-    const isExpanded = expandedMain === main.id && !iconOnly
-    const isActiveMain = activeMainId === main.id
-    const subs = main.subs.filter((sub) => canAccessSub(permissions, sub, main))
-    const hasSubs = subs.length > 0
-    return (
-      <div key={main.id} className="rounded-xl">
-        <div
-          className={`relative flex items-center rounded-xl transition ${
-            isActiveMain ? 'bg-white/12 text-white' : 'text-white/80 hover:bg-white/8 hover:text-white'
-          }`}
-        >
-          {isActiveMain ? <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-[#d6ad61]" /> : null}
-          <button
-            type="button"
-            aria-current={isActiveMain ? 'page' : undefined}
-            aria-label={main.label}
-            title={main.label}
-            onClick={() => openMain(main.id)}
-            className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-right text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61]"
-          >
-            <Icon size={22} aria-hidden strokeWidth={isActiveMain ? 2.4 : 2} />
-            <span className={iconOnly ? 'sr-only' : 'truncate'}>{main.label}</span>
-          </button>
-          {hasSubs && !iconOnly ? (
-            <button
-              type="button"
-              aria-label={isExpanded ? 'طي القائمة' : 'فتح القائمة'}
-              aria-expanded={isExpanded}
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                toggleMain(main.id)
-              }}
-              className="ml-1 mr-2 grid size-10 shrink-0 place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]"
-            >
-              <ChevronDown
-                size={20}
-                aria-hidden
-                className={`transition-transform duration-200 ease-out ${isExpanded ? 'rotate-0' : 'rotate-90'}`}
-              />
-            </button>
-          ) : null}
-        </div>
-        {hasSubs && !iconOnly ? (
-          <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-            <div className="min-h-0 overflow-hidden" {...(!isExpanded ? { inert: true } : {})}>
-              <div className="mb-2 mr-3 mt-1 space-y-1 border-r border-white/15 pr-2" aria-hidden={!isExpanded}>
-                {subs.map((sub) => {
-                  const isActiveSub = isActiveMain && activeSubId === sub.id
-                  const SubIcon = subIcon(sub)
-                  return (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      aria-current={isActiveSub ? 'page' : undefined}
-                      tabIndex={isExpanded ? 0 : -1}
-                      onClick={() => selectNav(main.id, sub.id)}
-                      className={`relative flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-right text-[15px] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
-                        isActiveSub ? 'bg-[#d6ad61] font-bold text-[#123c35]' : 'font-medium text-white/70 hover:bg-white/8 hover:text-white'
-                      }`}
-                    >
-                      {isActiveSub ? <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-[#123c35]" /> : null}
-                      <SubIcon size={16} aria-hidden />
-                      <span className="truncate">{sub.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-    )
-  }
-
-  const sectionLabel = sectionForMain(activeMain?.id ?? 'dashboard').label
+    : null
 
   return (
     <main dir="rtl" className="erp-app min-h-screen bg-[#f6f8f7] text-[#152925]">
@@ -348,9 +151,9 @@ export function ErpShell() {
         className={`fixed inset-y-0 right-0 z-40 flex w-80 flex-col border-l border-[#dfe7e3] bg-[#123c35] text-white transition-transform duration-300 md:translate-x-0 ${iconOnly ? 'md:w-20' : ''} ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className={`flex h-[92px] items-center gap-3 border-b border-white/10 ${iconOnly ? 'justify-center px-2' : 'px-5'}`}>
-          <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#d6ad61] text-[#123c35]">
+          <Link href="/" aria-label="الرئيسية" className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#d6ad61] text-[#123c35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#123c35]">
             <Factory size={26} aria-hidden strokeWidth={2.4} />
-          </div>
+          </Link>
           <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
             <div className="truncate text-xl font-bold tracking-tight">مصنع الخليج للأعلاف</div>
             <div className="truncate text-sm text-white/70">نظام إدارة المصنع (ERP)</div>
@@ -373,36 +176,26 @@ export function ErpShell() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-4" aria-label="أقسام النظام">
-          {NAV_SECTIONS.map((section) => {
-            const mains = visibleMains.filter((main) => section.mainIds.includes(main.id))
-            if (mains.length === 0) return null
-            const sectionOpen = openSections[section.id] !== false
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="أقسام النظام">
+          {destinations.map((destination) => {
+            const Icon = destination.icon
+            const active = resolved?.destination?.id === destination.id
+            const href = entryHref(destination, permissions)
             return (
-              <div key={section.id} className="border-t border-white/10 pt-3 first:border-t-0 first:pt-0">
-                <button
-                  type="button"
-                  aria-expanded={sectionOpen}
-                  aria-controls={`nav-section-${section.id}`}
-                  onClick={() => toggleSection(section.id)}
-                  className="erp-nav-section flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm font-extrabold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61]"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span aria-hidden className="h-4 w-1 shrink-0 rounded-full bg-[#d6ad61]" />
-                    <span className={iconOnly ? 'sr-only' : 'truncate'}>{section.label}</span>
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    aria-hidden
-                    className={`shrink-0 text-[#d6ad61] transition ${sectionOpen ? '' : '-rotate-90'} ${iconOnly ? 'hidden' : ''}`}
-                  />
-                </button>
-                {sectionOpen ? (
-                  <div id={`nav-section-${section.id}`} className="mt-1 space-y-1">
-                    {mains.map((main) => renderMain(main))}
-                  </div>
-                ) : null}
-              </div>
+              <Link
+                key={destination.id}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                aria-label={destination.label}
+                title={destination.label}
+                className={`relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
+                  active ? 'bg-white/12 text-white' : 'text-white/80 hover:bg-white/8 hover:text-white'
+                }`}
+              >
+                {active ? <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-[#d6ad61]" /> : null}
+                <Icon size={22} aria-hidden strokeWidth={active ? 2.4 : 2} />
+                <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
+              </Link>
             )
           })}
         </nav>
@@ -413,7 +206,7 @@ export function ErpShell() {
               type="button"
               aria-label="توسيع الشريط"
               title="توسيع الشريط"
-              className="mb-3 grid w-full place-items-center rounded-xl border border-[#d6ad61]/50 p-2 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]"
+              className="mb-3 hidden w-full place-items-center rounded-xl border border-[#d6ad61]/50 p-2 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:grid"
               onClick={() => setCompact(false)}
             >
               <PanelRightOpen size={18} aria-hidden />
@@ -422,7 +215,7 @@ export function ErpShell() {
             <button
               type="button"
               aria-label="طي الشريط"
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#d6ad61]/50 px-3 py-2 text-sm font-bold text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]"
+              className="mb-3 hidden w-full items-center justify-center gap-2 rounded-xl border border-[#d6ad61]/50 px-3 py-2 text-sm font-bold text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:flex"
               onClick={() => setCompact(true)}
             >
               <PanelRightClose size={18} aria-hidden />
@@ -468,22 +261,61 @@ export function ErpShell() {
             <h1 className="mt-1 text-3xl font-bold">مرحباً، {firstName}</h1>
           </div>
           <div className="mr-auto flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="إشعارات"
-              className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
-              onClick={() => {
-                const found = findNavByEntity('notification')
-                if (found) selectNav(found.main.id, found.sub.id)
-              }}
-            >
-              <Bell size={22} aria-hidden />
-              {unread > 0 ? (
-                <span className="absolute -left-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#ad5e46] px-1 text-[10px] font-bold text-white">
-                  {unread}
-                </span>
-              ) : null}
-            </button>
+            {showAudit ? (
+              <Link
+                href="/settings/audit"
+                aria-label="سجل العمليات"
+                title="سجل العمليات"
+                aria-current={pathname === '/settings/audit' ? 'page' : undefined}
+                className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+              >
+                <ScrollText size={22} aria-hidden />
+              </Link>
+            ) : null}
+            {showNotices ? (
+              <div className="relative" ref={noticesRef}>
+                <button
+                  type="button"
+                  aria-label="إشعارات"
+                  aria-expanded={noticesOpen}
+                  className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                  onClick={() => setNoticesOpen((open) => !open)}
+                >
+                  <Bell size={22} aria-hidden />
+                  {unread > 0 ? (
+                    <span className="absolute -left-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#ad5e46] px-1 text-[10px] font-bold text-white">
+                      {unread}
+                    </span>
+                  ) : null}
+                </button>
+                {noticesOpen ? (
+                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(22rem,80vw)] rounded-2xl border border-[#e1e9e5] bg-white p-3 text-[#152925] shadow-xl">
+                    <div className="mb-2 text-sm font-bold">الإشعارات</div>
+                    <div className="max-h-80 space-y-2 overflow-y-auto">
+                      {notices.length === 0 ? <p className="text-sm text-[#788983]">لا توجد إشعارات</p> : null}
+                      {notices.slice(0, 8).map((item) => (
+                        <div key={item.id} className="rounded-xl border border-[#edf2ef] p-3">
+                          <div className="font-bold">{item.title}</div>
+                          <div className="text-sm text-[#788983]">{item.body}</div>
+                          {!item.read && liveCtx ? (
+                            <button
+                              type="button"
+                              className="mt-2 text-sm font-bold text-[#1d7f72] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                              onClick={() => liveCtx.act('markNotificationRead', { id: item.id })}
+                            >
+                              تمت القراءة
+                            </button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    <Link href="/notifications" className="mt-3 inline-flex text-sm font-bold text-[#1d7f72] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]">
+                      الإشعارات
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <button
               type="button"
               aria-label={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}
@@ -501,30 +333,27 @@ export function ErpShell() {
           </div>
         </header>
 
-        {activeMain && visibleSubs.length > 0 ? (
-          <div className="border-b border-[#e1e9e5] bg-white px-5 md:px-8">
-            <div className="flex gap-2 overflow-x-auto py-3">
-              {visibleSubs.map((sub) => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onClick={() => selectNav(activeMain.id, sub.id)}
-                  aria-current={activeSubId === sub.id ? 'page' : undefined}
-                  className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-base font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] ${
-                    activeSubId === sub.id
-                      ? 'bg-[#123c35] text-white'
-                      : 'text-[#53655e] hover:bg-[#f5f8f6]'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
           {erp.error ? <div className="mb-4 rounded-xl bg-[#fff5f2] px-4 py-3 text-sm font-semibold text-[#ad5e46]">{erp.error}</div> : null}
+          {tabs ? (
+            <>
+              <PageTabs label="أقسام الصفحة" tabs={tabs.primary} activeId={tabs.activePrimary} />
+              <PageTabs label="تفاصيل الصفحة" tabs={tabs.secondary} activeId={tabs.activeSecondary} />
+            </>
+          ) : null}
+          {resolved?.destination?.id === 'settings' && showAudit ? (
+            <div className="mb-4">
+              <Link
+                href="/settings/audit"
+                aria-current={pathname === '/settings/audit' ? 'page' : undefined}
+                className={`text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] ${
+                  pathname === '/settings/audit' ? 'text-[#123c35] underline' : 'text-[#1d7f72]'
+                }`}
+              >
+                سجل العمليات
+              </Link>
+            </div>
+          ) : null}
           {erp.loading || !liveCtx ? (
             <div aria-busy="true" aria-live="polite" className="space-y-4">
               <span className="sr-only">جاري تحميل عمليات المصنع...</span>
@@ -536,15 +365,10 @@ export function ErpShell() {
               </div>
               <div className="h-72 animate-pulse rounded-2xl bg-[#e1e9e5]" />
             </div>
+          ) : resolved && allowed && meta ? (
+            <LiveWorkspace entityKey={resolved.leaf.entityKey} title={meta.label} description={meta.description} crumbs={crumbs} ctx={liveCtx} />
           ) : (
-            <LiveWorkspace
-              entityKey={entityKey}
-              sectionLabel={sectionLabel}
-              mainLabel={activeMain?.label ?? ''}
-              title={activeSub?.label ?? ''}
-              description={activeSub?.description ?? ''}
-              ctx={liveCtx}
-            />
+            <div className="rounded-2xl bg-white p-6 text-sm text-[#53655e]">{resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.'}</div>
           )}
         </div>
       </div>
