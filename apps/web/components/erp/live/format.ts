@@ -31,6 +31,14 @@ export const STATUS_LABEL: Record<string, string> = {
   MANUAL: 'يدوي',
   CSV: 'ملف',
   DEVICE: 'جهاز',
+  PURCHASE_RECEIPT: 'استلام مشتريات',
+  TRANSFER_OUT: 'تحويل صادر',
+  TRANSFER_IN: 'تحويل وارد',
+  PRODUCTION_CONSUMPTION: 'استهلاك إنتاج',
+  PRODUCTION_OUTPUT: 'ناتج إنتاج',
+  SALE: 'بيع',
+  WITHDRAWAL: 'سحب',
+  ADJUSTMENT: 'تعديل مخزون',
 }
 
 export function moneyFmt(value: number) {
