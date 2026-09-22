@@ -239,6 +239,11 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
+.erp-sidebar-nav > div > div[class*='border-r'],
+.erp-sidebar-nav > div > div[class*='border-r'] > div {
+  border-right-color: #d7e4e2;
+}
+
 .erp-nav-item-active::before {
   position: absolute;
   right: -1px;
