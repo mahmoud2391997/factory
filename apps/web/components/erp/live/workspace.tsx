@@ -1,5 +1,6 @@
 'use client'
 
+import { FactoryScreens } from './screens-factory'
 import { InventoryScreens, ProductionScreens, PurchasingScreens, SalesScreens } from './screens-ops'
 import { DashboardScreen, OfficeScreens } from './screens-office'
 import type { LiveCtx } from './ctx'
@@ -21,6 +22,7 @@ export function LiveWorkspace({
     entityKey === 'dashboard' ? (
       <DashboardScreen ctx={ctx} />
     ) : (
+      FactoryScreens({ entityKey, ctx }) ||
       InventoryScreens({ entityKey, ctx }) ||
       PurchasingScreens({ entityKey, ctx }) ||
       ProductionScreens({ entityKey, ctx }) ||
