@@ -1,5 +1,54 @@
-import { money, qty } from './money'
+import { almostEqual, money, qty } from './money'
 import type { ErpState, ItemType, WarehouseKey } from './types'
+
+function balanceKey(warehouse: string, itemType: string, itemId: string, batchNo: string) {
+  return `${warehouse}|${itemType}|${itemId}|${batchNo}`
+}
+
+/** Day 4 invariant: every balance equals the sum of its ledger movements, and each movement carries prev/new qty. */
+export function inventoryIntegrity(state: ErpState) {
+  const issues: string[] = []
+  const rebuilt = new Map<string, number>()
+  const chronological = [...state.ledger].reverse()
+
+  for (const entry of chronological) {
+    const key = balanceKey(entry.warehouse, entry.itemType, entry.itemId, entry.batchNo)
+    const before = rebuilt.get(key) ?? 0
+    if (!almostEqual(before, entry.prevQty)) {
+      issues.push(`الحركة ${entry.id}: الرصيد قبل الحركة ${entry.prevQty} لا يطابق التسلسل ${before}`)
+    }
+    const after = qty(before + entry.qty)
+    if (!almostEqual(after, entry.newQty)) {
+      issues.push(`الحركة ${entry.id}: الرصيد بعد الحركة ${entry.newQty} لا يطابق ${after}`)
+    }
+    if (entry.newQty < -0.0001) {
+      issues.push(`الحركة ${entry.id}: رصيد سالب ${entry.newQty}`)
+    }
+    rebuilt.set(key, entry.newQty)
+  }
+
+  const seen = new Set<string>()
+  for (const row of state.balances) {
+    const key = balanceKey(row.warehouse, row.itemType, row.itemId, row.batchNo)
+    seen.add(key)
+    const fromLedger = rebuilt.get(key) ?? 0
+    if (!almostEqual(fromLedger, row.qty)) {
+      issues.push(`الرصيد ${key}: الكمية ${row.qty} لا تطابق مجموع الحركات ${fromLedger}`)
+    }
+    if (row.qty < -0.0001) {
+      issues.push(`الرصيد ${key}: كمية سالبة ${row.qty}`)
+    }
+  }
+
+  for (const [key, fromLedger] of rebuilt) {
+    if (seen.has(key)) continue
+    if (!almostEqual(fromLedger, 0)) {
+      issues.push(`مفتاح الحركة ${key} بلا صف رصيد والكمية ${fromLedger}`)
+    }
+  }
+
+  return { ok: issues.length === 0, issues }
+}
 
 export function accountName(state: ErpState, code: string) {
   return state.accounts.find((account) => account.code === code)?.nameAr ?? code

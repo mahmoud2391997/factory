@@ -36,6 +36,7 @@ pnpm dev
 ## وثائق التصميم
 
 - `docs/day2-complete.md` — تأكيد اكتمال اليوم ٢
+- `docs/day4-complete.md` — تأكيد اكتمال اليوم ٤ (أرصدة + دفتر المخزون)
 - `docs/dev-plan-2-weeks.md` — تقرير خطة أسبوعين + أسئلة الاستضافة وشكل المنتج
 - `docs/implementation-plan.md`
 - `docs/data-model.md`

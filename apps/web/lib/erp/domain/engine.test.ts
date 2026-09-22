@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { code128Values } from './barcode'
 import { actorFromUser, applyCommand, defaultClock } from './engine'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
-import { profitAndLoss, trialBalance, vatReturn } from './reports'
+import { inventoryIntegrity, profitAndLoss, trialBalance, vatReturn } from './reports'
 import { buildSeedState, createClock, emptyState } from './seed'
 import type { Actor, ErpState } from './types'
 
@@ -227,6 +227,133 @@ test('accountant does not receive warehouse permissions by default', () => {
   assert.equal(DEFAULT_ROLE_PERMISSIONS.ACCOUNTANT.includes('inventory.adjust'), false)
   assert.equal(DEFAULT_ROLE_PERMISSIONS.OPERATIONS.includes('accounting.manage'), false)
   assert.equal(DEFAULT_ROLE_PERMISSIONS.GM.includes('users.manage'), true)
+})
+
+test('day 4: seeded stock balances reconcile with the inventory ledger', () => {
+  const state = buildSeedState()
+  const check = inventoryIntegrity(state)
+  assert.equal(check.ok, true, check.issues.join(' | '))
+  assert.ok(state.ledger.length > 0)
+  assert.ok(state.balances.some((row) => row.qty > 0))
+})
+
+test('day 4: every stock add and issue updates balance and ledger together', () => {
+  const clock = createClock('2026-09-22T08:00:00.000Z')
+  let state = emptyState('day4')
+  const gm = actor(state, 'user-gm')
+  state = must(state, gm, clock, {
+    action: 'createMaterial',
+    input: { code: 'RM-DAY4', nameAr: 'مادة يوم ٤', category: 'اختبار', minQty: 10, vatTreatment: 'ZERO' },
+  })
+  const materialId = state.materials[0]!.id
+
+  state = must(state, gm, clock, {
+    action: 'requestAdjustment',
+    input: {
+      warehouse: 'WH_RAW',
+      itemType: 'MATERIAL',
+      itemId: materialId,
+      batchNo: 'B-DAY4',
+      qtyDelta: 100,
+      unitCost: 0.25,
+      reason: 'جرد افتتاحي ليوم ٤',
+    },
+  })
+  const addId = state.adjustments[0]!.id
+  state = must(state, gm, clock, { action: 'decideAdjustment', input: { id: addId, decision: 'APPROVED' } })
+
+  const afterAdd = state.balances.find((row) => row.itemId === materialId && row.batchNo === 'B-DAY4')
+  assert.ok(afterAdd)
+  assert.equal(afterAdd.qty, 100)
+  const addLedger = state.ledger.find((row) => row.refId === addId && row.type === 'ADJUSTMENT')
+  assert.ok(addLedger)
+  assert.equal(addLedger.prevQty, 0)
+  assert.equal(addLedger.newQty, 100)
+  assert.equal(addLedger.qty, 100)
+
+  state = must(state, gm, clock, {
+    action: 'requestAdjustment',
+    input: {
+      warehouse: 'WH_RAW',
+      itemType: 'MATERIAL',
+      itemId: materialId,
+      batchNo: 'B-DAY4',
+      qtyDelta: -30,
+      reason: 'صرف تجريبي ليوم ٤',
+    },
+  })
+  const issueId = state.adjustments[0]!.id
+  state = must(state, gm, clock, { action: 'decideAdjustment', input: { id: issueId, decision: 'APPROVED' } })
+
+  const afterIssue = state.balances.find((row) => row.itemId === materialId && row.batchNo === 'B-DAY4')
+  assert.ok(afterIssue)
+  assert.equal(afterIssue.qty, 70)
+  const issueLedger = state.ledger.find((row) => row.refId === issueId && row.type === 'ADJUSTMENT')
+  assert.ok(issueLedger)
+  assert.equal(issueLedger.prevQty, 100)
+  assert.equal(issueLedger.newQty, 70)
+  assert.equal(issueLedger.qty, -30)
+
+  const overIssue = applyCommand(
+    state,
+    gm,
+    {
+      action: 'requestAdjustment',
+      input: {
+        warehouse: 'WH_RAW',
+        itemType: 'MATERIAL',
+        itemId: materialId,
+        batchNo: 'B-DAY4',
+        qtyDelta: -999,
+        reason: 'محاولة صرف زائد',
+      },
+    },
+    clock,
+  )
+  assert.equal(overIssue.ok, true)
+  if (!overIssue.ok) return
+  const denied = applyCommand(overIssue.state, gm, {
+    action: 'decideAdjustment',
+    input: { id: overIssue.state.adjustments[0]!.id, decision: 'APPROVED' },
+  })
+  assert.equal(denied.ok, false)
+
+  const check = inventoryIntegrity(state)
+  assert.equal(check.ok, true, check.issues.join(' | '))
+})
+
+test('day 4: goods receipt posts purchase ledger lines that match WH_RAW balances', () => {
+  const clock = createClock('2026-09-22T09:00:00.000Z')
+  let state = emptyState('day4-gr')
+  const gm = actor(state, 'user-gm')
+  state = must(state, gm, clock, {
+    action: 'createMaterial',
+    input: { code: 'RM-GR4', nameAr: 'ذرة يوم ٤', category: 'حبوب', minQty: 1, vatTreatment: 'ZERO' },
+  })
+  state = must(state, gm, clock, { action: 'createSupplier', input: { nameAr: 'مورد يوم ٤' } })
+  const materialId = state.materials[0]!.id
+  const supplierId = state.suppliers[0]!.id
+  state = must(state, gm, clock, {
+    action: 'createPurchaseOrder',
+    input: { supplierId, lines: [{ materialId, qty: 50, unitCost: 0.12 }] },
+  })
+  const poId = state.purchaseOrders[0]!.id
+  state = must(state, gm, clock, { action: 'decidePurchaseOrder', input: { id: poId, decision: 'APPROVED' } })
+  state = must(state, gm, clock, {
+    action: 'receiveGoods',
+    input: { purchaseOrderId: poId, lines: [{ materialId, qty: 50, batchNo: 'B-GR4' }] },
+  })
+
+  const balance = state.balances.find((row) => row.batchNo === 'B-GR4' && row.warehouse === 'WH_RAW')
+  assert.ok(balance)
+  assert.equal(balance.qty, 50)
+  const receipt = state.goodsReceipts[0]!
+  const ledger = state.ledger.find((row) => row.refId === receipt.id && row.type === 'PURCHASE_RECEIPT')
+  assert.ok(ledger)
+  assert.equal(ledger.prevQty, 0)
+  assert.equal(ledger.newQty, 50)
+  assert.equal(ledger.qty, 50)
+  assert.equal(inventoryIntegrity(state).ok, true)
 })
 
 function must(state: ErpState, who: Actor, clock: ReturnType<typeof defaultClock>, command: Parameters<typeof applyCommand>[2]) {

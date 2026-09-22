@@ -149,12 +149,12 @@ function Balances({ ctx, materialsOnly }: { ctx: LiveCtx; materialsOnly: boolean
 
 function Ledger({ ctx }: { ctx: LiveCtx }) {
   return (
-    <Card title="دفتر حركات المخزون" hint="كل حركة تغيّر الرصيد وتُحفظ للتتبع.">
+    <Card title="دفتر حركات المخزون" hint="لا يتغيّر رصيد بدون حركة مسجّلة — كل إضافة أو صرف يظهر هنا مع الرصيد قبل وبعد.">
       <DataTable
         columns={['الوقت', 'النوع', 'المستودع', 'الصنف', 'الدفعة', 'الكمية', 'قبل', 'بعد']}
         rows={ctx.state.ledger.slice(0, 80).map((row) => [
           row.at.slice(0, 16).replace('T', ' '),
-          row.type,
+          statusLabel(row.type),
           WAREHOUSE_LABEL[row.warehouse],
           itemName(ctx.state, row.itemType, row.itemId),
           row.batchNo,
