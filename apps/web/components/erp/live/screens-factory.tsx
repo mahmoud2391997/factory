@@ -33,10 +33,10 @@ function DayNote({ day, shifted }: { day: string; shifted: boolean }) {
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[#e1e9e5] bg-white p-4 ps-5">
-      <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#1d7f72]" />
-      <div className="text-sm font-semibold text-[#3d524b]">{label}</div>
-      <div className="mt-2 text-3xl font-bold leading-none tracking-tight text-[#123c35]">{value}</div>
+    <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
+      <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#0d9488]" />
+      <div className="text-sm font-medium text-[#6b7280]">{label}</div>
+      <div className="mt-2 text-3xl font-semibold leading-none tracking-tight text-[#1f1f1f]">{value}</div>
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
     </div>
   )

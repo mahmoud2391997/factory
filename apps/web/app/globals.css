@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -159,7 +160,44 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'IBM Plex Sans Arabic', Inter, ui-sans-serif, system-ui, sans-serif;
   }
+}
+
+/* Light identity aligned with TenancyPilot: gray canvas, neutral type, teal links. */
+html:not(.dark) .erp-content [class*='text-[#123c35]'],
+html:not(.dark) .erp-content [class*='text-[#152925]'],
+html:not(.dark) .erp-content [class*='text-[#30453d]'],
+html:not(.dark) .erp-content [class*='text-[#3d524b]'] {
+  color: #1f1f1f;
+}
+
+html:not(.dark) .erp-content [class*='text-[#53655e]'],
+html:not(.dark) .erp-content [class*='text-[#71817c]'],
+html:not(.dark) .erp-content [class*='text-[#788983]'],
+html:not(.dark) .erp-content [class*='text-[#7c8c86]'] {
+  color: #6b7280;
+}
+
+html:not(.dark) .erp-content [class*='text-[#1d7f72]'],
+html:not(.dark) .erp-content [class*='text-[#0f6b52]'],
+html:not(.dark) .erp-content [class*='text-[#19725f]'] {
+  color: #0d9488;
+}
+
+html:not(.dark) .erp-content [class*='bg-[#1d7f72]'],
+html:not(.dark) .erp-content [class*='bg-[#0f6b52]'] {
+  background-color: #0d9488;
+}
+
+html:not(.dark) .erp-content [class*='bg-[#123c35]'] {
+  background-color: #1f1f1f;
+}
+
+html:not(.dark) .erp-content [class*='border-[#e1e9e5]'],
+html:not(.dark) .erp-content [class*='border-[#dfe7e3]'],
+html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
+  border-color: #e5e7eb;
 }
 
 :root {
@@ -184,15 +222,40 @@
 }
 
 .dark {
-  --erp-bg: #10211d;
-  --erp-fg: #e8f3ee;
-  --erp-muted: #c5d5ce;
-  --erp-card: #17312b;
-  --erp-border: #3d5c54;
-  --erp-good: #b7f3d4;
-  --erp-warn: #f0d089;
-  --erp-bad: #f3b5a6;
-  --erp-link: #9be6da;
+  --erp-bg: #111113;
+  --erp-fg: #f4f4f5;
+  --erp-muted: #a1a1aa;
+  --erp-card: #18181b;
+  --erp-border: #3f3f46;
+  --erp-good: #6ee7b7;
+  --erp-warn: #fcd34d;
+  --erp-bad: #fca5a5;
+  --erp-link: #5eead4;
+}
+
+.dark .erp-sidebar {
+  background: #18181b;
+  color: #f4f4f5;
+}
+
+.dark .erp-sidebar [class*='text-[#525252]'],
+.dark .erp-sidebar [class*='text-[#6b7280]'],
+.dark .erp-sidebar [class*='text-[#171717]'] {
+  color: #e4e4e7;
+}
+
+.dark .erp-sidebar [class*='bg-white'] {
+  background-color: #27272a;
+}
+
+.dark .erp-sidebar [class*='border-[#d1d5db]'],
+.dark .erp-sidebar [class*='border-[#e5e7eb]'] {
+  border-color: #3f3f46;
+}
+
+.dark .erp-sidebar .erp-mark {
+  background: #f4f4f5;
+  color: #18181b;
 }
 
 .dark .erp-app {

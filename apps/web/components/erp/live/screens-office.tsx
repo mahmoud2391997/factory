@@ -516,12 +516,12 @@ function Metric({
   hint?: string
   tone?: 'good' | 'warn' | 'bad'
 }) {
-  const toneClass = tone === 'good' ? 'text-[#0f6b52]' : tone === 'warn' ? 'text-[#8a5a10]' : tone === 'bad' ? 'text-[#9a3f2c]' : 'text-[#123c35]'
-  const barClass = tone === 'good' ? 'bg-[#0f6b52]' : tone === 'warn' ? 'bg-[#c8922a]' : tone === 'bad' ? 'bg-[#ad5e46]' : 'bg-[#1d7f72]'
+  const toneClass = tone === 'good' ? 'text-[#0a825d]' : tone === 'warn' ? 'text-[#d97706]' : tone === 'bad' ? 'text-[#dc2626]' : 'text-[#1f1f1f]'
+  const barClass = tone === 'good' ? 'bg-[#10b981]' : tone === 'warn' ? 'bg-[#f59e0b]' : tone === 'bad' ? 'bg-[#ef4444]' : 'bg-[#0d9488]'
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[#e1e9e5] bg-white p-4 ps-5">
+    <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
-      <div className="text-sm font-semibold text-[#3d524b]">{label}</div>
+      <div className="text-sm font-medium text-[#6b7280]">{label}</div>
       <div className={`mt-2 text-3xl font-bold leading-none tracking-tight ${toneClass}`}>{value}</div>
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
     </div>

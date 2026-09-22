@@ -109,8 +109,8 @@ export function ErpShell() {
 
   if (authLoading || !user) {
     return (
-      <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f6f8f7] text-[#152925]">
-        <div className="flex items-center gap-3 text-sm text-[#53655e]">
+      <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
+        <div className="flex items-center gap-3 text-sm text-[#6b7280]">
           <Loader2 className="animate-spin" size={18} />
           جاري التحقق من الجلسة...
         </div>
@@ -144,33 +144,32 @@ export function ErpShell() {
     : null
 
   return (
-    <main dir="rtl" className="erp-app min-h-screen bg-[#f6f8f7] text-[#152925]">
+    <main dir="rtl" className="erp-app min-h-screen bg-[#f9fafb] text-[#1f1f1f] md:p-[15px]">
       {mobileOpen ? (
-        <button type="button" aria-label="إغلاق" className="fixed inset-0 z-30 bg-[#152925]/40 md:hidden" onClick={() => setMobileOpen(false)} />
+        <button type="button" aria-label="إغلاق" className="fixed inset-0 z-30 bg-[#1f1f1f]/40 md:hidden" onClick={() => setMobileOpen(false)} />
       ) : null}
       <aside
-        className={`fixed inset-y-0 right-0 z-40 flex w-80 flex-col border-l border-[#dfe7e3] bg-[#123c35] text-white transition-transform duration-300 md:translate-x-0 ${iconOnly ? 'md:w-20' : ''} ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`erp-sidebar fixed z-40 flex w-72 flex-col bg-[#f9fafb] text-[#1f1f1f] transition-transform duration-300 md:inset-y-[15px] md:right-[15px] md:translate-x-0 ${iconOnly ? 'md:w-20' : ''} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-xl' : 'inset-y-0 right-0 translate-x-full'}`}
       >
-        <div className={`flex h-[92px] items-center gap-3 border-b border-white/10 ${iconOnly ? 'justify-center px-2' : 'px-5'}`}>
-          <Link href="/" aria-label="الرئيسية" className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#d6ad61] text-[#123c35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#123c35]">
-            <Factory size={26} aria-hidden strokeWidth={2.4} />
+        <div className={`flex h-16 items-center gap-2 border-b border-[#e5e7eb] ${iconOnly ? 'justify-center px-2' : 'px-4'}`}>
+          <Link href="/" aria-label="الرئيسية" className="erp-mark grid size-8 shrink-0 place-items-center rounded-lg bg-[#1f1f1f] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+            <Factory size={16} aria-hidden strokeWidth={2.4} />
           </Link>
           <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
-            <div className="truncate text-xl font-bold tracking-tight">مصنع الخليج للأعلاف</div>
-            <div className="truncate text-sm text-white/70">نظام إدارة المصنع (ERP)</div>
+            <div className="truncate text-[22px] font-semibold leading-none">مصنع الخليج للأعلاف</div>
           </div>
           <button
             type="button"
             aria-label={compact ? 'توسيع الشريط' : 'طي الشريط'}
             title={compact ? 'توسيع الشريط' : 'طي الشريط'}
-            className={`${iconOnly ? 'hidden' : 'hidden md:grid'} shrink-0 rounded-lg p-1.5 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]`}
+            className={`${iconOnly ? 'hidden' : 'hidden md:grid'} shrink-0 rounded-[10px] p-1.5 text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]`}
             onClick={() => setCompact((value) => !value)}
           >
-            {compact ? <PanelRightOpen size={20} aria-hidden /> : <PanelRightClose size={20} aria-hidden />}
+            {compact ? <PanelRightOpen size={18} aria-hidden /> : <PanelRightClose size={18} aria-hidden />}
           </button>
           <button
             aria-label="إغلاق"
-            className="mr-auto rounded-lg p-1.5 text-white/70 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:hidden"
+            className="mr-auto rounded-lg p-1.5 text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:hidden"
             onClick={() => setMobileOpen(false)}
           >
             <X size={22} />
@@ -190,16 +189,17 @@ export function ErpShell() {
                   aria-current={active && pathname === href ? 'page' : undefined}
                   aria-label={destination.label}
                   title={destination.label}
-                  className={`relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
-                    active ? 'bg-white/12 text-white' : 'text-white/80 hover:bg-white/8 hover:text-white'
+                  className={`relative flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
+                    active
+                      ? 'border border-[#d1d5db] bg-white text-[#1f1f1f] shadow-sm'
+                      : 'text-[#525252] hover:bg-neutral-200/50'
                   }`}
                 >
-                  {active ? <span aria-hidden className="absolute inset-y-2 right-0 w-1 rounded-full bg-[#d6ad61]" /> : null}
-                  <Icon size={22} aria-hidden strokeWidth={active ? 2.4 : 2} />
+                  <Icon size={18} aria-hidden strokeWidth={active ? 2.2 : 2} />
                   <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
                 </Link>
                 {!iconOnly && nodes.length > 0 ? (
-                  <div className="mb-2 mr-3 mt-1 space-y-1 border-r border-white/15 pr-2">
+                  <div className="mb-2 mr-4 mt-1 space-y-1">
                     {nodes.map((node) => {
                       const childCurrent = node.children.some((child) => child.href === pathname)
                       const nodeCurrent = pathname === node.href && !childCurrent
@@ -209,14 +209,14 @@ export function ErpShell() {
                             href={node.href}
                             aria-current={nodeCurrent ? 'page' : undefined}
                             title={node.label}
-                            className={`flex w-full items-center rounded-lg px-3 py-2 text-right text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
-                              nodeCurrent ? 'bg-[#d6ad61] text-[#123c35]' : childCurrent ? 'bg-white/12 text-white' : 'text-white/75 hover:bg-white/8 hover:text-white'
+                            className={`flex h-10 w-full items-center rounded-lg px-3 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
+                              nodeCurrent ? 'bg-neutral-200/70 text-[#171717]' : childCurrent ? 'bg-white text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
                             }`}
                           >
                             <span className="truncate">{node.label}</span>
                           </Link>
                           {node.children.length > 0 ? (
-                            <div className="mb-1 mr-3 mt-1 space-y-1 border-r border-white/10 pr-2">
+                            <div className="mb-1 mr-3 mt-1 space-y-1">
                               {node.children.map((child) => {
                                 const current = pathname === child.href
                                 return (
@@ -225,8 +225,8 @@ export function ErpShell() {
                                     href={child.href}
                                     aria-current={current ? 'page' : undefined}
                                     title={child.label}
-                                    className={`flex w-full items-center rounded-lg px-3 py-2 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6ad61] ${
-                                      current ? 'bg-[#d6ad61] font-bold text-[#123c35]' : 'text-white/70 hover:bg-white/8 hover:text-white'
+                                    className={`flex h-10 w-full items-center rounded-lg px-3 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
+                                      current ? 'bg-neutral-200/70 font-medium text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
                                     }`}
                                   >
                                     <span className="truncate">{child.label}</span>
@@ -245,13 +245,13 @@ export function ErpShell() {
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-3">
+        <div className="mt-auto border-t border-[#d1d5db] p-3">
           {iconOnly ? (
             <button
               type="button"
               aria-label="توسيع الشريط"
               title="توسيع الشريط"
-              className="mb-3 hidden w-full place-items-center rounded-xl border border-[#d6ad61]/50 p-2 text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:grid"
+              className="mb-3 hidden w-full place-items-center rounded-lg border border-[#d1d5db] bg-white p-2 text-[#525252] shadow-sm hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:grid"
               onClick={() => setCompact(false)}
             >
               <PanelRightOpen size={18} aria-hidden />
@@ -260,20 +260,20 @@ export function ErpShell() {
             <button
               type="button"
               aria-label="طي الشريط"
-              className="mb-3 hidden w-full items-center justify-center gap-2 rounded-xl border border-[#d6ad61]/50 px-3 py-2 text-sm font-bold text-[#f3e6c4] hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61] md:flex"
+              className="mb-3 hidden w-full items-center justify-center gap-2 rounded-lg border border-[#d1d5db] bg-white px-3 py-2 text-sm font-medium text-[#525252] shadow-sm hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:flex"
               onClick={() => setCompact(true)}
             >
               <PanelRightClose size={18} aria-hidden />
               طي الشريط
             </button>
           )}
-          <div className={`rounded-xl bg-white/8 ${iconOnly ? 'flex flex-col items-center gap-2 p-2' : 'flex items-center gap-3 p-3.5'}`}>
-            <div className="grid size-11 place-items-center rounded-full bg-[#d6ad61] text-base font-bold text-[#123c35]">
+          <div className={` ${iconOnly ? 'flex flex-col items-center gap-2 p-2' : 'flex items-center gap-3 px-1 py-2'}`}>
+            <div className="erp-mark grid size-8 place-items-center rounded-full bg-[#1f1f1f] text-sm font-medium text-white">
               {getInitials(user.fullName)}
             </div>
             <div className={iconOnly ? 'sr-only' : 'min-w-0'}>
-              <div className="truncate text-base font-semibold">{user.fullName}</div>
-              <div className="truncate text-sm text-white/45">{primaryRole}</div>
+              <div className="truncate text-sm font-medium">{user.fullName}</div>
+              <div className="truncate text-[13px] text-[#6b7280]">{primaryRole}</div>
             </div>
             <button
               type="button"
@@ -284,7 +284,7 @@ export function ErpShell() {
                 await logout()
                 router.replace('/login')
               }}
-              className={`${iconOnly ? '' : 'mr-auto'} rounded-lg p-2 text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]`}
+              className={`${iconOnly ? '' : 'mr-auto'} grid size-9 place-items-center rounded-lg text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]`}
             >
               {loggingOut ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <LogOut size={18} aria-hidden />}
             </button>
@@ -292,18 +292,18 @@ export function ErpShell() {
         </div>
       </aside>
 
-      <div className={`erp-content min-h-screen ${iconOnly ? 'md:mr-20' : 'md:mr-80'}`}>
-        <header className="sticky top-0 z-30 flex h-[92px] items-center gap-4 border-b border-[#e1e9e5] bg-[#f6f8f7]/95 px-5 backdrop-blur md:px-8">
+      <div className={`erp-content min-h-screen overflow-auto bg-white md:min-h-[calc(100vh-30px)] md:rounded-[15px] md:border md:border-[#e5e7eb] ${iconOnly ? 'md:mr-[6.5rem]' : 'md:mr-[19.5rem]'}`}>
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-[#e5e7eb] bg-white px-5 md:px-8">
           <button
             aria-label="فتح القائمة"
-            className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] md:hidden"
+            className="rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:hidden"
             onClick={() => setMobileOpen(true)}
           >
             <Menu size={22} aria-hidden />
           </button>
           <div className="hidden text-right sm:block">
-            <div className="text-sm text-[#71817c]">نظام تخطيط موارد المصنع</div>
-            <h1 className="mt-1 text-3xl font-bold">مرحباً، {firstName}</h1>
+            <div className="text-[13px] text-[#6b7280]">نظام تخطيط موارد المصنع</div>
+            <h1 className="text-2xl font-semibold leading-tight">مرحباً، {firstName}</h1>
           </div>
           <div className="mr-auto flex items-center gap-2">
             {showAudit ? (
@@ -312,7 +312,7 @@ export function ErpShell() {
                 aria-label="سجل العمليات"
                 title="سجل العمليات"
                 aria-current={pathname === '/settings/audit' ? 'page' : undefined}
-                className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                className="rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
               >
                 <ScrollText size={22} aria-hidden />
               </Link>
@@ -323,29 +323,29 @@ export function ErpShell() {
                   type="button"
                   aria-label="إشعارات"
                   aria-expanded={noticesOpen}
-                  className="relative rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                  className="relative rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                   onClick={() => setNoticesOpen((open) => !open)}
                 >
                   <Bell size={22} aria-hidden />
                   {unread > 0 ? (
-                    <span className="absolute -left-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#ad5e46] px-1 text-[10px] font-bold text-white">
+                    <span className="absolute -left-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#ef4444] px-1 text-[10px] font-medium text-white">
                       {unread}
                     </span>
                   ) : null}
                 </button>
                 {noticesOpen ? (
-                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(22rem,80vw)] rounded-2xl border border-[#e1e9e5] bg-white p-3 text-[#152925] shadow-xl">
+                  <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(22rem,80vw)] rounded-xl border border-[#e5e7eb] bg-white p-3 text-[#1f1f1f] shadow-sm">
                     <div className="mb-2 text-sm font-bold">الإشعارات</div>
                     <div className="max-h-80 space-y-2 overflow-y-auto">
-                      {notices.length === 0 ? <p className="text-sm text-[#788983]">لا توجد إشعارات</p> : null}
+                      {notices.length === 0 ? <p className="text-sm text-[#6b7280]">لا توجد إشعارات</p> : null}
                       {notices.slice(0, 8).map((item) => (
-                        <div key={item.id} className="rounded-xl border border-[#edf2ef] p-3">
-                          <div className="font-bold">{item.title}</div>
-                          <div className="text-sm text-[#788983]">{item.body}</div>
+                        <div key={item.id} className="rounded-lg border border-[#e5e7eb] p-3">
+                          <div className="font-medium">{item.title}</div>
+                          <div className="text-sm text-[#6b7280]">{item.body}</div>
                           {!item.read && liveCtx ? (
                             <button
                               type="button"
-                              className="mt-2 text-sm font-bold text-[#1d7f72] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                              className="mt-2 text-sm font-medium text-[#0d9488] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                               onClick={() => liveCtx.act('markNotificationRead', { id: item.id })}
                             >
                               تمت القراءة
@@ -354,7 +354,7 @@ export function ErpShell() {
                         </div>
                       ))}
                     </div>
-                    <Link href="/notifications" className="mt-3 inline-flex text-sm font-bold text-[#1d7f72] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]">
+                    <Link href="/notifications" className="mt-3 inline-flex text-sm font-medium text-[#0d9488] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
                       الإشعارات
                     </Link>
                   </div>
@@ -364,13 +364,13 @@ export function ErpShell() {
             <button
               type="button"
               aria-label={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}
-              className="rounded-xl border border-[#dfe7e3] bg-white p-2.5 text-[#71817c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+              className="rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
               onClick={() => setDark((value) => !value)}
             >
               {dark ? <Sun size={22} aria-hidden /> : <Moon size={22} aria-hidden />}
             </button>
             {erp.storage ? (
-              <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-bold text-[#53655e] sm:inline">
+              <span className="hidden rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1 text-xs font-medium text-[#6b7280] sm:inline">
                 {erp.storage === 'postgres' ? 'تخزين سحابي' : 'نسخة محلية'}
                 {process.env.NEXT_PUBLIC_APP_ENV === 'staging' ? ' — تجريبي' : ''}
               </span>
@@ -379,7 +379,7 @@ export function ErpShell() {
         </header>
 
         <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
-          {erp.error ? <div className="mb-4 rounded-xl bg-[#fff5f2] px-4 py-3 text-sm font-semibold text-[#ad5e46]">{erp.error}</div> : null}
+          {erp.error ? <div className="mb-4 rounded-lg border border-[#fecaca] bg-[#fee2e2] px-4 py-3 text-sm font-medium text-[#dc2626]">{erp.error}</div> : null}
           {tabs ? (
             <>
               <PageTabs label="أقسام الصفحة" tabs={tabs.primary} activeId={tabs.activePrimary} />
@@ -391,8 +391,8 @@ export function ErpShell() {
               <Link
                 href="/settings/audit"
                 aria-current={pathname === '/settings/audit' ? 'page' : undefined}
-                className={`text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] ${
-                  pathname === '/settings/audit' ? 'text-[#123c35] underline' : 'text-[#1d7f72]'
+                className={`text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${
+                  pathname === '/settings/audit' ? 'text-[#1f1f1f] underline' : 'text-[#0d9488]'
                 }`}
               >
                 سجل العمليات
@@ -402,26 +402,26 @@ export function ErpShell() {
           {erp.loading || !liveCtx ? (
             <div aria-busy="true" aria-live="polite" className="space-y-4">
               <span className="sr-only">جاري تحميل عمليات المصنع...</span>
-              <div className="h-8 w-56 animate-pulse rounded-xl bg-[#e1e9e5]" />
+              <div className="h-8 w-56 animate-pulse rounded-lg bg-[#f3f4f6]" />
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {['a', 'b', 'c'].map((key) => (
-                  <div key={key} className="h-28 animate-pulse rounded-2xl bg-[#e1e9e5]" />
+                  <div key={key} className="h-28 animate-pulse rounded-[12px] bg-[#f3f4f6]" />
                 ))}
               </div>
-              <div className="h-72 animate-pulse rounded-2xl bg-[#e1e9e5]" />
+              <div className="h-72 animate-pulse rounded-[12px] bg-[#f3f4f6]" />
             </div>
           ) : resolved && allowed && meta ? (
             <LiveWorkspace entityKey={resolved.leaf.entityKey} title={meta.label} description={meta.description} crumbs={crumbs} ctx={liveCtx} />
           ) : (
-            <div className="rounded-2xl bg-white p-6 text-sm text-[#53655e]">{resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.'}</div>
+            <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#6b7280]">{resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.'}</div>
           )}
         </div>
       </div>
 
       {toast ? (
-        <div role="status" className="fixed bottom-5 left-5 z-50 rounded-xl bg-[#123c35] px-4 py-3 text-xs font-semibold text-white shadow-xl">
+        <div role="status" className="fixed bottom-5 left-5 z-50 rounded-lg bg-[#1f1f1f] px-4 py-3 text-xs font-medium text-white shadow-sm">
           {toast}
-          <button type="button" aria-label="إغلاق" className="mr-3 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#d6ad61]" onClick={() => setToast('')}>
+          <button type="button" aria-label="إغلاق" className="mr-3 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>
             ×
           </button>
         </div>

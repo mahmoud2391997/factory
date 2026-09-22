@@ -42,11 +42,11 @@ export function LiveWorkspace({
               <li key={`${crumb.href}-${index}`} className="flex items-center gap-2">
                 {index > 0 ? <span aria-hidden="true">/</span> : null}
                 {last ? (
-                  <span className="font-semibold text-[#1d7f72]" aria-current="page">
+                  <span className="font-medium text-[#0d9488]" aria-current="page">
                     {crumb.label}
                   </span>
                 ) : (
-                  <Link href={crumb.href} className="hover:text-[#123c35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]">
+                  <Link href={crumb.href} className="hover:text-[#1f1f1f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
                     {crumb.label}
                   </Link>
                 )}
@@ -57,8 +57,8 @@ export function LiveWorkspace({
       </nav>
       {entityKey !== 'dashboard' ? (
         <div>
-          <h2 className="text-3xl font-bold">{title}</h2>
-          {description ? <p className="mt-2 text-[#788983]">{description}</p> : null}
+          <h2 className="text-2xl font-semibold">{title}</h2>
+          {description ? <p className="mt-2 text-[#6b7280]">{description}</p> : null}
         </div>
       ) : null}
       {body ?? <div className="rounded-2xl bg-white p-6 text-sm text-[#53655e]">هذه الشاشة غير مربوطة بعد.</div>}

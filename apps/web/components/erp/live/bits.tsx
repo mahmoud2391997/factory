@@ -24,11 +24,11 @@ export function Card({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-[#e1e9e5] bg-white p-4 shadow-[0_4px_22px_rgba(31,65,53,0.04)] md:p-5">
+    <section className="flex flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-bold">{title}</h3>
-          {hint ? <p className="mt-1 text-sm text-[#788983]">{hint}</p> : null}
+          <h3 className="text-lg font-medium">{title}</h3>
+          {hint ? <p className="mt-1 text-sm text-[#6b7280]">{hint}</p> : null}
         </div>
         {extra}
       </div>
@@ -54,14 +54,14 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead>
-            <tr className="border-b border-[#edf2ef] text-[#3d524b]">
+            <tr className="border-b border-[#e5e7eb] text-[#1f1f1f]">
               {columns.map((column, index) => {
                 const active = sort?.index === index
                 return (
                   <th key={column} className="px-2 py-2 font-semibold" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72]"
+                      className="inline-flex items-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                       aria-label={`فرز ${column}`}
                       onClick={() => {
                         setPage(0)
@@ -71,7 +71,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
                       }}
                     >
                       {column}
-                      <span aria-hidden className="text-xs text-[#53655e]">{active ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span>
+                      <span aria-hidden className="text-xs text-[#6b7280]">{active ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span>
                     </button>
                   </th>
                 )
@@ -82,12 +82,12 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="py-10 text-center">
-                  <p className="text-base font-semibold text-[#3d524b]">لا توجد سجلات</p>
+                  <p className="text-base font-medium text-[#1f1f1f]">لا توجد سجلات</p>
                 </td>
               </tr>
             ) : (
               visible.map((row, index) => (
-                <tr key={`${safePage}-${index}`} className="border-b border-[#f3f6f5] last:border-0">
+                <tr key={`${safePage}-${index}`} className="border-b border-[#f3f4f6] last:border-0">
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex} className="px-2 py-3 align-top">
                       {cell}
@@ -100,10 +100,10 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
         </table>
       </div>
       {sorted.length > PAGE_SIZE ? (
-        <div className="flex items-center justify-between gap-3 text-sm text-[#53655e]">
+        <div className="flex items-center justify-between gap-3 text-sm text-[#6b7280]">
           <button
             type="button"
-            className="rounded-lg border border-[#dfe7e3] bg-white px-3 py-1.5 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] disabled:opacity-40"
+            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] disabled:opacity-40"
             disabled={safePage === 0}
             onClick={() => setPage(safePage - 1)}
           >
@@ -114,7 +114,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
           </span>
           <button
             type="button"
-            className="rounded-lg border border-[#dfe7e3] bg-white px-3 py-1.5 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d7f72] disabled:opacity-40"
+            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] disabled:opacity-40"
             disabled={safePage >= pageCount - 1}
             onClick={() => setPage(safePage + 1)}
           >
@@ -129,14 +129,14 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5 text-sm">
-      <span className="font-semibold text-[#30453d]">{label}</span>
+      <span className="font-medium text-[#1f1f1f]">{label}</span>
       {children}
     </label>
   )
 }
 
 const controlClass =
-  'h-11 w-full rounded-xl border border-[#dfe7e3] bg-white px-3 text-sm outline-none focus:border-[#1d7f72]'
+  'h-10 w-full rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#1f1f1f]'
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={controlClass} />
@@ -150,7 +150,7 @@ export function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes
   return (
     <button
       {...props}
-      className="inline-flex h-11 items-center justify-center rounded-xl bg-[#123c35] px-4 text-sm font-bold text-white hover:bg-[#1d594d] disabled:opacity-60"
+      className="inline-flex h-9 items-center justify-center rounded-md bg-[#1f1f1f] px-4 text-sm font-medium text-white hover:bg-[#1f1f1f]/90 disabled:opacity-60"
     >
       {children}
     </button>
@@ -161,7 +161,7 @@ export function GhostButton({ children, ...props }: React.ButtonHTMLAttributes<H
   return (
     <button
       {...props}
-      className="inline-flex h-10 items-center justify-center rounded-xl border border-[#dfe7e3] bg-white px-3 text-sm font-semibold text-[#30453d] hover:bg-[#f7faf8] disabled:opacity-60"
+      className="inline-flex h-9 items-center justify-center rounded-md border border-[#e5e7eb] bg-white px-3 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-[#f9fafb] disabled:opacity-60"
     >
       {children}
     </button>
@@ -171,13 +171,13 @@ export function GhostButton({ children, ...props }: React.ButtonHTMLAttributes<H
 export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'good' | 'warn' | 'bad' }) {
   const toneClass =
     tone === 'good'
-      ? 'bg-[#e7f6f1] text-[#19725f]'
+      ? 'bg-[#e5ede6] text-[#0a825d]'
       : tone === 'warn'
-        ? 'bg-[#fff6e8] text-[#9b6b1f]'
+        ? 'bg-[#fef3c7] text-[#d97706]'
         : tone === 'bad'
-          ? 'bg-[#fff1ec] text-[#ad5e46]'
-          : 'bg-[#f3f6f5] text-[#53655e]'
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${toneClass}`}>{children}</span>
+          ? 'bg-[#fee2e2] text-[#dc2626]'
+          : 'bg-[#f3f4f6] text-[#6b7280]'
+  return <span className={`inline-flex rounded-md px-2 py-1 text-[13px] font-normal ${toneClass}`}>{children}</span>
 }
 
 export function toneForStatus(status: string): 'neutral' | 'good' | 'warn' | 'bad' {
