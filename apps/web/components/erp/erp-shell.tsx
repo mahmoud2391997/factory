@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Sun, X } from 'lucide-react'
+import { Bell, ChevronDown, ChevronUp, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Sun, X } from 'lucide-react'
 
 import { LiveWorkspace } from '@/components/erp/live/workspace'
 import type { LiveCtx } from '@/components/erp/live/ctx'
@@ -49,11 +49,13 @@ export function ErpShell() {
   const [dark, setDark] = useState(false)
   const [themeReady, setThemeReady] = useState(false)
   const [noticesOpen, setNoticesOpen] = useState(false)
+  const [expandedNav, setExpandedNav] = useState<Record<string, boolean>>({})
   const noticesRef = useRef<HTMLDivElement>(null)
 
   const resolved = resolvePath(pathname)
   const destinations = visibleDestinations(permissions)
   const iconOnly = compact && !mobileOpen
+  const toggleNav = (id: string) => setExpandedNav((current) => ({ ...current, [id]: !(current[id] ?? true) }))
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -185,38 +187,52 @@ export function ErpShell() {
             const nodes = sidebarNodes(destination, permissions)
             return (
               <div key={destination.id}>
-                <Link
-                  href={href}
-                  aria-current={active && pathname === href ? 'page' : undefined}
-                  aria-label={destination.label}
-                  title={destination.label}
-                  className={`erp-nav-item relative flex h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
-                    active
-                      ? 'erp-nav-item-active border border-[#bde5df] bg-[#e9f7f4] text-[#155e55] shadow-sm'
-                      : 'text-[#525252] hover:bg-white hover:text-[#155e55] hover:shadow-sm'
-                  }`}
-                >
-                  <Icon size={18} aria-hidden strokeWidth={active ? 2.2 : 2} />
-                  <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
-                </Link>
-                {!iconOnly && nodes.length > 0 ? (
+                <div className="flex items-center gap-1">
+                  <Link
+                    href={href}
+                    aria-current={active && pathname === href ? 'page' : undefined}
+                    aria-label={destination.label}
+                    title={destination.label}
+                    className={`erp-nav-item relative flex h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
+                      active
+                        ? 'erp-nav-item-active border border-[#bde5df] bg-[#e9f7f4] text-[#155e55] shadow-sm'
+                        : 'text-[#525252] hover:bg-white hover:text-[#155e55] hover:shadow-sm'
+                    }`}
+                  >
+                    <Icon size={18} aria-hidden strokeWidth={active ? 2.2 : 2} />
+                    <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
+                  </Link>
+                  {!iconOnly && nodes.length > 0 ? (
+                    <button type="button" aria-label={`${expandedNav[destination.id] ?? true ? 'طي' : 'فتح'} ${destination.label}`} aria-expanded={expandedNav[destination.id] ?? true} title={`${expandedNav[destination.id] ?? true ? 'طي' : 'فتح'} ${destination.label}`} onClick={() => toggleNav(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+                      {expandedNav[destination.id] ?? true ? <ChevronUp size={17} aria-hidden /> : <ChevronDown size={17} aria-hidden />}
+                    </button>
+                  ) : null}
+                </div>
+                {!iconOnly && nodes.length > 0 && (expandedNav[destination.id] ?? true) ? (
                   <div className="mb-2 mr-4 mt-1 space-y-1 border-r border-[#d7e4e2] pr-2">
                     {nodes.map((node) => {
                       const childCurrent = node.children.some((child) => child.href === pathname)
                       const nodeCurrent = pathname === node.href && !childCurrent
                       return (
                         <div key={node.id}>
-                          <Link
-                            href={node.href}
-                            aria-current={nodeCurrent ? 'page' : undefined}
-                            title={node.label}
-                            className={`flex h-10 w-full items-center rounded-lg px-3 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
-                              nodeCurrent ? 'bg-neutral-200/70 text-[#171717]' : childCurrent ? 'bg-white text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
-                            }`}
-                          >
-                            <span className="truncate">{node.label}</span>
-                          </Link>
-                          {node.children.length > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <Link
+                              href={node.href}
+                              aria-current={nodeCurrent ? 'page' : undefined}
+                              title={node.label}
+                              className={`flex h-10 min-w-0 flex-1 items-center rounded-lg px-3 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
+                                nodeCurrent ? 'bg-neutral-200/70 text-[#171717]' : childCurrent ? 'bg-white text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
+                              }`}
+                            >
+                              <span className="truncate">{node.label}</span>
+                            </Link>
+                            {node.children.length > 0 ? (
+                              <button type="button" aria-label={`${expandedNav[node.id] ?? true ? 'طي' : 'فتح'} ${node.label}`} aria-expanded={expandedNav[node.id] ?? true} title={`${expandedNav[node.id] ?? true ? 'طي' : 'فتح'} ${node.label}`} onClick={() => toggleNav(node.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+                                {expandedNav[node.id] ?? true ? <ChevronUp size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
+                              </button>
+                            ) : null}
+                          </div>
+                          {node.children.length > 0 && (expandedNav[node.id] ?? true) ? (
                             <div className="mb-1 mr-3 mt-1 space-y-1 border-r border-[#d7e4e2] pr-2">
                               {node.children.map((child) => {
                                 const current = pathname === child.href
