@@ -7,7 +7,7 @@ import { actorFromUser, applyCommand, defaultClock, publicState } from './engine
 import { BCRYPT_ROUNDS } from '../../../server/auth/password'
 import bcrypt from 'bcryptjs'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
-import { factoryStatus, inventoryIntegrity, materialStatement, profitAndLoss, trialBalance, vatReturn } from './reports'
+import { factoryStatus, inventoryIntegrity, materialStatement, muscatDay, profitAndLoss, trialBalance, vatReturn } from './reports'
 import { buildSeedState, createClock, emptyState } from './seed'
 import type { Actor, ErpState } from './types'
 
@@ -42,7 +42,8 @@ test('seeded factory keeps a balanced ledger and Oman VAT invoice', () => {
   const beef = state.products.find((item) => item.code === 'FG-BEEF')!
   const fg = state.balances.find((row) => row.itemId === beef.id && row.warehouse === 'WH_FG')
   assert.equal(fg?.qty, 16500)
-  const today = factoryStatus(state, '2026-09-22T08:00:00.000Z')
+  const operatingAt = state.productionOrders.find((order) => order.status === 'COMPLETED')!.completedAt!
+  const today = factoryStatus(state, operatingAt)
   assert.equal(today.shifted, false)
   assert.equal(today.production.plannedKg, 20000)
   assert.equal(today.production.actualKg, 17000)
@@ -61,12 +62,12 @@ test('seeded factory keeps a balanced ledger and Oman VAT invoice', () => {
   assert.equal(today.operations.wasteKg, 40)
   assert.ok(today.operations.deviations.every((line) => line.diffPct === -15))
   assert.equal(today.operations.stoppageMinutes, 45)
-  const later = factoryStatus(state, '2026-12-01T08:00:00.000Z')
+  const later = factoryStatus(state, new Date(Date.parse(operatingAt) + 80 * 86_400_000).toISOString())
   assert.equal(later.shifted, true)
   assert.equal(later.production.actualKg, 17000)
   const pnl = profitAndLoss(state)
   assert.equal(pnl.revenue, 90)
-  const vat = vatReturn(state, '2026-09')
+  const vat = vatReturn(state, muscatDay(invoice.issuedAt).slice(0, 7))
   assert.equal(vat.outputVat, 4.5)
   assert.ok(vat.inputVat > 0)
 })

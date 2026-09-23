@@ -3,7 +3,26 @@ import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
 import type { Actor, Command, ErpState } from './types'
 import { SCHEMA_VERSION } from './types'
 
-export function createClock(startIso = '2026-09-11T05:00:00.000Z'): Clock & { advance: (hours?: number) => void } {
+const MUSCAT_OFFSET_MS = 4 * 60 * 60 * 1000
+/** Advances that happen before `confirmInvoice`, so that command lands at noon Muscat on the seed day. */
+const CONFIRM_INVOICE_ADVANCES = 46
+
+function muscatDay(iso: string) {
+  return new Date(Date.parse(iso) + MUSCAT_OFFSET_MS).toISOString().slice(0, 10)
+}
+
+function addDays(day: string, days: number) {
+  return new Date(Date.parse(`${day}T00:00:00.000Z`) + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+/** Start the story so today's production and sales land on the current Muscat day. */
+export function seedClockStart(now = new Date()) {
+  const day = muscatDay(now.toISOString())
+  const noonMuscat = Date.parse(`${day}T08:00:00.000Z`)
+  return new Date(noonMuscat - CONFIRM_INVOICE_ADVANCES * 6 * 60 * 60 * 1000).toISOString()
+}
+
+export function createClock(startIso = seedClockStart()): Clock & { advance: (hours?: number) => void } {
   let time = Date.parse(startIso)
   let serial = 0
   return {
@@ -111,8 +130,8 @@ function step(state: ErpState, clock: Clock & { advance: (hours?: number) => voi
   return result.state
 }
 
-export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
-  const clock = createClock()
+export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): ErpState {
+  const clock = createClock(seedClockStart(now))
   let state = emptyState(passwordHash)
   const actorNote = systemActor(state)
   void actorNote
@@ -330,7 +349,7 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
   state = step(state, clock, {
     action: 'createPayroll',
     input: {
-      month: '2026-09',
+      month: muscatDay(clock.now()).slice(0, 7),
       lines: state.employees.map((employee, index) => ({
         employeeId: employee.id,
         overtimeHours: index === 0 ? 6 : 0,
@@ -343,10 +362,11 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
   for (const employee of state.employees) {
     state = step(state, clock, {
       action: 'recordAttendance',
-      input: { employeeId: employee.id, date: '2026-09-20', checkIn: '07:00', checkOut: '15:10', source: 'MANUAL' },
+      input: { employeeId: employee.id, date: muscatDay(clock.now()), checkIn: '07:00', checkOut: '15:10', source: 'MANUAL' },
     })
   }
 
+  const taskDay = muscatDay(clock.now())
   const noura = state.employees.find((item) => item.nameAr.includes('نورة'))!
   const salem = state.employees.find((item) => item.nameAr.includes('سالم'))!
   const khalid = state.employees.find((item) => item.nameAr.includes('خالد'))!
@@ -356,7 +376,7 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
     input: {
       title: 'مراجعة نقص كسب الصويا قبل اعتماد أمر الشراء',
       assigneeRole: 'ACCOUNTANT',
-      dueDate: '2026-09-22',
+      dueDate: taskDay,
       site: 'OFFICE',
       assigneeEmployeeId: noura.id,
       linkedEmployeeId: salem.id,
@@ -368,7 +388,7 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
     input: {
       title: 'وزن دفعة الذرة قبل أمر الخلط التالي',
       assigneeRole: 'OPERATIONS',
-      dueDate: '2026-09-24',
+      dueDate: addDays(taskDay, 2),
       site: 'FACTORY',
       assigneeEmployeeId: khalid.id,
       linkedEmployeeId: noura.id,
@@ -380,7 +400,7 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
     input: {
       title: 'تمرير إذن صرف البريمكس من المجمع إلى خط الخلط',
       assigneeRole: 'OPERATIONS',
-      dueDate: '2026-09-23',
+      dueDate: addDays(taskDay, 1),
       site: 'COMPLEX',
       assigneeEmployeeId: ahmed.id,
       linkedEmployeeId: khalid.id,

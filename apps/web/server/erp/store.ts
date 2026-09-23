@@ -10,6 +10,7 @@ import { actorFromUser, applyCommand, publicState } from '@/lib/erp/domain/engin
 import { buildSeedState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
 import { SCHEMA_VERSION } from '@/lib/erp/domain/types'
+import { resetLoginThrottle } from '@/server/auth/login-throttle'
 import { BCRYPT_ROUNDS } from '@/server/auth/password'
 import { prisma } from '@/server/db'
 import { ensureDatabaseUrlEnv } from '@/server/db-url'
@@ -235,7 +236,8 @@ export async function runCommand(userId: string, action: string, input: Record<s
 
       if (action === 'resetDemo') {
         if (!actor.permissions.includes('settings.update')) return { ok: false as const, error: 'ليست لديك صلاحية لهذا الإجراء' }
-        const fresh = await createInitialState(loaded.state.users[0]?.passwordHash)
+        resetLoginThrottle()
+        const fresh = await createInitialState()
         fresh.revision = loaded.state.revision
         await persist(fresh, loaded.storage)
         return {

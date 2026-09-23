@@ -363,6 +363,7 @@ export function ErpShell() {
             <div className={iconOnly ? 'sr-only' : 'min-w-0'}>
               <div className="truncate text-sm font-medium">{user.fullName}</div>
               <div className="truncate text-[13px] text-[#6b7280]">{primaryRole}</div>
+              <div className="truncate text-[12px] text-[#9ca3af]">{user.email}</div>
             </div>
             <button
               type="button"
@@ -391,7 +392,7 @@ export function ErpShell() {
             <Menu size={22} aria-hidden />
           </button>
           <div className="hidden text-right sm:block">
-            <div className="text-[13px] text-[#6b7280]">نظام تخطيط موارد المصنع</div>
+            <div className="text-[13px] text-[#6b7280]">{primaryRole} · {user.email}</div>
             <h1 className="text-2xl font-semibold leading-tight">مرحباً، {firstName}</h1>
           </div>
           <div className="mr-auto flex items-center gap-2">

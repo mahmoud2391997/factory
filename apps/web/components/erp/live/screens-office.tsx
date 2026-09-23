@@ -127,7 +127,7 @@ function Expenses({ ctx }: { ctx: LiveCtx }) {
 }
 
 function VatScreen({ ctx, settings }: { ctx: LiveCtx; settings: boolean }) {
-  const [month, setMonth] = useState('2026-09')
+  const [month, setMonth] = useState(() => muscatDay(new Date().toISOString()).slice(0, 7))
   const vat = vatReturn(ctx.state, month)
   const [vatRatePct, setVatRatePct] = useState(String(ctx.state.company.vatRatePct))
   const [vatNumber, setVatNumber] = useState(ctx.state.company.vatNumber)
@@ -198,10 +198,10 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
 
 function Attendance({ ctx }: { ctx: LiveCtx }) {
   const [employeeId, setEmployeeId] = useState(ctx.state.employees[0]?.id ?? '')
-  const [date, setDate] = useState('2026-09-21')
+  const [date, setDate] = useState(() => muscatDay(new Date().toISOString()))
   const [checkIn, setCheckIn] = useState('07:00')
   const [checkOut, setCheckOut] = useState('15:00')
-  const [csv, setCsv] = useState('EMP-001,2026-09-21,07:05,15:10')
+  const [csv, setCsv] = useState(() => `EMP-001,${muscatDay(new Date().toISOString())},07:05,15:10`)
   return (
     <div className="space-y-4">
       <Card
@@ -274,7 +274,7 @@ function Overtime({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Payroll({ ctx }: { ctx: LiveCtx }) {
-  const [month, setMonth] = useState('2026-09')
+  const [month, setMonth] = useState(() => muscatDay(new Date().toISOString()).slice(0, 7))
   const [hoursMap, setHoursMap] = useState<Record<string, string>>({})
   return (
     <div className="space-y-4">
@@ -434,7 +434,7 @@ function Tasks({ ctx }: { ctx: LiveCtx }) {
   const today = muscatDay(new Date().toISOString())
   const [title, setTitle] = useState('')
   const [assigneeRole, setAssigneeRole] = useState<RoleKey>('OPERATIONS')
-  const [dueDate, setDueDate] = useState('2026-09-30')
+  const [dueDate, setDueDate] = useState(() => muscatDay(new Date().toISOString()))
   const [site, setSite] = useState<WorkSite>('OFFICE')
   const [assigneeEmployeeId, setAssigneeEmployeeId] = useState(ctx.state.employees[0]?.id ?? '')
   const [linkedEmployeeId, setLinkedEmployeeId] = useState(ctx.state.employees[1]?.id ?? '')
@@ -566,6 +566,8 @@ function Users({ ctx }: { ctx: LiveCtx }) {
       <Card
         title="المستخدمون"
         extra={
+          <div className="flex flex-wrap items-center gap-2">
+          {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('resetDemo', {})}>إعادة البيانات التجريبية</GhostButton> : null}
           <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة المرور">
             {(close) => (
               <form className="grid gap-3" onSubmit={async (event) => {
@@ -586,6 +588,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
               </form>
             )}
           </FormDialog>
+          </div>
         }
       >
         <DataTable columns={['الاسم', 'البريد', 'الدور', 'الحالة']} rows={ctx.state.users.map((user) => [user.fullName, user.email, ROLE_OPTIONS.find((item) => item.value === user.role)?.label ?? user.role, user.active ? 'نشط' : 'موقوف'])} />

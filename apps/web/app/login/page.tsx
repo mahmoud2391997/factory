@@ -25,6 +25,15 @@ type HealthResponse = {
   message?: string
 }
 
+const DEMO_PASSWORD = 'Admin123!'
+
+const DEMO_LOGINS = [
+  { email: 'gm@factory.local', label: 'المدير العام' },
+  { email: 'accounts@factory.local', label: 'المحاسب والموارد البشرية' },
+  { email: 'ops@factory.local', label: 'المستودع والإنتاج والمبيعات' },
+  { email: 'admin@factory.local', label: 'مدير النظام' },
+] as const
+
 function StatusRow({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
   return (
     <div className="flex items-start gap-2 text-[11px] leading-5">
@@ -80,17 +89,23 @@ export default function LoginPage() {
     }
   }, [])
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault()
+  const signIn = async (account: string, secret: string) => {
+    setEmail(account)
+    setPassword(secret)
     setSubmitting(true)
     setMessage('')
-    const result = await login(email.trim(), password)
+    const result = await login(account.trim(), secret)
     setSubmitting(false)
     if (result.ok) {
       router.replace(result.mustChangePassword ? '/account/password' : '/')
       return
     }
     setMessage(result.message)
+  }
+
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    await signIn(email, password)
   }
 
   if (loading || user) {
@@ -122,35 +137,27 @@ export default function LoginPage() {
             <div className="mt-1.5 text-sm font-medium text-[#6b7280]">نظام إدارة المصنع — تسجيل الدخول</div>
           </div>
 
-          {!healthLoading && demoMode ? (
-            <div className="mb-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-4">
-              <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#1f1f1f]">
-                <Info size={15} />
-                وضع تجريبي نشط (بدون قاعدة بيانات)
-              </div>
-              <p className="text-[13px] leading-5 text-[#6b7280]">كلمة المرور لكل الحسابات: Admin123!</p>
-              <div className="mt-3 grid gap-2">
-                {[
-                  ['gm@factory.local', 'المدير العام'],
-                  ['accounts@factory.local', 'المحاسب والموارد البشرية'],
-                  ['ops@factory.local', 'المستودع والإنتاج والمبيعات'],
-                ].map(([account, label]) => (
-                  <button
-                    key={account}
-                    type="button"
-                    onClick={() => {
-                      setEmail(account)
-                      setPassword('Admin123!')
-                    }}
-                    className="rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-right text-[13px] font-medium text-[#1f1f1f] hover:bg-neutral-200/50"
-                  >
-                    {label}
-                    <span className="mt-0.5 block font-normal text-[#6b7280]">{account}</span>
-                  </button>
-                ))}
-              </div>
+          <div className="mb-5 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-4">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#1f1f1f]">
+              <Info size={15} />
+              {demoMode ? 'وضع تجريبي نشط (بدون قاعدة بيانات)' : 'دخول جاهز للعرض'}
             </div>
-          ) : null}
+            <p className="text-[13px] leading-5 text-[#6b7280]">اضغط الحساب لكتابة البريد وكلمة المرور والدخول مباشرة. كلمة المرور: {DEMO_PASSWORD}</p>
+            <div className="mt-3 grid gap-2">
+              {DEMO_LOGINS.map((account) => (
+                <button
+                  key={account.email}
+                  type="button"
+                  disabled={submitting || setupBlocked}
+                  onClick={() => signIn(account.email, DEMO_PASSWORD)}
+                  className="rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-right text-[13px] font-medium text-[#1f1f1f] hover:bg-neutral-200/50 disabled:opacity-60"
+                >
+                  {account.label}
+                  <span className="mt-0.5 block font-normal text-[#6b7280]">{account.email}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {!healthLoading && health && setupBlocked ? (
             <div className="mb-5 rounded-2xl border border-[#f0d0c8] bg-[#fff8f5] p-4">

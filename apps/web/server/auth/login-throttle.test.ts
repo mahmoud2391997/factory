@@ -15,4 +15,8 @@ test('login locks for 60 seconds after 5 failures in the window', () => {
   recordLoginSuccess('gm@factory.local', '10.0.0.8')
   recordLoginFailure('gm@factory.local', '10.1.0.1', now + 90_000)
   assert.equal(loginThrottleMessage('gm@factory.local', '10.1.0.1', now + 90_000), null)
+  for (let index = 0; index < 5; index += 1) recordLoginFailure('ops@factory.local', '10.2.0.1', now + 100_000 + index)
+  assert.equal(loginThrottleMessage('ops@factory.local', '10.2.0.1', now + 100_010), LOGIN_LOCK_MESSAGE)
+  resetLoginThrottle()
+  assert.equal(loginThrottleMessage('ops@factory.local', '10.2.0.1', now + 100_010), null)
 })
