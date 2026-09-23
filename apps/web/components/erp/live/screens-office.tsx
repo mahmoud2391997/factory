@@ -7,7 +7,7 @@ import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { factoryStatus, itemOnHand, profitAndLoss, stockRows, traceProduct, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import type { VatTreatment } from '@/lib/erp/domain/types'
 
-import { Badge, Card, DataTable, Field, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt } from './format'
 
@@ -71,26 +71,37 @@ function Expenses({ ctx }: { ctx: LiveCtx }) {
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>('STANDARD')
   return (
     <div className="space-y-4">
-      <Card title="مصروف جديد" hint="يُرحَّل بعد اعتماد المدير: مدين المصروف ومدين ضريبة المدخلات، دائن البنك أو المورد.">
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
-          event.preventDefault()
-          const result = await ctx.act('createExpense', { category, description, amount: Number(amount), vatTreatment, payFrom: 'BANK' })
-          if (result.ok) setDescription('')
-        }}>
-          <Field label="التصنيف"><TextInput value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
-          <Field label="المبلغ غير شامل الضريبة"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
-          <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
-          <Field label="الضريبة">
-            <SelectInput value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value as VatTreatment)}>
-              <option value="STANDARD">خاضعة</option>
-              <option value="ZERO">صفرية</option>
-              <option value="EXEMPT">معفاة</option>
-            </SelectInput>
-          </Field>
-          <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'expenses.manage')}>إرسال للاعتماد</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="المصروفات">
+      <Card
+        title="المصروفات"
+        hint="يُرحَّل بعد اعتماد المدير: مدين المصروف ومدين ضريبة المدخلات، دائن البنك أو المورد."
+        extra={
+          <FormDialog title="مصروف جديد" openLabel="مصروف جديد">
+            {(close) => (
+              <form className="grid gap-3" onSubmit={async (event) => {
+                event.preventDefault()
+                const result = await ctx.act('createExpense', { category, description, amount: Number(amount), vatTreatment, payFrom: 'BANK' })
+                if (result.ok) {
+                  setDescription('')
+                  setAmount('')
+                  close()
+                }
+              }}>
+                <Field label="التصنيف"><TextInput value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
+                <Field label="المبلغ غير شامل الضريبة"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
+                <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+                <Field label="الضريبة">
+                  <SelectInput value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value as VatTreatment)}>
+                    <option value="STANDARD">خاضعة</option>
+                    <option value="ZERO">صفرية</option>
+                    <option value="EXEMPT">معفاة</option>
+                  </SelectInput>
+                </Field>
+                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'expenses.manage')}>إرسال للاعتماد</PrimaryButton>
+              </form>
+            )}
+          </FormDialog>
+        }
+      >
         <DataTable
           columns={['الرقم', 'الوصف', 'الصافي', 'الضريبة', 'الحالة', '']}
           rows={ctx.state.expenses.map((expense) => [
@@ -147,20 +158,32 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
   const [basicSalary, setBasicSalary] = useState('')
   return (
     <div className="space-y-4">
-      <Card title="موظف" hint="الحضور اليدوي وملف CSV جاهزان الآن. جهاز البصمة يُربط لاحقاً عبر نفس سجل الحضور دون إعادة بناء النظام.">
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
-          event.preventDefault()
-          const result = await ctx.act('createEmployee', { nameAr, department, jobTitle, basicSalary: Number(basicSalary) })
-          if (result.ok) setNameAr('')
-        }}>
-          <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
-          <Field label="القسم"><TextInput value={department} onChange={(e) => setDepartment(e.target.value)} /></Field>
-          <Field label="المسمى"><TextInput value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} /></Field>
-          <Field label="الراتب الأساسي"><TextInput type="number" min="0" step="0.001" value={basicSalary} onChange={(e) => setBasicSalary(e.target.value)} required /></Field>
-          <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'employees.manage')}>حفظ</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="الموظفون">
+      <Card
+        title="الموظفون"
+        hint="الحضور اليدوي وملف CSV جاهزان الآن. جهاز البصمة يُربط لاحقاً عبر نفس سجل الحضور دون إعادة بناء النظام."
+        extra={
+          <FormDialog title="موظف" openLabel="إضافة موظف">
+            {(close) => (
+              <form className="grid gap-3" onSubmit={async (event) => {
+                event.preventDefault()
+                const result = await ctx.act('createEmployee', { nameAr, department, jobTitle, basicSalary: Number(basicSalary) })
+                if (result.ok) {
+                  setNameAr('')
+                  setJobTitle('')
+                  setBasicSalary('')
+                  close()
+                }
+              }}>
+                <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+                <Field label="القسم"><TextInput value={department} onChange={(e) => setDepartment(e.target.value)} /></Field>
+                <Field label="المسمى"><TextInput value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} /></Field>
+                <Field label="الراتب الأساسي"><TextInput type="number" min="0" step="0.001" value={basicSalary} onChange={(e) => setBasicSalary(e.target.value)} required /></Field>
+                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'employees.manage')}>حفظ</PrimaryButton>
+              </form>
+            )}
+          </FormDialog>
+        }
+      >
         <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, moneyFmt(employee.basicSalary)])} />
       </Card>
     </div>
@@ -175,32 +198,44 @@ function Attendance({ ctx }: { ctx: LiveCtx }) {
   const [csv, setCsv] = useState('EMP-001,2026-09-21,07:05,15:10')
   return (
     <div className="space-y-4">
-      <Card title="تسجيل حضور">
-        <form className="grid gap-3 md:grid-cols-4" onSubmit={async (event) => {
-          event.preventDefault()
-          await ctx.act('recordAttendance', { employeeId, date, checkIn, checkOut, source: 'MANUAL' })
-        }}>
-          <Field label="الموظف">
-            <SelectInput value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-              {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}
-            </SelectInput>
-          </Field>
-          <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="حضور"><TextInput value={checkIn} onChange={(e) => setCheckIn(e.target.value)} /></Field>
-          <Field label="انصراف"><TextInput value={checkOut} onChange={(e) => setCheckOut(e.target.value)} /></Field>
-          <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'attendance.manage')}>حفظ</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="استيراد CSV" hint="الأعمدة: كود الموظف,التاريخ,الحضور,الانصراف. نفس المسار سيستقبل ملف جهاز البصمة لاحقاً.">
-        <form className="space-y-3" onSubmit={async (event) => {
-          event.preventDefault()
-          await ctx.act('importAttendance', { csv })
-        }}>
-          <textarea className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm" value={csv} onChange={(e) => setCsv(e.target.value)} />
-          <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'attendance.manage')}>استيراد</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="السجل">
+      <Card
+        title="السجل"
+        extra={
+          <div className="flex flex-wrap items-center gap-2">
+            <FormDialog title="تسجيل حضور" openLabel="تسجيل حضور">
+              {(close) => (
+                <form className="grid gap-3" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('recordAttendance', { employeeId, date, checkIn, checkOut, source: 'MANUAL' })
+                  if (result.ok) close()
+                }}>
+                  <Field label="الموظف">
+                    <SelectInput value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+                      {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}
+                    </SelectInput>
+                  </Field>
+                  <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+                  <Field label="حضور"><TextInput value={checkIn} onChange={(e) => setCheckIn(e.target.value)} /></Field>
+                  <Field label="انصراف"><TextInput value={checkOut} onChange={(e) => setCheckOut(e.target.value)} /></Field>
+                  <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'attendance.manage')}>حفظ</PrimaryButton>
+                </form>
+              )}
+            </FormDialog>
+            <FormDialog title="استيراد CSV" hint="الأعمدة: كود الموظف,التاريخ,الحضور,الانصراف. نفس المسار سيستقبل ملف جهاز البصمة لاحقاً." openLabel="استيراد CSV" wide>
+              {(close) => (
+                <form className="space-y-3" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('importAttendance', { csv })
+                  if (result.ok) close()
+                }}>
+                  <textarea className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm" value={csv} onChange={(e) => setCsv(e.target.value)} />
+                  <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'attendance.manage')}>استيراد</PrimaryButton>
+                </form>
+              )}
+            </FormDialog>
+          </div>
+        }
+      >
         <DataTable
           columns={['الموظف', 'التاريخ', 'حضور', 'انصراف', 'المصدر']}
           rows={ctx.state.attendance.slice(0, 40).map((row) => [ctx.state.employees.find((employee) => employee.id === row.employeeId)?.nameAr ?? '', row.date, row.checkIn, row.checkOut || '—', statusLabel(row.source)])}
@@ -237,28 +272,39 @@ function Payroll({ ctx }: { ctx: LiveCtx }) {
   const [hoursMap, setHoursMap] = useState<Record<string, string>>({})
   return (
     <div className="space-y-4">
-      <Card title="مسير رواتب" hint="المحاسب يجهّز المسير، المدير يعتمده، ثم يُصرف من البنك.">
-        <form className="space-y-3" onSubmit={async (event) => {
-          event.preventDefault()
-          await ctx.act('createPayroll', {
-            month,
-            lines: ctx.state.employees.filter((employee) => employee.active).map((employee) => ({
-              employeeId: employee.id,
-              overtimeHours: Number(hoursMap[employee.id] || 0),
-            })),
-          })
-        }}>
-          <Field label="الشهر"><TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
-          {ctx.state.employees.map((employee) => (
-            <label key={employee.id} className="flex items-center justify-between gap-3 text-sm">
-              <span>{employee.nameAr} — {moneyFmt(employee.basicSalary)}</span>
-              <input className="h-10 w-28 rounded-xl border border-[#dfe7e3] px-3" type="number" min="0" step="0.5" placeholder="إضافي" value={hoursMap[employee.id] ?? ''} onChange={(e) => setHoursMap((current) => ({ ...current, [employee.id]: e.target.value }))} />
-            </label>
-          ))}
-          <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'payroll.manage')}>إرسال للاعتماد</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="المسيرات" extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=payroll">تصدير Excel</a>}>
+      <Card
+        title="المسيرات"
+        hint="المحاسب يجهّز المسير، المدير يعتمده، ثم يُصرف من البنك."
+        extra={
+          <div className="flex flex-wrap items-center gap-3">
+            <a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=payroll">تصدير Excel</a>
+            <FormDialog title="مسير رواتب" openLabel="مسير جديد" wide>
+              {(close) => (
+                <form className="space-y-3" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('createPayroll', {
+                    month,
+                    lines: ctx.state.employees.filter((employee) => employee.active).map((employee) => ({
+                      employeeId: employee.id,
+                      overtimeHours: Number(hoursMap[employee.id] || 0),
+                    })),
+                  })
+                  if (result.ok) close()
+                }}>
+                  <Field label="الشهر"><TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
+                  {ctx.state.employees.map((employee) => (
+                    <label key={employee.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span>{employee.nameAr} — {moneyFmt(employee.basicSalary)}</span>
+                      <input className="h-10 w-28 rounded-xl border border-[#dfe7e3] px-3" type="number" min="0" step="0.5" placeholder="إضافي" value={hoursMap[employee.id] ?? ''} onChange={(e) => setHoursMap((current) => ({ ...current, [employee.id]: e.target.value }))} />
+                    </label>
+                  ))}
+                  <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'payroll.manage')}>إرسال للاعتماد</PrimaryButton>
+                </form>
+              )}
+            </FormDialog>
+          </div>
+        }
+      >
         <DataTable
           columns={['الرقم', 'الشهر', 'الصافي', 'الحالة', '']}
           rows={ctx.state.payrolls.map((payroll) => [
@@ -378,23 +424,32 @@ function Tasks({ ctx }: { ctx: LiveCtx }) {
   const [dueDate, setDueDate] = useState('2026-09-30')
   return (
     <div className="space-y-4">
-      <Card title="مهمة">
-        <form className="grid gap-3 md:grid-cols-3" onSubmit={async (event) => {
-          event.preventDefault()
-          const result = await ctx.act('createTask', { title, assigneeRole, dueDate })
-          if (result.ok) setTitle('')
-        }}>
-          <Field label="العنوان"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} required /></Field>
-          <Field label="الجهة">
-            <SelectInput value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value as RoleKey)}>
-              {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-            </SelectInput>
-          </Field>
-          <Field label="الاستحقاق"><TextInput type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
-          <PrimaryButton disabled={ctx.pending}>إضافة</PrimaryButton>
-        </form>
-      </Card>
-      <Card title="المهام">
+      <Card
+        title="المهام"
+        extra={
+          <FormDialog title="مهمة" openLabel="مهمة جديدة">
+            {(close) => (
+              <form className="grid gap-3" onSubmit={async (event) => {
+                event.preventDefault()
+                const result = await ctx.act('createTask', { title, assigneeRole, dueDate })
+                if (result.ok) {
+                  setTitle('')
+                  close()
+                }
+              }}>
+                <Field label="العنوان"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} required /></Field>
+                <Field label="الجهة">
+                  <SelectInput value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value as RoleKey)}>
+                    {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                  </SelectInput>
+                </Field>
+                <Field label="الاستحقاق"><TextInput type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
+                <PrimaryButton disabled={ctx.pending}>إضافة</PrimaryButton>
+              </form>
+            )}
+          </FormDialog>
+        }
+      >
         <DataTable
           columns={['المهمة', 'الجهة', 'الاستحقاق', 'الحالة', '']}
           rows={ctx.state.tasks.map((task) => [task.title, ROLE_OPTIONS.find((role) => role.value === task.assigneeRole)?.label ?? task.assigneeRole, task.dueDate, statusLabel(task.status), task.status === 'OPEN' ? <GhostButton key={task.id} type="button" onClick={() => ctx.act('updateTask', { id: task.id, status: 'DONE' })}>إغلاق</GhostButton> : '—'])}
@@ -457,21 +512,32 @@ function Users({ ctx }: { ctx: LiveCtx }) {
   const [password, setPassword] = useState('')
   return (
     <div className="space-y-4">
-      <Card title="المستخدمون">
+      <Card
+        title="المستخدمون"
+        extra={
+          <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة المرور">
+            {(close) => (
+              <form className="grid gap-3" onSubmit={async (event) => {
+                event.preventDefault()
+                const result = await ctx.act('setUserPassword', { userId, password })
+                if (result.ok) {
+                  setPassword('')
+                  close()
+                }
+              }}>
+                <Field label="المستخدم">
+                  <SelectInput value={userId} onChange={(e) => setUserId(e.target.value)}>
+                    {ctx.state.users.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}
+                  </SelectInput>
+                </Field>
+                <Field label="كلمة مرور جديدة"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></Field>
+                <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
+              </form>
+            )}
+          </FormDialog>
+        }
+      >
         <DataTable columns={['الاسم', 'البريد', 'الدور', 'الحالة']} rows={ctx.state.users.map((user) => [user.fullName, user.email, ROLE_OPTIONS.find((item) => item.value === user.role)?.label ?? user.role, user.active ? 'نشط' : 'موقوف'])} />
-        <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={async (event) => {
-          event.preventDefault()
-          const result = await ctx.act('setUserPassword', { userId, password })
-          if (result.ok) setPassword('')
-        }}>
-          <Field label="المستخدم">
-            <SelectInput value={userId} onChange={(e) => setUserId(e.target.value)}>
-              {ctx.state.users.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}
-            </SelectInput>
-          </Field>
-          <Field label="كلمة مرور جديدة"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></Field>
-          <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>تحديث كلمة المرور</PrimaryButton></div>
-        </form>
       </Card>
       <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُسحب حق إدارة المستخدمين من المدير العام.">
         <form className="space-y-3" onSubmit={async (event) => {
