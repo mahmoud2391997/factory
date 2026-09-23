@@ -23,14 +23,21 @@ fi
 
 REAL_DATABASE_URL="${DATABASE_URL:-}"
 
-# prisma generate validates schema and only needs a non-empty URL (no DB connection).
+# Prisma generate only needs a non-empty URL. Keep migrations out of the deployment
+# critical path unless they are explicitly enabled; a slow or unreachable database
+# must not leave every Vercel deployment pending.
 if [[ -z "${REAL_DATABASE_URL}" ]]; then
-  echo "DATABASE_URL is empty — skipping migrate deploy; using placeholder URL for prisma generate."
+  echo "DATABASE_URL is empty — using placeholder URL for prisma generate."
   export DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
 else
   export DATABASE_URL="$REAL_DATABASE_URL"
-  echo "Running prisma migrate deploy..."
+fi
+
+if [[ "${RUN_DB_MIGRATIONS:-false}" == "true" ]]; then
+  echo "RUN_DB_MIGRATIONS=true; running prisma migrate deploy..."
   pnpm -C packages/database prisma migrate deploy --schema prisma/schema.prisma
+else
+  echo "Skipping prisma migrate deploy (set RUN_DB_MIGRATIONS=true to enable)."
 fi
 
 echo "Running prisma generate..."
