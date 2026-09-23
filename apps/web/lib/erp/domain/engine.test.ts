@@ -7,7 +7,7 @@ import { actorFromUser, applyCommand, defaultClock, publicState } from './engine
 import { BCRYPT_ROUNDS } from '../../../server/auth/password'
 import bcrypt from 'bcryptjs'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
-import { factoryStatus, inventoryIntegrity, profitAndLoss, trialBalance, vatReturn } from './reports'
+import { factoryStatus, inventoryIntegrity, materialStatement, profitAndLoss, trialBalance, vatReturn } from './reports'
 import { buildSeedState, createClock, emptyState } from './seed'
 import type { Actor, ErpState } from './types'
 
@@ -69,6 +69,49 @@ test('seeded factory keeps a balanced ledger and Oman VAT invoice', () => {
   const vat = vatReturn(state, '2026-09')
   assert.equal(vat.outputVat, 4.5)
   assert.ok(vat.inputVat > 0)
+})
+
+test('a raw material statement answers the mill questions', () => {
+  const state = buildSeedState()
+  const corn = state.materials.find((item) => item.code === 'RM-CORN')!
+  const statement = materialStatement(state, corn.id)
+  assert.ok(statement)
+  assert.equal(statement.receivedQty, 20000)
+  assert.equal(statement.consumedQty, 8840)
+  assert.equal(statement.onHand, 11160)
+  assert.equal(statement.balanceMatches, true)
+  assert.equal(statement.outputKg, 17000)
+  assert.equal(statement.soldQty, 500)
+  assert.equal(statement.withdrawnQty, 0)
+  assert.equal(statement.productOnHand, 16500)
+  assert.equal(statement.wasteQty, 40)
+  assert.equal(statement.shortfallKg, 3000)
+  assert.equal(statement.aligned, true)
+  assert.match(statement.reasons[0] ?? '', /الكهرباء/)
+  assert.equal(statement.stoppages[0]?.minutes, 45)
+})
+
+test('tasks link the virtual office with the compound and the plant', () => {
+  const state = buildSeedState()
+  const office = state.tasks.find((task) => task.site === 'OFFICE')
+  const plant = state.tasks.find((task) => task.site === 'FACTORY')
+  const compound = state.tasks.find((task) => task.site === 'COMPLEX')
+  assert.ok(office?.assigneeEmployeeId && office.linkedEmployeeId)
+  assert.notEqual(office.assigneeEmployeeId, office.linkedEmployeeId)
+  assert.ok(plant?.linkedEmployeeId)
+  assert.ok(compound?.assigneeEmployeeId)
+  const denied = applyCommand(state, actor(state, 'user-gm'), {
+    action: 'createTask',
+    input: {
+      title: 'مهمة بلا طرفين',
+      assigneeRole: 'OPERATIONS',
+      dueDate: '2026-09-30',
+      site: 'OFFICE',
+      assigneeEmployeeId: office.assigneeEmployeeId,
+      linkedEmployeeId: office.assigneeEmployeeId,
+    },
+  })
+  assert.equal(denied.ok, false)
 })
 
 test('operations cannot approve a purchase order', () => {

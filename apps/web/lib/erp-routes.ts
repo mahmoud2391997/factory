@@ -192,6 +192,7 @@ export const DESTINATIONS: Destination[] = [
         label: 'المهام والتقارير',
         leaves: [
           { href: '/tasks', entityKey: 'task', tab: true },
+          { href: '/tasks/material', entityKey: 'materialTrace', tab: true },
           { href: '/tasks/reports', entityKey: 'report', tab: true },
           { href: '/tasks/approvals', entityKey: 'approvals', tab: true },
         ],

@@ -1393,6 +1393,14 @@ function payPayroll(state: ErpState, actor: Actor, input: Extract<Command, { act
 
 function createTask(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createTask' }>['input'], clock: Clock): CommandResult {
   if (!input.title.trim()) return fail('عنوان المهمة مطلوب')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) return fail('تاريخ الاستحقاق غير صحيح')
+  const site = input.site ?? 'OFFICE'
+  if (site !== 'OFFICE' && site !== 'COMPLEX' && site !== 'FACTORY') return fail('جهة المهمة غير معروفة')
+  const assignee = input.assigneeEmployeeId ? state.employees.find((item) => item.id === input.assigneeEmployeeId && item.active) : undefined
+  if (input.assigneeEmployeeId && !assignee) return fail('الموظف المكلّف غير موجود')
+  const linked = input.linkedEmployeeId ? state.employees.find((item) => item.id === input.linkedEmployeeId && item.active) : undefined
+  if (input.linkedEmployeeId && !linked) return fail('موظف الربط غير موجود')
+  if (assignee && linked && assignee.id === linked.id) return fail('اربط المهمة بموظف في الجهة الأخرى، لا بنفس الشخص')
   const task = {
     id: clock.id('task'),
     title: input.title.trim(),
@@ -1400,9 +1408,13 @@ function createTask(state: ErpState, actor: Actor, input: Extract<Command, { act
     dueDate: input.dueDate,
     status: 'OPEN' as const,
     createdAt: clock.now(),
+    site,
+    assigneeEmployeeId: assignee?.id,
+    linkedEmployeeId: linked?.id,
+    notes: input.notes?.trim() ?? '',
   }
   state.tasks.unshift(task)
-  audit(state, actor, clock, 'إنشاء مهمة', 'task', task.id, task.title)
+  audit(state, actor, clock, 'إنشاء مهمة', 'task', task.id, `${task.title} — ${site}`)
   return ok(state, 'تم إضافة المهمة')
 }
 
