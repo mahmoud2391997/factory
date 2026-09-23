@@ -9,6 +9,11 @@ import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, Primary
 import type { LiveCtx } from './ctx'
 import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
 
+function InlineError({ message }: { message: string }) {
+  if (!message) return null
+  return <p role="alert" className="rounded-xl border border-[#fecaca] bg-[#fee2e2] px-3 py-2 text-sm font-medium text-[#dc2626]">{message}</p>
+}
+
 function useLines<T>(blank: T) {
   const [lines, setLines] = useState<T[]>([{ ...blank }])
   return {
@@ -278,6 +283,7 @@ function Transfer({ ctx }: { ctx: LiveCtx }) {
   const [itemId, setItemId] = useState(ctx.state.materials[0]?.id ?? '')
   const [batchNo, setBatchNo] = useState('')
   const [amount, setAmount] = useState('')
+  const [formError, setFormError] = useState('')
   const batches = ctx.state.balances.filter((row) => row.itemId === itemId && row.warehouse === from && row.qty > 0)
   return (
     <Card
@@ -298,8 +304,9 @@ function Transfer({ ctx }: { ctx: LiveCtx }) {
                 if (result.ok) {
                   setAmount('')
                   setBatchNo('')
+                  setFormError('')
                   close()
-                }
+                } else setFormError(result.message)
               }}
             >
               <Field label="من">
@@ -324,6 +331,7 @@ function Transfer({ ctx }: { ctx: LiveCtx }) {
                 </SelectInput>
               </Field>
               <Field label="الكمية"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
+              <div className="md:col-span-2"><InlineError message={formError} /></div>
               <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'inventory.transfer.create')}>تحويل</PrimaryButton></div>
             </form>
           )}
@@ -547,6 +555,7 @@ function Receipts({ ctx }: { ctx: LiveCtx }) {
   const [purchaseOrderId, setPurchaseOrderId] = useState(open[0]?.id ?? '')
   const order = open.find((item) => item.id === purchaseOrderId)
   const [draft, setDraft] = useState<Record<string, { qty: string; batchNo: string; expiryDate: string }>>({})
+  const [formError, setFormError] = useState('')
   return (
     <div className="space-y-4">
       <Card
@@ -573,8 +582,9 @@ function Receipts({ ctx }: { ctx: LiveCtx }) {
                 const result = await ctx.act('receiveGoods', { purchaseOrderId, lines })
                 if (result.ok) {
                   setDraft({})
+                  setFormError('')
                   close()
-                }
+                } else setFormError(result.message)
               }}>
                 <Field label="أمر الشراء">
                   <SelectInput value={purchaseOrderId} onChange={(e) => setPurchaseOrderId(e.target.value)}>
@@ -590,6 +600,7 @@ function Receipts({ ctx }: { ctx: LiveCtx }) {
                     <TextInput type="date" value={draft[line.materialId]?.expiryDate ?? ''} onChange={(e) => setDraft((current) => ({ ...current, [line.materialId]: { qty: current[line.materialId]?.qty ?? '', batchNo: current[line.materialId]?.batchNo ?? '', expiryDate: e.target.value } }))} />
                   </div>
                 ))}
+                <InlineError message={formError} />
                 <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'purchasing.gr.create') || !order}>تسجيل الاستلام</PrimaryButton>
               </form>
             )}
@@ -738,10 +749,13 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
   const [actuals, setActuals] = useState<Record<string, { actualQty: string; wasteQty: string }>>({})
   const [output, setOutput] = useState(String(order.plannedQty))
   const [reason, setReason] = useState('')
+  const [formError, setFormError] = useState('')
+  const needsReason = formError.includes('سبب الانحراف')
   return (
     <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي." wide onClose={onClose}>
       <form className="space-y-2" onSubmit={async (event) => {
         event.preventDefault()
+        setFormError('')
         const result = await ctx.act('completeProduction', {
           productionOrderId: order.id,
           actualOutputQty: Number(output),
@@ -753,6 +767,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
           })),
         })
         if (result.ok) onClose()
+        else setFormError(result.message)
       }}>
         {order.expected.map((line) => (
           <div key={line.materialId} className="grid items-center gap-2 md:grid-cols-4">
@@ -764,8 +779,9 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
         ))}
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="الناتج الفعلي (كجم)"><TextInput type="number" min="0.001" step="0.001" value={output} onChange={(e) => setOutput(e.target.value)} /></Field>
-          <Field label="سبب الانحراف إن وجد"><TextInput value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+          <Field label={needsReason ? 'سبب الانحراف مطلوب' : 'سبب الانحراف إن وجد'}><TextInput value={reason} onChange={(e) => setReason(e.target.value)} required={needsReason} aria-invalid={needsReason} /></Field>
         </div>
+        <InlineError message={formError} />
         <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.complete')}>إكمال الإنتاج</PrimaryButton>
       </form>
     </Dialog>
@@ -819,6 +835,7 @@ function Customers({ ctx }: { ctx: LiveCtx }) {
 function Invoices({ ctx }: { ctx: LiveCtx }) {
   const editor = useLines({ productId: ctx.state.products[0]?.id ?? '', qty: '' })
   const [customerId, setCustomerId] = useState(ctx.state.customers[0]?.id ?? '')
+  const [confirmError, setConfirmError] = useState('')
   return (
     <div className="space-y-4">
       <Card
@@ -877,11 +894,15 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
             <span key={`${invoice.id}-a`} className="flex flex-wrap gap-2">
               <a className="text-sm font-bold text-[#1d7f72]" href={`/print/invoice/${invoice.id}`} target="_blank" rel="noreferrer">طباعة</a>
               {invoice.status === 'DRAFT' && can(ctx.permissions, 'sales.confirm') ? (
-                <GhostButton type="button" onClick={() => ctx.act('confirmInvoice', { id: invoice.id })}>تأكيد وخصم المخزون</GhostButton>
+                <GhostButton type="button" onClick={async () => {
+                  const result = await ctx.act('confirmInvoice', { id: invoice.id })
+                  setConfirmError(result.ok ? '' : result.message)
+                }}>تأكيد وخصم المخزون</GhostButton>
               ) : null}
             </span>,
           ])}
         />
+        <div className="mt-3"><InlineError message={confirmError} /></div>
       </Card>
     </div>
   )
