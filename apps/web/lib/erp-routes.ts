@@ -27,6 +27,8 @@ export type Destination = {
  * Seven sidebar destinations. Every existing entityKey appears once.
  * Group labels follow the requested information architecture.
  * Leaf labels stay the current Arabic screen names.
+ * Read-only tables (no create, edit, or approval — export at most) sit in
+ * each major's التقارير group, so they open as that section's reports tab.
  * No receivables/payables pages exist, so الحسابات keeps its current screens.
  */
 export const DESTINATIONS: Destination[] = [
@@ -52,16 +54,9 @@ export const DESTINATIONS: Destination[] = [
         label: 'المواد الخام',
         leaves: [
           { href: '/inventory/raw-materials', entityKey: 'material', tab: true },
-          { href: '/inventory/raw-materials/batches', entityKey: 'materialBatch', tab: true },
-          { href: '/inventory/raw-materials/balances', entityKey: 'inventoryBalance', tab: true },
-          { href: '/inventory/raw-materials/ledger', entityKey: 'inventoryTransaction', tab: true },
           { href: '/inventory/raw-materials/transfers', entityKey: 'stockTransfer', tab: true },
           { href: '/inventory/raw-materials/adjustments', entityKey: 'stockAdjustment', tab: true },
           { href: '/inventory/raw-materials/barcode', entityKey: 'barcode', tab: true },
-          { href: '/inventory/raw-materials/value', entityKey: 'factoryStockValue', tab: true },
-          { href: '/inventory/raw-materials/running-out', entityKey: 'factoryRunningOut', tab: true },
-          { href: '/inventory/raw-materials/stagnant', entityKey: 'factoryStagnant', tab: true },
-          { href: '/inventory/raw-materials/reserved', entityKey: 'factoryReserved', tab: true },
         ],
       },
       {
@@ -76,6 +71,24 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
           { href: '/inventory/manufacturing/items', entityKey: 'recipeItem', tab: true },
           { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
+        ],
+      },
+      {
+        id: 'products',
+        label: 'المنتجات',
+        leaves: [{ href: '/inventory/products', entityKey: 'product', tab: true }],
+      },
+      {
+        id: 'stock-reports',
+        label: 'التقارير',
+        leaves: [
+          { href: '/inventory/raw-materials/batches', entityKey: 'materialBatch', tab: true },
+          { href: '/inventory/raw-materials/balances', entityKey: 'inventoryBalance', tab: true },
+          { href: '/inventory/raw-materials/ledger', entityKey: 'inventoryTransaction', tab: true },
+          { href: '/inventory/raw-materials/value', entityKey: 'factoryStockValue', tab: true },
+          { href: '/inventory/raw-materials/running-out', entityKey: 'factoryRunningOut', tab: true },
+          { href: '/inventory/raw-materials/stagnant', entityKey: 'factoryStagnant', tab: true },
+          { href: '/inventory/raw-materials/reserved', entityKey: 'factoryReserved', tab: true },
           { href: '/inventory/manufacturing/planned', entityKey: 'factoryPlanned', tab: true },
           { href: '/inventory/manufacturing/actual', entityKey: 'factoryActual', tab: true },
           { href: '/inventory/manufacturing/execution', entityKey: 'factoryExecution', tab: true },
@@ -83,11 +96,6 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/manufacturing/deviation', entityKey: 'factoryDeviation', tab: true },
           { href: '/inventory/manufacturing/stoppages', entityKey: 'factoryStoppages', tab: true },
         ],
-      },
-      {
-        id: 'products',
-        label: 'المنتجات',
-        leaves: [{ href: '/inventory/products', entityKey: 'product', tab: true }],
       },
     ],
   },
@@ -103,9 +111,6 @@ export const DESTINATIONS: Destination[] = [
           { href: '/sales', entityKey: 'salesInvoice', tab: true },
           { href: '/sales/withdrawals', entityKey: 'withdrawal', tab: true },
           { href: '/sales/collections', entityKey: 'salesPayment', tab: true },
-          { href: '/sales/today', entityKey: 'factorySalesToday', tab: true },
-          { href: '/sales/month', entityKey: 'factorySalesMonth', tab: true },
-          { href: '/sales/open-orders', entityKey: 'factoryOpenOrders', tab: true },
         ],
       },
       {
@@ -116,6 +121,15 @@ export const DESTINATIONS: Destination[] = [
           { href: '/sales/parties/suppliers', entityKey: 'supplier', tab: true },
           { href: '/sales/parties/orders', entityKey: 'purchaseOrder', tab: true },
           { href: '/sales/parties/receipts', entityKey: 'goodsReceipt', tab: true },
+        ],
+      },
+      {
+        id: 'sales-reports',
+        label: 'التقارير',
+        leaves: [
+          { href: '/sales/today', entityKey: 'factorySalesToday', tab: true },
+          { href: '/sales/month', entityKey: 'factorySalesMonth', tab: true },
+          { href: '/sales/open-orders', entityKey: 'factoryOpenOrders', tab: true },
         ],
       },
     ],
@@ -129,11 +143,17 @@ export const DESTINATIONS: Destination[] = [
         id: 'accounting',
         label: 'الحسابات',
         leaves: [
+          { href: '/accounting/expenses', entityKey: 'expense', tab: true },
+          { href: '/accounting/tax', entityKey: 'taxSettings', tab: true },
+        ],
+      },
+      {
+        id: 'accounting-reports',
+        label: 'التقارير',
+        leaves: [
           { href: '/accounting', entityKey: 'account', tab: true },
           { href: '/accounting/journals', entityKey: 'journalEntry', tab: true },
-          { href: '/accounting/expenses', entityKey: 'expense', tab: true },
           { href: '/accounting/vat', entityKey: 'vatReport', tab: true },
-          { href: '/accounting/tax', entityKey: 'taxSettings', tab: true },
           { href: '/accounting/cost', entityKey: 'factoryCostPerTon', tab: true },
           { href: '/accounting/price', entityKey: 'factoryAvgPrice', tab: true },
           { href: '/accounting/margin', entityKey: 'factoryMargin', tab: true },
@@ -152,9 +172,13 @@ export const DESTINATIONS: Destination[] = [
         leaves: [
           { href: '/hr', entityKey: 'employee', tab: true },
           { href: '/hr/attendance', entityKey: 'attendance', tab: true },
-          { href: '/hr/overtime', entityKey: 'overtime', tab: true },
           { href: '/hr/payroll', entityKey: 'payroll', tab: true },
         ],
+      },
+      {
+        id: 'hr-reports',
+        label: 'التقارير',
+        leaves: [{ href: '/hr/overtime', entityKey: 'overtime', tab: true }],
       },
     ],
   },
