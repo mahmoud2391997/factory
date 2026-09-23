@@ -347,9 +347,45 @@ export function buildSeedState(passwordHash = 'seed-hash'): ErpState {
     })
   }
 
+  const noura = state.employees.find((item) => item.nameAr.includes('نورة'))!
+  const salem = state.employees.find((item) => item.nameAr.includes('سالم'))!
+  const khalid = state.employees.find((item) => item.nameAr.includes('خالد'))!
+  const ahmed = state.employees.find((item) => item.nameAr.includes('أحمد'))!
   state = step(state, clock, {
     action: 'createTask',
-    input: { title: 'مراجعة نقص كسب الصويا قبل اعتماد أمر الشراء', assigneeRole: 'GM', dueDate: '2026-09-22' },
+    input: {
+      title: 'مراجعة نقص كسب الصويا قبل اعتماد أمر الشراء',
+      assigneeRole: 'ACCOUNTANT',
+      dueDate: '2026-09-22',
+      site: 'OFFICE',
+      assigneeEmployeeId: noura.id,
+      linkedEmployeeId: salem.id,
+      notes: 'المكتب الافتراضي يتابع الاعتماد، وأمين المستودع في المصنع يؤكد الرصيد على الأرض.',
+    },
+  })
+  state = step(state, clock, {
+    action: 'createTask',
+    input: {
+      title: 'وزن دفعة الذرة قبل أمر الخلط التالي',
+      assigneeRole: 'OPERATIONS',
+      dueDate: '2026-09-24',
+      site: 'FACTORY',
+      assigneeEmployeeId: khalid.id,
+      linkedEmployeeId: noura.id,
+      notes: 'مشغّل الخط في المصنع ينفّذ الوزن، والمحاسبة في المكتب تحدّث تكلفة الطن.',
+    },
+  })
+  state = step(state, clock, {
+    action: 'createTask',
+    input: {
+      title: 'تمرير إذن صرف البريمكس من المجمع إلى خط الخلط',
+      assigneeRole: 'OPERATIONS',
+      dueDate: '2026-09-23',
+      site: 'COMPLEX',
+      assigneeEmployeeId: ahmed.id,
+      linkedEmployeeId: khalid.id,
+      notes: 'فني المجمع يجهّز الإذن، ومشغّل المصنع يستلم الكمية على الخط.',
+    },
   })
 
   const completed = state.productionOrders.find((order) => order.status === 'COMPLETED')!

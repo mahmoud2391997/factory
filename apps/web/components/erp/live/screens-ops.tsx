@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 
-import { stockRows } from '@/lib/erp/domain/reports'
+import { materialStatement, stockRows } from '@/lib/erp/domain/reports'
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
-import { can, itemName, materialName, moneyFmt, partyName, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
+import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
 
 function useLines<T>(blank: T) {
   const [lines, setLines] = useState<T[]>([{ ...blank }])
@@ -35,7 +35,99 @@ export function InventoryScreens({ entityKey, ctx }: { entityKey: string; ctx: L
   if (entityKey === 'stockTransfer') return <Transfer ctx={ctx} />
   if (entityKey === 'stockAdjustment') return <Adjustment ctx={ctx} />
   if (entityKey === 'barcode') return <BarcodeStation ctx={ctx} />
+  if (entityKey === 'materialTrace') return <MaterialTrace ctx={ctx} />
   return null
+}
+
+function Answer({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-[#f3f6f5] py-2 last:border-0">
+      <div className="text-sm text-[#6b7280]">{label}</div>
+      <div className="mt-1 font-semibold text-[#1f1f1f]">{value}</div>
+    </div>
+  )
+}
+
+function busiestMaterialId(ctx: LiveCtx) {
+  return (
+    ctx.state.materials
+      .map((material) => materialStatement(ctx.state, material.id))
+      .filter((row): row is NonNullable<ReturnType<typeof materialStatement>> => Boolean(row))
+      .sort((a, b) => b.consumedQty - a.consumedQty)[0]?.material.id ?? ctx.state.materials[0]?.id ?? ''
+  )
+}
+
+function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
+  const [materialId, setMaterialId] = useState(() => busiestMaterialId(ctx))
+  const statement = materialStatement(ctx.state, materialId)
+  const productLabel = statement?.lines.map((line) => `${line.productName} ${qtyFmt(line.outputQty)} كجم`).join('، ')
+  return (
+    <div className="space-y-4">
+      <Card title="اختر الخامة" hint="نفس الأسئلة على أي مادة: ماذا دخل، ماذا استُهلك، ماذا تبقّى، وماذا نُتج وبيع، وهل يوجد فرق ولماذا.">
+        <Field label="الخامة">
+          <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
+            {ctx.state.materials.map((material) => (
+              <option key={material.id} value={material.id}>{material.nameAr}</option>
+            ))}
+          </SelectInput>
+        </Field>
+      </Card>
+      {statement ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card title={statement.material.nameAr}>
+            <Answer label="كمية الخام التي دخلت المخزن" value={`${qtyFmt(statement.receivedQty)} ${statement.material.unit}`} />
+            <Answer label="الكمية المستخدمة في التصنيع" value={`${qtyFmt(statement.consumedQty)} ${statement.material.unit}`} />
+            <Answer label="الكمية المتبقية" value={`${qtyFmt(statement.onHand)} ${statement.material.unit}`} />
+            <Answer label="عدد المنتجات التي تم تصنيعها" value={statement.productCount ? `${statement.productCount} أمر — ${productLabel}` : 'لا يوجد إنتاج مكتمل'} />
+            <Answer label="الكمية التي تم سحبها أو بيعها" value={`بيع ${qtyFmt(statement.soldQty)} كجم — سحب ${qtyFmt(statement.withdrawnQty)} كجم`} />
+            <Answer
+              label="الكمية الموجودة حالياً"
+              value={
+                statement.warehouses.length
+                  ? statement.warehouses.map((row) => `${WAREHOUSE_LABEL[row.warehouse] ?? row.warehouse}: ${qtyFmt(row.qty)}`).join(' · ')
+                  : 'لا يوجد رصيد'
+              }
+            />
+            <Answer
+              label="هل الإنتاج متوافق مع كمية المواد الخام المستخدمة؟"
+              value={statement.lines.length === 0 ? 'لا يوجد إنتاج مكتمل للمقارنة' : statement.aligned ? 'نعم، المصروف يطابق الوصفة للناتج الفعلي' : `لا، الفرق ${pctFmt(statement.gapPct)} عن الوصفة`}
+            />
+            <Answer
+              label="هل هناك عجز أو فاقد؟"
+              value={[
+                statement.wasteQty > 0 ? `فاقد ${qtyFmt(statement.wasteQty)} ${statement.material.unit}` : 'لا يوجد فاقد مسجّل',
+                statement.shortfallKg > 0 ? `عجز عن المخطط ${qtyFmt(statement.shortfallKg)} كجم` : 'لا يوجد عجز عن المخطط',
+                statement.belowMin ? 'الرصيد عند الحد الأدنى أو دونه' : '',
+              ].filter(Boolean).join(' — ')}
+            />
+            <Answer
+              label="سبب وجود فرق أو تأخير"
+              value={[...statement.reasons, ...statement.stoppages.map((item) => `${item.area}: ${item.reason} (${item.minutes} د)`)].join(' — ') || 'لا يوجد فرق يستدعي سبباً'}
+            />
+          </Card>
+          <Card title="أوامر الإنتاج التي استهلكت الخامة">
+            <DataTable
+              columns={['الأمر', 'المنتج', 'المتوقع', 'المصروف', 'الهدر', 'الناتج']}
+              rows={statement.lines.map((line) => [
+                line.number,
+                line.productName,
+                qtyFmt(line.expectedQty),
+                qtyFmt(line.actualQty),
+                qtyFmt(line.wasteQty),
+                qtyFmt(line.outputQty),
+              ])}
+            />
+            <p className="mt-3 text-sm text-[#53655e]">
+              {statement.balanceMatches
+                ? 'رصيد الخامة يساوي ما دخل المخزن ناقص ما استُهلك في التصنيع.'
+                : 'يوجد فرق بين الدخول والاستهلاك والرصيد الحالي. راجع التعديلات والتحويلات.'}
+              {statement.productOnHand > 0 ? ` رصيد المنتج النهائي المرتبط: ${qtyFmt(statement.productOnHand)} كجم.` : ''}
+            </p>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function Materials({ ctx }: { ctx: LiveCtx }) {

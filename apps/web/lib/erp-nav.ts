@@ -491,6 +491,13 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['reports.read'],
       },
       {
+        id: 'material-trace',
+        label: 'تتبع الخامة',
+        entityKey: 'materialTrace',
+        description: 'دخول الخامة واستهلاكها والمتبقي والمنتج المباع والهدر وسبب الفرق',
+        permission: ['reports.read', 'inventory.read'],
+      },
+      {
         id: 'notifications',
         label: 'الإشعارات',
         entityKey: 'notification',

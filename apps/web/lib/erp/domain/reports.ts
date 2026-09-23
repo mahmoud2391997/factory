@@ -328,6 +328,93 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
   }
 }
 
+/** One raw material, from the dock to the sale: the nine questions the mill owner asked. */
+export function materialStatement(state: ErpState, materialId: string) {
+  const material = state.materials.find((item) => item.id === materialId)
+  if (!material) return null
+  const movements = state.ledger.filter((entry) => entry.itemType === 'MATERIAL' && entry.itemId === materialId)
+  const receivedQty = qty(movements.filter((entry) => entry.type === 'PURCHASE_RECEIPT').reduce((sum, entry) => sum + entry.qty, 0))
+  const consumedQty = qty(movements.filter((entry) => entry.type === 'PRODUCTION_CONSUMPTION').reduce((sum, entry) => sum + Math.abs(entry.qty), 0))
+  const onHand = itemOnHand(state, 'MATERIAL', materialId)
+  const warehouses = (['WH_RAW', 'WH_MFG', 'WH_FG'] as const)
+    .map((warehouse) => ({ warehouse, qty: itemOnHand(state, 'MATERIAL', materialId, warehouse) }))
+    .filter((row) => row.qty > 0)
+
+  const completed = state.productionOrders.filter(
+    (order) => order.status === 'COMPLETED' && order.expected.some((line) => line.materialId === materialId),
+  )
+  const lines = completed.map((order) => {
+    const line = order.expected.find((item) => item.materialId === materialId)!
+    const recipe = state.recipes.find((item) => item.id === order.recipeId)
+    const recipeItem = recipe?.items.find((item) => item.materialId === materialId)
+    const recipeQty =
+      recipe && recipeItem && recipe.baseOutputQty > 0 ? qty(order.actualOutputQty * (recipeItem.qty / recipe.baseOutputQty)) : line.expectedQty
+    return {
+      orderId: order.id,
+      number: order.number,
+      productId: order.productId,
+      productName: state.products.find((item) => item.id === order.productId)?.nameAr ?? order.productId,
+      expectedQty: line.expectedQty,
+      actualQty: line.actualQty,
+      wasteQty: line.wasteQty,
+      outputQty: order.actualOutputQty,
+      plannedQty: order.plannedQty,
+      recipeQty,
+      reason: order.varianceReason,
+      diffPct: line.expectedQty > 0 ? Math.round(((line.actualQty - line.expectedQty) / line.expectedQty) * 1000) / 10 : 0,
+    }
+  })
+  const outputKg = qty(lines.reduce((sum, line) => sum + line.outputQty, 0))
+  const wasteQty = qty(lines.reduce((sum, line) => sum + line.wasteQty, 0))
+  const expectedQty = qty(lines.reduce((sum, line) => sum + line.expectedQty, 0))
+  const actualQty = qty(lines.reduce((sum, line) => sum + line.actualQty, 0))
+  const recipeQty = qty(lines.reduce((sum, line) => sum + line.recipeQty, 0))
+  const productIds = new Set(lines.map((line) => line.productId))
+  const soldQty = qty(
+    state.invoices
+      .filter((invoice) => invoice.status !== 'DRAFT')
+      .flatMap((invoice) => invoice.lines)
+      .filter((line) => productIds.has(line.productId))
+      .reduce((sum, line) => sum + line.qty, 0),
+  )
+  const withdrawnQty = qty(
+    state.withdrawals.flatMap((row) => row.lines).filter((line) => productIds.has(line.productId)).reduce((sum, line) => sum + line.qty, 0),
+  )
+  const productOnHand = qty([...productIds].reduce((sum, productId) => sum + itemOnHand(state, 'PRODUCT', productId), 0))
+  const gapPct = recipeQty > 0 ? (Math.abs(actualQty - recipeQty) / recipeQty) * 100 : 0
+  const aligned = lines.length === 0 || gapPct - state.company.varianceThresholdPct <= 0.001
+  const reasons = [...new Set(lines.map((line) => line.reason.trim()).filter(Boolean))]
+  const stoppages = (state.stoppages ?? []).filter((item) =>
+    completed.some((order) => order.completedAt && muscatDay(order.completedAt) === muscatDay(item.at)),
+  )
+  const shortfallKg = qty(lines.reduce((sum, line) => sum + Math.max(0, line.plannedQty - line.outputQty), 0))
+
+  return {
+    material,
+    receivedQty,
+    consumedQty,
+    onHand,
+    warehouses,
+    lines,
+    outputKg,
+    productCount: lines.length,
+    soldQty,
+    withdrawnQty,
+    productOnHand,
+    expectedQty,
+    actualQty,
+    recipeQty,
+    wasteQty,
+    aligned,
+    gapPct: Math.round(gapPct * 10) / 10,
+    reasons,
+    stoppages,
+    shortfallKg,
+    belowMin: material.minQty > 0 && onHand <= material.minQty,
+    balanceMatches: Math.abs(qty(receivedQty - consumedQty - onHand)) < 0.001,
+  }
+}
+
 export function traceProduct(state: ErpState, productId: string) {
   const product = state.products.find((item) => item.id === productId)
   const orders = state.productionOrders.filter((order) => order.productId === productId)
