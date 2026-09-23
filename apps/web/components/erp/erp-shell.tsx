@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, ChevronDown, ChevronUp, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Sun, X } from 'lucide-react'
+import { Bell, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Sun, X } from 'lucide-react'
 
 import { LiveWorkspace } from '@/components/erp/live/workspace'
 import type { LiveCtx } from '@/components/erp/live/ctx'
@@ -56,6 +56,16 @@ export function ErpShell() {
   const destinations = visibleDestinations(permissions)
   const iconOnly = compact && !mobileOpen
   const toggleNav = (id: string) => setExpandedNav((current) => ({ ...current, [id]: !(current[id] ?? true) }))
+  const setAllNavExpanded = (expanded: boolean) => {
+    const next: Record<string, boolean> = {}
+    destinations.forEach((destination) => {
+      next[destination.id] = expanded
+      sidebarNodes(destination, permissions).forEach((node) => {
+        next[node.id] = expanded
+      })
+    })
+    setExpandedNav(next)
+  }
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
@@ -179,7 +189,31 @@ export function ErpShell() {
         </div>
 
         <nav className="erp-sidebar-nav flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="أقسام النظام">
-          {!iconOnly ? <div className="mb-3 px-3 text-[11px] font-semibold tracking-[0.12em] text-[#9ca3af]">مساحة العمل</div> : null}
+          {!iconOnly ? (
+            <div className="mb-3 flex items-center justify-between gap-2 px-3">
+              <div className="text-[11px] font-semibold tracking-[0.12em] text-[#9ca3af]">مساحة العمل</div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="طي الكل"
+                  title="طي الكل"
+                  className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
+                  onClick={() => setAllNavExpanded(false)}
+                >
+                  <ChevronsDownUp size={15} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  aria-label="فتح الكل"
+                  title="فتح الكل"
+                  className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
+                  onClick={() => setAllNavExpanded(true)}
+                >
+                  <ChevronsUpDown size={15} aria-hidden />
+                </button>
+              </div>
+            </div>
+          ) : null}
           {destinations.map((destination) => {
             const Icon = destination.icon
             const active = resolved?.destination?.id === destination.id
