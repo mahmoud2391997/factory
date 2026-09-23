@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const loaded = await loadState()
     return NextResponse.json({
       success: true,
-      data: { state: publicState(loaded.state), storage: loaded.storage },
+      data: { state: publicState(loaded.state, user.permissions), storage: loaded.storage },
     })
   } catch (error) {
     console.error('[erp/get]', error)

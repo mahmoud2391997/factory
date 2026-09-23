@@ -184,7 +184,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
           </FormDialog>
         }
       >
-        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, moneyFmt(employee.basicSalary)])} />
+        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—'])} />
       </Card>
     </div>
   )
@@ -294,7 +294,7 @@ function Payroll({ ctx }: { ctx: LiveCtx }) {
                   <Field label="الشهر"><TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
                   {ctx.state.employees.map((employee) => (
                     <label key={employee.id} className="flex items-center justify-between gap-3 text-sm">
-                      <span>{employee.nameAr} — {moneyFmt(employee.basicSalary)}</span>
+                      <span>{employee.nameAr}{typeof employee.basicSalary === 'number' ? ` — ${moneyFmt(employee.basicSalary)}` : ''}</span>
                       <input className="h-10 w-28 rounded-xl border border-[#dfe7e3] px-3" type="number" min="0" step="0.5" placeholder="إضافي" value={hoursMap[employee.id] ?? ''} onChange={(e) => setHoursMap((current) => ({ ...current, [employee.id]: e.target.value }))} />
                     </label>
                   ))}
@@ -410,6 +410,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         <Field label="بريد التنبيهات"><TextInput value={form.notifyEmail} onChange={(e) => setForm({ ...form, notifyEmail: e.target.value })} /></Field>
         <div className="flex flex-wrap gap-2">
           <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'settings.update')}>حفظ</PrimaryButton>
+          {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('archiveHistory', { olderThanDays: 90 })}>أرشفة السجلات الأقدم من 90 يوماً</GhostButton> : null}
           {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('resetDemo', {})}>إعادة البيانات التجريبية</GhostButton> : null}
           {can(ctx.permissions, 'settings.read') ? <a className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3 text-sm font-semibold" href="/api/erp/backup">تنزيل نسخة احتياطية</a> : null}
         </div>

@@ -1,90 +1,33 @@
-# RBAC — الأدوار والصلاحيات (Granular Permissions)
+# الصلاحيات في النظام العامل
 
-هذه الوثيقة تحدد إطار الصلاحيات الذي سيتم تطبيقه في `apps/api` عبر Guards، وتستخدم `Permission` strings قابلة للتوسع.
+النظام العامل ليس خدمة `apps/api` منفصلة، ولا يستخدم أدوار Prisma السبعة (`SUPER_ADMIN` … `SALES`). تلك الأدوار بقيت في مخطط Prisma القديم كبقايا تصميم سابق.
 
-## 1) الأدوار الافتراضية (Seed)
+التشغيل الفعلي يمر عبر `POST /api/erp` ثم `applyCommand` في `apps/web/lib/erp/domain/engine.ts`. كل أمر يُفحص في `authorize()` مقابل صلاحية واحدة، وTypeScript يفرض أن كل `action` جديد يصرّح بصلاحيته.
 
-- **Super Admin**: كل شيء.
-- **Management**: كل صلاحيات الأعمال + تقارير + موافقات، بدون إعدادات نظام حساسة.
-- **Warehouse Employee**: مخزون + مستودعات + استلام + تحويلات (حسب السياسة).
-- **Production Employee**: أوامر إنتاج + استهلاك + هدر + إكمال (بحسب السياسة).
-- **Accountant**: محاسبة + مشتريات + مبيعات + ضرائب + دفعات.
-- **HR**: موظفين + حضور + إضافي.
-- **Sales**: عملاء + مبيعات + تحصيلات.
+## الأدوار الثلاثة
 
-## 2) نطاقات صلاحيات (Permission Namespaces)
+تُخزَّن في مستند `ErpState.rolePermissions` (انظر `apps/web/lib/erp/domain/permissions.ts`):
 
-### 2.1 Auth / Users / RBAC
-- `users.read`
-- `users.manage`
-- `roles.read`
-- `roles.manage`
+| الدور | المعنى | أمثلة على ما يراه |
+| --- | --- | --- |
+| `GM` | المدير العام | كل الصلاحيات، بما فيها الرواتب والقيود وسجل التدقيق |
+| `ACCOUNTANT` | المحاسب والموارد البشرية | الحسابات، المصروفات، الموظفون، الحضور، المسير، التدقيق. لا يعتمد أوامر الشراء |
+| `OPERATIONS` | المستودع والإنتاج والمبيعات | المخزون والشراء والإنتاج والبيع. لا يستلم الرواتب ولا القيود ولا سجل التدقيق ولا رواتب الموظفين |
 
-### 2.2 Settings / Integrations
-- `settings.read`
-- `settings.update`
-- `integrations.read`
-- `integrations.manage`
+`GET /api/erp` ونتائج `POST /api/erp` تمر على `publicState(state, permissions)` قبل أن تصل للمتصفح. من لا يملك صلاحية القراءة لا يستلم المجموعة أصلاً:
 
-### 2.3 Inventory / Warehouses
-- `warehouses.read`
-- `warehouses.manage`
-- `inventory.read`
-- `inventory.transfer.create`
-- `inventory.adjust`
-- `inventory.ledger.read`
+- الراتب الأساسي يحتاج `employees.read` أو `employees.manage`
+- `payrolls` تحتاج `payroll.manage` أو `payroll.approve` أو `payroll.pay`
+- `journals` تحتاج `accounting.read` أو `accounting.manage`
+- `auditLogs` تحتاج `audit.read`
+- `attendance` تحتاج `attendance.read` أو `attendance.manage`
 
-### 2.4 Purchasing
-- `purchasing.read`
-- `purchasing.po.create`
-- `purchasing.po.approve`
-- `purchasing.gr.create`
+`passwordHash` يُحذف دائماً من نسخة المتصفح.
 
-### 2.5 Manufacturing
-- `production.read`
-- `production.create`
-- `production.issue_materials`
-- `production.complete`
+## أول دخول
 
-### 2.6 Sales
-- `sales.read`
-- `sales.create`
-- `sales.confirm`
-- `sales.payments.manage`
-- `withdrawals.create`
+حساب `admin@factory.local` في البيانات الأولية عليه `mustChangePassword`. قبل تغيير كلمة مروره لا يُقبل أي أمر سوى `setUserPassword` لحسابه نفسه، وهذا الأمر يمسح العلم.
 
-### 2.7 Accounting / Tax
-- `accounting.read`
-- `accounting.journal.read`
-- `accounting.manage`
-- `tax.read`
-- `tax.manage`
+## الأرشيف
 
-### 2.8 HR / Attendance
-- `employees.read`
-- `employees.manage`
-- `attendance.read`
-- `attendance.manage`
-- `overtime.read`
-- `overtime.manage`
-
-### 2.9 Reports / Audit / Notifications
-- `reports.read`
-- `audit.read`
-- `notifications.read`
-
-## 3) تطبيق RBAC
-
-### 3.1 سياسة التنفيذ
-- كل Endpoint محمي بـ `JwtAuthGuard`.
-- ثم `PermissionsGuard` يفحص `user.permissions` أو `user.roles`.
-- صلاحيات دقيقة على عمليات المخزون (خصوصاً `inventory.adjust`, `production.complete`, `sales.confirm`).
-
-### 3.2 Audit enforcement
-
-أي Endpoint “مؤثر” يجب أن يسجل `AuditLog`:
-- entity + entityId
-- action
-- old/new payloads
-- userId + timestamp
-
+جداول Prisma العلائقية (ومنها `InventoryLedgerEntry` و`JournalEntry` و`AuditLog`) ليست مسار القراءة والكتابة اليومي. أمر `archiveHistory` (صلاحية `settings.update`) ينسخ حركات المخزون والقيود وسجل التدقيق الأقدم من عدد أيام محدد إلى تلك الجداول، ثم يزيلها من المستند الحي مع الإبقاء على أرصدة المخزون وميزان المراجعة.

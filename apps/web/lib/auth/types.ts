@@ -10,6 +10,7 @@ export type AuthUser = {
   isActive: boolean
   roles: AuthRole[]
   permissions: string[]
+  mustChangePassword?: boolean
 }
 
 export type AuthApiResponse<T> = {

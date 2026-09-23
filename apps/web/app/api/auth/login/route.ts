@@ -7,7 +7,14 @@ import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/au
 import { getSessionUserById } from '@/server/auth/session'
 import { isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
+import { loginThrottleMessage, recordLoginFailure, recordLoginSuccess } from '@/server/auth/login-throttle'
 import { loadState } from '@/server/erp/store'
+
+function clientIp(req: NextRequest) {
+  const forwarded = req.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0]?.trim() || 'unknown'
+  return req.headers.get('x-real-ip')?.trim() || 'unknown'
+}
 
 export const runtime = 'nodejs'
 
@@ -38,6 +45,11 @@ export async function POST(req: NextRequest) {
 
     const email = parsed.data.email.toLowerCase().trim()
     const password = parsed.data.password
+    const ip = clientIp(req)
+    const locked = loginThrottleMessage(email, ip)
+    if (locked) {
+      return NextResponse.json({ success: false, message: locked, code: 'LOGIN_LOCKED' }, { status: 429 })
+    }
 
     // ERP document store is preferred, but must not block Prisma-user login on remote
     // cold-start races / seed failures (those previously surfaced as AUTH_INTERNAL_ERROR).
@@ -47,6 +59,7 @@ export async function POST(req: NextRequest) {
       storage = loaded.storage
       const erpUser = loaded.state.users.find((item) => item.email.toLowerCase() === email && item.active)
       if (erpUser && (await bcrypt.compare(password, erpUser.passwordHash))) {
+        recordLoginSuccess(email, ip)
         const accessToken = await issueAccessToken({ sub: erpUser.id })
         const refreshToken = await issueRefreshToken({ sub: erpUser.id })
         const sessionUser = await getSessionUserById(erpUser.id)
@@ -63,6 +76,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (isDemoMode()) {
+      recordLoginFailure(email, ip)
       return NextResponse.json(
         {
           success: false,
@@ -75,13 +89,16 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user || !user.isActive) {
+      recordLoginFailure(email, ip)
       return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
     }
 
     const ok = await bcrypt.compare(password, user.passwordHash)
     if (!ok) {
+      recordLoginFailure(email, ip)
       return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
     }
+    recordLoginSuccess(email, ip)
 
     const accessToken = await issueAccessToken({ sub: user.id })
     const refreshToken = await issueRefreshToken({ sub: user.id })
@@ -97,6 +114,7 @@ export async function POST(req: NextRequest) {
           isActive: user.isActive,
           roles: [],
           permissions: [],
+          mustChangePassword: false,
         },
         demoMode: false,
         storage,

@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { code128Values } from './barcode'
-import { actorFromUser, applyCommand, defaultClock } from './engine'
+import { commitWithRetry, REVISION_CONFLICT } from './commit'
+import { actorFromUser, applyCommand, defaultClock, publicState } from './engine'
+import { BCRYPT_ROUNDS } from '../../../server/auth/password'
+import bcrypt from 'bcryptjs'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
 import { factoryStatus, inventoryIntegrity, profitAndLoss, trialBalance, vatReturn } from './reports'
 import { buildSeedState, createClock, emptyState } from './seed'
@@ -376,6 +379,126 @@ test('day 4: goods receipt posts purchase ledger lines that match WH_RAW balance
   assert.equal(ledger.newQty, 50)
   assert.equal(ledger.qty, 50)
   assert.equal(inventoryIntegrity(state).ok, true)
+})
+
+test('publicState hides salaries, payroll, journals, and audit logs from operations', () => {
+  const state = buildSeedState()
+  const ops = actor(state, 'user-ops')
+  const view = publicState(state, ops.permissions)
+  for (const employee of view.employees) {
+    assert.equal(Object.hasOwn(employee, 'basicSalary'), false)
+  }
+  assert.deepEqual(view.payrolls, [])
+  assert.deepEqual(view.journals, [])
+  assert.deepEqual(view.auditLogs, [])
+  assert.ok(view.employees.length > 0)
+  assert.ok(state.journals.length > 0)
+  assert.ok(state.auditLogs.length > 0)
+  assert.ok(state.payrolls.length > 0)
+})
+
+test('two commands that start from the same revision both commit', async () => {
+  let db = buildSeedState()
+  db.revision = 3
+  const stale = structuredClone(db)
+
+  function persist(next: ErpState, expected: number) {
+    if (db.revision !== expected) throw new Error(REVISION_CONFLICT)
+    db = structuredClone(next)
+  }
+
+  async function commit(code: string, nameAr: string, firstSnapshot?: ErpState) {
+    let attempt = 0
+    return commitWithRetry(async () => {
+      attempt += 1
+      const loaded = attempt === 1 && firstSnapshot ? structuredClone(firstSnapshot) : structuredClone(db)
+      const result = applyCommand(loaded, actor(loaded, 'user-gm'), {
+        action: 'createMaterial',
+        input: { code, nameAr, category: 'اختبار', minQty: 1 },
+      })
+      if (!result.ok) throw new Error(result.error)
+      const expected = result.state.revision
+      result.state.revision = expected + 1
+      persist(result.state, expected)
+      return result.state
+    })
+  }
+
+  await commit('RM-RACE-A', 'مادة أ')
+  await commit('RM-RACE-B', 'مادة ب', stale)
+  assert.ok(db.materials.some((item) => item.code === 'RM-RACE-A'))
+  assert.ok(db.materials.some((item) => item.code === 'RM-RACE-B'))
+  assert.equal(db.revision, 5)
+})
+
+test('publicState keeps payroll, journals, and salaries for the general manager', () => {
+  const state = buildSeedState()
+  const gm = actor(state, 'user-gm')
+  const view = publicState(state, gm.permissions)
+  assert.ok(view.employees.every((employee) => typeof employee.basicSalary === 'number' && employee.basicSalary > 0))
+  assert.ok(view.payrolls.length > 0)
+  assert.ok(view.journals.length > 0)
+  assert.ok(view.auditLogs.length > 0)
+  assert.ok(view.users.every((user) => !('passwordHash' in user)))
+})
+
+test('seeded admin must change password before any other command', () => {
+  const state = buildSeedState()
+  const admin = actor(state, 'user-admin')
+  assert.equal(admin.mustChangePassword, true)
+  const blocked = applyCommand(state, admin, {
+    action: 'createMaterial',
+    input: { code: 'RM-BLOCK', nameAr: 'ممنوع', category: 'اختبار', minQty: 1 },
+  })
+  assert.equal(blocked.ok, false)
+  const changed = applyCommand(state, admin, {
+    action: 'setUserPassword',
+    input: { userId: admin.id, passwordHash: 'new-hash' },
+  })
+  assert.equal(changed.ok, true)
+  if (!changed.ok) return
+  const user = changed.state.users.find((item) => item.id === admin.id)
+  assert.equal(user?.mustChangePassword, false)
+  assert.equal(user?.passwordHash, 'new-hash')
+  const after = actor(changed.state, 'user-admin')
+  const allowed = applyCommand(changed.state, after, {
+    action: 'createMaterial',
+    input: { code: 'RM-AFTER', nameAr: 'بعد التغيير', category: 'اختبار', minQty: 1 },
+  })
+  assert.equal(allowed.ok, true)
+})
+
+test('archiving old rows keeps stock integrity and the trial balance', () => {
+  const state = buildSeedState()
+  const before = trialBalance(state)
+  assert.equal(inventoryIntegrity(state).ok, true)
+  const ledgerBefore = state.ledger.length
+  const journalsBefore = state.journals.length
+  const result = applyCommand(state, actor(state, 'user-gm'), {
+    action: 'archiveHistory',
+    input: { olderThanDays: 30, nowIso: '2027-01-01T00:00:00.000Z' },
+  })
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.ok(result.state.ledger.length < ledgerBefore)
+  assert.ok(result.state.journals.length < journalsBefore)
+  assert.equal(inventoryIntegrity(result.state).ok, true, inventoryIntegrity(result.state).issues.join('\n'))
+  const after = trialBalance(result.state)
+  assert.equal(after.balanced, true)
+  assert.equal(after.debit, before.debit)
+  assert.equal(after.credit, before.credit)
+  const denied = applyCommand(result.state, actor(result.state, 'user-ops'), {
+    action: 'archiveHistory',
+    input: { olderThanDays: 30, nowIso: '2027-01-01T00:00:00.000Z' },
+  })
+  assert.equal(denied.ok, false)
+})
+
+test('new password hashes use bcrypt cost 12', () => {
+  assert.equal(BCRYPT_ROUNDS, 12)
+  const hash = bcrypt.hashSync('Admin123!', BCRYPT_ROUNDS)
+  assert.match(hash, /^\$2[ab]\$12\$/)
+  assert.equal(bcrypt.compareSync('Admin123!', hash), true)
 })
 
 function must(state: ErpState, who: Actor, clock: ReturnType<typeof defaultClock>, command: Parameters<typeof applyCommand>[2]) {
