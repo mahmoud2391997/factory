@@ -55,13 +55,40 @@ export function ErpShell() {
   const resolved = resolvePath(pathname)
   const destinations = visibleDestinations(permissions)
   const iconOnly = compact && !mobileOpen
-  const toggleNav = (id: string) => setExpandedNav((current) => ({ ...current, [id]: !(current[id] ?? true) }))
+  const destinationKey = (id: string) => `d:${id}`
+  const groupKey = (destinationId: string, groupId: string) => `g:${destinationId}:${groupId}`
+  const destinationOpen = (id: string) => expandedNav[destinationKey(id)] ?? id === resolved?.destination?.id
+  const groupOpen = (destinationId: string, groupId: string) =>
+    expandedNav[groupKey(destinationId, groupId)] ?? (destinationId === resolved?.destination?.id && groupId === resolved?.group?.id)
+  const toggleDestination = (id: string) =>
+    setExpandedNav((current) => {
+      const willOpen = !(current[destinationKey(id)] ?? id === resolved?.destination?.id)
+      const next = { ...current }
+      destinations.forEach((destination) => {
+        next[destinationKey(destination.id)] = false
+      })
+      next[destinationKey(id)] = willOpen
+      return next
+    })
+  const toggleGroup = (destinationId: string, groupId: string) =>
+    setExpandedNav((current) => {
+      const willOpen = !(current[groupKey(destinationId, groupId)] ?? (destinationId === resolved?.destination?.id && groupId === resolved?.group?.id))
+      const next = { ...current }
+      const destination = destinations.find((item) => item.id === destinationId)
+      destination &&
+        sidebarNodes(destination, permissions).forEach((node) => {
+          next[groupKey(destinationId, node.id)] = false
+        })
+      next[destinationKey(destinationId)] = true
+      next[groupKey(destinationId, groupId)] = willOpen
+      return next
+    })
   const setAllNavExpanded = (expanded: boolean) => {
     const next: Record<string, boolean> = {}
     destinations.forEach((destination) => {
-      next[destination.id] = expanded
+      next[destinationKey(destination.id)] = expanded
       sidebarNodes(destination, permissions).forEach((node) => {
-        next[node.id] = expanded
+        next[groupKey(destination.id, node.id)] = expanded
       })
     })
     setExpandedNav(next)
@@ -108,7 +135,18 @@ export function ErpShell() {
   useEffect(() => {
     setMobileOpen(false)
     setNoticesOpen(false)
-  }, [pathname])
+    const current = resolvePath(pathname)
+    if (!current?.destination) return
+    const next: Record<string, boolean> = {}
+    visibleDestinations(permissions).forEach((destination) => {
+      const activeDestination = destination.id === current.destination?.id
+      next[`d:${destination.id}`] = activeDestination
+      sidebarNodes(destination, permissions).forEach((node) => {
+        next[`g:${destination.id}:${node.id}`] = activeDestination && (node.id === current.group?.id || node.href === pathname)
+      })
+    })
+    setExpandedNav(next)
+  }, [pathname, permissions.join('|')])
 
   useEffect(() => {
     if (!noticesOpen) return
@@ -237,12 +275,12 @@ export function ErpShell() {
                     <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
                   </Link>
                   {!iconOnly && nodes.length > 0 ? (
-                    <button type="button" aria-label={`${expandedNav[destination.id] ?? true ? 'طي' : 'فتح'} ${destination.label}`} aria-expanded={expandedNav[destination.id] ?? true} title={`${expandedNav[destination.id] ?? true ? 'طي' : 'فتح'} ${destination.label}`} onClick={() => toggleNav(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
-                      {expandedNav[destination.id] ?? true ? <ChevronUp size={17} aria-hidden /> : <ChevronDown size={17} aria-hidden />}
+                    <button type="button" aria-label={`${destinationOpen(destination.id) ? 'طي' : 'فتح'} ${destination.label}`} aria-expanded={destinationOpen(destination.id)} title={`${destinationOpen(destination.id) ? 'طي' : 'فتح'} ${destination.label}`} onClick={() => toggleDestination(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+                      {destinationOpen(destination.id) ? <ChevronUp size={17} aria-hidden /> : <ChevronDown size={17} aria-hidden />}
                     </button>
                   ) : null}
                 </div>
-                {!iconOnly && nodes.length > 0 && (expandedNav[destination.id] ?? true) ? (
+                {!iconOnly && nodes.length > 0 && destinationOpen(destination.id) ? (
                   <div className="mb-2 mr-4 mt-1 space-y-1 border-r border-[#d7e4e2] pr-2">
                     {nodes.map((node) => {
                       const childCurrent = node.children.some((child) => child.href === pathname)
@@ -261,12 +299,12 @@ export function ErpShell() {
                               <span className="truncate">{node.label}</span>
                             </Link>
                             {node.children.length > 0 ? (
-                              <button type="button" aria-label={`${expandedNav[node.id] ?? true ? 'طي' : 'فتح'} ${node.label}`} aria-expanded={expandedNav[node.id] ?? true} title={`${expandedNav[node.id] ?? true ? 'طي' : 'فتح'} ${node.label}`} onClick={() => toggleNav(node.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
-                                {expandedNav[node.id] ?? true ? <ChevronUp size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
+                              <button type="button" aria-label={`${groupOpen(destination.id, node.id) ? 'طي' : 'فتح'} ${node.label}`} aria-expanded={groupOpen(destination.id, node.id)} title={`${groupOpen(destination.id, node.id) ? 'طي' : 'فتح'} ${node.label}`} onClick={() => toggleGroup(destination.id, node.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+                                {groupOpen(destination.id, node.id) ? <ChevronUp size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
                               </button>
                             ) : null}
                           </div>
-                          {node.children.length > 0 && (expandedNav[node.id] ?? true) ? (
+                          {node.children.length > 0 && groupOpen(destination.id, node.id) ? (
                             <div className="mb-1 mr-3 mt-1 space-y-1 border-r border-[#d7e4e2] pr-2">
                               {node.children.map((child) => {
                                 const current = pathname === child.href
