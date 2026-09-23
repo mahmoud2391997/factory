@@ -13,6 +13,7 @@ export type SessionUser = {
   isActive: boolean
   roles: Array<{ key: string; nameAr: string }>
   permissions: string[]
+  mustChangePassword: boolean
 }
 
 export async function getSessionUserById(userId: string): Promise<SessionUser | null> {
@@ -27,6 +28,7 @@ export async function getSessionUserById(userId: string): Promise<SessionUser | 
         isActive: true,
         roles: [{ key: erpUser.role, nameAr: ROLE_LABELS[erpUser.role] }],
         permissions: [...loaded.state.rolePermissions[erpUser.role]],
+        mustChangePassword: Boolean(erpUser.mustChangePassword),
       }
     }
   } catch (error) {
@@ -80,6 +82,7 @@ export async function getSessionUserById(userId: string): Promise<SessionUser | 
     isActive: user.isActive,
     roles,
     permissions,
+    mustChangePassword: false,
   }
 }
 

@@ -517,4 +517,18 @@ model PayrollRun {
   lines PayrollLine[]
 }
 
+/// Cold copy of audit rows removed from the live ErpDocument.
+model AuditLog {
+  id       String   @id
+  at       DateTime
+  userId   String
+  userName String
+  action   String
+  entity   String
+  entityId String
+  detail   String
+
+  @@index([at])
+}
+
 

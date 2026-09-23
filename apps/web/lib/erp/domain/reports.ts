@@ -26,6 +26,9 @@ function balanceKey(warehouse: string, itemType: string, itemId: string, batchNo
 export function inventoryIntegrity(state: ErpState) {
   const issues: string[] = []
   const rebuilt = new Map<string, number>()
+  for (const base of state.ledgerBaselines ?? []) {
+    rebuilt.set(balanceKey(base.warehouse, base.itemType, base.itemId, base.batchNo), base.qty)
+  }
   const chronological = [...state.ledger].reverse()
 
   for (const entry of chronological) {
@@ -74,6 +77,12 @@ export function accountName(state: ErpState, code: string) {
 export function trialBalance(state: ErpState) {
   const totals = new Map<string, { debit: number; credit: number }>()
   for (const account of state.accounts) totals.set(account.code, { debit: 0, credit: 0 })
+  for (const opening of state.journalOpenings ?? []) {
+    const current = totals.get(opening.accountCode) ?? { debit: 0, credit: 0 }
+    current.debit = money(current.debit + opening.debit)
+    current.credit = money(current.credit + opening.credit)
+    totals.set(opening.accountCode, current)
+  }
   for (const entry of state.journals) {
     for (const line of entry.lines) {
       const current = totals.get(line.accountCode) ?? { debit: 0, credit: 0 }

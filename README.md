@@ -38,10 +38,10 @@ pnpm dev
 - `docs/day2-complete.md` — تأكيد اكتمال اليوم ٢
 - `docs/day4-complete.md` — تأكيد اكتمال اليوم ٤ (أرصدة + دفتر المخزون)
 - `docs/dev-plan-2-weeks.md` — تقرير خطة أسبوعين + أسئلة الاستضافة وشكل المنتج
-- `docs/implementation-plan.md`
-- `docs/data-model.md`
+- `docs/implementation-plan.md` — خطة قديمة، ليست وصفاً للنظام العامل
+- `docs/data-model.md` — المستند الحي `ErpDocument` وأرشيف الجداول العلائقية
 - `docs/workflows.md`
-- `docs/rbac.md`
+- `docs/rbac.md` — الأدوار الثلاثة وصلاحيات `publicState`
 
 
 

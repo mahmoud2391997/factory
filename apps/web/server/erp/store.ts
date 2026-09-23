@@ -4,13 +4,17 @@ import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
 
+import { planArchive } from '@/lib/erp/domain/archive'
+import { commitWithRetry, REVISION_CONFLICT } from '@/lib/erp/domain/commit'
 import { actorFromUser, applyCommand, publicState } from '@/lib/erp/domain/engine'
 import { buildSeedState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
 import { SCHEMA_VERSION } from '@/lib/erp/domain/types'
+import { BCRYPT_ROUNDS } from '@/server/auth/password'
 import { prisma } from '@/server/db'
 import { ensureDatabaseUrlEnv } from '@/server/db-url'
 
+import { writeFileArchive, writeRelationalArchive } from './archive-store'
 import { deliverPendingEmails } from './mailer'
 
 const DOC_ID = 'main'
@@ -48,7 +52,7 @@ function enqueue<T>(job: () => Promise<T>): Promise<T> {
 }
 
 export async function createInitialState(passwordHash?: string) {
-  const hash = passwordHash && passwordHash.startsWith('$2') ? passwordHash : bcrypt.hashSync('Admin123!', 8)
+  const hash = passwordHash && passwordHash.startsWith('$2') ? passwordHash : bcrypt.hashSync('Admin123!', BCRYPT_ROUNDS)
   const state = buildSeedState(hash)
   for (const item of state.notifications) item.emailStatus = 'skipped'
   return state
@@ -134,7 +138,7 @@ async function writePostgres(state: ErpState, expectedRevision: number) {
     })
     return
   }
-  throw new Error('تعارض في حفظ البيانات. أعد المحاولة.')
+  throw new Error(REVISION_CONFLICT)
 }
 
 async function persist(state: ErpState, storage: StorageKind) {
@@ -195,46 +199,79 @@ export async function loadState(): Promise<{ state: ErpState; storage: StorageKi
   return { state: created, storage: 'file' }
 }
 
+async function persistEmailFlags(state: ErpState, storage: StorageKind) {
+  let current = state
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const mailed = await deliverPendingEmails(current)
+    if (!mailed) return current
+    try {
+      await persist(current, storage)
+      return current
+    } catch (error) {
+      if (error instanceof Error && error.message !== REVISION_CONFLICT) throw error
+      if (attempt === 2) throw error
+      current = (await loadState()).state
+    }
+  }
+  return current
+}
+
 export async function runCommand(userId: string, action: string, input: Record<string, unknown>) {
   return enqueue(async () => {
-    const loaded = await loadState()
-    const actor = actorFromUser(loaded.state, userId)
-    if (!actor) return { ok: false as const, error: 'المستخدم غير موجود' }
-
-    if (action === 'resetDemo') {
-      if (!actor.permissions.includes('settings.update')) return { ok: false as const, error: 'ليست لديك صلاحية لهذا الإجراء' }
-      const fresh = await createInitialState(loaded.state.users[0]?.passwordHash)
-      fresh.revision = loaded.state.revision
-      await persist(fresh, loaded.storage)
-      return {
-        ok: true as const,
-        state: publicState(fresh),
-        message: 'تمت إعادة بيانات المصنع التجريبية',
-        storage: loaded.storage,
-      }
-    }
-
-    let command = { action, input } as Command
+    let prepared = { action, input } as Command
     if (action === 'setUserPassword') {
       const password = String(input.password ?? '')
       if (password.length < 8) return { ok: false as const, error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' }
-      command = {
+      prepared = {
         action: 'setUserPassword',
-        input: { userId: String(input.userId ?? ''), passwordHash: await bcrypt.hash(password, 8) },
+        input: { userId: String(input.userId ?? ''), passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) },
       }
     }
 
-    const result = applyCommand(loaded.state, actor, command)
-    if (!result.ok) return { ok: false as const, error: result.error }
-    await persist(result.state, loaded.storage)
-    const mailed = await deliverPendingEmails(result.state)
-    if (mailed) await persist(result.state, loaded.storage)
-    return {
-      ok: true as const,
-      state: publicState(result.state),
-      message: result.message,
-      extra: result.extra,
-      storage: loaded.storage,
-    }
+    return commitWithRetry(async () => {
+      const loaded = await loadState()
+      const actor = actorFromUser(loaded.state, userId)
+      if (!actor) return { ok: false as const, error: 'المستخدم غير موجود' }
+
+      if (action === 'resetDemo') {
+        if (!actor.permissions.includes('settings.update')) return { ok: false as const, error: 'ليست لديك صلاحية لهذا الإجراء' }
+        const fresh = await createInitialState(loaded.state.users[0]?.passwordHash)
+        fresh.revision = loaded.state.revision
+        await persist(fresh, loaded.storage)
+        return {
+          ok: true as const,
+          state: publicState(fresh, actor.permissions),
+          message: 'تمت إعادة بيانات المصنع التجريبية',
+          storage: loaded.storage,
+        }
+      }
+
+      let command = prepared
+      if (action === 'archiveHistory') {
+        const olderThanDays = Number(input.olderThanDays ?? 90)
+        const nowIso = typeof input.nowIso === 'string' ? input.nowIso : new Date().toISOString()
+        if (!actor.mustChangePassword && actor.permissions.includes('settings.update') && Number.isFinite(olderThanDays) && olderThanDays >= 1) {
+          const plan = planArchive(loaded.state, olderThanDays, nowIso)
+          const rows = plan.ledger.length + plan.journals.length + plan.auditLogs.length
+          if (rows > 0) {
+            if (loaded.storage === 'postgres') await writeRelationalArchive(loaded.state, plan)
+            else await writeFileArchive(path.join(dataDir(), 'archive'), plan)
+          }
+        }
+        command = { action: 'archiveHistory', input: { olderThanDays, nowIso } }
+      }
+
+      const result = applyCommand(loaded.state, actor, command)
+      if (!result.ok) return { ok: false as const, error: result.error }
+      await persist(result.state, loaded.storage)
+      const saved = await persistEmailFlags(result.state, loaded.storage)
+      return {
+        ok: true as const,
+        state: publicState(saved, actor.permissions),
+        message: result.message,
+        extra: result.extra,
+        storage: loaded.storage,
+      }
+    })
   })
 }

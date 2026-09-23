@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   }
   const loaded = await loadState()
   await writeLocalCopy(loaded.state).catch((error) => console.error('[erp/backup]', error))
-  const body = user.permissions.includes('settings.update') ? loaded.state : publicState(loaded.state)
+  const body = user.permissions.includes('settings.update') ? loaded.state : publicState(loaded.state, user.permissions)
   return new NextResponse(JSON.stringify(body, null, 2), {
     headers: {
       'content-type': 'application/json; charset=utf-8',

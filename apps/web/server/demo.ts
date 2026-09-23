@@ -61,6 +61,7 @@ export function getDemoSessionUser() {
     isActive: true,
     roles: [{ key: 'SUPER_ADMIN', nameAr: 'مدير النظام (تجريبي)' }],
     permissions: [...DEMO_PERMISSIONS] as string[],
+    mustChangePassword: false,
   }
 }
 

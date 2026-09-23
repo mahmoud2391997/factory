@@ -11,8 +11,15 @@ export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
   const kind = req.nextUrl.searchParams.get('kind') || 'journals'
+  const accountingExport = ['journals', 'vat', 'trial', 'pnl'].includes(kind)
+  if (accountingExport && !user.permissions.includes('accounting.read') && !user.permissions.includes('accounting.manage')) {
+    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
+  }
+  if (kind === 'payroll' && !user.permissions.includes('payroll.manage') && !user.permissions.includes('payroll.approve') && !user.permissions.includes('payroll.pay')) {
+    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
+  }
   const financial = ['journals', 'invoices', 'vat', 'trial', 'payroll', 'pnl'].includes(kind)
-  if (financial && !user.permissions.includes('accounting.read') && !user.permissions.includes('reports.read')) {
+  if (financial && !user.permissions.includes('accounting.read') && !user.permissions.includes('reports.read') && !user.permissions.includes('payroll.manage')) {
     return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
   }
   if (!user.permissions.includes('reports.read') && !user.permissions.includes('accounting.read')) {

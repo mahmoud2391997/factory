@@ -29,6 +29,8 @@ export type AppUser = {
   role: RoleKey
   passwordHash: string
   active: boolean
+  /** When true, the session may only change this user's own password. */
+  mustChangePassword?: boolean
 }
 
 export type Account = {
@@ -385,6 +387,10 @@ export type ErpState = {
   notifications: Notification[]
   auditLogs: AuditLog[]
   sequences: Record<string, number>
+  /** Qty left behind after older ledger lines were copied to the archive. */
+  ledgerBaselines?: Array<{ warehouse: WarehouseKey; itemType: ItemType; itemId: string; batchNo: string; qty: number }>
+  /** Debit/credit totals of journal lines copied to the archive. */
+  journalOpenings?: Array<{ accountCode: string; debit: number; credit: number }>
 }
 
 export type Actor = {
@@ -392,6 +398,7 @@ export type Actor = {
   name: string
   role: RoleKey
   permissions: readonly string[]
+  mustChangePassword?: boolean
 }
 
 export type Clock = {
@@ -433,6 +440,7 @@ export type Command =
   | { action: 'scanBarcode'; input: { code: string } }
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }
   | { action: 'setUserPassword'; input: { userId: string; passwordHash: string } }
+  | { action: 'archiveHistory'; input: { olderThanDays: number; nowIso?: string } }
 
 export type CommandOk = {
   ok: true

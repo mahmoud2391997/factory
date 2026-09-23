@@ -1,3 +1,4 @@
+import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
@@ -409,6 +410,10 @@ export function applyCommand(source: ErpState, actor: Actor, command: Command, c
 }
 
 function authorize(actor: Actor, command: Command): CommandResult | null {
+  if (actor.mustChangePassword) {
+    if (command.action === 'setUserPassword' && command.input.userId === actor.id) return null
+    return fail('يجب تغيير كلمة المرور قبل استخدام النظام')
+  }
   const map: Record<Command['action'], string> = {
     createMaterial: 'inventory.read',
     createProduct: 'production.read',
@@ -443,6 +448,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     scanBarcode: 'barcode.scan',
     setRolePermissions: 'users.manage',
     setUserPassword: 'users.manage',
+    archiveHistory: 'settings.update',
   }
   return allow(actor, map[command.action])
 }
@@ -515,6 +521,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return setRolePermissions(state, actor, command.input, clock)
     case 'setUserPassword':
       return setUserPassword(state, actor, command.input, clock)
+    case 'archiveHistory':
+      return archiveHistory(state, actor, command.input, clock)
     default:
       return fail('إجراء غير معروف')
   }
@@ -1442,20 +1450,54 @@ function setRolePermissions(state: ErpState, actor: Actor, input: Extract<Comman
   return ok(state, 'تم تحديث صلاحيات الدور')
 }
 
+function archiveHistory(state: ErpState, actor: Actor, input: Extract<Command, { action: 'archiveHistory' }>['input'], clock: Clock): CommandResult {
+  if (!Number.isFinite(input.olderThanDays) || input.olderThanDays < 1) return fail('مدة الأرشفة غير صحيحة')
+  const plan = planArchive(state, input.olderThanDays, input.nowIso ?? clock.now())
+  applyArchive(state, plan)
+  const count = plan.ledger.length + plan.journals.length + plan.auditLogs.length
+  audit(state, actor, clock, 'أرشفة السجلات', 'archive', plan.cutoffIso, `${count} سجل`)
+  return ok(state, count ? `تمت أرشفة ${count} سجل أقدم من ${input.olderThanDays} يوماً` : 'لا توجد سجلات أقدم من المدة المحددة', {
+    ledger: plan.ledger.length,
+    journals: plan.journals.length,
+    auditLogs: plan.auditLogs.length,
+  })
+}
+
 function setUserPassword(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setUserPassword' }>['input'], clock: Clock): CommandResult {
   const user = state.users.find((item) => item.id === input.userId)
   if (!user) return fail('المستخدم غير موجود')
   if (!input.passwordHash) return fail('كلمة المرور مطلوبة')
   user.passwordHash = input.passwordHash
+  user.mustChangePassword = false
   audit(state, actor, clock, 'تغيير كلمة المرور', 'user', user.id, user.email)
   return ok(state, 'تم تحديث كلمة المرور')
 }
 
-export function publicState(state: ErpState) {
+function canAny(permissions: readonly string[], keys: readonly string[]) {
+  return keys.some((key) => permissions.includes(key))
+}
+
+/** Strip secrets and collections the caller is not allowed to read. */
+export function publicState(state: ErpState, permissions: readonly string[]): ErpState {
+  const seeSalary = canAny(permissions, ['employees.read', 'employees.manage'])
+  const seePayroll = canAny(permissions, ['payroll.manage', 'payroll.approve', 'payroll.pay'])
+  const seeJournals = canAny(permissions, ['accounting.read', 'accounting.manage'])
+  const seeAudit = permissions.includes('audit.read')
+  const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
   return {
     ...state,
     users: state.users.map(({ passwordHash: _password, ...user }) => user),
-  }
+    employees: seeSalary
+      ? state.employees
+      : state.employees.map((employee) => {
+          const { basicSalary: _salary, ...rest } = employee
+          return rest as typeof employee
+        }),
+    payrolls: seePayroll ? state.payrolls : [],
+    journals: seeJournals ? state.journals : [],
+    auditLogs: seeAudit ? state.auditLogs : [],
+    attendance: seeAttendance ? state.attendance : [],
+  } as ErpState
 }
 
 export function actorFromUser(state: ErpState, userId: string): Actor | null {
@@ -1466,6 +1508,7 @@ export function actorFromUser(state: ErpState, userId: string): Actor | null {
     name: user.fullName,
     role: user.role,
     permissions: state.rolePermissions[user.role],
+    mustChangePassword: Boolean(user.mustChangePassword),
   }
 }
 

@@ -10,7 +10,7 @@ type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
   error: string
-  login: (email: string, password: string) => Promise<{ ok: boolean; message: string }>
+  login: (email: string, password: string) => Promise<{ ok: boolean; message: string; mustChangePassword?: boolean }>
   logout: () => Promise<void>
   refresh: () => Promise<void>
   hasPermission: (permission: string | string[]) => boolean
@@ -35,6 +35,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (loading || !user?.mustChangePassword) return
+    if (window.location.pathname.startsWith('/account/password')) return
+    window.location.assign('/account/password')
+  }, [loading, user])
+
+  useEffect(() => {
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -57,7 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await apiLogin(email, password)
     if (result.success && result.data?.user) {
       setUser(result.data.user)
-      return { ok: true, message: result.message ?? 'تم تسجيل الدخول بنجاح' }
+      return {
+        ok: true,
+        message: result.message ?? 'تم تسجيل الدخول بنجاح',
+        mustChangePassword: Boolean(result.data.user.mustChangePassword),
+      }
     }
     const message = result.message ?? 'بيانات الدخول غير صحيحة'
     setError(message)

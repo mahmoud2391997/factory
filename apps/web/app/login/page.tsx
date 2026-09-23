@@ -52,7 +52,7 @@ export default function LoginPage() {
   const [healthLoading, setHealthLoading] = useState(true)
 
   useEffect(() => {
-    if (!loading && user) router.replace('/')
+    if (!loading && user) router.replace(user.mustChangePassword ? '/account/password' : '/')
   }, [loading, user, router])
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function LoginPage() {
     const result = await login(email.trim(), password)
     setSubmitting(false)
     if (result.ok) {
-      router.replace('/')
+      router.replace(result.mustChangePassword ? '/account/password' : '/')
       return
     }
     setMessage(result.message)
