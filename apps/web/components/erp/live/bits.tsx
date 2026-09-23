@@ -1,6 +1,6 @@
 'use client'
 
-import { isValidElement, useState, type ReactNode } from 'react'
+import { isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
 const PAGE_SIZE = 8
 
@@ -165,6 +165,92 @@ export function GhostButton({ children, ...props }: React.ButtonHTMLAttributes<H
     >
       {children}
     </button>
+  )
+}
+
+export function Dialog({
+  title,
+  hint,
+  onClose,
+  wide,
+  children,
+}: {
+  title: string
+  hint?: string
+  onClose: () => void
+  wide?: boolean
+  children: ReactNode
+}) {
+  const titleId = useId()
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current()
+    }
+    document.addEventListener('keydown', onKey)
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previous
+    }
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-6" onMouseDown={() => onCloseRef.current()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`my-auto w-full rounded-[12px] border border-[#e5e7eb] bg-white p-5 shadow-xl outline-none ${wide ? 'max-w-3xl' : 'max-w-xl'}`}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 id={titleId} className="text-lg font-medium text-[#1f1f1f]">
+              {title}
+            </h3>
+            {hint ? <p className="mt-1 text-sm text-[#6b7280]">{hint}</p> : null}
+          </div>
+          <button type="button" className="rounded-md px-2 py-1 text-sm text-[#6b7280] hover:bg-[#f3f4f6]" onClick={() => onCloseRef.current()}>
+            إغلاق
+          </button>
+        </div>
+        <div className="max-h-[70vh] overflow-y-auto pe-1">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+export function FormDialog({
+  title,
+  hint,
+  openLabel,
+  wide,
+  children,
+}: {
+  title: string
+  hint?: string
+  openLabel: string
+  wide?: boolean
+  children: (close: () => void) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const close = () => setOpen(false)
+  return (
+    <>
+      <PrimaryButton type="button" onClick={() => setOpen(true)}>
+        {openLabel}
+      </PrimaryButton>
+      {open ? (
+        <Dialog title={title} hint={hint} wide={wide} onClose={close}>
+          {children(close)}
+        </Dialog>
+      ) : null}
+    </>
   )
 }
 
