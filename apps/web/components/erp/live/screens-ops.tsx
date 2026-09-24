@@ -725,12 +725,21 @@ function Production({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['الرقم', 'المنتج', 'المخطط', 'الفعلي', 'التكلفة', 'الحالة', '']}
+          columns={['الرقم', 'المنتج', 'المخطط', 'الفعلي', 'الفرق عن المتوقع', 'التكلفة', 'الحالة', '']}
           rows={ctx.state.productionOrders.map((order) => [
             order.number,
             productName(ctx.state, order.productId),
             qtyFmt(order.plannedQty),
             qtyFmt(order.actualOutputQty),
+            order.status === 'COMPLETED'
+              ? order.expected
+                  .map((line) => {
+                    const diffPct = line.expectedQty > 0 ? Math.round(((line.actualQty - line.expectedQty) / line.expectedQty) * 1000) / 10 : 0
+                    const waste = line.wasteQty > 0 ? `، هدر ${qtyFmt(line.wasteQty)}` : ''
+                    return `${materialName(ctx.state, line.materialId)} ${pctFmt(diffPct)}${waste}`
+                  })
+                  .join(' — ') || '—'
+              : '—',
             moneyFmt(order.totalCost),
             statusLabel(order.status),
             order.status === 'RELEASED' ? (

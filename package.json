@@ -14,7 +14,7 @@
     "db:migrate": "pnpm -C packages/database prisma migrate dev",
     "db:deploy": "pnpm -C packages/database prisma migrate deploy",
     "db:seed": "pnpm -C packages/database prisma db seed",
-    "test:erp": "tsx --test apps/web/lib/erp/domain/engine.test.ts apps/web/server/auth/login-throttle.test.ts"
+    "test:erp": "tsx --test apps/web/lib/erp/domain/engine.test.ts apps/web/lib/erp/domain/plan-acceptance.test.ts apps/web/server/auth/login-throttle.test.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

@@ -355,10 +355,11 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
         {trace?.product ? (
           <div className="mt-4 space-y-2 text-sm leading-7 text-[#30453d]">
             <div>الرصيد الحالي: {qtyFmt(itemOnHand(ctx.state, 'PRODUCT', trace.product.id))} كجم</div>
-            <div>أوامر الشراء المرتبطة: {trace.purchaseOrders.map((order) => order.number).join('، ') || '—'}</div>
+            <div>الموردون: {[...new Set(trace.purchaseOrders.map((order) => partyName(ctx.state.suppliers, order.supplierId)))].join('، ') || '—'}</div>
+            <div>أوامر الشراء: {trace.purchaseOrders.map((order) => `${order.number} — ${partyName(ctx.state.suppliers, order.supplierId)}`).join('، ') || '—'}</div>
             <div>الاستلامات: {trace.receipts.map((receipt) => receipt.number).join('، ') || '—'}</div>
-            <div>الإنتاج: {trace.orders.map((order) => `${order.number} (${statusLabel(order.status)})`).join('، ') || '—'}</div>
-            <div>الفواتير: {trace.sales.map((invoice) => invoice.number).join('، ') || '—'}</div>
+            <div>الإنتاج: {trace.orders.map((order) => `${order.number} (${statusLabel(order.status)}) ناتج ${qtyFmt(order.actualOutputQty)}`).join('، ') || '—'}</div>
+            <div>الفواتير: {trace.sales.map((invoice) => `${invoice.number} (${statusLabel(invoice.status)})`).join('، ') || '—'}</div>
           </div>
         ) : null}
       </Card>
