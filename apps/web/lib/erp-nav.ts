@@ -520,9 +520,9 @@ export const ERP_NAV: ErpMainTab[] = [
       },
       {
         id: 'tasks',
-        label: 'المهام',
-        entityKey: 'task',
-        description: 'مهام تشغيلية للمتابعة',
+        label: 'الفرق والمهام',
+        entityKey: 'workforce',
+        description: 'نظام مستقل لإدارة الفرق وتوزيع المهام خارج الـ ERP',
         permission: ['notifications.read'],
       },
       {

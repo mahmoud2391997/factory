@@ -442,8 +442,6 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createPayroll: 'payroll.manage',
     decidePayroll: 'payroll.approve',
     payPayroll: 'payroll.pay',
-    createTask: 'notifications.read',
-    updateTask: 'notifications.read',
     markNotificationRead: 'notifications.read',
     scanBarcode: 'barcode.scan',
     setRolePermissions: 'users.manage',
@@ -509,10 +507,6 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return decidePayroll(state, actor, command.input, clock)
     case 'payPayroll':
       return payPayroll(state, actor, command.input, clock)
-    case 'createTask':
-      return createTask(state, actor, command.input, clock)
-    case 'updateTask':
-      return updateTask(state, actor, command.input, clock)
     case 'markNotificationRead':
       return markNotificationRead(state, actor, command.input, clock)
     case 'scanBarcode':
@@ -1389,41 +1383,6 @@ function payPayroll(state: ErpState, actor: Actor, input: Extract<Command, { act
   payroll.status = 'PAID'
   audit(state, actor, clock, 'صرف رواتب', 'payroll', payroll.id, payroll.number)
   return ok(state, `تم صرف رواتب ${payroll.month}`)
-}
-
-function createTask(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createTask' }>['input'], clock: Clock): CommandResult {
-  if (!input.title.trim()) return fail('عنوان المهمة مطلوب')
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) return fail('تاريخ الاستحقاق غير صحيح')
-  const site = input.site ?? 'OFFICE'
-  if (site !== 'OFFICE' && site !== 'COMPLEX' && site !== 'FACTORY') return fail('جهة المهمة غير معروفة')
-  const assignee = input.assigneeEmployeeId ? state.employees.find((item) => item.id === input.assigneeEmployeeId && item.active) : undefined
-  if (input.assigneeEmployeeId && !assignee) return fail('الموظف المكلّف غير موجود')
-  const linked = input.linkedEmployeeId ? state.employees.find((item) => item.id === input.linkedEmployeeId && item.active) : undefined
-  if (input.linkedEmployeeId && !linked) return fail('موظف الربط غير موجود')
-  if (assignee && linked && assignee.id === linked.id) return fail('اربط المهمة بموظف في الجهة الأخرى، لا بنفس الشخص')
-  const task = {
-    id: clock.id('task'),
-    title: input.title.trim(),
-    assigneeRole: input.assigneeRole,
-    dueDate: input.dueDate,
-    status: 'OPEN' as const,
-    createdAt: clock.now(),
-    site,
-    assigneeEmployeeId: assignee?.id,
-    linkedEmployeeId: linked?.id,
-    notes: input.notes?.trim() ?? '',
-  }
-  state.tasks.unshift(task)
-  audit(state, actor, clock, 'إنشاء مهمة', 'task', task.id, `${task.title} — ${site}`)
-  return ok(state, 'تم إضافة المهمة')
-}
-
-function updateTask(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateTask' }>['input'], clock: Clock): CommandResult {
-  const task = state.tasks.find((item) => item.id === input.id)
-  if (!task) return fail('المهمة غير موجودة')
-  task.status = input.status
-  audit(state, actor, clock, 'تحديث مهمة', 'task', task.id, input.status)
-  return ok(state, 'تم تحديث المهمة')
 }
 
 function markNotificationRead(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markNotificationRead' }>['input'], clock: Clock): CommandResult {

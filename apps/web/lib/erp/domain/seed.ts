@@ -110,7 +110,6 @@ export function emptyState(passwordHash: string): ErpState {
     journals: [],
     attendance: [],
     payrolls: [],
-    tasks: [],
     stoppages: [],
     notifications: [],
     auditLogs: [],
@@ -365,48 +364,6 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
       input: { employeeId: employee.id, date: muscatDay(clock.now()), checkIn: '07:00', checkOut: '15:10', source: 'MANUAL' },
     })
   }
-
-  const taskDay = muscatDay(clock.now())
-  const noura = state.employees.find((item) => item.nameAr.includes('نورة'))!
-  const salem = state.employees.find((item) => item.nameAr.includes('سالم'))!
-  const khalid = state.employees.find((item) => item.nameAr.includes('خالد'))!
-  const ahmed = state.employees.find((item) => item.nameAr.includes('أحمد'))!
-  state = step(state, clock, {
-    action: 'createTask',
-    input: {
-      title: 'مراجعة نقص كسب الصويا قبل اعتماد أمر الشراء',
-      assigneeRole: 'ACCOUNTANT',
-      dueDate: taskDay,
-      site: 'OFFICE',
-      assigneeEmployeeId: noura.id,
-      linkedEmployeeId: salem.id,
-      notes: 'المكتب الافتراضي يتابع الاعتماد، وأمين المستودع في المصنع يؤكد الرصيد على الأرض.',
-    },
-  })
-  state = step(state, clock, {
-    action: 'createTask',
-    input: {
-      title: 'وزن دفعة الذرة قبل أمر الخلط التالي',
-      assigneeRole: 'OPERATIONS',
-      dueDate: addDays(taskDay, 2),
-      site: 'FACTORY',
-      assigneeEmployeeId: khalid.id,
-      linkedEmployeeId: noura.id,
-      notes: 'مشغّل الخط في المصنع ينفّذ الوزن، والمحاسبة في المكتب تحدّث تكلفة الطن.',
-    },
-  })
-  state = step(state, clock, {
-    action: 'createTask',
-    input: {
-      title: 'تمرير إذن صرف البريمكس من المجمع إلى خط الخلط',
-      assigneeRole: 'OPERATIONS',
-      dueDate: addDays(taskDay, 1),
-      site: 'COMPLEX',
-      assigneeEmployeeId: ahmed.id,
-      linkedEmployeeId: khalid.id,
-      notes: 'فني المجمع يجهّز الإذن، ومشغّل المصنع يستلم الكمية على الخط.',
-    },
-  })
 
   const completed = state.productionOrders.find((order) => order.status === 'COMPLETED')!
   state.stoppages.unshift({

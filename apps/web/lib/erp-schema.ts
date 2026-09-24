@@ -811,36 +811,6 @@ export const ENTITY_SCHEMAS: Record<string, EntitySchema> = {
       { currencyCode: 'OMR', productionVarianceThresholdPct: 2.5, taxRegistrationNumber: 'OM-VAT-0001', taxRatePct: 5, taxInclusivePricing: false },
     ],
   },
-
-  task: {
-    key: 'task',
-    title: 'المهام',
-    description: 'مهام تشغيلية',
-    docPrefix: 'TSK',
-    primaryLabelKey: 'title',
-    statusKey: 'status',
-    fields: [
-      { key: 'title', label: 'المهمة', type: 'text', required: true, column: true },
-      { key: 'assignee', label: 'المسؤول', type: 'text', column: true },
-      { key: 'dueDate', label: 'الاستحقاق', type: 'date', column: true },
-      { key: 'status', label: 'الحالة', type: 'select', defaultValue: 'مفتوح', column: true, options: [
-        { value: 'مفتوح', label: 'مفتوح' },
-        { value: 'قيد التنفيذ', label: 'قيد التنفيذ' },
-        { value: 'مكتمل', label: 'مكتمل' },
-        { value: 'متأخر', label: 'متأخر' },
-      ] },
-      { key: 'notes', label: 'ملاحظات', type: 'textarea' },
-    ],
-    seed: [
-      {
-        title: 'مراجعة أرصدة مستودع المواد',
-        assignee: 'سعيد الشحري',
-        dueDate: '2026-09-22',
-        status: 'قيد التنفيذ',
-        notes: 'قبل استلام الشحنة القادمة',
-      },
-    ],
-  },
 }
 
 export function getEntitySchema(key: string) {
