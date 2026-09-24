@@ -8,8 +8,8 @@ export default function Page() {
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card title="الموظفون" href="/employees" desc="سجل الموظفين داخل نظام الفرق والمهام." />
-        <Card title="الفرق" href="/teams" desc="إنشاء فرق وإدارة الأعضاء." />
-        <Card title="المهام" href="/tasks" desc="إنشاء المهام وتوزيعها وتتبعها." />
+        <Card title="الأعضاء" href="/members" desc="إدارة أعضاء الفريق والدعوات والأدوار." />
+        <Card title="المهام" href="/tasks" desc="إنشاء المهام وتوزيعها وتتبعها (Kanban)." />
       </div>
     </main>
   )

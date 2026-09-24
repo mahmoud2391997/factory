@@ -1,35 +1,34 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
 const bodySchema = z.object({
-  key: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(1),
 })
 
 export async function POST(req: NextRequest) {
-  const expected = process.env.WORKFORCE_API_KEY?.trim()
-  if (!expected) {
-    return NextResponse.json({ success: false, message: 'WORKFORCE_API_KEY غير مضبوط' }, { status: 500 })
-  }
-
   const json = await req.json().catch(() => null)
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
     return NextResponse.json({ success: false, message: 'بيانات غير صحيحة' }, { status: 400 })
   }
 
-  if (parsed.data.key !== expected) {
-    return NextResponse.json({ success: false, message: 'مفتاح غير صحيح' }, { status: 401 })
-  }
+  const { prisma } = await import('@/server/db')
+  const { issueAccessToken, setAuthCookie } = await import('@/server/auth/jwt')
 
+  const email = parsed.data.email.toLowerCase().trim()
+  const user = await prisma.workforceUser.findUnique({ where: { email } })
+  if (!user) return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
+
+  const ok = await bcrypt.compare(parsed.data.password, user.passwordHash)
+  if (!ok) return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
+
+  const token = await issueAccessToken({ sub: user.id, email: user.email })
   const res = NextResponse.json({ success: true })
-  res.cookies.set('workforce_key', expected, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-  })
+  setAuthCookie(res, token)
   return res
 }
 

@@ -16,9 +16,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="text-lg font-semibold">نظام الفرق والمهام</div>
             <nav className="flex items-center gap-4 text-sm">
               <a href="/">الرئيسية</a>
-              <a href="/employees">الموظفون</a>
-              <a href="/teams">الفرق</a>
-              <a href="/tasks">المهام</a>
+              <a href="/dashboard">لوحة التحكم</a>
+              <a href="/auth/login">دخول</a>
             </nav>
           </header>
           {children}
