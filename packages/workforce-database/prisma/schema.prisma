@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("WORKFORCE_DATABASE_URL")
+}
+
+enum WorkforceTaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model WorkforceEmployee {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  nameAr     String
+  department String
+  jobTitle   String
+  active     Boolean  @default(true)
+
+  memberships WorkforceTeamMember[]
+  tasksAssigned WorkforceTask[] @relation("WorkforceTaskAssignee")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkforceTeam {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  nameAr      String
+  description String?
+  isActive    Boolean @default(true)
+
+  members WorkforceTeamMember[]
+  tasks   WorkforceTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkforceTeamMember {
+  teamId     String
+  employeeId String
+  role       String   @default("MEMBER")
+  joinedAt   DateTime @default(now())
+
+  team     WorkforceTeam     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employee WorkforceEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, employeeId])
+  @@index([employeeId])
+}
+
+model WorkforceTask {
+  id          String             @id @default(cuid())
+  title       String
+  description String?
+  status      WorkforceTaskStatus @default(OPEN)
+  dueDate     DateTime?
+  priority    Int                @default(2)
+
+  teamId             String?
+  assigneeEmployeeId String?
+
+  team     WorkforceTeam?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignee WorkforceEmployee? @relation("WorkforceTaskAssignee", fields: [assigneeEmployeeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([dueDate])
+  @@index([teamId])
+  @@index([assigneeEmployeeId])
+}
+

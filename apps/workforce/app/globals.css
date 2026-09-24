@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+@layer base {
+  body {
+    @apply bg-[#f6f8fa] text-[#1f2328];
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, 'Noto Sans', 'Liberation Sans', sans-serif;
+  }
+  a {
+    @apply text-[#0969da] underline-offset-2;
+  }
+}
+
