@@ -7,10 +7,8 @@
 ```
 apps/
   web/          # Next.js (واجهة ERP)
-  workforce/    # Next.js (نظام الفرق والمهام — مستقل عن ERP)
 packages/
   database/           # Prisma schema + migrations + seed + generated client
-  workforce-database/ # Prisma schema + generated client لنظام الفرق والمهام
   shared/             # Types/Zod مشتركة
 docs/           # تصميم معماري + نموذج بيانات + تدفقات
 ```
@@ -30,20 +28,6 @@ pnpm dev
 ```
 
 افتح `http://localhost:3000`.
-
-### 2b) تشغيل نظام الفرق والمهام (Workforce)
-
-1) انسخ `apps/workforce/.env.example` إلى `apps/workforce/.env` واضبط:
-- `WORKFORCE_DATABASE_URL`
-- `WORKFORCE_API_KEY`
-
-2) شغّل:
-
-```bash
-pnpm dev:workforce
-```
-
-افتح `http://localhost:3001`.
 
 ### 3) الـ API
 

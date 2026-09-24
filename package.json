@@ -5,21 +5,15 @@
   "scripts": {
     "dev": "pnpm -C apps/web dev",
     "dev:web": "pnpm -C apps/web dev",
-    "dev:workforce": "pnpm -C packages/workforce-database generate && pnpm -C apps/workforce dev",
     "build": "bash scripts/vercel-build.sh",
     "build:web": "pnpm -C apps/web build",
-    "build:workforce": "pnpm -C packages/workforce-database generate && pnpm -C apps/workforce build",
     "vercel-build": "bash scripts/vercel-build.sh",
     "start": "pnpm -C apps/web start",
     "start:web": "pnpm -C apps/web start",
-    "start:workforce": "pnpm -C packages/workforce-database generate && pnpm -C apps/workforce start",
     "db:studio": "pnpm -C packages/database prisma studio",
     "db:migrate": "pnpm -C packages/database prisma migrate dev",
     "db:deploy": "pnpm -C packages/database prisma migrate deploy",
     "db:seed": "pnpm -C packages/database prisma db seed",
-    "workforce:db:push": "pnpm -C packages/workforce-database db:push",
-    "workforce:db:migrate": "pnpm -C packages/workforce-database migrate:dev",
-    "workforce:db:deploy": "pnpm -C packages/workforce-database migrate:deploy",
     "test:erp": "tsx --test apps/web/lib/erp/domain/engine.test.ts apps/web/lib/erp/domain/plan-acceptance.test.ts apps/web/server/auth/login-throttle.test.ts"
   },
   "devDependencies": {
