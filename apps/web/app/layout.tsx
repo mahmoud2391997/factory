@@ -1,0 +1,58 @@
+import { Analytics } from '@vercel/analytics/next'
+import type { Metadata, Viewport } from 'next'
+
+import { AuthProvider } from '@/components/providers/auth-provider'
+import './globals.css'
+
+export const metadata: Metadata = {
+  title: 'مصنع الخليج للأعلاف | نظام إدارة المصنع',
+  description: 'منصة إدارة متكاملة لمصنع الأعلاف والعمليات الصناعية في سلطنة عمان',
+  manifest: '/manifest.webmanifest',
+  applicationName: 'مصنع الخليج للأعلاف',
+  generator: 'v0.app',
+  icons: {
+    icon: [
+      {
+        url: '/icon-light-32x32.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/icon-dark-32x32.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+      {
+        url: '/icon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    apple: '/apple-icon.png',
+  },
+}
+
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <body className="antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('erp-theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var root=document.documentElement;root.classList.toggle('dark',d);root.classList.toggle('light',!d);}catch(e){}})();`,
+          }}
+        />
+        <AuthProvider>{children}</AuthProvider>
+        {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === '1' ? <Analytics /> : null}
+      </body>
+    </html>
+  )
+}

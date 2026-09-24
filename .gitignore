@@ -1,0 +1,33 @@
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
+
+# Environment variables
+.env*.local
+
+# Common ignores
+node_modules
+.next/
+.DS_Store
+
+# Lockfiles
+package-lock.json
+
+# Build outputs (monorepo)
+apps/*/dist
+packages/*/dist
+packages/database/generated
+packages/workforce-database/src/generated
+
+# Logs
+*.log
+.env
+
+# Operational data and local backups
+data/
+apps/web/data/
+
