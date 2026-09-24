@@ -37,6 +37,7 @@ pnpm dev
 
 - `docs/day2-complete.md` — تأكيد اكتمال اليوم ٢
 - `docs/day4-complete.md` — تأكيد اكتمال اليوم ٤ (أرصدة + دفتر المخزون)
+- `docs/day14-complete.md` — إغلاق خطة الأسبوعين (المسار الكامل + النسخ الاحتياطي)
 - `docs/dev-plan-2-weeks.md` — تقرير خطة أسبوعين + أسئلة الاستضافة وشكل المنتج
 - `docs/implementation-plan.md` — خطة قديمة، ليست وصفاً للنظام العامل
 - `docs/data-model.md` — المستند الحي `ErpDocument` وأرشيف الجداول العلائقية
