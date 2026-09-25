@@ -314,23 +314,6 @@ export type PayrollRun = {
   decidedBy?: string
 }
 
-export type WorkSite = 'OFFICE' | 'COMPLEX' | 'FACTORY'
-
-export type Task = {
-  id: string
-  title: string
-  assigneeRole: RoleKey
-  dueDate: string
-  status: 'OPEN' | 'DONE'
-  createdAt: string
-  /** Where the assignee works: virtual office, compound, or plant floor. */
-  site?: WorkSite
-  assigneeEmployeeId?: string
-  /** Person on the other site who must act with the assignee. */
-  linkedEmployeeId?: string
-  notes?: string
-}
-
 export type PlantStoppage = {
   id: string
   at: string
@@ -390,7 +373,6 @@ export type ErpState = {
   journals: JournalEntry[]
   attendance: Attendance[]
   payrolls: PayrollRun[]
-  tasks: Task[]
   stoppages: PlantStoppage[]
   notifications: Notification[]
   auditLogs: AuditLog[]
@@ -442,8 +424,6 @@ export type Command =
   | { action: 'createPayroll'; input: { month: string; lines: Array<{ employeeId: string; overtimeHours?: number; allowances?: number; deductions?: number }> } }
   | { action: 'decidePayroll'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'payPayroll'; input: { id: string } }
-  | { action: 'createTask'; input: { title: string; assigneeRole: RoleKey; dueDate: string; site?: WorkSite; assigneeEmployeeId?: string; linkedEmployeeId?: string; notes?: string } }
-  | { action: 'updateTask'; input: { id: string; status: 'OPEN' | 'DONE' } }
   | { action: 'markNotificationRead'; input: { id: string } }
   | { action: 'scanBarcode'; input: { code: string } }
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }

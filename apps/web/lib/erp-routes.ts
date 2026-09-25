@@ -184,14 +184,13 @@ export const DESTINATIONS: Destination[] = [
   },
   {
     id: 'tasks',
-    label: 'المهام والتقارير',
+    label: 'التقارير والمتابعة',
     icon: ClipboardList,
     groups: [
       {
         id: 'tasks',
-        label: 'المهام والتقارير',
+        label: 'التقارير والمتابعة',
         leaves: [
-          { href: '/tasks', entityKey: 'task', tab: true },
           { href: '/tasks/material', entityKey: 'materialTrace', tab: true },
           { href: '/tasks/reports', entityKey: 'report', tab: true },
           { href: '/tasks/approvals', entityKey: 'approvals', tab: true },

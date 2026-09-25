@@ -8,8 +8,8 @@
 apps/
   web/          # Next.js (واجهة ERP)
 packages/
-  database/     # Prisma schema + migrations + seed + generated client
-  shared/       # Types/Zod مشتركة
+  database/           # Prisma schema + migrations + seed + generated client
+  shared/             # Types/Zod مشتركة
 docs/           # تصميم معماري + نموذج بيانات + تدفقات
 ```
 

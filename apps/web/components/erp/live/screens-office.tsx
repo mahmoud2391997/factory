@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceProduct, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
-import type { VatTreatment, WorkSite } from '@/lib/erp/domain/types'
+import type { VatTreatment } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
@@ -15,12 +15,6 @@ const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = [
   { value: 'GM', label: 'المدير العام' },
   { value: 'ACCOUNTANT', label: 'المحاسب والموارد البشرية' },
   { value: 'OPERATIONS', label: 'المستودع والإنتاج والمبيعات' },
-]
-
-const SITE_OPTIONS: Array<{ value: WorkSite; label: string }> = [
-  { value: 'OFFICE', label: 'المكتب الافتراضي' },
-  { value: 'COMPLEX', label: 'المجمع' },
-  { value: 'FACTORY', label: 'المصنع' },
 ]
 
 export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
@@ -36,7 +30,6 @@ export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: Live
   if (entityKey === 'notification') return <Notifications ctx={ctx} />
   if (entityKey === 'auditLog') return <Audit ctx={ctx} />
   if (entityKey === 'companySettings') return <Settings ctx={ctx} />
-  if (entityKey === 'task') return <Tasks ctx={ctx} />
   if (entityKey === 'approvals') return <Approvals ctx={ctx} />
   if (entityKey === 'users') return <Users ctx={ctx} />
   return null
@@ -423,91 +416,6 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         </div>
       </form>
     </Card>
-  )
-}
-
-function employeeName(ctx: LiveCtx, id?: string) {
-  if (!id) return '—'
-  return ctx.state.employees.find((employee) => employee.id === id)?.nameAr ?? '—'
-}
-
-function Tasks({ ctx }: { ctx: LiveCtx }) {
-  const today = muscatDay(new Date().toISOString())
-  const [title, setTitle] = useState('')
-  const [assigneeRole, setAssigneeRole] = useState<RoleKey>('OPERATIONS')
-  const [dueDate, setDueDate] = useState(() => muscatDay(new Date().toISOString()))
-  const [site, setSite] = useState<WorkSite>('OFFICE')
-  const [assigneeEmployeeId, setAssigneeEmployeeId] = useState(ctx.state.employees[0]?.id ?? '')
-  const [linkedEmployeeId, setLinkedEmployeeId] = useState(ctx.state.employees[1]?.id ?? '')
-  const [notes, setNotes] = useState('')
-  return (
-    <div className="space-y-4">
-      <Card
-        title="المهام"
-        hint="متابعة مواعيد المكتب الافتراضي، مع ربط كل مهمة بموظف في المجمع أو المصنع."
-        extra={
-          <FormDialog title="مهمة" openLabel="مهمة جديدة" wide>
-            {(close) => (
-              <form className="grid gap-3" onSubmit={async (event) => {
-                event.preventDefault()
-                const result = await ctx.act('createTask', { title, assigneeRole, dueDate, site, assigneeEmployeeId, linkedEmployeeId, notes })
-                if (result.ok) {
-                  setTitle('')
-                  setNotes('')
-                  close()
-                }
-              }}>
-                <Field label="العنوان"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} required /></Field>
-                <Field label="مكان التنفيذ">
-                  <SelectInput value={site} onChange={(e) => setSite(e.target.value as WorkSite)}>
-                    {SITE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                  </SelectInput>
-                </Field>
-                <Field label="الدور المسؤول">
-                  <SelectInput value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value as RoleKey)}>
-                    {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                  </SelectInput>
-                </Field>
-                <Field label="الموظف المكلّف">
-                  <SelectInput value={assigneeEmployeeId} onChange={(e) => setAssigneeEmployeeId(e.target.value)}>
-                    {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr} — {employee.department}</option>)}
-                  </SelectInput>
-                </Field>
-                <Field label="الموظف المرتبط في الجهة الأخرى">
-                  <SelectInput value={linkedEmployeeId} onChange={(e) => setLinkedEmployeeId(e.target.value)}>
-                    {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr} — {employee.department}</option>)}
-                  </SelectInput>
-                </Field>
-                <Field label="الاستحقاق"><TextInput type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required /></Field>
-                <Field label="ملاحظة الربط">
-                  <textarea className="min-h-20 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm" value={notes} onChange={(e) => setNotes(e.target.value)} />
-                </Field>
-                <PrimaryButton disabled={ctx.pending}>إضافة</PrimaryButton>
-              </form>
-            )}
-          </FormDialog>
-        }
-      >
-        <DataTable
-          columns={['المهمة', 'المكان', 'المكلّف', 'الربط', 'الاستحقاق', 'الحالة', '']}
-          rows={ctx.state.tasks.map((task) => {
-            const late = task.status === 'OPEN' && task.dueDate < today
-            return [
-              <div key={`${task.id}-title`}>
-                <div className="font-semibold">{task.title}</div>
-                {task.notes ? <div className="mt-1 text-xs text-[#788983]">{task.notes}</div> : null}
-              </div>,
-              SITE_OPTIONS.find((item) => item.value === task.site)?.label ?? '—',
-              employeeName(ctx, task.assigneeEmployeeId),
-              employeeName(ctx, task.linkedEmployeeId),
-              late ? <span key={`${task.id}-due`} className="font-semibold text-[#dc2626]">متأخرة — {task.dueDate}</span> : task.dueDate,
-              statusLabel(task.status),
-              task.status === 'OPEN' ? <GhostButton key={task.id} type="button" onClick={() => ctx.act('updateTask', { id: task.id, status: 'DONE' })}>إغلاق</GhostButton> : '—',
-            ]
-          })}
-        />
-      </Card>
-    </div>
   )
 }
 

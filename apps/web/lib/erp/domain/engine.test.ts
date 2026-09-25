@@ -92,29 +92,6 @@ test('a raw material statement answers the mill questions', () => {
   assert.equal(statement.stoppages[0]?.minutes, 45)
 })
 
-test('tasks link the virtual office with the compound and the plant', () => {
-  const state = buildSeedState()
-  const office = state.tasks.find((task) => task.site === 'OFFICE')
-  const plant = state.tasks.find((task) => task.site === 'FACTORY')
-  const compound = state.tasks.find((task) => task.site === 'COMPLEX')
-  assert.ok(office?.assigneeEmployeeId && office.linkedEmployeeId)
-  assert.notEqual(office.assigneeEmployeeId, office.linkedEmployeeId)
-  assert.ok(plant?.linkedEmployeeId)
-  assert.ok(compound?.assigneeEmployeeId)
-  const denied = applyCommand(state, actor(state, 'user-gm'), {
-    action: 'createTask',
-    input: {
-      title: 'مهمة بلا طرفين',
-      assigneeRole: 'OPERATIONS',
-      dueDate: '2026-09-30',
-      site: 'OFFICE',
-      assigneeEmployeeId: office.assigneeEmployeeId,
-      linkedEmployeeId: office.assigneeEmployeeId,
-    },
-  })
-  assert.equal(denied.ok, false)
-})
-
 test('operations cannot approve a purchase order', () => {
   const state = buildSeedState()
   const pending = state.purchaseOrders.find((order) => order.status === 'PENDING_APPROVAL')!

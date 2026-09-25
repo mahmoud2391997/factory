@@ -519,13 +519,6 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['settings.read'],
       },
       {
-        id: 'tasks',
-        label: 'المهام',
-        entityKey: 'task',
-        description: 'مهام تشغيلية للمتابعة',
-        permission: ['notifications.read'],
-      },
-      {
         id: 'approvals',
         label: 'الاعتمادات',
         entityKey: 'approvals',
