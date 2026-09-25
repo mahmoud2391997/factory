@@ -76,6 +76,57 @@ function asState(value: unknown): ErpState {
   return state
 }
 
+const DEMO_USERS = [
+  { id: 'user-gm', email: 'gm@factory.local', fullName: 'سعيد الوهيبي', role: 'GM' as const },
+  { id: 'user-admin', email: 'admin@factory.local', fullName: 'سعيد الوهيبي', role: 'GM' as const },
+  { id: 'user-acc', email: 'accounts@factory.local', fullName: 'نورة العامرية', role: 'ACCOUNTANT' as const },
+  { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS' as const },
+] as const
+
+function isBcryptHash(value: string) {
+  return value.startsWith('$2')
+}
+
+function normalizeDemoUsers(state: ErpState) {
+  if (!isDemoMode()) return false
+  const demoPassword = getDemoSecrets().password
+  const demoHash = bcrypt.hashSync(demoPassword, BCRYPT_ROUNDS)
+
+  let changed = false
+  const byEmail = new Map(state.users.map((user) => [user.email.toLowerCase(), user]))
+
+  for (const seed of DEMO_USERS) {
+    const key = seed.email.toLowerCase()
+    let user = byEmail.get(key)
+    if (!user) {
+      user = { ...seed, passwordHash: demoHash, active: true, mustChangePassword: false }
+      state.users.unshift(user)
+      byEmail.set(key, user)
+      changed = true
+      continue
+    }
+
+    if (!user.active) {
+      user.active = true
+      changed = true
+    }
+
+    if (user.mustChangePassword) {
+      user.mustChangePassword = false
+      changed = true
+    }
+
+    const needsReset =
+      !isBcryptHash(user.passwordHash) || (user.passwordHash && !bcrypt.compareSync(demoPassword, user.passwordHash))
+    if (needsReset) {
+      user.passwordHash = demoHash
+      changed = true
+    }
+  }
+
+  return changed
+}
+
 async function readFileState() {
   if (memoryState) return memoryState
   try {
@@ -208,11 +259,15 @@ export async function loadState(): Promise<{ state: ErpState; storage: StorageKi
     return { state, storage: 'postgres' }
   }
 
-  assertStorageConfigured()
+  if (!isDemoMode()) throw new Error('SERVICE_NOT_CONFIGURED')
   const existing = await readFileState()
-  if (existing) return { state: existing, storage: 'file' }
+  if (existing) {
+    if (normalizeDemoUsers(existing)) await writeFileState(existing)
+    return { state: existing, storage: 'file' }
+  }
   const created = await createInitialState()
   created.revision = 1
+  normalizeDemoUsers(created)
   await writeFileState(created)
   return { state: created, storage: 'file' }
 }

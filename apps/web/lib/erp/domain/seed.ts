@@ -63,7 +63,7 @@ export function emptyState(passwordHash: string): ErpState {
     },
     users: [
       { id: 'user-gm', email: 'gm@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true },
-      { id: 'user-admin', email: 'admin@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, mustChangePassword: true },
+      { id: 'user-admin', email: 'admin@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, mustChangePassword: false },
       { id: 'user-acc', email: 'accounts@factory.local', fullName: 'نورة العامرية', role: 'ACCOUNTANT', passwordHash, active: true },
       { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS', passwordHash, active: true },
     ],

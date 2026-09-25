@@ -463,26 +463,11 @@ test('publicState keeps payroll, journals, and salaries for the general manager'
   assert.ok(view.users.every((user) => !('passwordHash' in user)))
 })
 
-test('seeded admin must change password before any other command', () => {
+test('seeded admin can use demo immediately', () => {
   const state = buildSeedState()
   const admin = actor(state, 'user-admin')
-  assert.equal(admin.mustChangePassword, true)
-  const blocked = applyCommand(state, admin, {
-    action: 'createMaterial',
-    input: { code: 'RM-BLOCK', nameAr: 'ممنوع', category: 'اختبار', minQty: 1 },
-  })
-  assert.equal(blocked.ok, false)
-  const changed = applyCommand(state, admin, {
-    action: 'setUserPassword',
-    input: { userId: admin.id, passwordHash: 'new-hash' },
-  })
-  assert.equal(changed.ok, true)
-  if (!changed.ok) return
-  const user = changed.state.users.find((item) => item.id === admin.id)
-  assert.equal(user?.mustChangePassword, false)
-  assert.equal(user?.passwordHash, 'new-hash')
-  const after = actor(changed.state, 'user-admin')
-  const allowed = applyCommand(changed.state, after, {
+  assert.equal(admin.mustChangePassword, false)
+  const allowed = applyCommand(state, admin, {
     action: 'createMaterial',
     input: { code: 'RM-AFTER', nameAr: 'بعد التغيير', category: 'اختبار', minQty: 1 },
   })
