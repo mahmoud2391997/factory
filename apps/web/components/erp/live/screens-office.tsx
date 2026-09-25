@@ -30,7 +30,6 @@ export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: Live
   if (entityKey === 'notification') return <Notifications ctx={ctx} />
   if (entityKey === 'auditLog') return <Audit ctx={ctx} />
   if (entityKey === 'companySettings') return <Settings ctx={ctx} />
-  if (entityKey === 'workforce') return <Workforce ctx={ctx} />
   if (entityKey === 'approvals') return <Approvals ctx={ctx} />
   if (entityKey === 'users') return <Users ctx={ctx} />
   return null
@@ -416,36 +415,6 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
           {can(ctx.permissions, 'settings.read') ? <a className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3 text-sm font-semibold" href="/api/erp/backup">تنزيل نسخة احتياطية</a> : null}
         </div>
       </form>
-    </Card>
-  )
-}
-
-function Workforce({ ctx }: { ctx: LiveCtx }) {
-  const workforceUrl = process.env.NEXT_PUBLIC_WORKFORCE_URL?.trim() || ''
-  return (
-    <Card
-      title="إدارة الفرق والمهام"
-      hint="تم فصل إدارة الفرق والمهام في نظام مستقل خارج الـ ERP."
-      extra={
-        workforceUrl ? (
-          <a className="text-sm font-bold text-[#1d7f72]" href={workforceUrl} target="_blank" rel="noreferrer">
-            فتح نظام الفرق والمهام
-          </a>
-        ) : null
-      }
-    >
-      <div className="space-y-2 text-sm text-[#30453d]">
-        <p>إدارة الفرق وتوزيع مهام التشغيل أصبحت خارج الـ ERP.</p>
-        {workforceUrl ? (
-          <p className="text-[#788983]">
-            اضبط المتغير <code className="rounded bg-[#f3f4f6] px-1">NEXT_PUBLIC_WORKFORCE_URL</code> لوضع رابط النظام.
-          </p>
-        ) : (
-          <p className="text-[#dc2626]">
-            لا يوجد رابط مضبوط لنظام الفرق والمهام. أضف <code className="rounded bg-[#f3f4f6] px-1">NEXT_PUBLIC_WORKFORCE_URL</code> في البيئة.
-          </p>
-        )}
-      </div>
     </Card>
   )
 }
