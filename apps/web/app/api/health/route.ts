@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server'
 
-import { prisma } from '@/server/db'
-import { isDemoMode } from '@/server/demo'
-import { getDatabaseUrl, getJwtSecretRaw } from '@/server/env'
 
 export const runtime = 'nodejs'
 
@@ -22,6 +19,7 @@ export async function GET() {
 
   if (databaseConfigured) {
     try {
+      const { prisma } = await import('@/server/db')
       await prisma.$queryRaw`SELECT 1`
       databaseReachable = true
       userCount = await prisma.user.count()

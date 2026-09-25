@@ -10,7 +10,7 @@ let demoSecretsLogged = false
 export function getDemoSecrets() {
   if (!generatedDemoSecrets) {
     generatedDemoSecrets = {
-      password: process.env.DEMO_PASSWORD?.trim() || randomUUID(),
+      password: process.env.DEMO_PASSWORD?.trim() || 'Admin123!',
       jwtSecret: process.env.DEMO_JWT_SECRET?.trim() || randomUUID(),
       setupToken: process.env.DEMO_SETUP_TOKEN?.trim() || process.env.SETUP_TOKEN?.trim() || randomUUID(),
     }
