@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server'
 
 import { ROLE_LABELS } from '@/lib/erp/domain/permissions'
-import { prisma } from '@/server/db'
 import { getAccessTokenFromRequest, verifyAccessToken } from '@/server/auth/jwt'
 import { isDemoMode } from '@/server/demo'
 import { loadState } from '@/server/erp/store'
@@ -39,6 +38,7 @@ export async function getSessionUserById(userId: string): Promise<SessionUser | 
     return null
   }
 
+  const { prisma } = await import('@/server/db')
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {

@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
-import { prisma } from '@/server/db'
 import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
 import { getSessionUserById } from '@/server/auth/session'
 import { isDemoMode } from '@/server/demo'
@@ -87,6 +86,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const { prisma } = await import('@/server/db')
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user || !user.isActive) {
       recordLoginFailure(email, ip)
