@@ -1,42 +1,20 @@
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/server/db'
+import { isDemoMode } from '@/server/demo'
 import { getDatabaseUrl, getJwtSecretRaw } from '@/server/env'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
-  const databaseConfigured = Boolean(getDatabaseUrl())
-  const jwtConfigured = Boolean(getJwtSecretRaw())
-  let database = databaseConfigured ? 'error' : 'error'
-  let bootstrapped = false
-
-  if (databaseConfigured) {
-    try {
-      await prisma.$queryRaw`SELECT 1`
-      database = 'ok'
-      bootstrapped = (await prisma.user.count()) > 0
-    } catch {
-      database = 'error'
-    }
-  }
-
-  const result = {
-    database: database as 'ok' | 'error',
-    jwt: jwtConfigured ? ('ok' as const) : ('error' as const),
-    bootstrapped,
-  }
-  const healthy = result.database === 'ok' && result.jwt === 'ok'
-  return NextResponse.json(result, { status: healthy ? 200 : 503 })
-}
-  return null
-}
-
-export async function GET() {
   const demoMode = isDemoMode()
   const databaseConfigured = Boolean(getDatabaseUrl())
   const jwtConfigured = Boolean(getJwtSecretRaw())
-  const databaseEnvKey = detectDatabaseEnvKey()
+  const databaseEnvKey = process.env.DATABASE_URL
+    ? 'DATABASE_URL'
+    : process.env.POSTGRES_URL
+      ? 'POSTGRES_URL'
+      : null
 
   let databaseReachable = false
   let userCount: number | null = null
