@@ -6,6 +6,15 @@ import { publicState } from '@/lib/erp/domain/engine'
 
 export const runtime = 'nodejs'
 
+const ALLOWED_ACTIONS = new Set([
+  'createMaterial', 'createProduct', 'createSupplier', 'createCustomer', 'createEmployee', 'createRecipe',
+  'updateCompany', 'fundBank', 'createPurchaseOrder', 'decidePurchaseOrder', 'receiveGoods', 'transferStock',
+  'requestAdjustment', 'decideAdjustment', 'createProductionOrder', 'completeProduction', 'createInvoice',
+  'confirmInvoice', 'recordPayment', 'createWithdrawal', 'createExpense', 'decideExpense', 'recordAttendance',
+  'importAttendance', 'createPayroll', 'decidePayroll', 'payPayroll', 'markNotificationRead', 'scanBarcode',
+  'setRolePermissions', 'setUserPassword', 'archiveHistory',
+])
+
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
@@ -29,6 +38,9 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
   const body = (await req.json().catch(() => null)) as { action?: string; input?: Record<string, unknown> } | null
   if (!body?.action) return NextResponse.json({ success: false, message: 'الإجراء مطلوب' }, { status: 400 })
+  if (!ALLOWED_ACTIONS.has(body.action)) {
+    return NextResponse.json({ success: false, message: 'إجراء غير معروف' }, { status: 400 })
+  }
   try {
     const result = await runCommand(user.id, body.action, body.input ?? {})
     if (!result.ok) return NextResponse.json({ success: false, message: result.error }, { status: 400 })

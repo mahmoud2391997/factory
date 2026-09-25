@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
@@ -119,7 +120,9 @@ function assertSetupAllowed(req: NextRequest) {
   }
 
   const provided = req.headers.get('x-setup-token') ?? ''
-  if (provided !== expected) {
+  const expectedBytes = Buffer.from(expected)
+  const providedBytes = Buffer.from(provided)
+  if (expectedBytes.length !== providedBytes.length || !timingSafeEqual(expectedBytes, providedBytes)) {
     return { ok: false as const, status: 401, message: 'غير مصرح' }
   }
 
@@ -143,15 +146,17 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const existingUsers = await prisma.user.count()
-  if (existingUsers > 0) {
-    return NextResponse.json({ success: false, message: 'تمت تهيئة النظام مسبقًا' }, { status: 409 })
+  const existingMarker = await prisma.systemInit.findUnique({ where: { id: 'primary' } })
+  if (existingMarker) {
+    return NextResponse.json({ success: false, message: 'تمت تهيئة النظام مسبقًا' }, { status: 410 })
   }
 
   const email = parsed.data.email.toLowerCase().trim()
   const passwordHash = await bcrypt.hash(parsed.data.password, 12)
 
   const result = await prisma.$transaction(async (tx) => {
+    await tx.systemInit.create({ data: { id: 'primary' } })
+
     const settings = await tx.companySettings.create({
       data: {
         currencyCode: 'OMR',
