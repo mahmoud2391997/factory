@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { DEMO_JWT_SECRET, isDemoMode } from '@/server/demo'
+import { isDemoMode } from '@/server/demo'
 import { ensureDatabaseUrlEnv, resolveDatabaseUrl } from '@/server/db-url'
 
 export function getDatabaseUrl() {
@@ -8,10 +8,7 @@ export function getDatabaseUrl() {
 }
 
 export function getJwtSecretRaw() {
-  const value = process.env.JWT_SECRET?.trim() ?? ''
-  if (value.length > 0) return value
-  // Default so auth cookies work even before Vercel env is configured.
-  return DEMO_JWT_SECRET
+  return process.env.JWT_SECRET?.trim() ?? ''
 }
 
 export function assertAuthEnv() {
@@ -32,6 +29,17 @@ export function assertAuthEnv() {
 
 export function toApiError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
+
+  if (message.includes('SERVICE_NOT_CONFIGURED')) {
+    return {
+      status: 503,
+      body: {
+        success: false as const,
+        message: 'الخدمة غير مهيأة',
+        code: 'SERVICE_NOT_CONFIGURED',
+      },
+    }
+  }
 
   if (message.includes('JWT_SECRET')) {
     return {

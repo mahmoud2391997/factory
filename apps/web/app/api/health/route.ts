@@ -1,23 +1,34 @@
 import { NextResponse } from 'next/server'
 
-import { isDemoMode } from '@/server/demo'
 import { prisma } from '@/server/db'
 import { getDatabaseUrl, getJwtSecretRaw } from '@/server/env'
 
 export const runtime = 'nodejs'
 
-function detectDatabaseEnvKey() {
-  const keys = [
-    'DATABASE_URL',
-    'POSTGRES_PRISMA_URL',
-    'PRISMA_DATABASE_URL',
-    'POSTGRES_URL',
-    'POSTGRES_URL_NON_POOLING',
-    'DATABASE_URL_UNPOOLED',
-  ] as const
-  for (const key of keys) {
-    if (process.env[key]?.trim()) return key
+export async function GET() {
+  const databaseConfigured = Boolean(getDatabaseUrl())
+  const jwtConfigured = Boolean(getJwtSecretRaw())
+  let database = databaseConfigured ? 'error' : 'error'
+  let bootstrapped = false
+
+  if (databaseConfigured) {
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      database = 'ok'
+      bootstrapped = (await prisma.user.count()) > 0
+    } catch {
+      database = 'error'
+    }
   }
+
+  const result = {
+    database: database as 'ok' | 'error',
+    jwt: jwtConfigured ? ('ok' as const) : ('error' as const),
+    bootstrapped,
+  }
+  const healthy = result.database === 'ok' && result.jwt === 'ok'
+  return NextResponse.json(result, { status: healthy ? 200 : 503 })
+}
   return null
 }
 

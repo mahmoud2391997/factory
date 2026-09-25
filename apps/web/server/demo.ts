@@ -1,19 +1,32 @@
-import { ensureDatabaseUrlEnv, resolveDatabaseUrl } from '@/server/db-url'
+import { randomUUID } from 'node:crypto'
 
 export const DEMO_USER_ID = 'demo-admin-user'
 export const DEMO_EMAIL = 'admin@factory.local'
-export const DEMO_PASSWORD = 'Admin123!'
 export const DEMO_FULL_NAME = 'مدير تجريبي'
-export const DEMO_JWT_SECRET = 'erp-demo-jwt-secret-change-me-in-production'
-export const DEMO_SETUP_TOKEN = 'demo-setup-token'
 
-function hasDatabaseUrl() {
-  return Boolean(ensureDatabaseUrlEnv() ?? resolveDatabaseUrl())
+let generatedDemoSecrets: { password: string; jwtSecret: string; setupToken: string } | null = null
+let demoSecretsLogged = false
+
+export function getDemoSecrets() {
+  if (!generatedDemoSecrets) {
+    generatedDemoSecrets = {
+      password: process.env.DEMO_PASSWORD?.trim() || randomUUID(),
+      jwtSecret: process.env.DEMO_JWT_SECRET?.trim() || randomUUID(),
+      setupToken: process.env.DEMO_SETUP_TOKEN?.trim() || process.env.SETUP_TOKEN?.trim() || randomUUID(),
+    }
+  }
+  if (!demoSecretsLogged) {
+    console.info('[erp] demo credentials generated; set DEMO_PASSWORD, DEMO_JWT_SECRET, and DEMO_SETUP_TOKEN to control them')
+    console.info(`[erp] demo password: ${generatedDemoSecrets.password}`)
+    console.info(`[erp] demo setup token: ${generatedDemoSecrets.setupToken}`)
+    demoSecretsLogged = true
+  }
+  return generatedDemoSecrets
 }
 
-/** True when no Postgres URL is configured — app runs with in-memory demo auth/data. */
+/** Demo mode is opt-in; missing production configuration never enables it. */
 export function isDemoMode() {
-  return !hasDatabaseUrl()
+  return process.env.APP_MODE?.trim().toLowerCase() === 'demo'
 }
 
 export const DEMO_PERMISSIONS = [

@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
+
+import { getDemoSecrets, isDemoMode } from '@/server/demo'
 
 import { planArchive } from '@/lib/erp/domain/archive'
 import { commitWithRetry, REVISION_CONFLICT } from '@/lib/erp/domain/commit'
@@ -19,6 +22,11 @@ import { writeFileArchive, writeRelationalArchive } from './archive-store'
 import { deliverPendingEmails } from './mailer'
 
 const DOC_ID = 'main'
+
+function randomRequiredPassword() {
+  return randomUUID()
+}
+
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 export type StorageKind = 'postgres' | 'file'
@@ -53,7 +61,9 @@ function enqueue<T>(job: () => Promise<T>): Promise<T> {
 }
 
 export async function createInitialState(passwordHash?: string) {
-  const hash = passwordHash && passwordHash.startsWith('$2') ? passwordHash : bcrypt.hashSync('Admin123!', BCRYPT_ROUNDS)
+  const hash = passwordHash && passwordHash.startsWith('$2')
+    ? passwordHash
+    : bcrypt.hashSync(isDemoMode() ? getDemoSecrets().password : randomRequiredPassword(), BCRYPT_ROUNDS)
   const state = buildSeedState(hash)
   for (const item of state.notifications) item.emailStatus = 'skipped'
   return state
@@ -118,6 +128,12 @@ async function writeFileState(state: ErpState) {
 
 async function databaseEnabled() {
   return Boolean(ensureDatabaseUrlEnv())
+}
+
+function assertStorageConfigured() {
+  if (!process.env.APP_MODE || process.env.APP_MODE.trim().toLowerCase() !== 'demo') {
+    throw new Error('SERVICE_NOT_CONFIGURED')
+  }
 }
 
 async function readPostgres(): Promise<ErpState | null> {
@@ -192,6 +208,7 @@ export async function loadState(): Promise<{ state: ErpState; storage: StorageKi
     return { state, storage: 'postgres' }
   }
 
+  assertStorageConfigured()
   const existing = await readFileState()
   if (existing) return { state: existing, storage: 'file' }
   const created = await createInitialState()
