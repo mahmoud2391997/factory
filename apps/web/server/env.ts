@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { isDemoMode } from '@/server/demo'
+import { getDemoSecrets, isDemoMode } from '@/server/demo'
 import { ensureDatabaseUrlEnv, resolveDatabaseUrl } from '@/server/db-url'
 
 export function getDatabaseUrl() {
@@ -8,7 +8,7 @@ export function getDatabaseUrl() {
 }
 
 export function getJwtSecretRaw() {
-  return process.env.JWT_SECRET?.trim() ?? ''
+  return process.env.JWT_SECRET?.trim() || (isDemoMode() ? getDemoSecrets().jwtSecret : '')
 }
 
 export function assertAuthEnv() {

@@ -24,9 +24,13 @@ export function getDemoSecrets() {
   return generatedDemoSecrets
 }
 
-/** Demo mode is opt-in; missing production configuration never enables it. */
+/** Demo mode works out of the box when no production configuration is present. */
 export function isDemoMode() {
-  return process.env.APP_MODE?.trim().toLowerCase() === 'demo'
+  const configuredMode = process.env.APP_MODE?.trim().toLowerCase()
+  if (configuredMode === 'demo') return true
+  if (configuredMode === 'production' || configuredMode === 'prod') return false
+
+  return true
 }
 
 export const DEMO_PERMISSIONS = [
