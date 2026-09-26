@@ -800,7 +800,13 @@ function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { 
     })
     if ('error' in issued && issued.error) return fail(issued.error)
     const unitCost = 'unitCost' in issued ? issued.unitCost : 0
-    const source = state.balances.find((row) => row.batchNo === line.batchNo.trim() && row.itemId === line.itemId)
+    const source = state.balances.find(
+      (row) =>
+        row.warehouse === input.from &&
+        row.itemType === line.itemType &&
+        row.batchNo === line.batchNo.trim() &&
+        row.itemId === line.itemId,
+    )
     const posted = upsertBalance(state, clock, {
       warehouse: input.to,
       itemType: line.itemType,
