@@ -16,7 +16,7 @@ export type RowAction<Row> = {
   run: (row: Row) => { type: 'edit' } | { type: 'delete' } | { type: 'setStatus'; status: string }
 }
 
-export type ModuleDefinition<Row extends { ref: string; status: string }> = {
+export type ModuleDefinition<Row extends { ref: string; status: string; detail: string; value: string; notes?: string; data?: Record<string, unknown> }> = {
   moduleTitle: string
   fields: FieldDef[]
   schema: z.ZodTypeAny

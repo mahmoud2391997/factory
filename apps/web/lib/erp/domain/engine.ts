@@ -806,7 +806,7 @@ function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { 
       itemId: line.itemId,
       batchNo: line.batchNo.trim(),
       qtyDelta: amount,
-      unitCost,
+      unitCost: unitCost ?? 0,
       expiryDate: source?.expiryDate ?? null,
       receivedAt: source?.receivedAt,
     })
@@ -819,7 +819,7 @@ function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { 
       itemId: line.itemId,
       batchNo: line.batchNo.trim(),
       qty: amount,
-      unitCost,
+      unitCost: unitCost ?? 0,
       prevQty: posted.prev,
       newQty: posted.next,
       refType: 'stockTransfer',
@@ -912,7 +912,7 @@ function decideAdjustment(state: ErpState, actor: Actor, input: Extract<Command,
       refId: adjustment.id,
     })
     if ('error' in issued && issued.error) return fail(issued.error)
-    const value = 'cost' in issued ? issued.cost : 0
+    const value = 'cost' in issued ? (issued.cost ?? 0) : 0
     postJournal(state, clock, `تعديل مخزون ${adjustment.number}`, 'stockAdjustment', adjustment.id, [
       { accountCode: '6300', debit: value, credit: 0 },
       { accountCode: account, debit: 0, credit: value },
@@ -1014,8 +1014,8 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     itemId: order.productId,
     batchNo: order.number,
     qty: outputQty,
-    unitCost,
-    prevQty: posted.prev,
+      unitCost: unitCost ?? 0,
+      prevQty: posted.prev,
     newQty: posted.next,
     refType: 'productionOrder',
     refId: order.id,

@@ -1,6 +1,8 @@
 import { almostEqual, money, qty } from './money'
 import type { ErpState, ItemType, SalesInvoice, WarehouseKey } from './types'
 
+type ReportState = Omit<ErpState, 'users'> & { users: Array<unknown> }
+
 const MUSCAT_OFFSET_MS = 4 * 60 * 60 * 1000
 const STALE_DAYS = 7
 
@@ -23,7 +25,7 @@ function balanceKey(warehouse: string, itemType: string, itemId: string, batchNo
 }
 
 /** Day 4 invariant: every balance equals the sum of its ledger movements, and each movement carries prev/new qty. */
-export function inventoryIntegrity(state: ErpState) {
+export function inventoryIntegrity(state: ReportState) {
   const issues: string[] = []
   const rebuilt = new Map<string, number>()
   for (const base of state.ledgerBaselines ?? []) {
@@ -70,11 +72,11 @@ export function inventoryIntegrity(state: ErpState) {
   return { ok: issues.length === 0, issues }
 }
 
-export function accountName(state: ErpState, code: string) {
+export function accountName(state: ReportState, code: string) {
   return state.accounts.find((account) => account.code === code)?.nameAr ?? code
 }
 
-export function trialBalance(state: ErpState) {
+export function trialBalance(state: ReportState) {
   const totals = new Map<string, { debit: number; credit: number }>()
   for (const account of state.accounts) totals.set(account.code, { debit: 0, credit: 0 })
   for (const opening of state.journalOpenings ?? []) {
@@ -108,7 +110,7 @@ export function trialBalance(state: ErpState) {
   return { rows, debit, credit, balanced: Math.abs(debit - credit) < 0.001 }
 }
 
-export function profitAndLoss(state: ErpState) {
+export function profitAndLoss(state: ReportState) {
   const tb = trialBalance(state)
   const revenue = money(
     tb.rows.filter((row) => row.type === 'REVENUE').reduce((sum, row) => sum + (row.credit - row.debit), 0),
@@ -119,7 +121,7 @@ export function profitAndLoss(state: ErpState) {
   return { revenue, expense, profit: money(revenue - expense), rows: tb.rows.filter((row) => row.type === 'REVENUE' || row.type === 'EXPENSE') }
 }
 
-export function vatReturn(state: ErpState, month?: string) {
+export function vatReturn(state: ReportState, month?: string) {
   const inMonth = (iso: string) => !month || iso.slice(0, 7) === month
   const output = money(
     state.invoices
@@ -149,7 +151,7 @@ export function vatReturn(state: ErpState, month?: string) {
   }
 }
 
-export function stockRows(state: ErpState) {
+export function stockRows(state: ReportState) {
   return state.balances
     .filter((row) => row.qty > 0)
     .map((row) => {
@@ -166,7 +168,7 @@ export function stockRows(state: ErpState) {
     .sort((a, b) => a.warehouse.localeCompare(b.warehouse) || a.nameAr.localeCompare(b.nameAr, 'ar'))
 }
 
-export function itemOnHand(state: ErpState, itemType: ItemType, itemId: string, warehouse?: WarehouseKey) {
+export function itemOnHand(state: ReportState, itemType: ItemType, itemId: string, warehouse?: WarehouseKey) {
   return qty(
     state.balances
       .filter((row) => row.itemType === itemType && row.itemId === itemId && (!warehouse || row.warehouse === warehouse))
@@ -224,7 +226,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
       id: material.id,
       nameAr: material.nameAr,
       unit: material.unit,
-      onHand: itemOnHand(state, 'MATERIAL', material.id),
+      onHand: itemOnHand(state as ReportState, 'MATERIAL', material.id),
       minQty: material.minQty,
     }))
     .filter((row) => row.onHand <= row.minQty)
@@ -234,7 +236,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
   const stagnant = state.materials
     .filter((material) => material.active)
     .map((material) => {
-      const onHand = itemOnHand(state, 'MATERIAL', material.id)
+      const onHand = itemOnHand(state as ReportState, 'MATERIAL', material.id)
       const moves = state.ledger.filter((entry) => entry.itemType === 'MATERIAL' && entry.itemId === material.id)
       const lastOut = moves.filter((entry) => outbound.has(entry.type)).sort((a, b) => (a.at < b.at ? 1 : -1))[0]
       const lastMove = moves.sort((a, b) => (a.at < b.at ? 1 : -1))[0]
@@ -313,7 +315,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
       marginPerTon: money(avgPricePerTon - costPerTon),
     },
     inventory: {
-      value: money(stockRows(state).reduce((sum, row) => sum + row.value, 0)),
+      value: money(stockRows(state as ReportState).reduce((sum, row) => sum + row.value, 0)),
       runningOut,
       stagnant,
       reserved,
@@ -329,7 +331,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
 }
 
 /** One raw material, from the dock to the sale: the nine questions the mill owner asked. */
-export function materialStatement(state: ErpState, materialId: string) {
+export function materialStatement(state: ReportState, materialId: string) {
   const material = state.materials.find((item) => item.id === materialId)
   if (!material) return null
   const movements = state.ledger.filter((entry) => entry.itemType === 'MATERIAL' && entry.itemId === materialId)
@@ -415,7 +417,7 @@ export function materialStatement(state: ErpState, materialId: string) {
   }
 }
 
-export function traceProduct(state: ErpState, productId: string) {
+export function traceProduct(state: ReportState, productId: string) {
   const product = state.products.find((item) => item.id === productId)
   const orders = state.productionOrders.filter((order) => order.productId === productId)
   const sales = state.invoices.filter((invoice) => invoice.lines.some((line) => line.productId === productId))

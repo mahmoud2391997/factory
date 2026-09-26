@@ -1,6 +1,6 @@
-import { applyCommand, type Clock } from './engine'
+import { applyCommand } from './engine'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
-import type { Actor, Command, ErpState } from './types'
+import type { Actor, Clock, Command, ErpState } from './types'
 import { SCHEMA_VERSION } from './types'
 
 const MUSCAT_OFFSET_MS = 4 * 60 * 60 * 1000
