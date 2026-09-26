@@ -121,8 +121,8 @@ export function toApiError(error: unknown) {
     status: 500,
     body: {
       success: false as const,
-      message: 'حدث خطأ غير متوقع أثناء المصادقة',
-      code: 'AUTH_INTERNAL_ERROR',
+      message: 'حدث خطأ غير متوقع في الخادم',
+      code: 'INTERNAL_ERROR',
     },
   }
 }
