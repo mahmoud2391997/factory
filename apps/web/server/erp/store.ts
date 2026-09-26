@@ -220,42 +220,10 @@ async function persist(state: ErpState, storage: StorageKind) {
   await writeFileState(state)
 }
 
-let seedInFlight: Promise<ErpState> | null = null
-
-async function createPostgresDocument() {
-  const created = await createInitialState()
-  created.revision = 1
-  try {
-    await prisma.erpDocument.create({
-      data: { id: DOC_ID, version: created.revision, payload: created },
-    })
-  } catch (error) {
-    // Concurrent cold starts / parallel login requests both try to seed once.
-    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code: unknown }).code) : ''
-    if (code === 'P2002') {
-      const raced = await readPostgres()
-      if (raced) return raced
-    }
-    throw error
-  }
-  await writeLocalCopy(created).catch((err) => console.error('[erp/backup]', err))
-  return created
-}
-
-async function ensurePostgresState() {
-  const existing = await readPostgres()
-  if (existing) return existing
-  if (!seedInFlight) {
-    seedInFlight = createPostgresDocument().finally(() => {
-      seedInFlight = null
-    })
-  }
-  return seedInFlight
-}
-
 export async function loadState(): Promise<{ state: ErpState; storage: StorageKind }> {
   if (await databaseEnabled()) {
-    const state = await ensurePostgresState()
+    const state = await readPostgres()
+    if (!state) throw new Error('ERP_NOT_BOOTSTRAPPED')
     return { state, storage: 'postgres' }
   }
 

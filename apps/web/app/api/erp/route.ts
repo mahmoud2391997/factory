@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSessionUser } from '@/server/auth/session'
 import { loadState, runCommand } from '@/server/erp/store'
 import { publicState } from '@/lib/erp/domain/engine'
+import { toApiError } from '@/server/env'
 
 export const runtime = 'nodejs'
 
@@ -26,10 +27,8 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error('[erp/get]', error)
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'تعذر قراءة البيانات' },
-      { status: 500 },
-    )
+    const mapped = toApiError(error)
+    return NextResponse.json(mapped.body, { status: mapped.status })
   }
 }
 
@@ -51,9 +50,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('[erp/post]', error)
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'تعذر تنفيذ العملية' },
-      { status: 500 },
-    )
+    const mapped = toApiError(error)
+    return NextResponse.json(mapped.body, { status: mapped.status })
   }
 }

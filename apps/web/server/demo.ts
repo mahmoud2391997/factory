@@ -16,9 +16,7 @@ export function getDemoSecrets() {
     }
   }
   if (!demoSecretsLogged) {
-    console.info('[erp] demo credentials generated; set DEMO_PASSWORD, DEMO_JWT_SECRET, and DEMO_SETUP_TOKEN to control them')
-    console.info(`[erp] demo password: ${generatedDemoSecrets.password}`)
-    console.info(`[erp] demo setup token: ${generatedDemoSecrets.setupToken}`)
+    console.info('[erp] demo mode active; set DEMO_PASSWORD, DEMO_JWT_SECRET, and DEMO_SETUP_TOKEN to override defaults')
     demoSecretsLogged = true
   }
   return generatedDemoSecrets
@@ -30,6 +28,16 @@ export function isDemoMode() {
   if (configuredMode === 'demo') return true
   if (configuredMode === 'production' || configuredMode === 'prod') return false
 
+  const hasDatabaseUrl = Boolean(
+    process.env.DATABASE_URL?.trim() ||
+      process.env.POSTGRES_PRISMA_URL?.trim() ||
+      process.env.PRISMA_DATABASE_URL?.trim() ||
+      process.env.POSTGRES_URL?.trim() ||
+      process.env.POSTGRES_URL_NON_POOLING?.trim() ||
+      process.env.DATABASE_URL_UNPOOLED?.trim(),
+  )
+  if (hasDatabaseUrl) return false
+  if (process.env.NODE_ENV === 'production') return false
   return true
 }
 

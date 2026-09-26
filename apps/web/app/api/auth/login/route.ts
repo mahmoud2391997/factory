@@ -72,6 +72,16 @@ export async function POST(req: NextRequest) {
       }
     } catch (error) {
       console.error('[auth/login] loadState', error)
+      const message = error instanceof Error ? error.message : String(error)
+      if (
+        message.includes('ERP_NOT_BOOTSTRAPPED') ||
+        message.includes('ERP_STATE_INVALID') ||
+        message.includes('SCHEMA_MISSING') ||
+        message.includes('DATABASE_UNAVAILABLE')
+      ) {
+        const mapped = toApiError(error)
+        return NextResponse.json(mapped.body, { status: mapped.status })
+      }
     }
 
     if (isDemoMode()) {

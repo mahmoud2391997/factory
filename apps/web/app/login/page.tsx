@@ -14,7 +14,6 @@ type HealthData = {
   jwtConfigured: boolean
   databaseReachable: boolean
   bootstrapped: boolean
-  userCount: number | null
   databaseError: string | null
   demoCredentials?: { email: string; password: string } | null
 }
@@ -122,7 +121,7 @@ export default function LoginPage() {
   const demoMode = Boolean(health?.demoMode)
   const setupBlocked =
     !demoMode && health
-      ? !health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable
+      ? !health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable || !health.bootstrapped
       : false
 
   return (
@@ -166,6 +165,11 @@ export default function LoginPage() {
                 إعداد السيرفر غير مكتمل
               </div>
               <div className="space-y-2">
+                <StatusRow
+                  ok={health.bootstrapped}
+                  label="تهيئة النظام"
+                  detail={health.bootstrapped ? 'مكتمل' : 'نفّذ /api/setup/bootstrap مرة واحدة (مع x-setup-token) لإنشاء أول مستخدم'}
+                />
                 <StatusRow
                   ok={health.databaseConfigured}
                   label="متغير قاعدة البيانات"

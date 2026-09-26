@@ -16,7 +16,7 @@ export async function GET() {
       : null
 
   let databaseReachable = false
-  let userCount: number | null = null
+  let bootstrapped: boolean | null = null
   let databaseError: string | null = null
 
   if (databaseConfigured) {
@@ -24,7 +24,8 @@ export async function GET() {
       const { prisma } = await import('@/server/db')
       await prisma.$queryRaw`SELECT 1`
       databaseReachable = true
-      userCount = await prisma.user.count()
+      const doc = await prisma.erpDocument.findUnique({ where: { id: 'main' }, select: { id: true } })
+      bootstrapped = Boolean(doc)
     } catch (error) {
       databaseError = error instanceof Error ? error.message.slice(0, 180) : 'database_error'
     }
@@ -42,8 +43,7 @@ export async function GET() {
         databaseEnvKey,
         jwtConfigured,
         databaseReachable,
-        bootstrapped: demoMode ? true : typeof userCount === 'number' ? userCount > 0 : false,
-        userCount: demoMode ? 1 : userCount,
+        bootstrapped: demoMode ? true : bootstrapped ?? false,
         databaseError,
         demoCredentials: demoMode
           ? { email: 'admin@factory.local', password: 'Admin123!' }
