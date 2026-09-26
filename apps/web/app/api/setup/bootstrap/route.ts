@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
+import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 import { emptyState } from '@/lib/erp/domain/seed'
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
     state.revision = 1
 
     await tx.erpDocument.create({
-      data: { id: DOC_ID, version: state.revision, payload: state },
+      data: { id: DOC_ID, version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
       select: { id: true },
     })
 

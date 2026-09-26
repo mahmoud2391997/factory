@@ -114,6 +114,7 @@ export function emptyState(passwordHash: string): ErpState {
     notifications: [],
     auditLogs: [],
     sequences: {},
+    idempotency: [],
   }
 }
 

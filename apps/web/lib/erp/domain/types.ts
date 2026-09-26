@@ -379,6 +379,14 @@ export type ErpState = {
   notifications: Notification[]
   auditLogs: AuditLog[]
   sequences: Record<string, number>
+  /** Server-side idempotency log for POST commands (bounded). */
+  idempotency?: Array<{
+    key: string
+    userId: string
+    action: string
+    at: string
+    message: string
+  }>
   /** Qty left behind after older ledger lines were copied to the archive. */
   ledgerBaselines?: Array<{ warehouse: WarehouseKey; itemType: ItemType; itemId: string; batchNo: string; qty: number }>
   /** Debit/credit totals of journal lines copied to the archive. */
@@ -440,3 +448,6 @@ export type CommandOk = {
 }
 
 export type CommandResult = CommandOk | { ok: false; error: string }
+
+export type PublicUser = Omit<AppUser, 'passwordHash'>
+export type PublicState = Omit<ErpState, 'users'> & { users: PublicUser[] }

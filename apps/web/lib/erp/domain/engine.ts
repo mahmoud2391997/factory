@@ -8,6 +8,7 @@ import type {
   Command,
   CommandResult,
   ErpState,
+  PublicState,
   ItemType,
   JournalLine,
   LedgerType,
@@ -1449,7 +1450,7 @@ function canAny(permissions: readonly string[], keys: readonly string[]) {
 }
 
 /** Strip secrets and collections the caller is not allowed to read. */
-export function publicState(state: ErpState, permissions: readonly string[]): ErpState {
+export function publicState(state: ErpState, permissions: readonly string[]): PublicState {
   const seeSalary = canAny(permissions, ['employees.read', 'employees.manage'])
   const seePayroll = canAny(permissions, ['payroll.manage', 'payroll.approve', 'payroll.pay'])
   const seeJournals = canAny(permissions, ['accounting.read', 'accounting.manage'])
@@ -1457,6 +1458,7 @@ export function publicState(state: ErpState, permissions: readonly string[]): Er
   const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
   return {
     ...state,
+    idempotency: [],
     users: state.users.map(({ passwordHash: _password, ...user }) => user),
     employees: seeSalary
       ? state.employees
@@ -1468,7 +1470,7 @@ export function publicState(state: ErpState, permissions: readonly string[]): Er
     journals: seeJournals ? state.journals : [],
     auditLogs: seeAudit ? state.auditLogs : [],
     attendance: seeAttendance ? state.attendance : [],
-  } as ErpState
+  }
 }
 
 export function actorFromUser(state: ErpState, userId: string): Actor | null {

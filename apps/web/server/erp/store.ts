@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
+import type { Prisma } from '@prisma/client'
 
 import { getDemoSecrets, isDemoMode } from '@/server/demo'
 
@@ -201,13 +202,13 @@ async function readPostgres(): Promise<ErpState | null> {
 async function writePostgres(state: ErpState, expectedRevision: number) {
   const updated = await prisma.erpDocument.updateMany({
     where: { id: DOC_ID, version: expectedRevision },
-    data: { version: state.revision, payload: state },
+    data: { version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
   })
   if (updated.count > 0) return
   const existing = await prisma.erpDocument.findUnique({ where: { id: DOC_ID } })
   if (!existing) {
     await prisma.erpDocument.create({
-      data: { id: DOC_ID, version: state.revision, payload: state },
+      data: { id: DOC_ID, version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
     })
     return
   }
@@ -274,7 +275,13 @@ export async function revokeUserTokens(userId: string) {
   })
 }
 
-export async function runCommand(userId: string, action: string, input: Record<string, unknown>) {
+export async function runCommand(
+  userId: string,
+  action: string,
+  input: Record<string, unknown>,
+  options?: { idempotencyKey?: string },
+) {
+  const idempotencyKey = options?.idempotencyKey?.trim() ?? ''
   return enqueue(async () => {
     let prepared = { action, input } as Command
     if (action === 'setUserPassword') {
@@ -290,6 +297,22 @@ export async function runCommand(userId: string, action: string, input: Record<s
       const loaded = await loadState()
       const actor = actorFromUser(loaded.state, userId)
       if (!actor) return { ok: false as const, error: 'المستخدم غير موجود' }
+
+      if (idempotencyKey) {
+        const existing = loaded.state.idempotency?.find((row) => row.key === idempotencyKey)
+        if (existing) {
+          if (existing.userId === userId && existing.action === action) {
+            return {
+              ok: true as const,
+              state: publicState(loaded.state, actor.permissions),
+              message: existing.message,
+              extra: null,
+              storage: loaded.storage,
+            }
+          }
+          return { ok: false as const, error: 'مفتاح التكرار مستخدم لعملية أخرى' }
+        }
+      }
 
       if (action === 'resetDemo') {
         if (!actor.permissions.includes('settings.update')) return { ok: false as const, error: 'ليست لديك صلاحية لهذا الإجراء' }
@@ -322,6 +345,18 @@ export async function runCommand(userId: string, action: string, input: Record<s
 
       const result = applyCommand(loaded.state, actor, command)
       if (!result.ok) return { ok: false as const, error: result.error }
+      if (idempotencyKey) {
+        const list = result.state.idempotency ?? []
+        list.unshift({
+          key: idempotencyKey,
+          userId,
+          action,
+          at: new Date().toISOString(),
+          message: result.message,
+        })
+        if (list.length > 500) list.length = 500
+        result.state.idempotency = list
+      }
       await persist(result.state, loaded.storage)
       const saved = await persistEmailFlags(result.state, loaded.storage)
       return {

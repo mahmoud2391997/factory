@@ -35,13 +35,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
-  const body = (await req.json().catch(() => null)) as { action?: string; input?: Record<string, unknown> } | null
+  const body = (await req.json().catch(() => null)) as {
+    action?: string
+    input?: Record<string, unknown>
+    idempotencyKey?: string
+  } | null
   if (!body?.action) return NextResponse.json({ success: false, message: 'الإجراء مطلوب' }, { status: 400 })
   if (!ALLOWED_ACTIONS.has(body.action)) {
     return NextResponse.json({ success: false, message: 'إجراء غير معروف' }, { status: 400 })
   }
   try {
-    const result = await runCommand(user.id, body.action, body.input ?? {})
+    const result = await runCommand(user.id, body.action, body.input ?? {}, { idempotencyKey: body.idempotencyKey })
     if (!result.ok) return NextResponse.json({ success: false, message: result.error }, { status: 400 })
     return NextResponse.json({
       success: true,
