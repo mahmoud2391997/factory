@@ -2,7 +2,6 @@ import type { NextRequest } from 'next/server'
 
 import { ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import { getAccessTokenFromRequest, verifyAccessToken } from '@/server/auth/jwt'
-import { isDemoMode } from '@/server/demo'
 import { loadState } from '@/server/erp/store'
 
 export type SessionUser = {
@@ -33,57 +32,7 @@ export async function getSessionUserById(userId: string): Promise<SessionUser | 
   } catch (error) {
     console.error('[session/erp]', error)
   }
-
-  if (isDemoMode()) {
-    return null
-  }
-
-  const { prisma } = await import('@/server/db')
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      isActive: true,
-      roles: {
-        select: {
-          role: {
-            select: {
-              key: true,
-              nameAr: true,
-              permissions: {
-                select: {
-                  permission: { select: { key: true } },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-
-  if (!user || !user.isActive) return null
-
-  const roles = user.roles.map((entry) => ({
-    key: entry.role.key,
-    nameAr: entry.role.nameAr,
-  }))
-
-  const permissions = Array.from(
-    new Set(user.roles.flatMap((entry) => entry.role.permissions.map((rp) => rp.permission.key))),
-  ).sort()
-
-  return {
-    id: user.id,
-    email: user.email,
-    fullName: user.fullName,
-    isActive: user.isActive,
-    roles,
-    permissions,
-    mustChangePassword: false,
-  }
+  return null
 }
 
 export async function getSessionUser(req: NextRequest): Promise<SessionUser | null> {
@@ -92,6 +41,25 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
 
   const payload = await verifyAccessToken(token)
   if (!payload?.sub) return null
+  const ver = typeof payload.ver === 'number' ? payload.ver : 1
 
-  return getSessionUserById(payload.sub)
+  try {
+    const loaded = await loadState()
+    const erpUser = loaded.state.users.find((item) => item.id === payload.sub && item.active)
+    if (!erpUser) return null
+    const expected = erpUser.tokenVersion ?? 1
+    if (expected !== ver) return null
+    return {
+      id: erpUser.id,
+      email: erpUser.email,
+      fullName: erpUser.fullName,
+      isActive: true,
+      roles: [{ key: erpUser.role, nameAr: ROLE_LABELS[erpUser.role] }],
+      permissions: [...loaded.state.rolePermissions[erpUser.role]],
+      mustChangePassword: Boolean(erpUser.mustChangePassword),
+    }
+  } catch (error) {
+    console.error('[session/erp]', error)
+    return null
+  }
 }

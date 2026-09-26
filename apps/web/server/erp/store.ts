@@ -99,7 +99,7 @@ function normalizeDemoUsers(state: ErpState) {
     const key = seed.email.toLowerCase()
     let user = byEmail.get(key)
     if (!user) {
-      user = { ...seed, passwordHash: demoHash, active: true, mustChangePassword: false }
+      user = { ...seed, passwordHash: demoHash, active: true, mustChangePassword: false, tokenVersion: 1 }
       state.users.unshift(user)
       byEmail.set(key, user)
       changed = true
@@ -113,6 +113,11 @@ function normalizeDemoUsers(state: ErpState) {
 
     if (user.mustChangePassword) {
       user.mustChangePassword = false
+      changed = true
+    }
+
+    if (!user.tokenVersion) {
+      user.tokenVersion = 1
       changed = true
     }
 
@@ -255,6 +260,18 @@ async function persistEmailFlags(state: ErpState, storage: StorageKind) {
     }
   }
   return current
+}
+
+export async function revokeUserTokens(userId: string) {
+  return enqueue(async () => {
+    return commitWithRetry(async () => {
+      const loaded = await loadState()
+      const user = loaded.state.users.find((item) => item.id === userId && item.active)
+      if (!user) return
+      user.tokenVersion = (user.tokenVersion ?? 1) + 1
+      await persist(loaded.state, loaded.storage)
+    })
+  })
 }
 
 export async function runCommand(userId: string, action: string, input: Record<string, unknown>) {

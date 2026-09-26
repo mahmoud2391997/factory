@@ -31,6 +31,8 @@ export type AppUser = {
   active: boolean
   /** When true, the session may only change this user's own password. */
   mustChangePassword?: boolean
+  /** Bumped to revoke previously issued JWT cookies. */
+  tokenVersion?: number
 }
 
 export type Account = {

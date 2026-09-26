@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
         passwordHash,
         active: true,
         mustChangePassword: true,
+        tokenVersion: 1,
       },
     ]
     state.company.notifyEmail = email
