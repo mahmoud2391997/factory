@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { isDemoMode } from '@/server/demo'
+import { getDatabaseUrl, getJwtSecretRaw } from '@/server/env'
 
 export const runtime = 'nodejs'
 
