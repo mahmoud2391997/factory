@@ -62,10 +62,10 @@ export function emptyState(passwordHash: string): ErpState {
       OPERATIONS: [...DEFAULT_ROLE_PERMISSIONS.OPERATIONS],
     },
     users: [
-      { id: 'user-gm', email: 'gm@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true },
-      { id: 'user-admin', email: 'admin@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, mustChangePassword: false },
-      { id: 'user-acc', email: 'accounts@factory.local', fullName: 'نورة العامرية', role: 'ACCOUNTANT', passwordHash, active: true },
-      { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS', passwordHash, active: true },
+      { id: 'user-gm', email: 'gm@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-admin', email: 'admin@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, mustChangePassword: false, tokenVersion: 1 },
+      { id: 'user-acc', email: 'accounts@factory.local', fullName: 'نورة العامرية', role: 'ACCOUNTANT', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS', passwordHash, active: true, tokenVersion: 1 },
     ],
     accounts: [
       { code: '1100', nameAr: 'مخزون مواد خام', type: 'ASSET' },
@@ -114,6 +114,7 @@ export function emptyState(passwordHash: string): ErpState {
     notifications: [],
     auditLogs: [],
     sequences: {},
+    idempotency: [],
   }
 }
 

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSessionUser } from '@/server/auth/session'
 import { loadState, runCommand } from '@/server/erp/store'
 import { publicState } from '@/lib/erp/domain/engine'
+import { toApiError } from '@/server/env'
 
 export const runtime = 'nodejs'
 
@@ -26,23 +27,25 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error('[erp/get]', error)
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'تعذر قراءة البيانات' },
-      { status: 500 },
-    )
+    const mapped = toApiError(error)
+    return NextResponse.json(mapped.body, { status: mapped.status })
   }
 }
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
-  const body = (await req.json().catch(() => null)) as { action?: string; input?: Record<string, unknown> } | null
+  const body = (await req.json().catch(() => null)) as {
+    action?: string
+    input?: Record<string, unknown>
+    idempotencyKey?: string
+  } | null
   if (!body?.action) return NextResponse.json({ success: false, message: 'الإجراء مطلوب' }, { status: 400 })
   if (!ALLOWED_ACTIONS.has(body.action)) {
     return NextResponse.json({ success: false, message: 'إجراء غير معروف' }, { status: 400 })
   }
   try {
-    const result = await runCommand(user.id, body.action, body.input ?? {})
+    const result = await runCommand(user.id, body.action, body.input ?? {}, { idempotencyKey: body.idempotencyKey })
     if (!result.ok) return NextResponse.json({ success: false, message: result.error }, { status: 400 })
     return NextResponse.json({
       success: true,
@@ -51,9 +54,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error('[erp/post]', error)
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'تعذر تنفيذ العملية' },
-      { status: 500 },
-    )
+    const mapped = toApiError(error)
+    return NextResponse.json(mapped.body, { status: mapped.status })
   }
 }

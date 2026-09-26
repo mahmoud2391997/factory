@@ -1,117 +1,21 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
+import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
+import { emptyState } from '@/lib/erp/domain/seed'
 import { prisma } from '@/server/db'
 
 export const runtime = 'nodejs'
+
+const DOC_ID = 'main'
 
 const bodySchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صحيح'),
   password: z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
   fullName: z.string().min(2, 'الاسم مطلوب'),
 })
-
-const PERMISSIONS = [
-  { key: 'users.read', nameAr: 'عرض المستخدمين' },
-  { key: 'users.manage', nameAr: 'إدارة المستخدمين' },
-  { key: 'roles.read', nameAr: 'عرض الأدوار' },
-  { key: 'roles.manage', nameAr: 'إدارة الأدوار والصلاحيات' },
-  { key: 'settings.read', nameAr: 'عرض الإعدادات' },
-  { key: 'settings.update', nameAr: 'تعديل الإعدادات' },
-  { key: 'warehouses.read', nameAr: 'عرض المستودعات' },
-  { key: 'warehouses.manage', nameAr: 'إدارة المستودعات' },
-  { key: 'inventory.read', nameAr: 'عرض المخزون' },
-  { key: 'inventory.adjust', nameAr: 'تعديل المخزون' },
-  { key: 'inventory.transfer.create', nameAr: 'إنشاء تحويل مخزون' },
-  { key: 'inventory.ledger.read', nameAr: 'عرض دفتر المخزون' },
-  { key: 'purchasing.read', nameAr: 'عرض المشتريات' },
-  { key: 'purchasing.po.create', nameAr: 'إنشاء أمر شراء' },
-  { key: 'purchasing.gr.create', nameAr: 'إنشاء استلام بضاعة' },
-  { key: 'production.read', nameAr: 'عرض التصنيع' },
-  { key: 'production.create', nameAr: 'إنشاء أمر إنتاج' },
-  { key: 'production.complete', nameAr: 'إكمال أوامر الإنتاج' },
-  { key: 'sales.read', nameAr: 'عرض المبيعات' },
-  { key: 'sales.create', nameAr: 'إنشاء مبيعات' },
-  { key: 'sales.confirm', nameAr: 'تأكيد المبيعات' },
-  { key: 'accounting.read', nameAr: 'عرض الحسابات' },
-  { key: 'accounting.manage', nameAr: 'إدارة الحسابات' },
-  { key: 'tax.read', nameAr: 'عرض الضرائب' },
-  { key: 'tax.manage', nameAr: 'إدارة الضرائب' },
-  { key: 'employees.read', nameAr: 'عرض الموظفين' },
-  { key: 'employees.manage', nameAr: 'إدارة الموظفين' },
-  { key: 'attendance.read', nameAr: 'عرض الحضور' },
-  { key: 'attendance.manage', nameAr: 'إدارة الحضور' },
-  { key: 'overtime.read', nameAr: 'عرض الإضافي' },
-  { key: 'overtime.manage', nameAr: 'إدارة الإضافي' },
-  { key: 'reports.read', nameAr: 'عرض التقارير' },
-  { key: 'audit.read', nameAr: 'عرض سجل العمليات' },
-  { key: 'notifications.read', nameAr: 'عرض الإشعارات' },
-] as const
-
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  SUPER_ADMIN: PERMISSIONS.map((p) => p.key),
-  MANAGEMENT: [
-    'users.read',
-    'roles.read',
-    'settings.read',
-    'warehouses.read',
-    'inventory.read',
-    'inventory.ledger.read',
-    'purchasing.read',
-    'production.read',
-    'sales.read',
-    'accounting.read',
-    'tax.read',
-    'employees.read',
-    'attendance.read',
-    'overtime.read',
-    'reports.read',
-    'audit.read',
-    'notifications.read',
-  ],
-  WAREHOUSE: [
-    'warehouses.read',
-    'inventory.read',
-    'inventory.transfer.create',
-    'inventory.ledger.read',
-    'purchasing.read',
-    'purchasing.gr.create',
-    'notifications.read',
-    'audit.read',
-  ],
-  PRODUCTION: [
-    'warehouses.read',
-    'inventory.read',
-    'production.read',
-    'production.create',
-    'production.complete',
-    'notifications.read',
-    'audit.read',
-  ],
-  ACCOUNTANT: [
-    'inventory.read',
-    'purchasing.read',
-    'sales.read',
-    'accounting.read',
-    'accounting.manage',
-    'tax.read',
-    'tax.manage',
-    'reports.read',
-    'audit.read',
-  ],
-  HR: [
-    'employees.read',
-    'employees.manage',
-    'attendance.read',
-    'attendance.manage',
-    'overtime.read',
-    'overtime.manage',
-    'notifications.read',
-  ],
-  SALES: ['sales.read', 'sales.create', 'sales.confirm', 'purchasing.read', 'inventory.read', 'notifications.read'],
-}
 
 function assertSetupAllowed(req: NextRequest) {
   const expected = process.env.SETUP_TOKEN
@@ -164,72 +68,74 @@ export async function POST(req: NextRequest) {
         taxRatePct: '5.00',
         taxInclusivePricing: false,
       },
+      select: { id: true },
     })
 
-    const permissions = await Promise.all(
-      PERMISSIONS.map((p) =>
-        tx.permission.create({
-          data: { key: p.key, nameAr: p.nameAr },
-        }),
-      ),
-    )
-    const permissionByKey = Object.fromEntries(permissions.map((p) => [p.key, p]))
+    const whRaw = await tx.warehouse.upsert({
+      where: { key: 'WH_RAW' },
+      update: { isActive: true, nameAr: 'مستودع المواد الخام' },
+      create: { key: 'WH_RAW', nameAr: 'مستودع المواد الخام' },
+      select: { id: true, key: true, nameAr: true },
+    })
+    const whMfg = await tx.warehouse.upsert({
+      where: { key: 'WH_MFG' },
+      update: { isActive: true, nameAr: 'مستودع التصنيع' },
+      create: { key: 'WH_MFG', nameAr: 'مستودع التصنيع' },
+      select: { id: true, key: true, nameAr: true },
+    })
+    const whFg = await tx.warehouse.upsert({
+      where: { key: 'WH_FG' },
+      update: { isActive: true, nameAr: 'مستودع المنتجات النهائية' },
+      create: { key: 'WH_FG', nameAr: 'مستودع المنتجات النهائية' },
+      select: { id: true, key: true, nameAr: true },
+    })
 
-    const roles = await Promise.all([
-      tx.role.create({ data: { key: 'SUPER_ADMIN', nameAr: 'مدير النظام (Super Admin)' } }),
-      tx.role.create({ data: { key: 'MANAGEMENT', nameAr: 'الإدارة' } }),
-      tx.role.create({ data: { key: 'WAREHOUSE', nameAr: 'موظف مستودع' } }),
-      tx.role.create({ data: { key: 'PRODUCTION', nameAr: 'موظف إنتاج' } }),
-      tx.role.create({ data: { key: 'ACCOUNTANT', nameAr: 'محاسب' } }),
-      tx.role.create({ data: { key: 'HR', nameAr: 'الموارد البشرية' } }),
-      tx.role.create({ data: { key: 'SALES', nameAr: 'مبيعات' } }),
-    ])
+    await tx.warehouseLocation.upsert({
+      where: { warehouseId_code: { warehouseId: whRaw.id, code: 'A1' } },
+      update: { isActive: true, nameAr: 'منطقة A1' },
+      create: { warehouseId: whRaw.id, code: 'A1', nameAr: 'منطقة A1' },
+      select: { id: true },
+    })
+    await tx.warehouseLocation.upsert({
+      where: { warehouseId_code: { warehouseId: whMfg.id, code: 'M1' } },
+      update: { isActive: true, nameAr: 'منطقة M1' },
+      create: { warehouseId: whMfg.id, code: 'M1', nameAr: 'منطقة M1' },
+      select: { id: true },
+    })
+    await tx.warehouseLocation.upsert({
+      where: { warehouseId_code: { warehouseId: whFg.id, code: 'F1' } },
+      update: { isActive: true, nameAr: 'منطقة F1' },
+      create: { warehouseId: whFg.id, code: 'F1', nameAr: 'منطقة F1' },
+      select: { id: true },
+    })
 
-    for (const role of roles) {
-      const keys = ROLE_PERMISSIONS[role.key] ?? []
-      await Promise.all(
-        keys.map((key) => {
-          const permission = permissionByKey[key]
-          if (!permission) return Promise.resolve()
-          return tx.rolePermission.create({
-            data: { roleId: role.id, permissionId: permission.id },
-          })
-        }),
-      )
-    }
-
-    const superAdminRole = roles.find((r) => r.key === 'SUPER_ADMIN')
-    if (!superAdminRole) throw new Error('SUPER_ADMIN role missing')
-
-    const whRaw = await tx.warehouse.create({ data: { key: 'WH_RAW', nameAr: 'مستودع المواد الخام' } })
-    const whMfg = await tx.warehouse.create({ data: { key: 'WH_MFG', nameAr: 'مستودع التصنيع' } })
-    const whFg = await tx.warehouse.create({ data: { key: 'WH_FG', nameAr: 'مستودع المنتجات النهائية' } })
-
-    await Promise.all([
-      tx.warehouseLocation.create({ data: { warehouseId: whRaw.id, code: 'A1', nameAr: 'منطقة A1' } }),
-      tx.warehouseLocation.create({ data: { warehouseId: whMfg.id, code: 'M1', nameAr: 'منطقة M1' } }),
-      tx.warehouseLocation.create({ data: { warehouseId: whFg.id, code: 'F1', nameAr: 'منطقة F1' } }),
-    ])
-
-    const user = await tx.user.create({
-      data: {
+    const state = emptyState(passwordHash)
+    state.users = [
+      {
+        id: 'user-admin',
         email,
         fullName: parsed.data.fullName.trim(),
+        role: 'GM',
         passwordHash,
-        isActive: true,
-        roles: { create: [{ roleId: superAdminRole.id }] },
+        active: true,
+        mustChangePassword: true,
+        tokenVersion: 1,
       },
-      select: { id: true, email: true, fullName: true },
+    ]
+    state.company.notifyEmail = email
+    state.revision = 1
+
+    await tx.erpDocument.create({
+      data: { id: DOC_ID, version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
+      select: { id: true },
     })
 
     return {
       settingsId: settings.id,
-      user,
+      user: { email, fullName: parsed.data.fullName.trim() },
       warehouses: [whRaw, whMfg, whFg].map((w) => ({ key: w.key, nameAr: w.nameAr })),
-      permissionsCount: permissions.length,
-      rolesCount: roles.length,
     }
   })
 
-  return NextResponse.json({ success: true, data: result, message: 'تمت تهيئة النظام بنجاح' })
+  return NextResponse.json({ success: true, data: result, message: 'تمت تهيئة النظام بنجاح. سجّل الدخول ثم غيّر كلمة المرور.' })
 }

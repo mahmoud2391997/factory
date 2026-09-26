@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
       const erpUser = loaded.state.users.find((item) => item.email.toLowerCase() === email && item.active)
       if (erpUser && (await bcrypt.compare(password, erpUser.passwordHash))) {
         recordLoginSuccess(email, ip)
-        const accessToken = await issueAccessToken({ sub: erpUser.id })
-        const refreshToken = await issueRefreshToken({ sub: erpUser.id })
+        const ver = erpUser.tokenVersion ?? 1
+        const accessToken = await issueAccessToken({ sub: erpUser.id, ver })
+        const refreshToken = await issueRefreshToken({ sub: erpUser.id, ver })
         const sessionUser = await getSessionUserById(erpUser.id)
         const res = NextResponse.json({
           success: true,
@@ -72,6 +73,16 @@ export async function POST(req: NextRequest) {
       }
     } catch (error) {
       console.error('[auth/login] loadState', error)
+      const message = error instanceof Error ? error.message : String(error)
+      if (
+        message.includes('ERP_NOT_BOOTSTRAPPED') ||
+        message.includes('ERP_STATE_INVALID') ||
+        message.includes('SCHEMA_MISSING') ||
+        message.includes('DATABASE_UNAVAILABLE')
+      ) {
+        const mapped = toApiError(error)
+        return NextResponse.json(mapped.body, { status: mapped.status })
+      }
     }
 
     if (isDemoMode()) {
@@ -86,43 +97,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { prisma } = await import('@/server/db')
-    const user = await prisma.user.findUnique({ where: { email } })
-    if (!user || !user.isActive) {
-      recordLoginFailure(email, ip)
-      return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
-    }
-
-    const ok = await bcrypt.compare(password, user.passwordHash)
-    if (!ok) {
-      recordLoginFailure(email, ip)
-      return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
-    }
-    recordLoginSuccess(email, ip)
-
-    const accessToken = await issueAccessToken({ sub: user.id })
-    const refreshToken = await issueRefreshToken({ sub: user.id })
-    const sessionUser = await getSessionUserById(user.id)
-
-    const res = NextResponse.json({
-      success: true,
-      data: {
-        user: sessionUser ?? {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          isActive: user.isActive,
-          roles: [],
-          permissions: [],
-          mustChangePassword: false,
-        },
-        demoMode: false,
-        storage,
-      },
-      message: 'تم تسجيل الدخول بنجاح',
-    })
-    setAuthCookies(res, { accessToken, refreshToken })
-    return res
+    recordLoginFailure(email, ip)
+    return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
   } catch (error) {
     console.error('[auth/login]', error)
     const mapped = toApiError(error)

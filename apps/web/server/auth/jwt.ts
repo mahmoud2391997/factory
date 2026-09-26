@@ -23,9 +23,9 @@ function cookieOptions() {
   }
 }
 
-export async function issueAccessToken(payload: { sub: string }) {
+export async function issueAccessToken(payload: { sub: string; ver?: number }) {
   const exp = process.env.ACCESS_TOKEN_TTL_SECONDS ? Number(process.env.ACCESS_TOKEN_TTL_SECONDS) : 15 * 60
-  return new SignJWT({})
+  return new SignJWT({ ver: payload.ver ?? 1 })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.sub)
     .setIssuedAt()
@@ -33,9 +33,9 @@ export async function issueAccessToken(payload: { sub: string }) {
     .sign(getJwtSecret())
 }
 
-export async function issueRefreshToken(payload: { sub: string }) {
+export async function issueRefreshToken(payload: { sub: string; ver?: number }) {
   const exp = process.env.REFRESH_TOKEN_TTL_SECONDS ? Number(process.env.REFRESH_TOKEN_TTL_SECONDS) : 30 * 24 * 60 * 60
-  return new SignJWT({})
+  return new SignJWT({ ver: payload.ver ?? 1 })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.sub)
     .setIssuedAt()

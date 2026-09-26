@@ -45,11 +45,13 @@ export function useErp(enabled: boolean) {
       setPending(true)
       setMessage('')
       try {
+        const idempotencyKey =
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
         const response = await fetch('/api/erp', {
           method: 'POST',
           credentials: 'include',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ action, input: input ?? {} }),
+          body: JSON.stringify({ action, input: input ?? {}, idempotencyKey }),
         })
         const json = (await response.json()) as {
           success: boolean

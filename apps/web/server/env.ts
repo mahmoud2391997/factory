@@ -95,6 +95,17 @@ export function toApiError(error: unknown) {
     }
   }
 
+  if (message.includes('ERP_NOT_BOOTSTRAPPED')) {
+    return {
+      status: 503,
+      body: {
+        success: false as const,
+        message: 'النظام غير مهيأ بعد. شغّل ترحيلات قاعدة البيانات ثم نفّذ /api/setup/bootstrap مرة واحدة باستخدام SETUP_TOKEN.',
+        code: 'ERP_NOT_BOOTSTRAPPED',
+      },
+    }
+  }
+
   if (message.includes('P2002') || message.includes('Unique constraint')) {
     return {
       status: 503,
@@ -110,8 +121,8 @@ export function toApiError(error: unknown) {
     status: 500,
     body: {
       success: false as const,
-      message: 'حدث خطأ غير متوقع أثناء المصادقة',
-      code: 'AUTH_INTERNAL_ERROR',
+      message: 'حدث خطأ غير متوقع في الخادم',
+      code: 'INTERNAL_ERROR',
     },
   }
 }

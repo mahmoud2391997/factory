@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
+import type { Prisma } from '@prisma/client'
 
 import { getDemoSecrets, isDemoMode } from '@/server/demo'
 
@@ -99,7 +100,7 @@ function normalizeDemoUsers(state: ErpState) {
     const key = seed.email.toLowerCase()
     let user = byEmail.get(key)
     if (!user) {
-      user = { ...seed, passwordHash: demoHash, active: true, mustChangePassword: false }
+      user = { ...seed, passwordHash: demoHash, active: true, mustChangePassword: false, tokenVersion: 1 }
       state.users.unshift(user)
       byEmail.set(key, user)
       changed = true
@@ -113,6 +114,11 @@ function normalizeDemoUsers(state: ErpState) {
 
     if (user.mustChangePassword) {
       user.mustChangePassword = false
+      changed = true
+    }
+
+    if (!user.tokenVersion) {
+      user.tokenVersion = 1
       changed = true
     }
 
@@ -196,13 +202,13 @@ async function readPostgres(): Promise<ErpState | null> {
 async function writePostgres(state: ErpState, expectedRevision: number) {
   const updated = await prisma.erpDocument.updateMany({
     where: { id: DOC_ID, version: expectedRevision },
-    data: { version: state.revision, payload: state },
+    data: { version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
   })
   if (updated.count > 0) return
   const existing = await prisma.erpDocument.findUnique({ where: { id: DOC_ID } })
   if (!existing) {
     await prisma.erpDocument.create({
-      data: { id: DOC_ID, version: state.revision, payload: state },
+      data: { id: DOC_ID, version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
     })
     return
   }
@@ -220,42 +226,10 @@ async function persist(state: ErpState, storage: StorageKind) {
   await writeFileState(state)
 }
 
-let seedInFlight: Promise<ErpState> | null = null
-
-async function createPostgresDocument() {
-  const created = await createInitialState()
-  created.revision = 1
-  try {
-    await prisma.erpDocument.create({
-      data: { id: DOC_ID, version: created.revision, payload: created },
-    })
-  } catch (error) {
-    // Concurrent cold starts / parallel login requests both try to seed once.
-    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code: unknown }).code) : ''
-    if (code === 'P2002') {
-      const raced = await readPostgres()
-      if (raced) return raced
-    }
-    throw error
-  }
-  await writeLocalCopy(created).catch((err) => console.error('[erp/backup]', err))
-  return created
-}
-
-async function ensurePostgresState() {
-  const existing = await readPostgres()
-  if (existing) return existing
-  if (!seedInFlight) {
-    seedInFlight = createPostgresDocument().finally(() => {
-      seedInFlight = null
-    })
-  }
-  return seedInFlight
-}
-
 export async function loadState(): Promise<{ state: ErpState; storage: StorageKind }> {
   if (await databaseEnabled()) {
-    const state = await ensurePostgresState()
+    const state = await readPostgres()
+    if (!state) throw new Error('ERP_NOT_BOOTSTRAPPED')
     return { state, storage: 'postgres' }
   }
 
@@ -289,7 +263,25 @@ async function persistEmailFlags(state: ErpState, storage: StorageKind) {
   return current
 }
 
-export async function runCommand(userId: string, action: string, input: Record<string, unknown>) {
+export async function revokeUserTokens(userId: string) {
+  return enqueue(async () => {
+    return commitWithRetry(async () => {
+      const loaded = await loadState()
+      const user = loaded.state.users.find((item) => item.id === userId && item.active)
+      if (!user) return
+      user.tokenVersion = (user.tokenVersion ?? 1) + 1
+      await persist(loaded.state, loaded.storage)
+    })
+  })
+}
+
+export async function runCommand(
+  userId: string,
+  action: string,
+  input: Record<string, unknown>,
+  options?: { idempotencyKey?: string },
+) {
+  const idempotencyKey = options?.idempotencyKey?.trim() ?? ''
   return enqueue(async () => {
     let prepared = { action, input } as Command
     if (action === 'setUserPassword') {
@@ -305,6 +297,22 @@ export async function runCommand(userId: string, action: string, input: Record<s
       const loaded = await loadState()
       const actor = actorFromUser(loaded.state, userId)
       if (!actor) return { ok: false as const, error: 'المستخدم غير موجود' }
+
+      if (idempotencyKey) {
+        const existing = loaded.state.idempotency?.find((row) => row.key === idempotencyKey)
+        if (existing) {
+          if (existing.userId === userId && existing.action === action) {
+            return {
+              ok: true as const,
+              state: publicState(loaded.state, actor.permissions),
+              message: existing.message,
+              extra: null,
+              storage: loaded.storage,
+            }
+          }
+          return { ok: false as const, error: 'مفتاح التكرار مستخدم لعملية أخرى' }
+        }
+      }
 
       if (action === 'resetDemo') {
         if (!actor.permissions.includes('settings.update')) return { ok: false as const, error: 'ليست لديك صلاحية لهذا الإجراء' }
@@ -337,6 +345,18 @@ export async function runCommand(userId: string, action: string, input: Record<s
 
       const result = applyCommand(loaded.state, actor, command)
       if (!result.ok) return { ok: false as const, error: result.error }
+      if (idempotencyKey) {
+        const list = result.state.idempotency ?? []
+        list.unshift({
+          key: idempotencyKey,
+          userId,
+          action,
+          at: new Date().toISOString(),
+          message: result.message,
+        })
+        if (list.length > 500) list.length = 500
+        result.state.idempotency = list
+      }
       await persist(result.state, loaded.storage)
       const saved = await persistEmailFlags(result.state, loaded.storage)
       return {

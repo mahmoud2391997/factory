@@ -7,6 +7,7 @@ import {
   verifyRefreshToken,
 } from '@/server/auth/jwt'
 import { assertAuthEnv, toApiError } from '@/server/env'
+import { loadState } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
 
@@ -23,7 +24,13 @@ export async function POST(req: NextRequest) {
     const payload = await verifyRefreshToken(refreshToken)
     if (!payload?.sub) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
 
-    const accessToken = await issueAccessToken({ sub: payload.sub })
+    const ver = typeof payload.ver === 'number' ? payload.ver : 1
+    const { state } = await loadState()
+    const user = state.users.find((item) => item.id === payload.sub && item.active)
+    if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+    if ((user.tokenVersion ?? 1) !== ver) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+
+    const accessToken = await issueAccessToken({ sub: payload.sub, ver })
     const res = NextResponse.json({ success: true, data: {}, message: '' })
     setAccessCookie(res, accessToken)
     return res

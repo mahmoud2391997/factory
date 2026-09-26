@@ -11,6 +11,7 @@ import {
 import { getSessionUserById } from '@/server/auth/session'
 import { isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
+import { loadState } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
 
@@ -23,11 +24,15 @@ export async function GET(req: NextRequest) {
 
     let userId: string | null = null
     let refreshedAccess: string | null = null
+    let tokenVersion = 1
 
     const accessToken = getAccessTokenFromRequest(req)
     if (accessToken) {
       const payload = await verifyAccessToken(accessToken)
-      if (payload?.sub) userId = payload.sub
+      if (payload?.sub) {
+        userId = payload.sub
+        tokenVersion = typeof payload.ver === 'number' ? payload.ver : 1
+      }
     }
 
     if (!userId) {
@@ -36,12 +41,22 @@ export async function GET(req: NextRequest) {
         const payload = await verifyRefreshToken(refreshToken)
         if (payload?.sub) {
           userId = payload.sub
-          refreshedAccess = await issueAccessToken({ sub: payload.sub })
+          tokenVersion = typeof payload.ver === 'number' ? payload.ver : 1
+          refreshedAccess = await issueAccessToken({ sub: payload.sub, ver: tokenVersion })
         }
       }
     }
 
     if (!userId) {
+      return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+    }
+
+    const { state } = await loadState()
+    const erpUser = state.users.find((item) => item.id === userId && item.active)
+    if (!erpUser) {
+      return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+    }
+    if ((erpUser.tokenVersion ?? 1) !== tokenVersion) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
     }
 
