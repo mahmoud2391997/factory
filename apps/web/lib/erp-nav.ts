@@ -352,10 +352,10 @@ export const ERP_NAV: ErpMainTab[] = [
         description: 'سحب من مستودع المنتجات',
       },
       {
-        id: 'payments',
-        label: 'التحصيلات',
-        entityKey: 'salesPayment',
-        description: 'تحصيلات مرتبطة بالفواتير',
+        id: 'production',
+        label: 'التصنيع',
+        entityKey: 'productionOrder',
+        description: 'أوامر الإنتاج وتتبع دفعات التصنيع',
       },
       {
         id: 'sales-today',
@@ -487,7 +487,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'reports',
         label: 'التقارير',
         entityKey: 'report',
-        description: 'تقارير التتبع والمخزون والإنتاج',
+        description: '��قارير التتبع والمخزون والإنتاج',
         permission: ['reports.read'],
       },
       {

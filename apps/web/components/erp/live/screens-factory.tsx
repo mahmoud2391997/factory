@@ -25,6 +25,7 @@ const FACTORY_KEYS = new Set([
   'factoryWaste',
   'factoryDeviation',
   'factoryStoppages',
+  'productionLot',
 ])
 
 function DayNote({ day, shifted }: { day: string; shifted: boolean }) {
@@ -237,6 +238,41 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         </div>
         <Card title="الهدر">
           <DataTable columns={['الأمر', 'المادة', 'المصروف', 'الهدر']} rows={lines} />
+        </Card>
+      </div>
+    )
+  }
+
+  if (entityKey === 'productionLot') {
+    const lots = completed.map((order) => {
+      const inputKg = order.expected.reduce((sum, line) => sum + line.actualQty, 0)
+      const wasteKg = order.expected.reduce((sum, line) => sum + line.wasteQty, 0)
+      const varianceKg = order.plannedQty - order.actualOutputQty
+      const variancePct = order.plannedQty > 0 ? (varianceKg / order.plannedQty) * 100 : 0
+      const costPerTon = order.actualOutputQty > 0 ? (order.totalCost / order.actualOutputQty) * 1000 : 0
+      const salePricePerTon = ctx.state.products.find((product) => product.id === order.productId)?.salePrice ?? 0
+      return [
+        order.outputBatch || `LOT-${order.number}`,
+        order.number,
+        productName(ctx.state, order.productId),
+        `${tonsFmt(inputKg)} / ${tonsFmt(order.actualOutputQty)}`,
+        `${tonsFmt(wasteKg)} (${pctFmt(inputKg > 0 ? (wasteKg / inputKg) * 100 : 0)})`,
+        `${tonsFmt(varianceKg)} (${pctFmt(variancePct)})`,
+        moneyFmt(costPerTon),
+        moneyFmt(salePricePerTon * 1000),
+        moneyFmt((salePricePerTon * 1000) - costPerTon),
+      ]
+    })
+    return (
+      <div className="space-y-4">
+        {note}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label="دفعات الإنتاج المكتملة" value={String(lots.length)} />
+          <Metric label="الهدر المسجل" value={`${tonsFmt(completed.reduce((sum, order) => sum + order.expected.reduce((s, line) => s + line.wasteQty, 0), 0))} كجم`} />
+          <Metric label="تنبيه الجودة" value="تتبع كامل" hint="الخام، المورد، العامل، والعميل مرتبطون بالدفعة" />
+        </div>
+        <Card title="تتبع دفعات الإنتاج" hint="من المواد الخام الداخلة حتى الناتج والهدر والتكلفة والهامش.">
+          <DataTable columns={['رقم الدفعة', 'أمر الإنتاج', 'المنتج', 'الداخل / الناتج', 'الهدر', 'الفارق', 'تكلفة/طن', 'بيع/طن', 'الهامش/طن']} rows={lots} />
         </Card>
       </div>
     )
