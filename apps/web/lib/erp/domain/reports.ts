@@ -1,3 +1,4 @@
+import { COST_LABEL } from './costing'
 import { almostEqual, money, qty } from './money'
 import type { ErpState, ItemType, SalesInvoice, WarehouseKey } from './types'
 
@@ -435,6 +436,36 @@ export function traceLot(state: ReportState, lotNo: string) {
     .filter((item, index, list): item is NonNullable<typeof item> => Boolean(item) && list.findIndex((other) => other?.id === item?.id) === index)
   const samples = (state.qualitySamples ?? []).filter((item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lot.lotNo)
   return { lot, product, operator, rawBatches, suppliers, customers, deliveries: lot.deliveries, samples }
+}
+
+export function productionCostSummary(state: ReportState, fromDay?: string, toDay?: string) {
+  const lots = (state.lots ?? []).filter((lot) => {
+    const day = muscatDay(lot.manufacturedAt)
+    if (fromDay && day < fromDay) return false
+    if (toDay && day > toDay) return false
+    return true
+  })
+  const grand = money(lots.reduce((sum, lot) => sum + lot.totalCost, 0))
+  const outputKg = qty(lots.reduce((sum, lot) => sum + lot.actualOutputKg, 0))
+  const byTypeMap = new Map<string, number>()
+  for (const lot of lots) {
+    for (const line of lot.costLines) byTypeMap.set(line.type, money((byTypeMap.get(line.type) ?? 0) + line.amount))
+  }
+  const byType = [...byTypeMap.entries()].map(([type, amount]) => ({
+    type,
+    label: COST_LABEL[type as keyof typeof COST_LABEL] ?? type,
+    amount,
+    pct: grand > 0 ? money((amount / grand) * 100) : 0,
+  }))
+  const byProduct = state.products
+    .map((product) => {
+      const rows = lots.filter((lot) => lot.productId === product.id)
+      const cost = money(rows.reduce((sum, lot) => sum + lot.totalCost, 0))
+      const kg = qty(rows.reduce((sum, lot) => sum + lot.actualOutputKg, 0))
+      return { productId: product.id, nameAr: product.nameAr, lots: rows.length, outputKg: kg, totalCost: cost, costPerTon: kg > 0 ? money((cost / kg) * 1000) : 0 }
+    })
+    .filter((row) => row.lots > 0)
+  return { lots, grand, outputKg, costPerTon: outputKg > 0 ? money((grand / outputKg) * 1000) : 0, byType, byProduct }
 }
 
 export function supplierQuality(state: ReportState, supplierId: string) {

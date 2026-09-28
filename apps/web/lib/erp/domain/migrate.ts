@@ -8,6 +8,10 @@ export const LEGACY_LOT_NOTE = 'legacy: raw-material cost only'
 export function migrateErpState(state: ErpState): ErpState {
   state.lots ??= []
   state.qualitySamples ??= []
+  if (!state.accounts?.some((account) => account.code === '2600')) {
+    state.accounts = state.accounts ?? []
+    state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
+  }
   if (state.schemaVersion === SCHEMA_VERSION) return state
   if (state.schemaVersion !== 1) throw new Error('إصدار بيانات المصنع غير مدعوم')
 

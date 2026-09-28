@@ -84,6 +84,7 @@ export function emptyState(passwordHash: string): ErpState {
       { code: '6100', nameAr: 'الرواتب', type: 'EXPENSE' },
       { code: '6200', nameAr: 'مصروفات تشغيل', type: 'EXPENSE' },
       { code: '6300', nameAr: 'فروقات المخزون', type: 'EXPENSE' },
+      { code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' },
     ],
     warehouses: [
       { key: 'WH_RAW', nameAr: 'مستودع المواد الخام' },
@@ -301,6 +302,8 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
     },
   })
 
+  state.company.bagUnitCost = 0.02
+  state.company.costRates = { ELECTRICITY: 2, GAS: 1, LABOR: 3, TRANSPORT: 0.5, MAINTENANCE: 0.25, OVERHEAD: 1 }
   const operator = state.employees.find((item) => item.jobTitle.includes('مشغ'))!
   const recipe = state.recipes.find((item) => item.productId === beef)!
   state = step(state, clock, {

@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
-import { factoryStatus, muscatDay, stockRows } from '@/lib/erp/domain/reports'
+import { COST_LABEL } from '@/lib/erp/domain/costing'
+import { factoryStatus, muscatDay, productionCostSummary, stockRows } from '@/lib/erp/domain/reports'
 
-import { Card, DataTable } from './bits'
+import { Card, DataTable, Field, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
 import { LotsScreen } from './lot-view'
 import { dayFmt, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
@@ -139,7 +140,11 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
     )
   }
 
-  if (entityKey === 'factoryCostPerTon' || entityKey === 'factoryAvgPrice' || entityKey === 'factoryMargin') {
+  if (entityKey === 'factoryCostPerTon') {
+    return <CostBreakdown ctx={ctx} note={note} day={day} />
+  }
+
+  if (entityKey === 'factoryAvgPrice' || entityKey === 'factoryMargin') {
     return (
       <div className="space-y-4">
         {note}
@@ -281,6 +286,38 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         <DataTable
           columns={['المنطقة', 'المدة', 'السبب']}
           rows={status.operations.stoppages.map((item) => [item.area, `${item.minutes} دقيقة`, item.reason])}
+        />
+      </Card>
+    </div>
+  )
+}
+
+function CostBreakdown({ ctx, note, day }: { ctx: LiveCtx; note: ReactNode; day: string }) {
+  const [from, setFrom] = useState(`${day.slice(0, 7)}-01`)
+  const [to, setTo] = useState(day)
+  const summary = useMemo(() => productionCostSummary(ctx.state, from, to), [ctx.state, from, to])
+  return (
+    <div className="space-y-4">
+      {note}
+      <Card title="تكلفة الطن حسب الفترة" hint="تشمل الخام والأكياس وبنود التحميل. الدفعات القديمة تبقى بتكلفة الخام فقط.">
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <Field label="من"><TextInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+          <Field label="إلى"><TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+        </div>
+        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          <Metric label="تكلفة الطن" value={moneyFmt(summary.costPerTon)} />
+          <Metric label="إجمالي التكلفة" value={moneyFmt(summary.grand)} />
+          <Metric label="الناتج" value={tonsFmt(summary.outputKg)} />
+        </div>
+        <DataTable
+          columns={['البند', 'المبلغ', 'النسبة']}
+          rows={summary.byType.map((line) => [line.label || COST_LABEL[line.type as keyof typeof COST_LABEL] || line.type, moneyFmt(line.amount), pctFmt(line.pct)])}
+        />
+      </Card>
+      <Card title="التكلفة حسب المنتج">
+        <DataTable
+          columns={['المنتج', 'الدفعات', 'الناتج', 'التكلفة', 'تكلفة الطن']}
+          rows={summary.byProduct.map((row) => [row.nameAr, String(row.lots), tonsFmt(row.outputKg), moneyFmt(row.totalCost), moneyFmt(row.costPerTon)])}
         />
       </Card>
     </div>

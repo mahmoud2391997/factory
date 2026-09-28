@@ -404,12 +404,24 @@ function Audit({ ctx }: { ctx: LiveCtx }) {
 
 function Settings({ ctx }: { ctx: LiveCtx }) {
   const company = ctx.state.company
-  const [form, setForm] = useState({ ...company })
+  const [form, setForm] = useState({
+    ...company,
+    bagUnitCost: company.bagUnitCost ?? 0,
+    packagingMaterialId: company.packagingMaterialId ?? '',
+    costRates: {
+      ELECTRICITY: company.costRates?.ELECTRICITY ?? 0,
+      GAS: company.costRates?.GAS ?? 0,
+      LABOR: company.costRates?.LABOR ?? 0,
+      TRANSPORT: company.costRates?.TRANSPORT ?? 0,
+      MAINTENANCE: company.costRates?.MAINTENANCE ?? 0,
+      OVERHEAD: company.costRates?.OVERHEAD ?? 0,
+    },
+  })
   return (
     <Card title="إعدادات الشركة" hint="هذه البيانات تُطبع على الفاتورة الضريبية وأمر الشراء.">
       <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
         event.preventDefault()
-        await ctx.act('updateCompany', form)
+        await ctx.act('updateCompany', { ...form, packagingMaterialId: form.packagingMaterialId || undefined })
       }}>
         <Field label="اسم المصنع"><TextInput value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} /></Field>
         <Field label="الاسم الإنجليزي"><TextInput value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></Field>
@@ -418,6 +430,25 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         <Field label="الهاتف"><TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
         <Field label="السجل التجاري"><TextInput value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></Field>
         <Field label="حد انحراف الإنتاج %"><TextInput type="number" min="0" step="0.01" value={form.varianceThresholdPct} onChange={(e) => setForm({ ...form, varianceThresholdPct: Number(e.target.value) })} /></Field>
+        <Field label="تكلفة الكيس (ر.ع.)"><TextInput type="number" min="0" step="0.001" value={form.bagUnitCost} onChange={(e) => setForm({ ...form, bagUnitCost: Number(e.target.value) })} /></Field>
+        <Field label="مادة التعبئة">
+          <SelectInput value={form.packagingMaterialId} onChange={(e) => setForm({ ...form, packagingMaterialId: e.target.value })}>
+            <option value="">استخدم تكلفة الكيس</option>
+            {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+          </SelectInput>
+        </Field>
+        {([
+          ['ELECTRICITY', 'كهرباء / طن'],
+          ['GAS', 'غاز / طن'],
+          ['LABOR', 'أجور / طن'],
+          ['TRANSPORT', 'نقل / طن'],
+          ['MAINTENANCE', 'صيانة / طن'],
+          ['OVERHEAD', 'مصاريف عامة / طن'],
+        ] as const).map(([key, label]) => (
+          <Field key={key} label={label}>
+            <TextInput type="number" min="0" step="0.001" value={form.costRates[key]} onChange={(e) => setForm({ ...form, costRates: { ...form.costRates, [key]: Number(e.target.value) } })} />
+          </Field>
+        ))}
         <label className="flex items-center gap-2 text-sm md:col-span-2">
           <input type="checkbox" checked={Boolean(form.requireQcBeforeUse)} onChange={(e) => setForm({ ...form, requireQcBeforeUse: e.target.checked })} />
           <span>يتطلب فحص الجودة قبل تحويل الخام للتصنيع أو بيع المنتج</span>

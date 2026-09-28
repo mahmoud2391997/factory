@@ -1,5 +1,6 @@
 import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
+import { buildLotCostLines } from './costing'
 import { lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
@@ -1077,7 +1078,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     return fail(`الانحراف الكلي (${variancePct}%) تجاوز الحد المسموح — سبب الانحراف مطلوب`)
   }
 
-  let totalCost = 0
+  let rawCost = 0
   const lotMaterials: ProductionLot['materials'] = []
   for (const expected of order.expected) {
     const actual = input.actuals.find((item) => item.materialId === expected.materialId)
@@ -1098,7 +1099,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
         return fail(`${material.nameAr}: ${issued.error}. حوّل المواد إلى مستودع التصنيع أولاً.`)
       }
       if (!('error' in issued)) {
-        totalCost = money(totalCost + issued.cost)
+        rawCost = money(rawCost + issued.cost)
         for (const line of issued.lines) {
           lotMaterials.push({
             materialId: expected.materialId,
@@ -1114,7 +1115,13 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     expected.wasteQty = waste
   }
 
-  const costLines: ProductionLot['costLines'] = [{ type: 'RAW_MATERIAL', amount: totalCost }]
+  const product = findProduct(state, order.productId)
+  for (const line of input.costLines ?? []) {
+    if (line.amount < 0) return fail('مبلغ بند التكلفة غير صحيح')
+  }
+  const costLines = buildLotCostLines(state, product, actualOutputKg, rawCost, input.costLines)
+  const totalCost = money(costLines.reduce((sum, line) => sum + line.amount, 0))
+  const extraCost = money(totalCost - rawCost)
   const outputQty = actualOutputKg
   const unitCost = outputQty > 0 ? money(totalCost / outputQty) : 0
   const lotNo = nextLotNo(state, clock.now())
@@ -1145,8 +1152,12 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   })
   
   postJournal(state, clock, `استهلاك إنتاج ${order.number}`, 'productionOrder', order.id, [
-    { accountCode: '1200', debit: totalCost, credit: 0 },
-    { accountCode: '1100', debit: 0, credit: totalCost },
+    { accountCode: '1200', debit: rawCost, credit: 0 },
+    { accountCode: '1100', debit: 0, credit: rawCost },
+  ])
+  postJournal(state, clock, `تكاليف إنتاج إضافية ${order.number}`, 'productionOrder', order.id, [
+    { accountCode: '1200', debit: extraCost, credit: 0 },
+    { accountCode: '2600', debit: 0, credit: extraCost },
   ])
   postJournal(state, clock, `إخراج إنتاج ${order.number}`, 'productionOrder', order.id, [
     { accountCode: '1300', debit: totalCost, credit: 0 },

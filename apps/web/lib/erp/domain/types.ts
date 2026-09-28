@@ -21,6 +21,10 @@ export type Company = {
   varianceThresholdPct: number
   notifyEmail: string
   requireQcBeforeUse?: boolean
+  /** OMR per bag when no packaging material cost is on hand. */
+  bagUnitCost?: number
+  packagingMaterialId?: string
+  /** OMR per ton, used when completion has no manual line for that type. */
   costRates?: {
     ELECTRICITY?: number
     GAS?: number
@@ -493,7 +497,7 @@ export type Command =
   | { action: 'requestAdjustment'; input: { warehouse: WarehouseKey; itemType: ItemType; itemId: string; batchNo: string; qtyDelta: number; unitCost?: number; reason: string } }
   | { action: 'decideAdjustment'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createProductionOrder'; input: { productId: string; recipeId: string; plannedQty: number } }
-  | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string } }
+  | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string; costLines?: Array<{ type: 'ELECTRICITY' | 'GAS' | 'LABOR' | 'TRANSPORT' | 'MAINTENANCE' | 'OVERHEAD'; amount: number }> } }
   | { action: 'createInvoice'; input: { customerId: string; notes?: string; lines: Array<{ productId: string; qty: number; unitPrice?: number }> } }
   | { action: 'confirmInvoice'; input: { id: string } }
   | { action: 'recordPayment'; input: { invoiceId: string; amount: number; method?: string } }

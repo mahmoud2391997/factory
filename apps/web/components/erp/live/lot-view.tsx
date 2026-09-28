@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { traceLot } from '@/lib/erp/domain/reports'
 
 import { Card, DataTable, GhostButton } from './bits'
@@ -34,7 +35,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
       </div>
       <Card title="دفعات الإنتاج" hint="كل سطر دفعة حقيقية أُنشئت عند إكمال أمر الإنتاج، ورقمها LOT-YYYYMMDD-###.">
         <DataTable
-          columns={['رقم الدفعة', 'المنتج', 'المشغّل', 'الداخل / المتوقع / الفعلي', 'الفارق', 'تكلفة/طن', 'بيع/طن', 'الهامش/طن', '']}
+          columns={['رقم الدفعة', 'المنتج', 'المشغّل', 'الداخل / المتوقع / الفعلي', 'الفارق', 'تكلفة/طن', 'بيع/طن', 'الهامش/طن', 'الهامش %', '']}
           rows={lots.map((lot) => {
             const margin = lot.marginPerTon
             const operator = ctx.state.employees.find((item) => item.id === lot.operatorId)?.nameAr ?? '—'
@@ -47,6 +48,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
               moneyFmt(lot.costPerTon),
               lot.salePricePerTon != null ? moneyFmt(lot.salePricePerTon) : '—',
               margin != null ? <span className={margin < 0 ? 'font-bold text-[#dc2626]' : undefined}>{moneyFmt(margin)}</span> : '—',
+              lot.marginPct != null ? <span className={lot.marginPct < 0 ? 'font-bold text-[#dc2626]' : undefined}>{pctFmt(lot.marginPct)}</span> : '—',
               <GhostButton key={lot.id} type="button" onClick={() => setLotNo(lot.lotNo)}>تتبع</GhostButton>,
             ]
           })}
@@ -66,6 +68,16 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
             columns={['الخامة', 'دفعة الخام', 'المورد', 'الكمية', 'تكلفة الوحدة']}
             rows={trace.rawBatches.map((line) => [line.materialName, line.sourceBatchNo, line.supplierName ?? '—', qtyFmt(line.qty), moneyFmt(line.unitCost)])}
           />
+          <div className="mt-4">
+            <DataTable
+              columns={['بند التكلفة', 'المبلغ', 'النسبة']}
+              rows={trace.lot.costLines.map((line) => [
+                COST_LABEL[line.type],
+                moneyFmt(line.amount),
+                trace.lot.totalCost > 0 ? pctFmt((line.amount / trace.lot.totalCost) * 100) : pctFmt(0),
+              ])}
+            />
+          </div>
           {trace.samples.length > 0 ? (
             <div className="mt-4">
               <DataTable

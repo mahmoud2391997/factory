@@ -793,6 +793,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
   const [actuals, setActuals] = useState<Record<string, { actualQty: string; wasteQty: string }>>({})
   const [output, setOutput] = useState(String(order.plannedQty))
   const [reason, setReason] = useState('')
+  const [costs, setCosts] = useState({ ELECTRICITY: '', GAS: '', LABOR: '', TRANSPORT: '', MAINTENANCE: '', OVERHEAD: '' })
   const [formError, setFormError] = useState('')
   const needsReason = formError.includes('سبب الانحراف')
   return (
@@ -805,6 +806,9 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
           operatorId,
           actualOutputQty: Number(output),
           varianceReason: reason,
+          costLines: (Object.entries(costs) as Array<[keyof typeof costs, string]>)
+            .filter(([, value]) => value.trim() !== '')
+            .map(([type, value]) => ({ type, amount: Number(value) })),
           actuals: order.expected.map((line) => ({
             materialId: line.materialId,
             actualQty: Number(actuals[line.materialId]?.actualQty || line.expectedQty),
@@ -830,6 +834,21 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
           </Field>
           <Field label="الناتج الفعلي (كجم)"><TextInput type="number" min="0.001" step="0.001" value={output} onChange={(e) => setOutput(e.target.value)} /></Field>
           <Field label={needsReason ? 'سبب الانحراف مطلوب' : 'سبب الانحراف إن وجد'}><TextInput value={reason} onChange={(e) => setReason(e.target.value)} required={needsReason} aria-invalid={needsReason} /></Field>
+        </div>
+        <p className="text-sm text-[#53655e]">بنود التكلفة اليدوية تستبدل سعر التحميل للطن. اتركها فارغة لاستخدام إعدادات الشركة. الأكياس تُحسب من وزن الكيس.</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {([
+            ['ELECTRICITY', 'كهرباء'],
+            ['GAS', 'غاز'],
+            ['LABOR', 'أجور'],
+            ['TRANSPORT', 'نقل'],
+            ['MAINTENANCE', 'صيانة'],
+            ['OVERHEAD', 'مصاريف عامة'],
+          ] as const).map(([key, label]) => (
+            <Field key={key} label={label}>
+              <TextInput type="number" min="0" step="0.001" value={costs[key]} onChange={(e) => setCosts({ ...costs, [key]: e.target.value })} />
+            </Field>
+          ))}
         </div>
         <InlineError message={formError} />
         <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.complete')}>إكمال الإنتاج</PrimaryButton>
