@@ -205,7 +205,9 @@ model Product {
   barcode String @unique
   bagKg Decimal @default(0) @db.Decimal(14, 3)
   active Boolean @default(true)
+  customerId String?
 
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
   recipes Recipe[]
   inventoryBalances InventoryBalance[]
   ledgerEntries InventoryLedgerEntry[]
@@ -228,6 +230,7 @@ model Supplier {
   address String
   purchaseOrders PurchaseOrder[]
   suppliedBatches BatchMaterialLink[]
+  communications SupplierCommunication[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -243,6 +246,8 @@ model Customer {
   invoices SalesInvoice[]
   deliveredLots ProductionLot[]
   lotDeliveries LotDelivery[]
+  customProducts Product[]
+  customRecipes Recipe[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -255,9 +260,16 @@ model Employee {
   jobTitle String
   basicSalary Decimal @default(0) @db.Decimal(14, 3)
   active Boolean @default(true)
+  idNumber String?
+  idExpiryDate DateTime?
+  contractExpiryDate DateTime?
+  vacationBalance Decimal @default(0) @db.Decimal(5, 2)
   attendance Attendance[]
   payrollLines PayrollLine[]
   productionLots ProductionLot[]
+  fuelLogs FuelLog[]
+  trips TripLog[]
+  managedDocuments CompanyDocument[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -266,6 +278,8 @@ model Recipe {
   id String @id @default(cuid())
   productId String
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  customerId String?
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
   nameAr String
   baseOutputQty Decimal @db.Decimal(14, 3)
   items RecipeItem[]
@@ -669,4 +683,178 @@ model AuditLog {
   @@index([at])
 }
 
+
+
+// -----------------------------------------------------------------
+// New Modules: Fleet, Finance, Maintenance, Documents, Utilities
+// -----------------------------------------------------------------
+
+model Vehicle {
+  id String @id @default(cuid())
+  plateNumber String @unique
+  make String
+  model String
+  year Int
+  insuranceExpiry DateTime?
+  registrationExpiry DateTime?
+  active Boolean @default(true)
+
+  maintenance VehicleMaintenance[]
+  fuelLogs FuelLog[]
+  trips TripLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VehicleMaintenance {
+  id String @id @default(cuid())
+  vehicleId String
+  type String // e.g. TIRE_CHANGE, OIL_CHANGE, REPAIR
+  description String
+  cost Decimal @db.Decimal(14, 3)
+  date DateTime @default(now())
+  nextDueDate DateTime?
+  nextDueKm Int?
+  odometer Int
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model FuelLog {
+  id String @id @default(cuid())
+  vehicleId String
+  date DateTime @default(now())
+  liters Decimal @db.Decimal(10, 2)
+  cost Decimal @db.Decimal(14, 3)
+  odometer Int
+  driverId String?
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver Employee? @relation(fields: [driverId], references: [id], onDelete: Restrict)
+}
+
+model TripLog {
+  id String @id @default(cuid())
+  vehicleId String
+  driverId String
+  date DateTime @default(now())
+  destination String
+  startOdometer Int
+  endOdometer Int
+  distanceKm Int
+  loadDescription String?
+  loadWeightKg Decimal? @db.Decimal(10, 2)
+  fuelUsedLiters Decimal? @db.Decimal(10, 2)
+  tripCost Decimal @default(0) @db.Decimal(14, 3)
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  driver Employee @relation(fields: [driverId], references: [id], onDelete: Restrict)
+}
+
+model FinancialObligation {
+  id String @id @default(cuid())
+  beneficiary String
+  description String
+  totalAmount Decimal @db.Decimal(14, 3)
+  installmentAmount Decimal @db.Decimal(14, 3)
+  paidAmount Decimal @default(0) @db.Decimal(14, 3)
+  remainingAmount Decimal @db.Decimal(14, 3)
+  dueDate DateTime
+  status DocumentStatus @default(PENDING_APPROVAL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BankTransaction {
+  id String @id @default(cuid())
+  referenceId String @unique
+  date DateTime
+  type String // DEBIT / CREDIT
+  amount Decimal @db.Decimal(14, 3)
+  description String
+  reconciled Boolean @default(false)
+  notes String?
+
+  createdAt DateTime @default(now())
+}
+
+model Machine {
+  id String @id @default(cuid())
+  code String @unique
+  nameAr String
+  location String?
+  runningHours Int @default(0)
+  active Boolean @default(true)
+
+  maintenanceLogs MachineMaintenance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MachineMaintenance {
+  id String @id @default(cuid())
+  machineId String
+  type String // PREVENTIVE, BREAKDOWN
+  description String
+  cost Decimal @db.Decimal(14, 3)
+  downTimeHours Decimal @default(0) @db.Decimal(10, 2)
+  date DateTime @default(now())
+  nextDueDate DateTime?
+  sparePartsUsed String? // Storing JSON or comma separated for simplicity
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+}
+
+model CompanyDocument {
+  id String @id @default(cuid())
+  title String
+  type String // LICENSE, CONTRACT, LEASE
+  entityName String?
+  issueDate DateTime?
+  expiryDate DateTime?
+  cost Decimal? @db.Decimal(14, 3)
+  fileUrl String?
+  responsibleId String?
+
+  responsible Employee? @relation(fields: [responsibleId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UtilityMeter {
+  id String @id @default(cuid())
+  type String // ELECTRICITY, WATER, GAS
+  identifier String
+  location String?
+
+  readings UtilityReading[]
+}
+
+model UtilityReading {
+  id String @id @default(cuid())
+  meterId String
+  date DateTime
+  value Decimal @db.Decimal(14, 3)
+  consumption Decimal @db.Decimal(14, 3)
+  cost Decimal @db.Decimal(14, 3)
+
+  meter UtilityMeter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+}
+
+model SupplierCommunication {
+  id String @id @default(cuid())
+  supplierId String
+  type String // RFQ, INQUIRY
+  status String // DRAFT, SENT, REPLIED
+  messageTemplate String
+  sentAt DateTime?
+  approvedBy String?
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
 
