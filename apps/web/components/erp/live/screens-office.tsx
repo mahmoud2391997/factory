@@ -418,6 +418,10 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         <Field label="الهاتف"><TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
         <Field label="السجل التجاري"><TextInput value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></Field>
         <Field label="حد انحراف الإنتاج %"><TextInput type="number" min="0" step="0.01" value={form.varianceThresholdPct} onChange={(e) => setForm({ ...form, varianceThresholdPct: Number(e.target.value) })} /></Field>
+        <label className="flex items-center gap-2 text-sm md:col-span-2">
+          <input type="checkbox" checked={Boolean(form.requireQcBeforeUse)} onChange={(e) => setForm({ ...form, requireQcBeforeUse: e.target.checked })} />
+          <span>يتطلب فحص الجودة قبل تحويل الخام للتصنيع أو بيع المنتج</span>
+        </label>
         <Field label="بريد التنبيهات"><TextInput value={form.notifyEmail} onChange={(e) => setForm({ ...form, notifyEmail: e.target.value })} /></Field>
         <div className="flex flex-wrap gap-2">
           <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'settings.update')}>حفظ</PrimaryButton>

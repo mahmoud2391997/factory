@@ -59,12 +59,28 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
             <div>المشغّل: {trace.operator?.nameAr ?? '—'}</div>
             <div>أمر الإنتاج: {ctx.state.productionOrders.find((item) => item.id === trace.lot.productionOrderId)?.number ?? trace.lot.productionOrderId}</div>
             <div>تاريخ التصنيع: {trace.lot.manufacturedAt.slice(0, 16).replace('T', ' ')}</div>
+            <div>الجودة: {trace.lot.qcStatus ?? '—'}</div>
             {trace.lot.legacyNote ? <div className="sm:col-span-2">تصنيف: {trace.lot.legacyNote}</div> : null}
           </div>
           <DataTable
             columns={['الخامة', 'دفعة الخام', 'المورد', 'الكمية', 'تكلفة الوحدة']}
             rows={trace.rawBatches.map((line) => [line.materialName, line.sourceBatchNo, line.supplierName ?? '—', qtyFmt(line.qty), moneyFmt(line.unitCost)])}
           />
+          {trace.samples.length > 0 ? (
+            <div className="mt-4">
+              <DataTable
+                columns={['وقت العينة', 'رطوبة', 'بروتين', 'رماد', 'النتيجة', 'ملاحظات']}
+                rows={trace.samples.map((sample) => [
+                  sample.sampledAt.slice(0, 16).replace('T', ' '),
+                  sample.moisturePct ?? '—',
+                  sample.proteinPct ?? '—',
+                  sample.ashPct ?? '—',
+                  sample.result,
+                  sample.notes ?? '—',
+                ])}
+              />
+            </div>
+          ) : null}
           <div className="mt-4">
             <DataTable
               columns={['الحركة', 'العميل', 'الكمية', 'الوقت']}

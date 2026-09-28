@@ -337,7 +337,7 @@ export type PlantStoppage = {
 
 export type Notification = {
   id: string
-  kind: 'LOW_STOCK' | 'APPROVAL' | 'EXPIRY' | 'INFO'
+  kind: 'LOW_STOCK' | 'APPROVAL' | 'EXPIRY' | 'INFO' | 'QC'
   title: string
   body: string
   dedupeKey: string
@@ -510,8 +510,9 @@ export type Command =
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }
   | { action: 'setUserPassword'; input: { userId: string; passwordHash: string } }
   | { action: 'archiveHistory'; input: { olderThanDays: number; nowIso?: string } }
-  | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD' } }
+  | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
   | { action: 'updateQualityResult'; input: { sampleId: string; result: 'PASSED' | 'FAILED' | 'HOLD'; reason: string } }
+  | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number } } }
 
 export type CommandOk = {
   ok: true

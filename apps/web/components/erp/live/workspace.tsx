@@ -3,6 +3,7 @@
 import Link from 'next/link'
 
 import { FactoryScreens } from './screens-factory'
+import { QualityScreens } from './screens-qc'
 import { InventoryScreens, ProductionScreens, PurchasingScreens, SalesScreens } from './screens-ops'
 import { DashboardScreen, OfficeScreens } from './screens-office'
 import type { LiveCtx } from './ctx'
@@ -25,6 +26,7 @@ export function LiveWorkspace({
       <DashboardScreen ctx={ctx} />
     ) : (
       FactoryScreens({ entityKey, ctx }) ||
+      QualityScreens({ entityKey, ctx }) ||
       InventoryScreens({ entityKey, ctx }) ||
       PurchasingScreens({ entityKey, ctx }) ||
       ProductionScreens({ entityKey, ctx }) ||

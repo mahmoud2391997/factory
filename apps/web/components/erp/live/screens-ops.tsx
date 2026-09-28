@@ -6,6 +6,7 @@ import { materialStatement, stockRows, traceSupplierBatch } from '@/lib/erp/doma
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { QcLimitsEditor } from './screens-qc'
 import type { LiveCtx } from './ctx'
 import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
 
@@ -168,6 +169,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
   const [minQty, setMinQty] = useState('1000')
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>('ZERO')
   return (
+    <div className="space-y-4">
     <Card
       title="المواد الخام"
       extra={
@@ -209,6 +211,8 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
         rows={ctx.state.materials.map((item) => [item.code, item.nameAr, item.category, qtyFmt(item.minQty), statusLabel(item.vatTreatment), item.barcode])}
       />
     </Card>
+    <QcLimitsEditor ctx={ctx} itemType="MATERIAL" />
+    </div>
   )
 }
 
@@ -217,6 +221,7 @@ function Products({ ctx }: { ctx: LiveCtx }) {
   const [nameAr, setNameAr] = useState('')
   const [salePrice, setSalePrice] = useState('0.180')
   return (
+    <div className="space-y-4">
     <Card
       title="المنتجات"
       extra={
@@ -251,6 +256,8 @@ function Products({ ctx }: { ctx: LiveCtx }) {
         rows={ctx.state.products.map((item) => [item.code, item.nameAr, moneyFmt(item.salePrice), statusLabel(item.vatTreatment), `${item.bagKg} كجم`])}
       />
     </Card>
+    <QcLimitsEditor ctx={ctx} itemType="PRODUCT" />
+    </div>
   )
 }
 

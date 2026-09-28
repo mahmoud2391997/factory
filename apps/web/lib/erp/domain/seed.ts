@@ -379,6 +379,90 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
     reason: 'انقطاع تغذية الكهرباء',
   })
 
+  const beefLot = state.lots.find((lot) => lot.productId === beef)!
+  const cornMaterial = state.materials.find((item) => item.code === 'RM-CORN')!
+  const bentMaterial = state.materials.find((item) => item.code === 'RM-BENT')!
+  const beefProduct = state.products.find((item) => item.id === beef)!
+  cornMaterial.qcLimits = { maxMoisture: 14, minProtein: 7 }
+  beefProduct.qcLimits = { maxMoisture: 13, minProtein: 14, maxAsh: 9 }
+  const sampledAt = beefLot.manufacturedAt
+  beefLot.qcStatus = 'PASSED'
+  state.qualitySamples = [
+    {
+      id: 'qc-lot-pass',
+      type: 'FINISHED_PRODUCT',
+      lotNo: beefLot.lotNo,
+      sampledBy: 'user-gm',
+      sampledAt,
+      moisturePct: 11,
+      proteinPct: 16,
+      ashPct: 6,
+      result: 'PASSED',
+      notes: 'ضمن حدود المنتج',
+    },
+    {
+      id: 'qc-corn-pass',
+      type: 'RAW_MATERIAL',
+      materialId: cornMaterial.id,
+      batchNo: 'B-CORN-0901',
+      supplierId: supplier.id,
+      sampledBy: 'user-ops',
+      sampledAt,
+      moisturePct: 12,
+      proteinPct: 8.5,
+      result: 'PASSED',
+      notes: 'ذرة مقبولة',
+    },
+    {
+      id: 'qc-bent-fail',
+      type: 'RAW_MATERIAL',
+      materialId: bentMaterial.id,
+      batchNo: 'B-BENT-0815',
+      supplierId: supplier.id,
+      sampledBy: 'user-gm',
+      sampledAt,
+      moisturePct: 18,
+      result: 'FAILED',
+      notes: 'رطوبة أعلى من الحد',
+    },
+    {
+      id: 'qc-bent-hold',
+      type: 'RAW_MATERIAL',
+      materialId: bentMaterial.id,
+      batchNo: 'B-BENT-0815',
+      supplierId: supplier.id,
+      sampledBy: 'user-gm',
+      sampledAt: new Date(Date.parse(sampledAt) + 60_000).toISOString(),
+      moisturePct: 14.2,
+      result: 'HOLD',
+      notes: 'أُعيد سحب العينة وما زالت معلّقة',
+    },
+  ]
+  state.notifications.unshift(
+    {
+      id: 'ntf-qc-hold',
+      kind: 'QC',
+      title: 'جودة معلّقة: خامة B-BENT-0815',
+      body: 'لا يمكن تحويل الدفعة للتصنيع أو استهلاكها حتى تُفك.',
+      dedupeKey: `qc:RAW_MATERIAL:${bentMaterial.id}:B-BENT-0815::HOLD`,
+      roles: ['GM', 'OPERATIONS'],
+      read: false,
+      emailStatus: 'skipped',
+      at: sampledAt,
+    },
+    {
+      id: 'ntf-qc-fail',
+      kind: 'QC',
+      title: 'جودة مرفوضة: خامة B-BENT-0815',
+      body: 'لا يمكن تحويل الدفعة للتصنيع أو استهلاكها حتى تُفك.',
+      dedupeKey: `qc:RAW_MATERIAL:${bentMaterial.id}:B-BENT-0815::FAILED`,
+      roles: ['GM', 'OPERATIONS'],
+      read: false,
+      emailStatus: 'skipped',
+      at: sampledAt,
+    },
+  )
+
   const broiler = idOf('FG-BROILER')
   const broilerRecipe = state.recipes.find((item) => item.productId === broiler)!
   state = step(state, clock, {

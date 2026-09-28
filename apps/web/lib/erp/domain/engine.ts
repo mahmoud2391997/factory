@@ -1,5 +1,6 @@
 import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
+import { lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
   Actor,
@@ -379,6 +380,14 @@ function fifoIssue(
   const lines: Array<{ batchNo: string; qty: number; unitCost: number }> = []
   for (const row of rows) {
     if (left <= 0) break
+    if (input.itemType === 'MATERIAL' && input.type === 'PRODUCTION_CONSUMPTION') {
+      const blocked = rawBatchQcBlock(state, input.itemId, row.batchNo)
+      if (blocked) return { error: blocked }
+    }
+    if (input.itemType === 'PRODUCT' && (input.type === 'SALE' || input.type === 'WITHDRAWAL')) {
+      const blocked = lotQcBlock(state, row.batchNo)
+      if (blocked) return { error: blocked }
+    }
     const take = qty(Math.min(row.qty, left))
     const issued = issueBatch(state, clock, actor, {
       warehouse: input.warehouse,
@@ -508,6 +517,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     archiveHistory: 'settings.update',
     createQualitySample: 'qc.manage',
     updateQualityResult: 'qc.manage',
+    setQcLimits: 'qc.limits',
   }
   return allow(actor, map[command.action])
 }
@@ -578,6 +588,12 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return setUserPassword(state, actor, command.input, clock)
     case 'archiveHistory':
       return archiveHistory(state, actor, command.input, clock)
+    case 'createQualitySample':
+      return createQualitySample(state, actor, command.input, clock)
+    case 'updateQualityResult':
+      return updateQualityResult(state, actor, command.input, clock)
+    case 'setQcLimits':
+      return setQcLimits(state, actor, command.input, clock)
     default:
       return fail('إجراء غير معروف')
   }
@@ -848,6 +864,10 @@ function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { 
     if (amount <= 0) return fail('كمية التحويل غير صحيحة')
     const exists = line.itemType === 'MATERIAL' ? findMaterial(state, line.itemId) : findProduct(state, line.itemId)
     if (!exists) return fail('الصنف غير موجود')
+    if (line.itemType === 'MATERIAL' && input.to === 'WH_MFG') {
+      const blocked = rawBatchQcBlock(state, line.itemId, line.batchNo.trim())
+      if (blocked) return fail(blocked)
+    }
     const issued = issueBatch(state, clock, actor, {
       warehouse: input.from,
       itemType: line.itemType,
@@ -1585,6 +1605,127 @@ function archiveHistory(state: ErpState, actor: Actor, input: Extract<Command, {
     journals: plan.journals.length,
     auditLogs: plan.auditLogs.length,
   })
+}
+
+function cleanLimits(limits: Extract<Command, { action: 'setQcLimits' }>['input']['limits']) {
+  const next: typeof limits = {}
+  const keys = ['minMoisture', 'maxMoisture', 'minProtein', 'maxProtein', 'minAsh', 'maxAsh'] as const
+  for (const key of keys) {
+    const value = limits[key]
+    if (value == null || value === ('' as unknown)) continue
+    if (!Number.isFinite(value) || value < 0 || value > 100) return { error: 'حد الجودة يجب أن يكون بين 0 و 100' }
+    next[key] = round3(value)
+  }
+  const pairs = [
+    ['minMoisture', 'maxMoisture'],
+    ['minProtein', 'maxProtein'],
+    ['minAsh', 'maxAsh'],
+  ] as const
+  for (const [minKey, maxKey] of pairs) {
+    if (next[minKey] != null && next[maxKey] != null && next[minKey]! > next[maxKey]!) return { error: 'الحد الأدنى للجودة أكبر من الحد الأعلى' }
+  }
+  return { limits: next }
+}
+
+function syncLotQc(state: ErpState, lotNo: string | undefined, result: 'PASSED' | 'FAILED' | 'HOLD' | 'PENDING') {
+  if (!lotNo) return
+  const lot = state.lots?.find((item) => item.lotNo === lotNo)
+  if (lot) lot.qcStatus = result
+}
+
+function notifyQc(state: ErpState, clock: Clock, sample: { type: string; result: string; materialId?: string; batchNo?: string; lotNo?: string; id: string }) {
+  if (sample.result !== 'FAILED' && sample.result !== 'HOLD') return
+  const label = sample.result === 'FAILED' ? 'مرفوضة' : 'معلّقة'
+  const target = sample.type === 'FINISHED_PRODUCT' ? `دفعة ${sample.lotNo}` : `خامة ${sample.batchNo}`
+  notify(
+    state,
+    clock,
+    'QC',
+    `جودة ${label}: ${target}`,
+    sample.type === 'FINISHED_PRODUCT' ? 'لا يمكن بيع الدفعة أو سحبها حتى تُفك.' : 'لا يمكن تحويل الدفعة للتصنيع أو استهلاكها حتى تُفك.',
+    ['GM', 'OPERATIONS'],
+    `qc:${sample.type}:${sample.materialId ?? ''}:${sample.batchNo ?? ''}:${sample.lotNo ?? ''}:${sample.result}`,
+  )
+}
+
+function createQualitySample(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createQualitySample' }>['input'], clock: Clock): CommandResult {
+  state.qualitySamples ??= []
+  const reading = { moisturePct: input.moisturePct, proteinPct: input.proteinPct, ashPct: input.ashPct }
+  for (const value of Object.values(reading)) {
+    if (value != null && (!Number.isFinite(value) || value < 0 || value > 100)) return fail('نسبة الفحص يجب أن تكون بين 0 و 100')
+  }
+  let limits: ReturnType<typeof cleanLimits>['limits']
+  if (input.type === 'RAW_MATERIAL') {
+    if (!input.materialId || !input.batchNo?.trim()) return fail('المادة ورقم الدفعة مطلوبان لعينة الخام')
+    const material = state.materials.find((item) => item.id === input.materialId)
+    if (!material) return fail('المادة غير موجودة')
+    if (input.supplierId && !state.suppliers.some((item) => item.id === input.supplierId)) return fail('المورد غير موجود')
+    limits = material.qcLimits
+  } else {
+    if (!input.lotNo?.trim()) return fail('رقم دفعة الإنتاج مطلوب')
+    const lot = state.lots?.find((item) => item.lotNo === input.lotNo)
+    if (!lot) return fail('دفعة الإنتاج غير موجودة')
+    limits = state.products.find((item) => item.id === lot.productId)?.qcLimits
+  }
+  const suggested = suggestQcResult(limits, reading)
+  const chosen = input.result ?? suggested
+  if (input.result && input.result !== suggested && !input.reason?.trim()) return fail('تجاوز النتيجة المقترحة يحتاج سبباً')
+  if (releasesBlock(suggested, chosen) && !actor.permissions.includes('qc.release')) {
+    return fail('ليست لديك صلاحية لفك الحجز أو تجاوز الرفض')
+  }
+  if (releasesBlock(suggested, chosen) && !input.reason?.trim()) return fail('فك الحجز أو تجاوز الرفض يحتاج سبباً')
+  const sample = {
+    id: clock.id('qc'),
+    type: input.type,
+    materialId: input.materialId,
+    batchNo: input.batchNo?.trim(),
+    supplierId: input.supplierId,
+    lotNo: input.lotNo?.trim(),
+    sampledBy: actor.id,
+    sampledAt: clock.now(),
+    moisturePct: input.moisturePct != null ? round3(input.moisturePct) : undefined,
+    proteinPct: input.proteinPct != null ? round3(input.proteinPct) : undefined,
+    ashPct: input.ashPct != null ? round3(input.ashPct) : undefined,
+    notes: input.notes?.trim() || undefined,
+    result: chosen,
+  }
+  state.qualitySamples.unshift(sample)
+  if (sample.type === 'FINISHED_PRODUCT') syncLotQc(state, sample.lotNo, sample.result)
+  notifyQc(state, clock, sample)
+  const detail = input.result && input.result !== suggested ? `تجاوز ${suggested} إلى ${chosen}: ${input.reason?.trim()}` : chosen
+  audit(state, actor, clock, input.result && input.result !== suggested ? 'تجاوز نتيجة الجودة' : 'تسجيل عينة جودة', 'qualitySample', sample.id, detail)
+  return ok(state, 'تم تسجيل عينة الجودة')
+}
+
+function updateQualityResult(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateQualityResult' }>['input'], clock: Clock): CommandResult {
+  const sample = state.qualitySamples?.find((item) => item.id === input.sampleId)
+  if (!sample) return fail('عينة الجودة غير موجودة')
+  if (!input.reason?.trim()) return fail('سبب تغيير النتيجة مطلوب')
+  if (releasesBlock(sample.result, input.result) && !actor.permissions.includes('qc.release')) {
+    return fail('ليست لديك صلاحية لفك الحجز أو تجاوز الرفض')
+  }
+  const previous = sample.result
+  sample.result = input.result
+  if (sample.type === 'FINISHED_PRODUCT') syncLotQc(state, sample.lotNo, sample.result)
+  notifyQc(state, clock, sample)
+  audit(state, actor, clock, 'تغيير نتيجة الجودة', 'qualitySample', sample.id, `${previous} → ${input.result}: ${input.reason.trim()}`)
+  return ok(state, 'تم تحديث نتيجة الجودة')
+}
+
+function setQcLimits(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setQcLimits' }>['input'], clock: Clock): CommandResult {
+  const cleaned = cleanLimits(input.limits)
+  if ('error' in cleaned && cleaned.error) return fail(cleaned.error)
+  if (input.itemType === 'MATERIAL') {
+    const material = state.materials.find((item) => item.id === input.itemId)
+    if (!material) return fail('المادة غير موجودة')
+    material.qcLimits = cleaned.limits
+  } else {
+    const product = state.products.find((item) => item.id === input.itemId)
+    if (!product) return fail('المنتج غير موجود')
+    product.qcLimits = cleaned.limits
+  }
+  audit(state, actor, clock, 'تحديث حدود الجودة', input.itemType === 'MATERIAL' ? 'material' : 'product', input.itemId, 'حدود الرطوبة والبروتين والرماد')
+  return ok(state, 'تم حفظ حدود الجودة')
 }
 
 function setUserPassword(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setUserPassword' }>['input'], clock: Clock): CommandResult {

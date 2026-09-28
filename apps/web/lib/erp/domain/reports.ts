@@ -433,7 +433,27 @@ export function traceLot(state: ReportState, lotNo: string) {
   const customers = lot.deliveries
     .map((delivery) => (delivery.customerId ? (state.customers.find((item) => item.id === delivery.customerId) ?? null) : null))
     .filter((item, index, list): item is NonNullable<typeof item> => Boolean(item) && list.findIndex((other) => other?.id === item?.id) === index)
-  return { lot, product, operator, rawBatches, suppliers, customers, deliveries: lot.deliveries }
+  const samples = (state.qualitySamples ?? []).filter((item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lot.lotNo)
+  return { lot, product, operator, rawBatches, suppliers, customers, deliveries: lot.deliveries, samples }
+}
+
+export function supplierQuality(state: ReportState, supplierId: string) {
+  const supplier = state.suppliers.find((item) => item.id === supplierId) ?? null
+  const samples = (state.qualitySamples ?? []).filter((item) => item.supplierId === supplierId)
+  const decided = samples.filter((item) => item.result !== 'PENDING')
+  const passed = decided.filter((item) => item.result === 'PASSED').length
+  const average = (key: 'moisturePct' | 'proteinPct') => {
+    const rows = samples.filter((item) => item[key] != null)
+    if (rows.length === 0) return null
+    return money(rows.reduce((sum, item) => sum + (item[key] ?? 0), 0) / rows.length)
+  }
+  return {
+    supplier,
+    samples: samples.length,
+    passRate: decided.length > 0 ? money((passed / decided.length) * 100) : null,
+    avgMoisture: average('moisturePct'),
+    avgProtein: average('proteinPct'),
+  }
 }
 
 export function traceSupplierBatch(state: ReportState, materialId: string, batchNo: string) {

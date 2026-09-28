@@ -304,6 +304,20 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['production.read'],
       },
       {
+        id: 'quality-samples',
+        label: 'عينات الجودة',
+        entityKey: 'qualitySample',
+        description: 'فحص الخام والمنتج النهائي وحدود القبول',
+        permission: ['qc.read'],
+      },
+      {
+        id: 'supplier-quality',
+        label: 'جودة المورد',
+        entityKey: 'supplierQuality',
+        description: 'عدد العينات ونسبة القبول ومتوسط الرطوبة والبروتين',
+        permission: ['qc.read'],
+      },
+      {
         id: 'planned-today',
         label: 'المخطط اليوم',
         entityKey: 'factoryPlanned',
