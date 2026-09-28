@@ -188,6 +188,8 @@ model Material {
   inventoryBalances InventoryBalance[]
   ledgerEntries InventoryLedgerEntry[]
   productionInputs ProductionInput[]
+  suppliedBatchLinks BatchMaterialLink[]
+  qualitySamples QualitySample[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,6 +211,8 @@ model Product {
   ledgerEntries InventoryLedgerEntry[]
   productionOrders ProductionOrder[]
   invoiceLines SalesInvoiceLine[]
+  productionLots ProductionLot[]
+  qualitySamples QualitySample[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -223,6 +227,7 @@ model Supplier {
   email String
   address String
   purchaseOrders PurchaseOrder[]
+  suppliedBatches BatchMaterialLink[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -236,6 +241,8 @@ model Customer {
   email String
   address String
   invoices SalesInvoice[]
+  deliveredLots ProductionLot[]
+  lotDeliveries LotDelivery[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -250,6 +257,7 @@ model Employee {
   active Boolean @default(true)
   attendance Attendance[]
   payrollLines PayrollLine[]
+  productionLots ProductionLot[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -393,6 +401,8 @@ model ProductionOrder {
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Restrict)
   inputs ProductionInput[]
+  lots ProductionLot[]
+  costLines ProductionCostLine[]
   @@index([productId, status])
 }
 
@@ -520,6 +530,129 @@ model PayrollRun {
   createdAt DateTime @default(now())
   decidedBy String?
   lines PayrollLine[]
+}
+
+enum QualitySampleType {
+  RAW_MATERIAL
+  FINISHED_PRODUCT
+}
+
+enum QualityResultStatus {
+  PENDING
+  PASSED
+  FAILED
+  HOLD
+}
+
+enum ProductionCostType {
+  RAW_MATERIAL
+  BAGS
+  ELECTRICITY
+  GAS
+  LABOR
+  TRANSPORT
+  MAINTENANCE
+  OVERHEAD
+}
+
+/// Finished production lot with complete genealogy from raw materials to customer delivery.
+model ProductionLot {
+  id              String   @id @default(cuid())
+  lotNo           String   @unique
+  productionOrderId String
+  productId       String
+  operatorId      String?
+  customerId      String?
+  manufacturedAt  DateTime
+  expectedQty     Decimal  @db.Decimal(14, 3)
+  actualQty       Decimal  @db.Decimal(14, 3)
+  wasteQty        Decimal  @default(0) @db.Decimal(14, 3)
+  varianceQty     Decimal  @default(0) @db.Decimal(14, 3)
+  variancePct     Decimal  @default(0) @db.Decimal(7, 3)
+  totalCost       Decimal  @default(0) @db.Decimal(14, 3)
+  costPerTon      Decimal  @default(0) @db.Decimal(14, 3)
+  salePricePerTon Decimal  @default(0) @db.Decimal(14, 3)
+  marginPerTon    Decimal  @default(0) @db.Decimal(14, 3)
+  notes           String?
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  operator Employee? @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  materials BatchMaterialLink[]
+  qualitySamples QualitySample[]
+  costLines ProductionCostLine[]
+  deliveries LotDelivery[]
+  createdAt DateTime @default(now())
+
+  @@index([productId, manufacturedAt])
+  @@index([customerId])
+}
+
+model BatchMaterialLink {
+  id String @id @default(cuid())
+  productionLotId String
+  materialId String
+  supplierId String?
+  sourceBatchNo String
+  qty Decimal @db.Decimal(14, 3)
+  unitCost Decimal @db.Decimal(14, 3)
+  productionLot ProductionLot @relation(fields: [productionLotId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@index([sourceBatchNo])
+  @@index([supplierId])
+}
+
+model QualitySample {
+  id String @id @default(cuid())
+  productionLotId String?
+  materialId String?
+  productId String?
+  type QualitySampleType
+  sampledAt DateTime @default(now())
+  sampledBy String
+  moisturePct Decimal? @db.Decimal(7, 3)
+  proteinPct Decimal? @db.Decimal(7, 3)
+  ashPct Decimal? @db.Decimal(7, 3)
+  result QualityResultStatus @default(PENDING)
+  notes String?
+  productionLot ProductionLot? @relation(fields: [productionLotId], references: [id], onDelete: Cascade)
+  material Material? @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([productionLotId, result])
+  @@index([materialId, sampledAt])
+  @@index([productId, sampledAt])
+}
+
+model ProductionCostLine {
+  id String @id @default(cuid())
+  productionOrderId String
+  productionLotId String?
+  type ProductionCostType
+  description String
+  amount Decimal @db.Decimal(14, 3)
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  productionLot ProductionLot? @relation(fields: [productionLotId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([productionOrderId, type])
+}
+
+model LotDelivery {
+  id String @id @default(cuid())
+  productionLotId String
+  customerId String
+  deliveredQty Decimal @db.Decimal(14, 3)
+  deliveredAt DateTime @default(now())
+  referenceNo String?
+  productionLot ProductionLot @relation(fields: [productionLotId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, deliveredAt])
 }
 
 /// Cold copy of audit rows removed from the live ErpDocument.
