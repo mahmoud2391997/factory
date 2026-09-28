@@ -486,11 +486,19 @@ export function materialStatement(state: ReportState, materialId: string) {
   }
 }
 
+export const UNKNOWN_OPERATOR = 'غير معروف (بيانات قديمة)'
+
+export function operatorLabel(employees: Array<{ id: string; nameAr: string }>, operatorId?: string | null) {
+  if (!operatorId) return UNKNOWN_OPERATOR
+  return employees.find((item) => item.id === operatorId)?.nameAr ?? UNKNOWN_OPERATOR
+}
+
 export function traceLot(state: ReportState, lotNo: string) {
   const lot = (state.lots ?? []).find((item) => item.lotNo === lotNo)
   if (!lot) return null
   const product = state.products.find((item) => item.id === lot.productId) ?? null
-  const operator = state.employees.find((item) => item.id === lot.operatorId) ?? null
+  const operator = lot.operatorId ? (state.employees.find((item) => item.id === lot.operatorId) ?? null) : null
+  const operatorName = operatorLabel(state.employees, lot.operatorId)
   const rawBatches = lot.materials.map((line) => ({
     ...line,
     materialName: state.materials.find((item) => item.id === line.materialId)?.nameAr ?? line.materialId,
@@ -503,7 +511,7 @@ export function traceLot(state: ReportState, lotNo: string) {
     .map((delivery) => (delivery.customerId ? (state.customers.find((item) => item.id === delivery.customerId) ?? null) : null))
     .filter((item, index, list): item is NonNullable<typeof item> => Boolean(item) && list.findIndex((other) => other?.id === item?.id) === index)
   const samples = (state.qualitySamples ?? []).filter((item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lot.lotNo)
-  return { lot, product, operator, rawBatches, suppliers, customers, deliveries: lot.deliveries, samples }
+  return { lot, product, operator, operatorName, rawBatches, suppliers, customers, deliveries: lot.deliveries, samples }
 }
 
 export function productionCostSummary(state: ReportState, fromDay?: string, toDay?: string) {

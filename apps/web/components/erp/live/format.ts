@@ -33,6 +33,7 @@ export const STATUS_LABEL: Record<string, string> = {
   FAILED: 'مرفوض',
   HOLD: 'معلّق',
   PENDING: 'بانتظار النتيجة',
+  UNTESTED: 'لم يُفحص',
   RAW_MATERIAL: 'خام',
   FINISHED_PRODUCT: 'منتج نهائي',
   MANUAL: 'يدوي',

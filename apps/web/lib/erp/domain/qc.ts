@@ -56,10 +56,11 @@ export function lotQcBlock(state: ErpState, lotNo: string): string | null {
   const sample = latestSample(state.qualitySamples ?? [], (item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lotNo)
   const lot = (state.lots ?? []).find((item) => item.lotNo === lotNo)
   if (!sample && !lot) return null
-  if (!sample && state.company.requireQcBeforeUse) {
+  const result = String(sample?.result ?? lot?.qcStatus ?? 'UNTESTED')
+  const untested = result === 'UNTESTED' || (!sample && result !== 'PASSED' && result !== 'FAILED' && result !== 'HOLD')
+  if (untested && state.company.requireQcBeforeUse) {
     return `لا توجد عينة جودة للدفعة ${lotNo} والإعداد يتطلب الفحص قبل الاستخدام`
   }
-  const result = sample?.result ?? lot?.qcStatus
   if (result === 'FAILED') return `دفعة الإنتاج ${lotNo} مرفوضة في الجودة ولا يمكن بيعها أو سحبها`
   if (result === 'HOLD') return `دفعة الإنتاج ${lotNo} معلّقة في الجودة ولا يمكن بيعها أو سحبها`
   return null

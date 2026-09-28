@@ -3,11 +3,11 @@
 import { useState } from 'react'
 
 import { COST_LABEL } from '@/lib/erp/domain/costing'
-import { traceLot } from '@/lib/erp/domain/reports'
+import { operatorLabel, traceLot } from '@/lib/erp/domain/reports'
 
-import { Card, DataTable, GhostButton } from './bits'
+import { Badge, Card, DataTable, GhostButton, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
-import { moneyFmt, pctFmt, productName, qtyFmt } from './format'
+import { moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -38,7 +38,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
           columns={['رقم الدفعة', 'المنتج', 'المشغّل', 'الداخل / المتوقع / الفعلي', 'الفارق', 'تكلفة/طن', 'بيع/طن', 'الهامش/طن', 'الهامش %', '']}
           rows={lots.map((lot) => {
             const margin = lot.marginPerTon
-            const operator = ctx.state.employees.find((item) => item.id === lot.operatorId)?.nameAr ?? '—'
+            const operator = operatorLabel(ctx.state.employees, lot.operatorId)
             return [
               lot.legacy ? `${lot.lotNo} · قديم` : lot.lotNo,
               productName(ctx.state, lot.productId),
@@ -58,10 +58,13 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
         <Card title={`تتبع ${trace.lot.lotNo}`} hint={detail ? 'من الدفعة إلى خامات الموردين ثم إلى العملاء.' : 'تفاصيل الدفعة المختارة.'}>
           <div className="mb-4 grid gap-2 text-sm leading-7 text-[#30453d] sm:grid-cols-2">
             <div>المنتج: {trace.product?.nameAr ?? '—'}</div>
-            <div>المشغّل: {trace.operator?.nameAr ?? '—'}</div>
+            <div>المشغّل: {trace.operatorName}</div>
             <div>أمر الإنتاج: {ctx.state.productionOrders.find((item) => item.id === trace.lot.productionOrderId)?.number ?? trace.lot.productionOrderId}</div>
             <div>تاريخ التصنيع: {trace.lot.manufacturedAt.slice(0, 16).replace('T', ' ')}</div>
-            <div>الجودة: {trace.lot.qcStatus ?? '—'}</div>
+            <div>
+              الجودة:{' '}
+              <Badge tone={toneForStatus(trace.lot.qcStatus ?? 'UNTESTED')}>{statusLabel(trace.lot.qcStatus ?? 'UNTESTED')}</Badge>
+            </div>
             {trace.lot.legacyNote ? <div className="sm:col-span-2">تصنيف: {trace.lot.legacyNote}</div> : null}
           </div>
           <DataTable
@@ -101,8 +104,8 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
                   ? ctx.state.invoices.find((item) => item.id === delivery.invoiceId)?.number ?? 'فاتورة'
                   : ctx.state.withdrawals.find((item) => item.id === delivery.withdrawalId)?.number ?? 'سحب',
                 delivery.customerId ? ctx.state.customers.find((item) => item.id === delivery.customerId)?.nameAr ?? '—' : 'سحب داخلي',
-                qtyFmt(delivery.qty),
-                delivery.at.slice(0, 16).replace('T', ' '),
+                delivery.allocation === 'proportional' ? `${qtyFmt(delivery.qty)} (موزّعة)` : qtyFmt(delivery.qty),
+                delivery.unallocatedNote ? `${delivery.at.slice(0, 16).replace('T', ' ')} — ${delivery.unallocatedNote}` : delivery.at.slice(0, 16).replace('T', ' '),
               ])}
             />
           </div>

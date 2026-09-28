@@ -1190,7 +1190,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     totalCost,
     costPerTon: outputQty > 0 ? money((totalCost / outputQty) * 1000) : 0,
     deliveries: [],
-    qcStatus: 'PENDING' as const
+    qcStatus: 'UNTESTED' as const
   }
   state.lots = state.lots ?? []
   state.lots.unshift(lot)

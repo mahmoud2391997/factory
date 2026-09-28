@@ -375,14 +375,15 @@ export type CostLineType =
 
 export type CostLine = { type: CostLineType; amount: number }
 
-export type QcResult = 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
+export type QcResult = 'UNTESTED' | 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
 
 export type ProductionLot = {
   id: string
   lotNo: string
   productionOrderId: string
   productId: string
-  operatorId: string
+  /** Null on lots synthesized from a v1 order: nobody was recorded. */
+  operatorId: string | null
   manufacturedAt: string
   inputKg: number
   expectedOutputKg: number
@@ -397,7 +398,18 @@ export type ProductionLot = {
   salePricePerTon?: number
   marginPerTon?: number
   marginPct?: number
-  deliveries: Array<{ invoiceId?: string; withdrawalId?: string; customerId?: string; qty: number; at: string }>
+  deliveries: Array<{
+    invoiceId?: string
+    withdrawalId?: string
+    customerId?: string
+    qty: number
+    at: string
+    /** exact = the line named this lot alone. proportional = the line listed several lots and the qty was split. */
+    allocation?: 'exact' | 'proportional'
+    /** Qty on the same line that named a batch with no lot. Shown in the trace; not added to this lot's sold qty. */
+    unallocatedQty?: number
+    unallocatedNote?: string
+  }>
   qcStatus?: QcResult
   /** Synthesized from a v1 completed order. Cost is raw material only. */
   legacy?: boolean

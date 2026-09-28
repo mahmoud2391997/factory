@@ -3,7 +3,8 @@ import { test } from 'node:test'
 
 import { actorFromUser, applyCommand } from './engine'
 import { LEGACY_LOT_NOTE, migrateErpState } from './migrate'
-import { traceCustomer, traceLot, traceSupplierBatch, trialBalance } from './reports'
+import { lotQcBlock } from './qc'
+import { operatorLabel, traceCustomer, traceLot, traceSupplierBatch, UNKNOWN_OPERATOR, trialBalance } from './reports'
 import { createClock, emptyState } from './seed'
 import type { Actor, Command, ErpState } from './types'
 
@@ -255,5 +256,136 @@ test('v1 completed orders become legacy lots with raw-material cost only', () =>
   assert.deepEqual(lot.costLines, [{ type: 'RAW_MATERIAL', amount: 80 }])
   assert.equal(lot.deliveries[0]?.customerId, 'cus-old')
   assert.equal(lot.deliveries[0]?.qty, 100)
+  assert.equal(lot.operatorId, null)
+  assert.equal(lot.qcStatus, 'UNTESTED')
   assert.equal(migrateErpState(migrated).lots.length, 1)
+})
+
+function legacyDocument() {
+  const clock = createClock('2026-01-02T04:00:00.000Z')
+  const current = emptyState('mig')
+  return {
+    ...current,
+    schemaVersion: 1 as const,
+    lots: undefined,
+    qualitySamples: undefined,
+    employees: [{ id: 'emp-1', code: 'E1', nameAr: 'خالد', department: 'الإنتاج', jobTitle: 'مشغّل', basicSalary: 1, active: true }],
+    productionOrders: [
+      {
+        id: 'ord-a',
+        number: 'PR-A',
+        productId: 'prd-old',
+        recipeId: 'rcp-old',
+        plannedQty: 1000,
+        status: 'COMPLETED' as const,
+        expected: [],
+        actualOutputQty: 500,
+        totalCost: 40,
+        unitCost: 0.08,
+        outputBatch: 'FG-A',
+        varianceReason: '',
+        createdBy: 'user-gm',
+        createdAt: clock.now(),
+        completedAt: clock.now(),
+      },
+      {
+        id: 'ord-b',
+        number: 'PR-B',
+        productId: 'prd-old',
+        recipeId: 'rcp-old',
+        plannedQty: 1000,
+        status: 'COMPLETED' as const,
+        expected: [],
+        actualOutputQty: 500,
+        totalCost: 40,
+        unitCost: 0.08,
+        outputBatch: 'FG-B',
+        varianceReason: '',
+        createdBy: 'user-gm',
+        createdAt: clock.now(),
+        completedAt: clock.now(),
+      },
+    ],
+    invoices: [
+      {
+        id: 'inv-multi',
+        number: 'INV-M',
+        customerId: 'cus-old',
+        status: 'CONFIRMED' as const,
+        issuedAt: clock.now(),
+        notes: '',
+        lines: [
+          {
+            productId: 'prd-old',
+            qty: 90,
+            unitPrice: 0.2,
+            vatTreatment: 'ZERO' as const,
+            vatRatePct: 0,
+            net: 18,
+            vat: 0,
+            total: 18,
+            batchNo: 'FG-A, FG-B, FG-MISSING',
+            unitCost: 0.08,
+          },
+        ],
+        subtotal: 18,
+        vatAmount: 0,
+        total: 18,
+        paidAmount: 0,
+        createdBy: 'user-gm',
+      },
+    ],
+  }
+}
+
+test('legacy lot has no operator and status UNTESTED', () => {
+  const migrated = migrateErpState(legacyDocument() as unknown as ErpState)
+  for (const lot of migrated.lots) {
+    assert.equal(lot.operatorId, null)
+    assert.equal(lot.qcStatus, 'UNTESTED')
+    assert.equal(lot.legacy, true)
+    assert.equal(operatorLabel(migrated.employees, lot.operatorId), UNKNOWN_OPERATOR)
+    const trace = traceLot(migrated, lot.lotNo)
+    assert.equal(trace?.operator, null)
+    assert.equal(trace?.operatorName, UNKNOWN_OPERATOR)
+  }
+})
+
+test('multi-batch invoice line is split and the unknown batch is not dropped', () => {
+  const migrated = migrateErpState(legacyDocument() as unknown as ErpState)
+  const a = migrated.lots.find((lot) => lot.lotNo === 'FG-A')!
+  const b = migrated.lots.find((lot) => lot.lotNo === 'FG-B')!
+  assert.equal(a.deliveries[0]?.allocation, 'proportional')
+  assert.equal(a.deliveries[0]?.qty, 30)
+  assert.equal(b.deliveries[0]?.qty, 30)
+  assert.equal(a.deliveries[0]?.unallocatedQty, 30)
+  assert.match(a.deliveries[0]?.unallocatedNote ?? '', /FG-MISSING/)
+  assert.match(traceLot(migrated, 'FG-A')?.deliveries[0]?.unallocatedNote ?? '', /غير مخصصة/)
+})
+
+test('the migration is idempotent and a future schema fails', () => {
+  const migrated = migrateErpState(legacyDocument() as unknown as ErpState)
+  const snapshot = JSON.stringify(migrated)
+  assert.equal(JSON.stringify(migrateErpState(migrated)), snapshot)
+  assert.throws(() => migrateErpState({ ...emptyState('x'), schemaVersion: 9 } as ErpState), /إصدار بيانات المصنع غير مدعوم/)
+})
+
+test('requireQcBeforeUse blocks an untested legacy lot only when it is on', () => {
+  const migrated = migrateErpState(legacyDocument() as unknown as ErpState)
+  migrated.company.requireQcBeforeUse = false
+  assert.equal(lotQcBlock(migrated, 'FG-A'), null)
+  migrated.company.requireQcBeforeUse = true
+  assert.match(lotQcBlock(migrated, 'FG-A') ?? '', /يتطلب الفحص قبل الاستخدام/)
+})
+
+test('UI-facing selectors do not throw for a lot without an operator', () => {
+  const migrated = migrateErpState(legacyDocument() as unknown as ErpState)
+  assert.doesNotThrow(() => {
+    for (const lot of migrated.lots) {
+      operatorLabel(migrated.employees, lot.operatorId)
+      const trace = traceLot(migrated, lot.lotNo)
+      assert.ok(trace)
+      assert.equal(trace.operatorName, UNKNOWN_OPERATOR)
+    }
+  })
 })

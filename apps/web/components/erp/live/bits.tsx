@@ -267,8 +267,8 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
 }
 
 export function toneForStatus(status: string): 'neutral' | 'good' | 'warn' | 'bad' {
-  if (['APPROVED', 'RECEIVED', 'COMPLETED', 'PAID', 'POSTED', 'DONE', 'CONFIRMED'].includes(status)) return 'good'
-  if (['PENDING_APPROVAL', 'PARTIAL', 'PARTIALLY_RECEIVED', 'RELEASED', 'OPEN', 'DRAFT'].includes(status)) return 'warn'
-  if (['REJECTED'].includes(status)) return 'bad'
+  if (['APPROVED', 'RECEIVED', 'COMPLETED', 'PAID', 'POSTED', 'DONE', 'CONFIRMED', 'PASSED'].includes(status)) return 'good'
+  if (['PENDING_APPROVAL', 'PARTIAL', 'PARTIALLY_RECEIVED', 'RELEASED', 'OPEN', 'DRAFT', 'HOLD', 'PENDING'].includes(status)) return 'warn'
+  if (['REJECTED', 'FAILED'].includes(status)) return 'bad'
   return 'neutral'
 }
