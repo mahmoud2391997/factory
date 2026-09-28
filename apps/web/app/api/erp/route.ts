@@ -15,6 +15,7 @@ const ALLOWED_ACTIONS = new Set([
   'importAttendance', 'createPayroll', 'decidePayroll', 'payPayroll', 'markNotificationRead', 'scanBarcode',
   'setRolePermissions', 'setUserPassword', 'archiveHistory', 'createQualitySample', 'updateQualityResult', 'setQcLimits',
   'createVehicle', 'updateVehicle', 'addFuelLog', 'addVehicleService', 'createTrip',
+  'createObligation', 'decideObligation', 'payObligationInstallment',
 ])
 
 export async function GET(req: NextRequest) {

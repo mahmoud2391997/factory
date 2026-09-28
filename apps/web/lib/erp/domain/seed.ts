@@ -134,6 +134,22 @@ export function emptyState(passwordHash: string): ErpState {
     obligationScheduleLines: [],
     obligationPayments: [],
     companyDocuments: [],
+    spareParts: [],
+    sparePartUsages: [],
+    packagingMaterials: [],
+    packagingConsumption: [],
+    supplierTemplates: [],
+    supplierCommunications: [],
+    scaleReadings: [],
+    distributionPoints: [],
+    distributionClosings: [],
+    invoiceDeliveries: [],
+    utilitiesReadings: [],
+    machines: [],
+    maintenanceSchedules: [],
+    maintenanceRecords: [],
+    bankTransactions: [],
+    customerRecipes: [],
   }
 }
 

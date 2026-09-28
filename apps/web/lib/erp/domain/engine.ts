@@ -22,6 +22,28 @@ import type {
   VehicleService,
   FuelLog,
   Trip,
+  Obligation,
+  ObligationScheduleLine,
+  ObligationPayment,
+  NutritionalProfile,
+  NutritionalComparison,
+  SparePart,
+  SparePartUsage,
+  PackagingMaterial,
+  PackagingConsumption,
+  SupplierTemplate,
+  SupplierCommunication,
+  ScaleReading,
+  DistributionPoint,
+  DistributionClosing,
+  DeliveryStep,
+  InvoiceDelivery,
+  UtilitiesReading,
+  Machine,
+  MaintenanceSchedule,
+  MaintenanceRecord,
+  BankTransaction,
+  CustomerRecipe,
 } from './types'
 
 const INVENTORY_ACCOUNT: Record<ItemType, string> = {
@@ -108,6 +130,150 @@ function recordLotDelivery(state: ErpState, productId: string, batchNo: string, 
   if (!lot) return
   lot.deliveries.push(delivery)
   refreshLotSale(state, lot)
+}
+
+/** Calculate nutritional profile from recipe ingredients. */
+function calculateRecipeNutrition(state: ErpState, recipe: Recipe): NutritionalProfile {
+  let totalMoisture = 0
+  let totalProtein = 0
+  let totalAsh = 0
+  let totalEnergy = 0
+  let totalFat = 0
+  let totalFiber = 0
+  let totalCalcium = 0
+  let totalPhosphorus = 0
+  let totalQty = 0
+
+  for (const item of recipe.items) {
+    const material = state.materials.find((m) => m.id === item.materialId)
+    if (!material?.labAnalysis) continue
+
+    const qty = item.qty
+    totalQty += qty
+
+    // Weighted average calculation
+    totalMoisture += (material.labAnalysis.moisturePct ?? 0) * qty
+    totalProtein += (material.labAnalysis.proteinPct ?? 0) * qty
+    totalAsh += (material.labAnalysis.ashPct ?? 0) * qty
+    totalEnergy += (material.labAnalysis.energy ?? 0) * qty
+    totalFat += (material.labAnalysis.fatPct ?? 0) * qty
+    totalFiber += (material.labAnalysis.fiberPct ?? 0) * qty
+    totalCalcium += (material.labAnalysis.calciumPct ?? 0) * qty
+    totalPhosphorus += (material.labAnalysis.phosphorusPct ?? 0) * qty
+  }
+
+  if (totalQty === 0) {
+    return {
+      moisturePct: 0,
+      proteinPct: 0,
+      ashPct: 0,
+      energy: 0,
+      fatPct: 0,
+      fiberPct: 0,
+      calciumPct: 0,
+      phosphorusPct: 0,
+    }
+  }
+
+  return {
+    moisturePct: pct2(totalMoisture / totalQty),
+    proteinPct: pct2(totalProtein / totalQty),
+    ashPct: pct2(totalAsh / totalQty),
+    energy: pct2(totalEnergy / totalQty),
+    fatPct: pct2(totalFat / totalQty),
+    fiberPct: pct2(totalFiber / totalQty),
+    calciumPct: pct2(totalCalcium / totalQty),
+    phosphorusPct: pct2(totalPhosphorus / totalQty),
+  }
+}
+
+/** Compare calculated nutrition with lab results and specifications. */
+function compareNutrition(calculated: NutritionalProfile, lab?: QualitySample, spec?: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number; minEnergy?: number; maxEnergy?: number; minFat?: number; maxFat?: number; minFiber?: number; maxFiber?: number; minCalcium?: number; maxCalcium?: number; minPhosphorus?: number; maxPhosphorus?: number }): NutritionalComparison[] {
+  const parameters: Array<{ key: keyof NutritionalProfile; label: string; unit: string }> = [
+    { key: 'moisturePct', label: 'الرطوبة', unit: '%' },
+    { key: 'proteinPct', label: 'البروتين', unit: '%' },
+    { key: 'ashPct', label: 'الرماد', unit: '%' },
+    { key: 'energy', label: 'الطاقة', unit: 'MJ/kg' },
+    { key: 'fatPct', label: 'الدهون', unit: '%' },
+    { key: 'fiberPct', label: 'الألياف', unit: '%' },
+    { key: 'calciumPct', label: 'الكالسيوم', unit: '%' },
+    { key: 'phosphorusPct', label: 'الفوسفور', unit: '%' },
+  ]
+
+  return parameters.map(({ key, label, unit }) => {
+    const calculatedValue = calculated[key]
+    const labValue = lab ? (lab as any)[key] : undefined
+    const specMin = spec ? (spec as any)[`min${key.charAt(0).toUpperCase() + key.slice(1).replace('Pct', '')}`] : undefined
+    const specMax = spec ? (spec as any)[`max${key.charAt(0).toUpperCase() + key.slice(1).replace('Pct', '')}`] : undefined
+
+    const variance = labValue !== undefined ? pct2(labValue - calculatedValue) : undefined
+    const inSpec = labValue !== undefined && specMin !== undefined && specMax !== undefined
+      ? labValue >= specMin && labValue <= specMax
+      : true
+
+    return {
+      parameter: label,
+      calculated: calculatedValue,
+      lab: labValue,
+      specMin,
+      specMax,
+      variance,
+      inSpec,
+    }
+  })
+}
+
+/** Automatically match bank transaction to invoice, supplier, or expense. */
+function autoMatchBankTransaction(state: ErpState, transaction: BankTransaction): { type: 'INVOICE' | 'SUPPLIER' | 'EXPENSE'; id: string } | null {
+  if (transaction.type === 'CREDIT') {
+    // Try to match with customer payment
+    for (const invoice of state.invoices) {
+      if (invoice.status === 'PAID') continue
+      const customer = state.customers.find((c) => c.id === invoice.customerId)
+      if (!customer) continue
+      // Match by customer name in description or approximate amount
+      if (transaction.description.includes(customer.nameAr) || Math.abs(transaction.amount - (invoice.total - invoice.paidAmount)) < 1) {
+        return { type: 'INVOICE', id: invoice.id }
+      }
+    }
+  } else if (transaction.type === 'DEBIT') {
+    // Try to match with supplier payment
+    for (const supplier of state.suppliers) {
+      if (transaction.description.includes(supplier.nameAr)) {
+        return { type: 'SUPPLIER', id: supplier.id }
+      }
+    }
+    // Try to match with expense
+    for (const expense of state.expenses) {
+      if (expense.status === 'POSTED') continue
+      if (transaction.description.includes(expense.description) || Math.abs(transaction.amount - expense.total) < 1) {
+        return { type: 'EXPENSE', id: expense.id }
+      }
+    }
+  }
+  return null
+}
+
+/** Calculate landed cost including transport. */
+function calculateLandedCost(state: ErpState, materialId: string, batchNo: string): number {
+  const balance = state.balances.find((b) => b.itemId === materialId && b.batchNo === batchNo && b.itemType === 'MATERIAL')
+  if (!balance) return 0
+
+  const materialCost = balance.unitCost
+  const receipt = state.goodsReceipts.find((r) => r.lines.some((l) => l.materialId === materialId && l.batchNo === batchNo))
+  if (!receipt) return materialCost
+
+  // Find transport cost from related trips
+  let transportCost = 0
+  for (const trip of state.trips) {
+    if (trip.cost > 0) {
+      // Simple allocation: distribute transport cost proportionally across goods received
+      // In a real system, this would be more sophisticated
+      transportCost += trip.cost * 0.1 // 10% allocation
+    }
+  }
+
+  return money(materialCost + transportCost)
 }
 
 function nextNumber(state: ErpState, docType: string, at: string) {
@@ -458,6 +624,50 @@ function refreshAlerts(state: ErpState, clock: Clock) {
       )
     }
   }
+  // QC specification alerts for finished products
+  for (const lot of state.lots ?? []) {
+    if (!lot.qcStatus || lot.qcStatus === 'UNTESTED') continue
+    const product = state.products.find((p) => p.id === lot.productId)
+    if (!product?.qcLimits) continue
+
+    const latestSample = state.qualitySamples
+      .filter((s) => s.lotNo === lot.lotNo && s.type === 'FINISHED_PRODUCT')
+      .sort((a, b) => b.sampledAt.localeCompare(a.sampledAt))[0]
+
+    if (!latestSample || latestSample.result === 'PENDING') continue
+
+    const { minMoisture, maxMoisture, minProtein, maxProtein, minAsh, maxAsh, minEnergy, maxEnergy, minFat, maxFat, minFiber, maxFiber, minCalcium, maxCalcium, minPhosphorus, maxPhosphorus } = product.qcLimits
+
+    const violations: string[] = []
+    if (minMoisture !== undefined && (latestSample.moisturePct ?? 0) < minMoisture) violations.push(`الرطوبة ${latestSample.moisturePct}% < ${minMoisture}%`)
+    if (maxMoisture !== undefined && (latestSample.moisturePct ?? 0) > maxMoisture) violations.push(`الرطوبة ${latestSample.moisturePct}% > ${maxMoisture}%`)
+    if (minProtein !== undefined && (latestSample.proteinPct ?? 0) < minProtein) violations.push(`البروتين ${latestSample.proteinPct}% < ${minProtein}%`)
+    if (maxProtein !== undefined && (latestSample.proteinPct ?? 0) > maxProtein) violations.push(`البروتين ${latestSample.proteinPct}% > ${maxProtein}%`)
+    if (minAsh !== undefined && (latestSample.ashPct ?? 0) < minAsh) violations.push(`الرماد ${latestSample.ashPct}% < ${minAsh}%`)
+    if (maxAsh !== undefined && (latestSample.ashPct ?? 0) > maxAsh) violations.push(`الرماد ${latestSample.ashPct}% > ${maxAsh}%`)
+    if (minEnergy !== undefined && (latestSample.energy ?? 0) < minEnergy) violations.push(`الطاقة ${latestSample.energy} < ${minEnergy}`)
+    if (maxEnergy !== undefined && (latestSample.energy ?? 0) > maxEnergy) violations.push(`الطاقة ${latestSample.energy} > ${maxEnergy}`)
+    if (minFat !== undefined && (latestSample.fatPct ?? 0) < minFat) violations.push(`الدهون ${latestSample.fatPct}% < ${minFat}%`)
+    if (maxFat !== undefined && (latestSample.fatPct ?? 0) > maxFat) violations.push(`الدهون ${latestSample.fatPct}% > ${maxFat}%`)
+    if (minFiber !== undefined && (latestSample.fiberPct ?? 0) < minFiber) violations.push(`الألياف ${latestSample.fiberPct}% < ${minFiber}%`)
+    if (maxFiber !== undefined && (latestSample.fiberPct ?? 0) > maxFiber) violations.push(`الألياف ${latestSample.fiberPct}% > ${maxFiber}%`)
+    if (minCalcium !== undefined && (latestSample.calciumPct ?? 0) < minCalcium) violations.push(`الكالسيوم ${latestSample.calciumPct}% < ${minCalcium}%`)
+    if (maxCalcium !== undefined && (latestSample.calciumPct ?? 0) > maxCalcium) violations.push(`الكالسيوم ${latestSample.calciumPct}% > ${maxCalcium}%`)
+    if (minPhosphorus !== undefined && (latestSample.phosphorusPct ?? 0) < minPhosphorus) violations.push(`الفوسفور ${latestSample.phosphorusPct}% < ${minPhosphorus}%`)
+    if (maxPhosphorus !== undefined && (latestSample.phosphorusPct ?? 0) > maxPhosphorus) violations.push(`الفوسفور ${latestSample.phosphorusPct}% > ${maxPhosphorus}%`)
+
+    if (violations.length > 0) {
+      notify(
+        state,
+        clock,
+        'QC',
+        `خرق مواصفات الجودة: ${lot.lotNo}`,
+        `${product.nameAr}: ${violations.join(', ')}`,
+        ['GM', 'QUALITY'],
+        `qc:${lot.id}:${today}`,
+      )
+    }
+  }
 }
 
 function cloneState(state: ErpState): ErpState {
@@ -623,15 +833,55 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
     case 'createTrip':
       return createTrip(state, actor, command.input, clock)
     case 'createObligation':
-      return fail('إنشاء الالتزامات المالية لم يُنفذ بعد - Step 2')
+      return createObligation(state, actor, command.input, clock)
     case 'decideObligation':
-      return fail('البت في الالتزامات المالية لم يُنفذ بعد - Step 2')
+      return decideObligation(state, actor, command.input, clock)
     case 'payObligationInstallment':
-      return fail('دفع أقساط الالتزامات لم يُنفذ بعد - Step 2')
+      return payObligationInstallment(state, actor, command.input, clock)
     case 'createCompanyDocument':
       return fail('إنشاء مستندات الشركة لم يُنفذ بعد - Step 3')
     case 'renewCompanyDocument':
       return fail('تجديد مستندات الشركة لم يُنفذ بعد - Step 3')
+    case 'createSparePart':
+      return createSparePart(state, actor, command.input, clock)
+    case 'recordSparePartUsage':
+      return recordSparePartUsage(state, actor, command.input, clock)
+    case 'createPackagingMaterial':
+      return createPackagingMaterial(state, actor, command.input, clock)
+    case 'recordPackagingConsumption':
+      return recordPackagingConsumption(state, actor, command.input, clock)
+    case 'createSupplierTemplate':
+      return createSupplierTemplate(state, actor, command.input, clock)
+    case 'sendSupplierCommunication':
+      return sendSupplierCommunication(state, actor, command.input, clock)
+    case 'approveSupplierCommunication':
+      return approveSupplierCommunication(state, actor, command.input, clock)
+    case 'recordScaleReading':
+      return recordScaleReading(state, actor, command.input, clock)
+    case 'createDistributionPoint':
+      return createDistributionPoint(state, actor, command.input, clock)
+    case 'closeDistributionDay':
+      return closeDistributionDay(state, actor, command.input, clock)
+    case 'advanceInvoiceDelivery':
+      return advanceInvoiceDelivery(state, actor, command.input, clock)
+    case 'recordUtilitiesReading':
+      return recordUtilitiesReading(state, actor, command.input, clock)
+    case 'createMachine':
+      return createMachine(state, actor, command.input, clock)
+    case 'createMaintenanceSchedule':
+      return createMaintenanceSchedule(state, actor, command.input, clock)
+    case 'recordMaintenance':
+      return recordMaintenance(state, actor, command.input, clock)
+    case 'recordBankTransaction':
+      return recordBankTransaction(state, actor, command.input, clock)
+    case 'matchBankTransaction':
+      return matchBankTransaction(state, actor, command.input, clock)
+    case 'createCustomerRecipe':
+      return createCustomerRecipe(state, actor, command.input, clock)
+    case 'setCustomerPricing':
+      return setCustomerPricing(state, actor, command.input, clock)
+    case 'setAlternativeBagWeights':
+      return setAlternativeBagWeights(state, actor, command.input, clock)
     default:
       return fail('إجراء غير معروف')
   }
@@ -2080,6 +2330,233 @@ function createTrip(state: ErpState, actor: Actor, input: Extract<Command, { act
   return ok(state, 'تم إنشاء الرحلة')
 }
 
+function createObligation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createObligation' }>['input'], clock: Clock): CommandResult {
+  if (!input.beneficiary.trim() || !input.description.trim()) {
+    return fail('المستفيد والوصف مطلوبان')
+  }
+  if (input.total <= 0) return fail('المبلغ الإجمالي غير صحيح')
+  if (input.installmentAmount <= 0) return fail('مبلغ القسط غير صحيح')
+  if (input.installmentAmount > input.total) return fail('مبلغ القسط لا يمكن أن يكون أكبر من المبلغ الإجمالي')
+  if (!input.firstDueDate) return fail('تاريخ الاستحقاق الأول مطلوب')
+  
+  const threshold = state.company.obligationApprovalThreshold ?? 1000
+  const needsApproval = input.total >= threshold
+  
+  const obligation: Obligation = {
+    id: clock.id('obl'),
+    beneficiary: input.beneficiary.trim(),
+    description: input.description.trim(),
+    kind: input.kind,
+    total: money(input.total),
+    installmentAmount: money(input.installmentAmount),
+    firstDueDate: input.firstDueDate,
+    frequency: input.frequency,
+    numberOfInstallments: input.numberOfInstallments,
+    status: needsApproval ? 'PENDING_APPROVAL' : 'ACTIVE',
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  
+  state.obligations.push(obligation)
+  
+  // Generate schedule lines
+  const scheduleLines: ObligationScheduleLine[] = []
+  let currentDate = new Date(input.firstDueDate)
+  let remaining = input.total
+  let installmentCount = 0
+  
+  while (remaining > 0.001 && (input.numberOfInstallments === undefined || installmentCount < input.numberOfInstallments)) {
+    const amount = Math.min(input.installmentAmount, remaining)
+    const scheduleLine: ObligationScheduleLine = {
+      id: clock.id('osch'),
+      obligationId: obligation.id,
+      dueDate: currentDate.toISOString().slice(0, 10),
+      amount: money(amount),
+      paidAmount: 0,
+      status: 'PENDING',
+    }
+    scheduleLines.push(scheduleLine)
+    remaining -= amount
+    installmentCount += 1
+    
+    // Advance date based on frequency
+    switch (input.frequency) {
+      case 'MONTHLY':
+        currentDate.setMonth(currentDate.getMonth() + 1)
+        break
+      case 'QUARTERLY':
+        currentDate.setMonth(currentDate.getMonth() + 3)
+        break
+      case 'YEARLY':
+        currentDate.setFullYear(currentDate.getFullYear() + 1)
+        break
+      case 'ONE_TIME':
+        remaining = 0 // Only one installment
+        break
+    }
+  }
+  
+  state.obligationScheduleLines.push(...scheduleLines)
+  
+  if (needsApproval) {
+    notify(
+      state,
+      clock,
+      'APPROVAL',
+      `التزام مالي يحتاج موافقة: ${input.beneficiary.trim()}`,
+      `الالتزام: ${input.description.trim()} - المبلغ: ${input.total} ريال عماني`,
+      ['GM', 'ACCOUNTANT'],
+      `obligation-approval:${obligation.id}`,
+    )
+  }
+  
+  audit(state, actor, clock, 'إنشاء التزام مالي', 'obligation', obligation.id, `${input.beneficiary.trim()}: ${input.total} ريال عماني`)
+  return ok(state, needsApproval ? 'تم إنشاء التزام ويحتاج موافقة' : 'تم إنشاء التزام المالي')
+}
+
+function decideObligation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decideObligation' }>['input'], clock: Clock): CommandResult {
+  const obligation = state.obligations.find((item) => item.id === input.id)
+  if (!obligation) return fail('الالتزام غير موجود')
+  if (obligation.status !== 'PENDING_APPROVAL') return fail('الالتزام ليس في حالة انتظار الموافقة')
+  
+  if (input.decision === 'APPROVED') {
+    obligation.status = 'ACTIVE'
+    obligation.decidedBy = actor.id
+    obligation.decidedAt = clock.now()
+    audit(state, actor, clock, 'موافقة على التزام', 'obligation', obligation.id, obligation.description)
+    return ok(state, 'تمت الموافقة على التزام')
+  } else {
+    obligation.status = 'CANCELLED'
+    obligation.decidedBy = actor.id
+    obligation.decidedAt = clock.now()
+    // Cancel all schedule lines
+    for (const line of state.obligationScheduleLines) {
+      if (line.obligationId === obligation.id) {
+        line.status = 'PENDING' // Keep as pending but obligation is cancelled
+      }
+    }
+    audit(state, actor, clock, 'رفض التزام', 'obligation', obligation.id, obligation.description)
+    return ok(state, 'تم رفض التزام')
+  }
+}
+
+function payObligationInstallment(state: ErpState, actor: Actor, input: Extract<Command, { action: 'payObligationInstallment' }>['input'], clock: Clock): CommandResult {
+  const scheduleLine = state.obligationScheduleLines.find((item) => item.id === input.scheduleLineId)
+  if (!scheduleLine) return fail('بند القسط غير موجود')
+  if (scheduleLine.status === 'PAID') return fail('هذا القسط مدفوع بالفعل')
+  
+  const obligation = state.obligations.find((item) => item.id === scheduleLine.obligationId)
+  if (!obligation) return fail('الالتزام غير موجود')
+  if (obligation.status !== 'ACTIVE') return fail('الالتزام غير نشط')
+  
+  if (input.amount <= 0) return fail('مبلغ الدفع غير صحيح')
+  if (input.amount > (scheduleLine.amount - scheduleLine.paidAmount)) {
+    return fail('مبلغ الدفع يتجاوز المبلغ المتبقي')
+  }
+  
+  // Create payment record
+  const payment: ObligationPayment = {
+    id: clock.id('opay'),
+    obligationId: obligation.id,
+    scheduleLineId: scheduleLine.id,
+    amount: money(input.amount),
+    date: input.date,
+    method: input.method,
+    reference: input.reference?.trim(),
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.obligationPayments.push(payment)
+  
+  // Update schedule line
+  scheduleLine.paidAmount = money(scheduleLine.paidAmount + input.amount)
+  if (scheduleLine.paidAmount >= scheduleLine.amount - 0.001) {
+    scheduleLine.status = 'PAID'
+  }
+  
+  // Post journal entry (debit liability/expense, credit bank)
+  const journalLines: JournalLine[] = [
+    { accountCode: '2700', debit: money(input.amount), credit: 0 }, // Debit liability
+    { accountCode: '1500', debit: 0, credit: money(input.amount) }, // Credit bank
+  ]
+  
+  const journal: typeof state.journals[0] = {
+    id: clock.id('je'),
+    number: `JE-${yearOf(clock.now())}-${String(state.sequences['JE'] ?? 0 + 1).padStart(4, '0')}`,
+    at: clock.now(),
+    memo: `دفع قسط التزام: ${obligation.description}`,
+    refType: 'obligationPayment',
+    refId: payment.id,
+    lines: journalLines,
+  }
+  state.journals.push(journal)
+  state.sequences['JE'] = (state.sequences['JE'] ?? 0) + 1
+  
+  // Check if obligation is fully paid
+  const totalPaid = state.obligationScheduleLines
+    .filter((line) => line.obligationId === obligation.id)
+    .reduce((sum, line) => sum + line.paidAmount, 0)
+  
+  if (totalPaid >= obligation.total - 0.001) {
+    obligation.status = 'COMPLETED'
+  }
+  
+  audit(state, actor, clock, 'دفع قسط التزام', 'obligationPayment', payment.id, `${obligation.description}: ${input.amount} ريال عماني`)
+  return ok(state, 'تم دفع القسط بنجاح')
+}
+
+function refreshObligationAlerts(state: ErpState, clock: Clock) {
+  const today = clock.now().slice(0, 10)
+  const windows = [30, 14, 7, 1] as const
+  
+  for (const obligation of state.obligations) {
+    if (obligation.status !== 'ACTIVE') continue
+    
+    for (const scheduleLine of state.obligationScheduleLines) {
+      if (scheduleLine.obligationId !== obligation.id) continue
+      if (scheduleLine.status === 'PAID') continue
+      
+      const dueDate = scheduleLine.dueDate
+      const daysUntilDue = Math.ceil((new Date(dueDate).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24))
+      
+      // Check overdue
+      if (daysUntilDue < 0) {
+        const dedupeKey = `obligation-overdue:${scheduleLine.id}`
+        if (!state.notifications.some((n) => !n.read && n.dedupeKey === dedupeKey)) {
+          notify(
+            state,
+            clock,
+            'OBLIGATION',
+            `قسط متأخر: ${obligation.beneficiary}`,
+            `القسط المستحق ${dueDate} - المبلغ: ${scheduleLine.amount} ريال عماني`,
+            ['GM', 'ACCOUNTANT'],
+            dedupeKey,
+          )
+        }
+        continue
+      }
+      
+      // Check alert windows
+      for (const window of windows) {
+        if (daysUntilDue === window) {
+          const dedupeKey = `obligation-reminder:${window}d:${scheduleLine.id}`
+          if (!state.notifications.some((n) => !n.read && n.dedupeKey === dedupeKey)) {
+            notify(
+              state,
+              clock,
+              'OBLIGATION',
+              `قسط يستحق خلال ${window} يوم: ${obligation.beneficiary}`,
+              `الاستحقاق ${dueDate} - المبلغ: ${scheduleLine.amount} ريال عماني`,
+              ['GM', 'ACCOUNTANT'],
+              dedupeKey,
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
 function setUserPassword(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setUserPassword' }>['input'], clock: Clock): CommandResult {
   const user = state.users.find((item) => item.id === input.userId)
   if (!user) return fail('المستخدم غير موجود')
@@ -2142,4 +2619,512 @@ export function actorFromUser(state: ErpState, userId: string): Actor | null {
   }
 }
 
-export { hoursBetween, INVENTORY_ACCOUNT }
+function createSparePart(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createSparePart' }>['input'], clock: Clock): CommandResult {
+  const code = input.code.trim().toUpperCase()
+  if (!code || !input.nameAr.trim()) return fail('كود القطعة والاسم مطلوبان')
+  if (state.spareParts.some((item) => item.code === code)) return fail('كود القطعة مستخدم')
+  const sparePart: SparePart = {
+    id: clock.id('sp'),
+    code,
+    nameAr: input.nameAr.trim(),
+    description: input.description?.trim(),
+    quantity: qty(input.quantity),
+    unitCost: money(input.unitCost),
+    minStock: qty(input.minStock),
+    supplierId: input.supplierId,
+    machineIds: input.machineIds,
+    active: true,
+  }
+  state.spareParts.unshift(sparePart)
+  audit(state, actor, clock, 'إنشاء قطعة غيار', 'sparePart', sparePart.id, sparePart.nameAr)
+  return ok(state, 'تم حفظ قطعة الغيار')
+}
+
+function recordSparePartUsage(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordSparePartUsage' }>['input'], clock: Clock): CommandResult {
+  const sparePart = state.spareParts.find((item) => item.id === input.sparePartId)
+  if (!sparePart) return fail('قطعة الغيار غير موجودة')
+  if (input.quantity <= 0) return fail('الكمية غير صحيحة')
+  if (input.quantity > sparePart.quantity) return fail('الكمية تتجاوز الرصيد المتاح')
+
+  const usage: SparePartUsage = {
+    id: clock.id('spu'),
+    sparePartId: input.sparePartId,
+    machineId: input.machineId,
+    date: clock.now(),
+    quantity: qty(input.quantity),
+    cost: money(input.quantity * sparePart.unitCost),
+    reason: input.reason.trim(),
+    usedBy: actor.id,
+    maintenanceId: input.maintenanceId,
+  }
+
+  sparePart.quantity = qty(sparePart.quantity - input.quantity)
+  state.sparePartUsages.unshift(usage)
+  audit(state, actor, clock, 'صرف قطعة غيار', 'sparePartUsage', usage.id, `${sparePart.nameAr}: ${input.quantity}`)
+  return ok(state, 'تم تسجيل صرف قطعة الغيار')
+}
+
+function createPackagingMaterial(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createPackagingMaterial' }>['input'], clock: Clock): CommandResult {
+  const code = input.code.trim().toUpperCase()
+  if (!code || !input.nameAr.trim()) return fail('كود المادة والتسمية مطلوبان')
+  if (state.packagingMaterials.some((item) => item.code === code)) return fail('كود المادة مستخدم')
+  const packaging: PackagingMaterial = {
+    id: clock.id('pkg'),
+    code,
+    nameAr: input.nameAr.trim(),
+    category: input.category,
+    quantity: qty(input.quantity),
+    unit: input.unit.trim(),
+    unitCost: money(input.unitCost),
+    minStock: qty(input.minStock),
+    supplierId: input.supplierId,
+    active: true,
+  }
+  state.packagingMaterials.unshift(packaging)
+  audit(state, actor, clock, 'إنشاء مادة تعبئة', 'packagingMaterial', packaging.id, packaging.nameAr)
+  return ok(state, 'تم حفظ مادة التعبئة')
+}
+
+function recordPackagingConsumption(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordPackagingConsumption' }>['input'], clock: Clock): CommandResult {
+  const packaging = state.packagingMaterials.find((item) => item.id === input.packagingMaterialId)
+  if (!packaging) return fail('مادة التعبئة غير موجودة')
+  if (input.quantity <= 0) return fail('الكمية غير صحيحة')
+
+  const productionOrder = state.productionOrders.find((item) => item.id === input.productionOrderId)
+  if (!productionOrder) return fail('أمر الإنتاج غير موجود')
+
+  const lot = state.lots?.find((l) => l.lotNo === input.lotNo)
+  if (!lot) return fail('الدفعة غير موجودة')
+
+  const expectedQty = lot.actualOutputKg / 1000
+  const variance = qty(input.quantity - expectedQty)
+
+  const consumption: PackagingConsumption = {
+    id: clock.id('pkc'),
+    packagingMaterialId: input.packagingMaterialId,
+    productionOrderId: input.productionOrderId,
+    lotNo: input.lotNo,
+    date: clock.now(),
+    quantity: qty(input.quantity),
+    cost: money(input.quantity * packaging.unitCost),
+    calculatedQty: expectedQty,
+    variance,
+  }
+
+  packaging.quantity = qty(packaging.quantity - input.quantity)
+  state.packagingConsumption.unshift(consumption)
+  audit(state, actor, clock, 'استهلاك مواد تعبئة', 'packagingConsumption', consumption.id, `${packaging.nameAr}: ${input.quantity}`)
+  return ok(state, 'تم تسجيل استهلاك مواد التعبئة')
+}
+
+function createSupplierTemplate(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createSupplierTemplate' }>['input'], clock: Clock): CommandResult {
+  if (!input.nameAr.trim() || !input.subject.trim() || !input.body.trim()) {
+    return fail('الاسم والموضوع والمحتوى مطلوبة')
+  }
+  const template: SupplierTemplate = {
+    id: clock.id('tpl'),
+    nameAr: input.nameAr.trim(),
+    subject: input.subject.trim(),
+    body: input.body.trim(),
+    kind: input.kind,
+    active: true,
+  }
+  state.supplierTemplates.unshift(template)
+  audit(state, actor, clock, 'إنشاء قالب تواصل', 'supplierTemplate', template.id, template.nameAr)
+  return ok(state, 'تم حفظ قالب التواصل')
+}
+
+function sendSupplierCommunication(state: ErpState, actor: Actor, input: Extract<Command, { action: 'sendSupplierCommunication' }>['input'], clock: Clock): CommandResult {
+  const supplier = state.suppliers.find((item) => item.id === input.supplierId)
+  if (!supplier) return fail('المورد غير موجود')
+  if (!input.subject.trim() || !input.body.trim()) return fail('الموضوع والمحتوى مطلوبان')
+
+  const communication: SupplierCommunication = {
+    id: clock.id('sc'),
+    supplierId: input.supplierId,
+    templateId: input.templateId,
+    subject: input.subject.trim(),
+    body: input.body.trim(),
+    sentBy: actor.id,
+    sentAt: clock.now(),
+    channel: input.channel,
+    status: 'PENDING_APPROVAL',
+  }
+
+  state.supplierCommunications.unshift(communication)
+  audit(state, actor, clock, 'إرسال تواصل مورد', 'supplierCommunication', communication.id, supplier.nameAr)
+  return ok(state, 'تم إنشاء التواصل بانتظار الاعتماد')
+}
+
+function approveSupplierCommunication(state: ErpState, actor: Actor, input: Extract<Command, { action: 'approveSupplierCommunication' }>['input'], clock: Clock): CommandResult {
+  const communication = state.supplierCommunications.find((item) => item.id === input.id)
+  if (!communication) return fail('التواصل غير موجود')
+  if (communication.status !== 'PENDING_APPROVAL') return fail('التواصل ليس بانتظار الاعتماد')
+
+  communication.status = 'SENT'
+  communication.approvedBy = actor.id
+  communication.approvedAt = clock.now()
+
+  audit(state, actor, clock, 'اعتماد تواصل مورد', 'supplierCommunication', communication.id, communication.subject)
+  return ok(state, 'تم اعتماد وإرسال التواصل')
+}
+
+function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordScaleReading' }>['input'], clock: Clock): CommandResult {
+  const material = state.materials.find((item) => item.id === input.materialId)
+  if (!material) return fail('المادة الخام غير موجودة')
+  const productionOrder = state.productionOrders.find((item) => item.id === input.productionOrderId)
+  if (!productionOrder) return fail('أمر الإنتاج غير موجود')
+
+  const variance = qty(input.actualQty - input.expectedQty)
+  const reading: ScaleReading = {
+    id: clock.id('sr'),
+    materialId: input.materialId,
+    productionOrderId: input.productionOrderId,
+    expectedQty: qty(input.expectedQty),
+    actualQty: qty(input.actualQty),
+    variance,
+    timestamp: clock.now(),
+    operatorId: actor.id,
+    scaleId: input.scaleId,
+  }
+
+  state.scaleReadings.unshift(reading)
+  audit(state, actor, clock, 'قراءة ميزان', 'scaleReading', reading.id, `${material.nameAr}: ${input.actualQty} كجم`)
+  return ok(state, 'تم تسجيل قراءة الميزان')
+}
+
+function createDistributionPoint(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createDistributionPoint' }>['input'], clock: Clock): CommandResult {
+  const code = input.code.trim().toUpperCase()
+  if (!code || !input.nameAr.trim() || !input.location.trim()) return fail('الكود والاسم والموقع مطلوبة')
+  if (state.distributionPoints.some((item) => item.code === code)) return fail('كود نقطة التوزيع مستخدم')
+
+  const point: DistributionPoint = {
+    id: clock.id('dp'),
+    code,
+    nameAr: input.nameAr.trim(),
+    location: input.location.trim(),
+    managerId: input.managerId,
+    phone: input.phone.trim(),
+    active: true,
+  }
+
+  state.distributionPoints.unshift(point)
+  audit(state, actor, clock, 'إنشاء نقطة توزيع', 'distributionPoint', point.id, point.nameAr)
+  return ok(state, 'تم حفظ نقطة التوزيع')
+}
+
+function closeDistributionDay(state: ErpState, actor: Actor, input: Extract<Command, { action: 'closeDistributionDay' }>['input'], clock: Clock): CommandResult {
+  const point = state.distributionPoints.find((item) => item.id === input.pointId)
+  if (!point) return fail('نقطة التوزيع غير موجودة')
+
+  const closing: DistributionClosing = {
+    id: clock.id('dc'),
+    pointId: input.pointId,
+    date: input.date,
+    openingStock: input.openingStock,
+    sales: input.sales,
+    returns: input.returns,
+    closingStock: input.closingStock,
+    cash: money(input.cash),
+    transfers: money(input.transfers),
+    variance: money(input.cash + input.transfers - Object.values(input.sales).reduce((sum, qty) => sum + qty, 0)),
+    closedBy: actor.id,
+    closedAt: clock.now(),
+    status: Math.abs(input.cash + input.transfers - Object.values(input.sales).reduce((sum, qty) => sum + qty, 0)) < 1 ? 'RECONCILED' : 'DISCREPANCY',
+  }
+
+  state.distributionClosings.unshift(closing)
+  audit(state, actor, clock, 'إغلاق يوم توزيع', 'distributionClosing', closing.id, point.nameAr)
+  return ok(state, `تم إغلاق اليوم ${closing.status === 'RECONCILED' ? 'مطابق' : 'مختلف'}`)
+}
+
+function advanceInvoiceDelivery(state: ErpState, actor: Actor, input: Extract<Command, { action: 'advanceInvoiceDelivery' }>['input'], clock: Clock): CommandResult {
+  const invoice = state.invoices.find((item) => item.id === input.invoiceId)
+  if (!invoice) return fail('الفاتورة غير موجودة')
+
+  let delivery = state.invoiceDeliveries.find((item) => item.invoiceId === input.invoiceId)
+  if (!delivery) {
+    delivery = {
+      id: clock.id('id'),
+      invoiceId: input.invoiceId,
+      currentStep: 'ACCOUNTANT',
+      steps: [],
+    }
+    state.invoiceDeliveries.unshift(delivery)
+  }
+
+  const stepIndex = ['ACCOUNTANT', 'LOADER', 'DRIVER', 'CUSTOMER'].indexOf(input.step)
+  const currentIndex = ['ACCOUNTANT', 'LOADER', 'DRIVER', 'CUSTOMER'].indexOf(delivery.currentStep)
+
+  if (stepIndex <= currentIndex) return fail('لا يمكن الرجوع للخلف في سلم التسليم')
+
+  delivery.steps.push({
+    step: input.step,
+    completedBy: actor.id,
+    completedAt: clock.now(),
+    notes: input.notes,
+  })
+
+  delivery.currentStep = input.step
+
+  if (input.deliveryProof && input.step === 'CUSTOMER') {
+    delivery.deliveryProof = {
+      recipientName: input.deliveryProof.recipientName,
+      recipientPhone: input.deliveryProof.recipientPhone,
+      location: input.deliveryProof.location,
+      deliveredAt: clock.now(),
+    }
+  }
+
+  audit(state, actor, clock, 'تقدم تسليم فاتورة', 'invoiceDelivery', delivery.id, `المرحلة: ${input.step}`)
+  return ok(state, `تم إنهاء مرحلة ${input.step}`)
+}
+
+function recordUtilitiesReading(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordUtilitiesReading' }>['input'], clock: Clock): CommandResult {
+  if (input.currentReading <= input.previousReading) return fail('القراءة الحالية يجب أن تكون أكبر من السابقة')
+  const consumption = input.currentReading - input.previousReading
+  const costPerTon = input.productionTon > 0 ? money(input.cost / input.productionTon) : 0
+
+  const reading: UtilitiesReading = {
+    id: clock.id('ur'),
+    utility: input.utility,
+    readingDate: input.readingDate,
+    previousReading: input.previousReading,
+    currentReading: input.currentReading,
+    consumption,
+    cost: money(input.cost),
+    productionTon: input.productionTon,
+    costPerTon,
+    notes: input.notes,
+  }
+
+  state.utilitiesReadings.unshift(reading)
+  audit(state, actor, clock, 'قراءة مرافق', 'utilitiesReading', reading.id, `${input.utility}: ${consumption}`)
+  return ok(state, 'تم تسجيل قراءة المرافق')
+}
+
+function createMachine(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createMachine' }>['input'], clock: Clock): CommandResult {
+  const code = input.code.trim().toUpperCase()
+  if (!code || !input.nameAr.trim() || !input.type.trim()) return fail('الكود والاسم والنوع مطلوبة')
+  if (state.machines.some((item) => item.code === code)) return fail('كود الماكينة مستخدم')
+
+  const machine: Machine = {
+    id: clock.id('mach'),
+    code,
+    nameAr: input.nameAr.trim(),
+    type: input.type.trim(),
+    location: input.location.trim(),
+    active: true,
+    operatingHours: 0,
+  }
+
+  state.machines.unshift(machine)
+  audit(state, actor, clock, 'إنشاء ماكينة', 'machine', machine.id, machine.nameAr)
+  return ok(state, 'تم حفظ الماكينة')
+}
+
+function createMaintenanceSchedule(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createMaintenanceSchedule' }>['input'], clock: Clock): CommandResult {
+  const machine = state.machines.find((item) => item.id === input.machineId)
+  if (!machine) return fail('الماكينة غير موجودة')
+  if (!input.description.trim()) return fail('الوصف مطلوب')
+
+  const schedule: MaintenanceSchedule = {
+    id: clock.id('ms'),
+    machineId: input.machineId,
+    type: input.type,
+    description: input.description.trim(),
+    interval: input.interval,
+    lastCompleted: clock.now(),
+    nextDue: calculateNextDue(input.type, input.interval, clock.now()),
+    sparePartIds: input.sparePartIds,
+    estimatedCost: money(input.estimatedCost),
+    assignedTo: input.assignedTo,
+  }
+
+  state.maintenanceSchedules.unshift(schedule)
+  audit(state, actor, clock, 'إنشاء جدول صيانة', 'maintenanceSchedule', schedule.id, machine.nameAr)
+  return ok(state, 'تم حفظ جدول الصيانة')
+}
+
+function recordMaintenance(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordMaintenance' }>['input'], clock: Clock): CommandResult {
+  const machine = state.machines.find((item) => item.id === input.machineId)
+  if (!machine) return fail('الماكينة غير موجودة')
+
+  const totalSpareCost = input.sparePartsUsed.reduce((sum, part) => sum + part.cost, 0)
+  const record: MaintenanceRecord = {
+    id: clock.id('mr'),
+    machineId: input.machineId,
+    scheduleId: input.scheduleId,
+    type: input.type,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    downtimeMinutes: input.endDate ? minutesBetween(input.startDate, input.endDate) : 0,
+    description: input.description.trim(),
+    cost: money(input.cost + totalSpareCost),
+    sparePartsUsed: input.sparePartsUsed,
+    performedBy: actor.id,
+    notes: input.notes,
+  }
+
+  machine.operatingHours += record.downtimeMinutes / 60
+
+  if (input.scheduleId) {
+    const schedule = state.maintenanceSchedules.find((s) => s.id === input.scheduleId)
+    if (schedule) {
+      schedule.lastCompleted = input.endDate
+      schedule.nextDue = calculateNextDue(schedule.type, schedule.interval, input.endDate)
+    }
+  }
+
+  for (const part of input.sparePartsUsed) {
+    const sparePart = state.spareParts.find((sp) => sp.id === part.sparePartId)
+    if (sparePart) {
+      sparePart.quantity = qty(sparePart.quantity - part.quantity)
+    }
+  }
+
+  state.maintenanceRecords.unshift(record)
+  audit(state, actor, clock, 'تسجيل صيانة', 'maintenanceRecord', record.id, machine.nameAr)
+  return ok(state, 'تم تسجيل الصيانة')
+}
+
+function recordBankTransaction(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordBankTransaction' }>['input'], clock: Clock): CommandResult {
+  const transaction: BankTransaction = {
+    id: clock.id('bt'),
+    bankAccount: input.bankAccount,
+    transactionId: input.transactionId,
+    date: input.date,
+    amount: money(input.amount),
+    type: input.type,
+    description: input.description.trim(),
+    reference: input.reference,
+    matched: false,
+    status: 'UNMATCHED',
+  }
+
+  const autoMatch = autoMatchBankTransaction(state, transaction)
+  if (autoMatch) {
+    transaction.matched = true
+    transaction.matchedTo = autoMatch
+    transaction.matchedBy = 'SYSTEM'
+    transaction.matchedAt = clock.now()
+    transaction.status = 'MATCHED'
+  }
+
+  state.bankTransactions.unshift(transaction)
+  audit(state, actor, clock, 'تسجيل معاملة بنكية', 'bankTransaction', transaction.id, transaction.description)
+  return ok(state, autoMatch ? 'تم تسجيل ومطابقة المعاملة تلقائيًا' : 'تم تسجيل المعاملة بانتظار المطابقة')
+}
+
+function matchBankTransaction(state: ErpState, actor: Actor, input: Extract<Command, { action: 'matchBankTransaction' }>['input'], clock: Clock): CommandResult {
+  const transaction = state.bankTransactions.find((item) => item.transactionId === input.transactionId)
+  if (!transaction) return fail('المعاملة غير موجودة')
+
+  transaction.matched = true
+  transaction.matchedTo = input.matchTo
+  transaction.matchedBy = actor.id
+  transaction.matchedAt = clock.now()
+  transaction.status = 'MATCHED'
+
+  audit(state, actor, clock, 'مطابقة معاملة بنكية', 'bankTransaction', transaction.id, input.matchTo.type)
+  return ok(state, 'تم مطابقة المعاملة')
+}
+
+function createCustomerRecipe(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createCustomerRecipe' }>['input'], clock: Clock): CommandResult {
+  const customer = state.customers.find((item) => item.id === input.customerId)
+  if (!customer) return fail('العميل غير موجود')
+  const product = state.products.find((item) => item.id === input.productId)
+  if (!product) return fail('المنتج غير موجود')
+  const recipe = state.recipes.find((item) => item.id === input.recipeId)
+  if (!recipe) return fail('الخلطة الأساسية غير موجودة')
+
+  let materialCost = 0
+  for (const item of input.items) {
+    const material = state.materials.find((m) => m.id === item.materialId)
+    if (material) {
+      materialCost += item.qty * material.unitCost
+    }
+  }
+  const costPerTon = money(materialCost / input.baseOutputQty * 1000)
+  const marginPerTon = money(input.salePrice - costPerTon)
+
+  const customerRecipe: CustomerRecipe = {
+    id: clock.id('cr'),
+    customerId: input.customerId,
+    productId: input.productId,
+    recipeId: input.recipeId,
+    nameAr: input.nameAr.trim(),
+    baseOutputQty: input.baseOutputQty,
+    items: input.items,
+    costPerTon,
+    salePrice: money(input.salePrice),
+    marginPerTon,
+    active: true,
+    effectiveFrom: input.effectiveFrom,
+  }
+
+  state.customerRecipes.unshift(customerRecipe)
+  audit(state, actor, clock, 'إنشاء خلطة عميل', 'customerRecipe', customerRecipe.id, `${customer.nameAr}: ${input.nameAr}`)
+  return ok(state, 'تم حفظ خلطة العميل')
+}
+
+function setCustomerPricing(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setCustomerPricing' }>['input'], clock: Clock): CommandResult {
+  const product = state.products.find((item) => item.id === input.productId)
+  if (!product) return fail('المنتج غير موجود')
+  const customer = state.customers.find((item) => item.id === input.customerId)
+  if (!customer) return fail('العميل غير موجود')
+
+  if (!product.customerPricing) product.customerPricing = {}
+  product.customerPricing[input.customerId] = money(input.price)
+
+  if (!product.priceHistory) product.priceHistory = []
+  product.priceHistory.push({
+    customerId: input.customerId,
+    price: money(input.price),
+    effectiveFrom: clock.now(),
+  })
+
+  audit(state, actor, clock, 'تعديل سعر عميل', 'product', product.id, `${customer.nameAr}: ${input.price}`)
+  return ok(state, 'تم حفظ سعر العميل')
+}
+
+function setAlternativeBagWeights(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setAlternativeBagWeights' }>['input'], clock: Clock): CommandResult {
+  const product = state.products.find((item) => item.id === input.productId)
+  if (!product) return fail('المنتج غير موجود')
+
+  product.alternativeBagKg = input.bagKg
+  audit(state, actor, clock, 'تعديل أوزان الأكياس', 'product', product.id, input.bagKg.join(', '))
+  return ok(state, 'تم حفظ أوزان الأكياس البديلة')
+}
+
+function calculateNextDue(type: string, interval: number, fromDate: string): string {
+  const date = new Date(fromDate)
+  switch (type) {
+    case 'DAILY':
+      date.setUTCDate(date.getUTCDate() + interval)
+      break
+    case 'WEEKLY':
+      date.setUTCDate(date.getUTCDate() + interval * 7)
+      break
+    case 'MONTHLY':
+      date.setUTCMonth(date.getUTCMonth() + interval)
+      break
+    case 'YEARLY':
+      date.setUTCFullYear(date.getUTCFullYear() + interval)
+      break
+    case 'HOURS_BASED':
+      date.setUTCFullYear(date.getUTCFullYear() + 1)
+      break
+    default:
+      date.setUTCMonth(date.getUTCMonth() + 1)
+  }
+  return date.toISOString()
+}
+
+function minutesBetween(start: string, end: string): number {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  return Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60))
+}
+
+export { hoursBetween, INVENTORY_ACCOUNT, calculateRecipeNutrition, compareNutrition, autoMatchBankTransaction, calculateLandedCost }

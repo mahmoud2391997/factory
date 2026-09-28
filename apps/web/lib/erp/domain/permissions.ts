@@ -52,6 +52,25 @@ export const PERMISSIONS = [
   'obligations.pay',
   'documents.read',
   'documents.manage',
+  'spareparts.read',
+  'spareparts.manage',
+  'packaging.read',
+  'packaging.manage',
+  'suppliers.communicate',
+  'suppliers.approve',
+  'scale.read',
+  'scale.manage',
+  'distribution.read',
+  'distribution.manage',
+  'delivery.track',
+  'utilities.read',
+  'utilities.manage',
+  'maintenance.read',
+  'maintenance.manage',
+  'bank.read',
+  'bank.manage',
+  'recipes.custom',
+  'pricing.custom',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]
@@ -130,7 +149,7 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 4
+export const PERMISSIONS_VERSION = 5
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   1: {
@@ -150,5 +169,10 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
     ACCOUNTANT: ['fleet.read', 'obligations.read', 'obligations.pay', 'documents.read'],
     OPERATIONS: ['fleet.read', 'fleet.manage', 'documents.read'],
     DRIVER: ['fleet.read', 'reports.read', 'notifications.read'],
+  },
+  5: {
+    GM: ['spareparts.read', 'spareparts.manage', 'packaging.read', 'packaging.manage', 'suppliers.communicate', 'suppliers.approve', 'scale.read', 'scale.manage', 'distribution.read', 'distribution.manage', 'delivery.track', 'utilities.read', 'utilities.manage', 'maintenance.read', 'maintenance.manage', 'bank.read', 'bank.manage', 'recipes.custom', 'pricing.custom'],
+    ACCOUNTANT: ['spareparts.read', 'packaging.read', 'suppliers.communicate', 'suppliers.approve', 'distribution.read', 'utilities.read', 'bank.read', 'bank.manage', 'pricing.custom'],
+    OPERATIONS: ['spareparts.read', 'spareparts.manage', 'packaging.read', 'packaging.manage', 'scale.read', 'scale.manage', 'distribution.read', 'distribution.manage', 'delivery.track', 'maintenance.read', 'maintenance.manage'],
   },
 }

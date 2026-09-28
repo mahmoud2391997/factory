@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -73,7 +73,37 @@ export type Material = {
   vatTreatment: VatTreatment
   barcode: string
   active: boolean
-  qcLimits?: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number }
+  /** Nutritional analysis specification limits. */
+  qcLimits?: { 
+    minMoisture?: number; 
+    maxMoisture?: number; 
+    minProtein?: number; 
+    maxProtein?: number; 
+    minAsh?: number; 
+    maxAsh?: number
+    minEnergy?: number
+    maxEnergy?: number
+    minFat?: number
+    maxFat?: number
+    minFiber?: number
+    maxFiber?: number
+    minCalcium?: number
+    maxCalcium?: number
+    minPhosphorus?: number
+    maxPhosphorus?: number
+  }
+  /** Last known lab analysis values for this material. */
+  labAnalysis?: {
+    moisturePct?: number
+    proteinPct?: number
+    ashPct?: number
+    energy?: number
+    fatPct?: number
+    fiberPct?: number
+    calciumPct?: number
+    phosphorusPct?: number
+    lastLabDate?: string
+  }
 }
 
 export type Product = {
@@ -86,7 +116,31 @@ export type Product = {
   barcode: string
   bagKg: number
   active: boolean
-  qcLimits?: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number }
+  /** Nutritional analysis specification limits. */
+  qcLimits?: { 
+    minMoisture?: number; 
+    maxMoisture?: number; 
+    minProtein?: number; 
+    maxProtein?: number; 
+    minAsh?: number; 
+    maxAsh?: number
+    minEnergy?: number
+    maxEnergy?: number
+    minFat?: number
+    maxFat?: number
+    minFiber?: number
+    maxFiber?: number
+    minCalcium?: number
+    maxCalcium?: number
+    minPhosphorus?: number
+    maxPhosphorus?: number
+  }
+  /** Alternative bag weights supported (e.g., 40kg, 50kg). */
+  alternativeBagKg?: number[]
+  /** Customer-specific pricing: customerId -> special price. */
+  customerPricing?: Record<string, number>
+  /** Pricing history for this product. */
+  priceHistory?: Array<{ customerId?: string; price: number; effectiveFrom: string; effectiveTo?: string }>
 }
 
 export type Supplier = {
@@ -212,7 +266,7 @@ export type Obligation = {
   firstDueDate: string
   frequency: 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME'
   numberOfInstallments?: number
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  status: 'PENDING_APPROVAL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
   createdBy: string
   createdAt: string
   decidedBy?: string
@@ -481,7 +535,7 @@ export type PlantStoppage = {
 
 export type Notification = {
   id: string
-  kind: 'LOW_STOCK' | 'APPROVAL' | 'EXPIRY' | 'INFO' | 'QC'
+  kind: 'LOW_STOCK' | 'APPROVAL' | 'EXPIRY' | 'INFO' | 'QC' | 'OBLIGATION'
   title: string
   body: string
   dedupeKey: string
@@ -523,6 +577,268 @@ export type PendingCostLine = {
 }
 
 export type QcResult = 'UNTESTED' | 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
+
+/** Nutritional analysis calculated from recipe ingredients. */
+export type NutritionalProfile = {
+  moisturePct: number
+  proteinPct: number
+  ashPct: number
+  energy: number
+  fatPct: number
+  fiberPct: number
+  calciumPct: number
+  phosphorusPct: number
+}
+
+/** Comparison between calculated, lab, and specification values. */
+export type NutritionalComparison = {
+  parameter: string
+  calculated: number
+  lab?: number
+  specMin?: number
+  specMax?: number
+  variance?: number
+  inSpec: boolean
+}
+
+/** Spare parts inventory item. */
+export type SparePart = {
+  id: string
+  code: string
+  nameAr: string
+  description?: string
+  quantity: number
+  unitCost: number
+  minStock: number
+  supplierId?: string
+  /** Machine(s) that use this part. */
+  machineIds?: string[]
+  active: boolean
+}
+
+/** Spare parts usage record. */
+export type SparePartUsage = {
+  id: string
+  sparePartId: string
+  machineId: string
+  date: string
+  quantity: number
+  cost: number
+  reason: string
+  usedBy: string
+  maintenanceId?: string
+}
+
+/** Packaging materials inventory item. */
+export type PackagingMaterial = {
+  id: string
+  code: string
+  nameAr: string
+  category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'
+  quantity: number
+  unit: string
+  unitCost: number
+  minStock: number
+  supplierId?: string
+  active: boolean
+}
+
+/** Packaging consumption linked to production. */
+export type PackagingConsumption = {
+  id: string
+  packagingMaterialId: string
+  productionOrderId: string
+  lotNo: string
+  date: string
+  quantity: number
+  cost: number
+  calculatedQty: number
+  variance: number
+}
+
+/** Supplier communication template. */
+export type SupplierTemplate = {
+  id: string
+  nameAr: string
+  subject: string
+  body: string
+  kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER'
+  active: boolean
+}
+
+/** Supplier communication record. */
+export type SupplierCommunication = {
+  id: string
+  supplierId: string
+  templateId?: string
+  subject: string
+  body: string
+  sentBy: string
+  sentAt: string
+  channel: 'EMAIL' | 'WHATSAPP' | 'OTHER'
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'SENT' | 'FAILED'
+  approvedBy?: string
+  approvedAt?: string
+  response?: string
+  responseAt?: string
+  quoteAttachmentId?: string
+}
+
+/** Scale/weighing integration reading. */
+export type ScaleReading = {
+  id: string
+  materialId: string
+  productionOrderId: string
+  expectedQty: number
+  actualQty: number
+  variance: number
+  timestamp: string
+  operatorId: string
+  scaleId: string
+}
+
+/** Distribution point. */
+export type DistributionPoint = {
+  id: string
+  code: string
+  nameAr: string
+  location: string
+  managerId: string
+  phone: string
+  active: boolean
+}
+
+/** Distribution point daily closing. */
+export type DistributionClosing = {
+  id: string
+  pointId: string
+  date: string
+  openingStock: Record<string, number>
+  sales: Record<string, number>
+  returns: Record<string, number>
+  closingStock: Record<string, number>
+  cash: number
+  transfers: number
+  variance: number
+  closedBy: string
+  closedAt: string
+  status: 'PENDING' | 'RECONCILED' | 'DISCREPANCY'
+}
+
+/** Invoice delivery workflow step. */
+export type DeliveryStep = 'ACCOUNTANT' | 'LOADER' | 'DRIVER' | 'CUSTOMER'
+
+export type InvoiceDelivery = {
+  id: string
+  invoiceId: string
+  currentStep: DeliveryStep
+  steps: Array<{
+    step: DeliveryStep
+    completedBy: string
+    completedAt: string
+    notes?: string
+  }>
+  deliveryProof?: {
+    recipientName: string
+    recipientPhone?: string
+    photoAttachmentId?: string
+    signatureAttachmentId?: string
+    location?: { lat: number; lng: number }
+    deliveredAt: string
+  }
+}
+
+/** Utilities consumption record. */
+export type UtilitiesReading = {
+  id: string
+  utility: 'ELECTRICITY' | 'WATER' | 'GAS'
+  readingDate: string
+  previousReading: number
+  currentReading: number
+  consumption: number
+  cost: number
+  productionTon: number
+  costPerTon: number
+  notes?: string
+}
+
+/** Machine maintenance record. */
+export type Machine = {
+  id: string
+  code: string
+  nameAr: string
+  type: string
+  location: string
+  active: boolean
+  /** Last maintenance date. */
+  lastMaintenanceDate?: string
+  /** Next maintenance due date. */
+  nextMaintenanceDate?: string
+  /** Total operating hours. */
+  operatingHours: number
+}
+
+export type MaintenanceSchedule = {
+  id: string
+  machineId: string
+  type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'HOURS_BASED'
+  description: string
+  interval: number
+  lastCompleted: string
+  nextDue: string
+  sparePartIds?: string[]
+  estimatedCost: number
+  assignedTo: string
+}
+
+export type MaintenanceRecord = {
+  id: string
+  machineId: string
+  scheduleId?: string
+  type: 'ROUTINE' | 'EMERGENCY' | 'PREVENTIVE'
+  startDate: string
+  endDate: string
+  downtimeMinutes: number
+  description: string
+  cost: number
+  sparePartsUsed: Array<{ sparePartId: string; quantity: number; cost: number }>
+  performedBy: string
+  notes?: string
+}
+
+/** Bank integration transaction. */
+export type BankTransaction = {
+  id: string
+  bankAccount: string
+  transactionId: string
+  date: string
+  amount: number
+  type: 'CREDIT' | 'DEBIT'
+  description: string
+  reference?: string
+  matched: boolean
+  matchedTo?: { type: 'INVOICE' | 'SUPPLIER' | 'EXPENSE'; id: string }
+  matchedBy?: string
+  matchedAt?: string
+  status: 'UNMATCHED' | 'MATCHED' | 'REVIEW_NEEDED'
+}
+
+/** Customer-specific recipe. */
+export type CustomerRecipe = {
+  id: string
+  customerId: string
+  productId: string
+  recipeId: string
+  nameAr: string
+  baseOutputQty: number
+  items: Array<{ materialId: string; qty: number }>
+  costPerTon: number
+  salePrice: number
+  marginPerTon: number
+  active: boolean
+  effectiveFrom: string
+  effectiveTo?: string
+}
 
 export type ProductionLot = {
   id: string
@@ -577,6 +893,11 @@ export type QualitySample = {
   moisturePct?: number
   proteinPct?: number
   ashPct?: number
+  energy?: number
+  fatPct?: number
+  fiberPct?: number
+  calciumPct?: number
+  phosphorusPct?: number
   notes?: string
   result: 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
 }
@@ -640,6 +961,32 @@ export type ErpState = {
   obligationPayments: ObligationPayment[]
   /** Phase 3: Company documents. */
   companyDocuments: CompanyDocument[]
+  /** Phase 4: Spare parts inventory. */
+  spareParts: SparePart[]
+  sparePartUsages: SparePartUsage[]
+  /** Phase 4: Packaging materials. */
+  packagingMaterials: PackagingMaterial[]
+  packagingConsumption: PackagingConsumption[]
+  /** Phase 4: Supplier communication. */
+  supplierTemplates: SupplierTemplate[]
+  supplierCommunications: SupplierCommunication[]
+  /** Phase 4: Scale integration. */
+  scaleReadings: ScaleReading[]
+  /** Phase 4: Distribution points. */
+  distributionPoints: DistributionPoint[]
+  distributionClosings: DistributionClosing[]
+  /** Phase 4: Invoice delivery workflow. */
+  invoiceDeliveries: InvoiceDelivery[]
+  /** Phase 4: Utilities tracking. */
+  utilitiesReadings: UtilitiesReading[]
+  /** Phase 4: Machine maintenance. */
+  machines: Machine[]
+  maintenanceSchedules: MaintenanceSchedule[]
+  maintenanceRecords: MaintenanceRecord[]
+  /** Phase 4: Bank integration. */
+  bankTransactions: BankTransaction[]
+  /** Phase 4: Customer-specific recipes. */
+  customerRecipes: CustomerRecipe[]
 }
 
 export type Actor = {
@@ -691,7 +1038,27 @@ export type Command =
   | { action: 'archiveHistory'; input: { olderThanDays: number; nowIso?: string } }
   | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
   | { action: 'updateQualityResult'; input: { sampleId: string; result: 'PASSED' | 'FAILED' | 'HOLD'; reason: string } }
-  | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number } } }
+  | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number; minEnergy?: number; maxEnergy?: number; minFat?: number; maxFat?: number; minFiber?: number; maxFiber?: number; minCalcium?: number; maxCalcium?: number; minPhosphorus?: number; maxPhosphorus?: number } } }
+  | { action: 'createSparePart'; input: { code: string; nameAr: string; description?: string; quantity: number; unitCost: number; minStock: number; supplierId?: string; machineIds?: string[] } }
+  | { action: 'recordSparePartUsage'; input: { sparePartId: string; machineId: string; quantity: number; reason: string; maintenanceId?: string } }
+  | { action: 'createPackagingMaterial'; input: { code: string; nameAr: string; category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'; quantity: number; unit: string; unitCost: number; minStock: number; supplierId?: string } }
+  | { action: 'recordPackagingConsumption'; input: { packagingMaterialId: string; productionOrderId: string; lotNo: string; quantity: number } }
+  | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
+  | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
+  | { action: 'approveSupplierCommunication'; input: { id: string } }
+  | { action: 'recordScaleReading'; input: { materialId: string; productionOrderId: string; expectedQty: number; actualQty: number; scaleId: string } }
+  | { action: 'createDistributionPoint'; input: { code: string; nameAr: string; location: string; managerId: string; phone: string } }
+  | { action: 'closeDistributionDay'; input: { pointId: string; date: string; openingStock: Record<string, number>; sales: Record<string, number>; returns: Record<string, number>; closingStock: Record<string, number>; cash: number; transfers: number } }
+  | { action: 'advanceInvoiceDelivery'; input: { invoiceId: string; step: DeliveryStep; notes?: string; deliveryProof?: { recipientName: string; recipientPhone?: string; location?: { lat: number; lng: number } } } }
+  | { action: 'recordUtilitiesReading'; input: { utility: 'ELECTRICITY' | 'WATER' | 'GAS'; readingDate: string; previousReading: number; currentReading: number; cost: number; productionTon: number; notes?: string } }
+  | { action: 'createMachine'; input: { code: string; nameAr: string; type: string; location: string } }
+  | { action: 'createMaintenanceSchedule'; input: { machineId: string; type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'HOURS_BASED'; description: string; interval: number; sparePartIds?: string[]; estimatedCost: number; assignedTo: string } }
+  | { action: 'recordMaintenance'; input: { machineId: string; scheduleId?: string; type: 'ROUTINE' | 'EMERGENCY' | 'PREVENTIVE'; startDate: string; endDate: string; description: string; cost: number; sparePartsUsed: Array<{ sparePartId: string; quantity: number; cost: number }>; notes?: string } }
+  | { action: 'recordBankTransaction'; input: { bankAccount: string; transactionId: string; date: string; amount: number; type: 'CREDIT' | 'DEBIT'; description: string; reference?: string } }
+  | { action: 'matchBankTransaction'; input: { transactionId: string; matchTo: { type: 'INVOICE' | 'SUPPLIER' | 'EXPENSE'; id: string } } }
+  | { action: 'createCustomerRecipe'; input: { customerId: string; productId: string; recipeId: string; nameAr: string; baseOutputQty: number; items: Array<{ materialId: string; qty: number }>; salePrice: number; effectiveFrom: string } }
+  | { action: 'setCustomerPricing'; input: { productId: string; customerId: string; price: number } }
+  | { action: 'setAlternativeBagWeights'; input: { productId: string; bagKg: number[] } }
   | { action: 'createVehicle'; input: { code: string; plateNo: string; type: string; nameAr: string; kmPerLiter?: number } }
   | { action: 'updateVehicle'; input: { id: string; plateNo?: string; type?: string; nameAr?: string; active?: boolean; inspectionExpiryDate?: string; insuranceExpiryDate?: string; ownershipExpiryDate?: string; kmPerLiter?: number } }
   | { action: 'addFuelLog'; input: { vehicleId: string; date: string; liters: number; cost: number; odometer: number; driverId: string; station?: string } }

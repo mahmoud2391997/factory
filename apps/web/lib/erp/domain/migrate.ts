@@ -107,8 +107,9 @@ export function migrateErpState(state: ErpState): ErpState {
     state.accounts = state.accounts ?? []
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
   }
+  
   if (state.schemaVersion === SCHEMA_VERSION) return mergeRolePermissions(state)
-  if (state.schemaVersion != null && state.schemaVersion !== 1 && state.schemaVersion !== 2) {
+  if (state.schemaVersion != null && state.schemaVersion !== 1 && state.schemaVersion !== 2 && state.schemaVersion !== 3) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
 
@@ -163,6 +164,66 @@ export function migrateErpState(state: ErpState): ErpState {
     state.obligationPayments ??= []
     state.companyDocuments ??= []
     state.schemaVersion = 3
+  }
+
+  // v3 -> v4 migration (comprehensive feature expansion)
+  if (state.schemaVersion === 3) {
+    // Initialize new arrays
+    state.spareParts ??= []
+    state.sparePartUsages ??= []
+    state.packagingMaterials ??= []
+    state.packagingConsumption ??= []
+    state.supplierTemplates ??= []
+    state.supplierCommunications ??= []
+    state.scaleReadings ??= []
+    state.distributionPoints ??= []
+    state.distributionClosings ??= []
+    state.invoiceDeliveries ??= []
+    state.utilitiesReadings ??= []
+    state.machines ??= []
+    state.maintenanceSchedules ??= []
+    state.maintenanceRecords ??= []
+    state.bankTransactions ??= []
+    state.customerRecipes ??= []
+    
+    // Extend QC limits to include all nutritional parameters
+    for (const material of state.materials ?? []) {
+      if (material.qcLimits) {
+        material.qcLimits = {
+          ...material.qcLimits,
+          minEnergy: undefined,
+          maxEnergy: undefined,
+          minFat: undefined,
+          maxFat: undefined,
+          minFiber: undefined,
+          maxFiber: undefined,
+          minCalcium: undefined,
+          maxCalcium: undefined,
+          minPhosphorus: undefined,
+          maxPhosphorus: undefined,
+        }
+      }
+    }
+    
+    for (const product of state.products ?? []) {
+      if (product.qcLimits) {
+        product.qcLimits = {
+          ...product.qcLimits,
+          minEnergy: undefined,
+          maxEnergy: undefined,
+          minFat: undefined,
+          maxFat: undefined,
+          minFiber: undefined,
+          maxFiber: undefined,
+          minCalcium: undefined,
+          maxCalcium: undefined,
+          minPhosphorus: undefined,
+          maxPhosphorus: undefined,
+        }
+      }
+    }
+    
+    state.schemaVersion = 4
   }
 
   return mergeRolePermissions(state)

@@ -247,7 +247,7 @@ test('v1 completed orders become legacy lots with raw-material cost only', () =>
     ],
   }
   const migrated = migrateErpState(v1 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 3)
+  assert.equal(migrated.schemaVersion, 4)
   assert.equal(migrated.lots.length, 1)
   const lot = migrated.lots[0]!
   assert.equal(lot.lotNo, 'FG-OLD')
