@@ -1,6 +1,6 @@
 import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
-import { buildLotCostLines } from './costing'
+import { buildLotCostLines, COST_LABEL } from './costing'
 import { lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
@@ -500,6 +500,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     decideAdjustment: 'approvals.decide',
     createProductionOrder: 'production.create',
     completeProduction: 'production.complete',
+    decideProductionCost: 'production.cost.approve',
     createInvoice: 'sales.create',
     confirmInvoice: 'sales.confirm',
     recordPayment: 'sales.payments.manage',
@@ -557,6 +558,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return createProductionOrder(state, actor, command.input, clock)
     case 'completeProduction':
       return completeProduction(state, actor, command.input, clock)
+    case 'decideProductionCost':
+      return decideProductionCost(state, actor, command.input, clock)
     case 'createInvoice':
       return createInvoice(state, actor, command.input, clock)
     case 'confirmInvoice':
@@ -705,12 +708,17 @@ function createRecipe(state: ErpState, actor: Actor, input: Extract<Command, { a
 
 function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCompany' }>['input'], clock: Clock): CommandResult {
   if (input.vatRatePct != null && (input.vatRatePct < 0 || input.vatRatePct > 100)) return fail('نسبة الضريبة غير صحيحة')
+  if (input.costApprovalThreshold != null && (!Number.isFinite(input.costApprovalThreshold) || input.costApprovalThreshold < 0 || input.costApprovalThreshold > 1_000_000)) {
+    return fail('حد اعتماد التكلفة غير صحيح')
+  }
   state.company = {
     ...state.company,
     ...input,
     vatRatePct: input.vatRatePct != null ? round3(input.vatRatePct) : state.company.vatRatePct,
     varianceThresholdPct:
       input.varianceThresholdPct != null ? round3(input.varianceThresholdPct) : state.company.varianceThresholdPct,
+    costApprovalThreshold:
+      input.costApprovalThreshold != null ? money(input.costApprovalThreshold) : state.company.costApprovalThreshold,
     currency: 'OMR',
   }
   audit(state, actor, clock, 'تحديث إعدادات الشركة', 'company', 'company', state.company.nameAr)
@@ -1116,10 +1124,23 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   }
 
   const product = findProduct(state, order.productId)
-  for (const line of input.costLines ?? []) {
-    if (line.amount < 0) return fail('مبلغ بند التكلفة غير صحيح')
+  const manual = input.costLines ?? []
+  for (const line of manual) {
+    if (!Number.isFinite(line.amount) || line.amount < 0) return fail('مبلغ بند التكلفة غير صحيح')
   }
-  const costLines = buildLotCostLines(state, product, actualOutputKg, rawCost, input.costLines)
+  const threshold = state.company.costApprovalThreshold ?? 0
+  const pendingManual = manual.filter((line) => money(line.amount) > threshold)
+  const pendingTypes = new Set(pendingManual.map((line) => line.type))
+  const built = buildLotCostLines(state, product, actualOutputKg, rawCost, manual)
+  const costLines = built.filter((line) => !pendingTypes.has(line.type as (typeof pendingManual)[number]['type']))
+  const pendingCostLines = pendingManual
+    .filter((line) => money(line.amount) > 0)
+    .map((line) => ({
+      id: clock.id('pcost'),
+      type: line.type,
+      amount: money(line.amount),
+      status: 'PENDING_APPROVAL' as const,
+    }))
   const totalCost = money(costLines.reduce((sum, line) => sum + line.amount, 0))
   const extraCost = money(totalCost - rawCost)
   const outputQty = actualOutputKg
@@ -1187,6 +1208,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     variancePct,
     materials: lotMaterials,
     costLines,
+    pendingCostLines,
     totalCost,
     costPerTon: outputQty > 0 ? money((totalCost / outputQty) * 1000) : 0,
     deliveries: [],
@@ -1206,8 +1228,76 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
       `var:${order.id}`,
     )
   }
+  if (pendingCostLines.length > 0) {
+    notify(
+      state,
+      clock,
+      'APPROVAL',
+      `اعتماد تكلفة ${lotNo}`,
+      'بنود تكلفة يدوية بانتظار اعتماد المدير أو المحاسب.',
+      ['GM', 'ACCOUNTANT'],
+      `cost:${lot.id}`,
+    )
+  }
   audit(state, actor, clock, 'إكمال الإنتاج', 'productionOrder', order.id, lotNo)
-  return ok(state, `اكتمل ${order.number} وتم إنشاء الدفعة ${lotNo}`)
+  return ok(state, pendingCostLines.length > 0 ? `اكتمل ${order.number} وتم إنشاء الدفعة ${lotNo}، وبعض بنود التكلفة بانتظار الاعتماد` : `اكتمل ${order.number} وتم إنشاء الدفعة ${lotNo}`)
+}
+
+function syncLotValuation(state: ErpState, lot: ProductionLot) {
+  const totalCost = money(lot.costLines.reduce((sum, line) => sum + line.amount, 0))
+  lot.totalCost = totalCost
+  lot.costPerTon = lot.actualOutputKg > 0 ? money((totalCost / lot.actualOutputKg) * 1000) : 0
+  const order = state.productionOrders.find((item) => item.id === lot.productionOrderId)
+  if (order) {
+    order.totalCost = totalCost
+    order.unitCost = lot.actualOutputKg > 0 ? money(totalCost / lot.actualOutputKg) : 0
+  }
+  const row = state.balances.find(
+    (item) => item.warehouse === 'WH_FG' && item.itemType === 'PRODUCT' && item.itemId === lot.productId && item.batchNo === lot.lotNo,
+  )
+  if (row) row.unitCost = lot.costPerTon > 0 && lot.actualOutputKg > 0 ? money(totalCost / lot.actualOutputKg) : row.unitCost
+  refreshLotSale(state, lot)
+}
+
+function postAbsorbedCost(state: ErpState, clock: Clock, memo: string, refId: string, amount: number) {
+  postJournal(state, clock, memo, 'productionLot', refId, [
+    { accountCode: '1200', debit: amount, credit: 0 },
+    { accountCode: '2600', debit: 0, credit: amount },
+  ])
+  postJournal(state, clock, `إخراج ${memo}`, 'productionLot', refId, [
+    { accountCode: '1300', debit: amount, credit: 0 },
+    { accountCode: '1200', debit: 0, credit: amount },
+  ])
+}
+
+function decideProductionCost(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'decideProductionCost' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const lot = state.lots?.find((item) => item.id === input.lotId)
+  if (!lot) return fail('دفعة الإنتاج غير موجودة')
+  const index = (lot.pendingCostLines ?? []).findIndex((line) => line.id === input.lineId)
+  if (index < 0) return fail('بند التكلفة غير موجود أو اعتُمد')
+  const pending = lot.pendingCostLines![index]!
+  lot.pendingCostLines = lot.pendingCostLines!.filter((line) => line.id !== pending.id)
+  if (input.decision === 'APPROVED') {
+    lot.costLines.push({ type: pending.type, amount: pending.amount })
+    syncLotValuation(state, lot)
+    postAbsorbedCost(state, clock, `اعتماد تكلفة ${COST_LABEL[pending.type]} ${lot.lotNo}`, lot.id, pending.amount)
+    audit(state, actor, clock, 'اعتماد تكلفة إنتاج', 'productionLot', lot.id, `${pending.type} ${pending.amount}`)
+    return ok(state, 'تم اعتماد بند التكلفة')
+  }
+  const tons = lot.actualOutputKg / 1000
+  const rate = money((state.company.costRates?.[pending.type] ?? 0) * tons)
+  if (rate > 0) {
+    lot.costLines.push({ type: pending.type, amount: rate })
+    syncLotValuation(state, lot)
+    postAbsorbedCost(state, clock, `تحميل ${COST_LABEL[pending.type]} بعد رفض البند اليدوي ${lot.lotNo}`, lot.id, rate)
+  }
+  audit(state, actor, clock, 'رفض تكلفة إنتاج', 'productionLot', lot.id, `${pending.type} ${pending.amount}`)
+  return ok(state, rate > 0 ? 'رُفض البند اليدوي وطُبّق سعر التحميل' : 'رُفض بند التكلفة')
 }
 
 function createInvoice(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createInvoice' }>['input'], clock: Clock): CommandResult {

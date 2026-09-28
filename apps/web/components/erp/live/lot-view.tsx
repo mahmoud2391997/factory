@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 
-import { COST_LABEL } from '@/lib/erp/domain/costing'
+import { COST_LABEL, lotEconomics } from '@/lib/erp/domain/costing'
 import { operatorLabel, traceLot } from '@/lib/erp/domain/reports'
 
 import { Badge, Card, DataTable, GhostButton, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
-import { moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
+import { can, moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -81,6 +81,30 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
               ])}
             />
           </div>
+          {(trace.lot.pendingCostLines ?? []).length > 0 ? (
+            <div className="mt-4">
+              <DataTable
+                columns={['بند بانتظار الاعتماد', 'المبلغ', '']}
+                rows={(trace.lot.pendingCostLines ?? []).map((line) => [
+                  <span key={line.id} className="inline-flex items-center gap-2">{COST_LABEL[line.type]} <Badge tone="warn">بانتظار الاعتماد</Badge></span>,
+                  moneyFmt(line.amount),
+                  can(ctx.permissions, 'production.cost.approve') ? (
+                    <span key={`${line.id}-act`} className="flex gap-2">
+                      <GhostButton type="button" onClick={() => ctx.act('decideProductionCost', { lotId: trace.lot.id, lineId: line.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
+                      <GhostButton type="button" onClick={() => ctx.act('decideProductionCost', { lotId: trace.lot.id, lineId: line.id, decision: 'REJECTED' })}>رفض</GhostButton>
+                    </span>
+                  ) : '—',
+                ])}
+              />
+              {lotEconomics(trace.lot).provisionalMarginPerTon != null ? (
+                <p className="mt-2 text-sm text-[#53655e]">
+                  هامش مؤقت لو اعتُمدت البنود: {moneyFmt(lotEconomics(trace.lot).provisionalMarginPerTon ?? 0)} / طن. الهامش المعتمد يستثني ما لم يُعتمد.
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-[#53655e]">البنود المعلقة لا تدخل في تكلفة الطن ولا في الهامش حتى الاعتماد.</p>
+              )}
+            </div>
+          ) : null}
           {trace.samples.length > 0 ? (
             <div className="mt-4">
               <DataTable

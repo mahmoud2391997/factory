@@ -29,7 +29,7 @@ test('lot cost includes bags and rates, manual lines win, and the invoice price 
   state = must(state, clock, { action: 'createEmployee', input: { nameAr: 'مشغّل', department: 'الإنتاج', jobTitle: 'مشغّل', basicSalary: 300 } })
   state = must(state, clock, {
     action: 'updateCompany',
-    input: { bagUnitCost: 0.1, costRates: { ELECTRICITY: 4, GAS: 99 } },
+    input: { bagUnitCost: 0.1, costRates: { ELECTRICITY: 4, GAS: 99 }, costApprovalThreshold: 1_000_000 },
   })
   const material = state.materials[0]!
   const product = state.products[0]!

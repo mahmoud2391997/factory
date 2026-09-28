@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { canSeeEntity } from '@/lib/erp-routes'
 import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
+import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import type { VatTreatment } from '@/lib/erp/domain/types'
 
@@ -406,6 +407,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
   const [form, setForm] = useState({
     ...company,
     bagUnitCost: company.bagUnitCost ?? 0,
+    costApprovalThreshold: company.costApprovalThreshold ?? 0,
     packagingMaterialId: company.packagingMaterialId ?? '',
     costRates: {
       ELECTRICITY: company.costRates?.ELECTRICITY ?? 0,
@@ -429,6 +431,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         <Field label="الهاتف"><TextInput value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
         <Field label="السجل التجاري"><TextInput value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></Field>
         <Field label="حد انحراف الإنتاج %"><TextInput type="number" min="0" step="0.01" value={form.varianceThresholdPct} onChange={(e) => setForm({ ...form, varianceThresholdPct: Number(e.target.value) })} /></Field>
+        <Field label="حد اعتماد التكلفة اليدوية (ر.ع.)"><TextInput type="number" min="0" step="0.001" value={form.costApprovalThreshold} onChange={(e) => setForm({ ...form, costApprovalThreshold: Number(e.target.value) })} /></Field>
         <Field label="تكلفة الكيس (ر.ع.)"><TextInput type="number" min="0" step="0.001" value={form.bagUnitCost} onChange={(e) => setForm({ ...form, bagUnitCost: Number(e.target.value) })} /></Field>
         <Field label="مادة التعبئة">
           <SelectInput value={form.packagingMaterialId} onChange={(e) => setForm({ ...form, packagingMaterialId: e.target.value })}>
@@ -465,12 +468,28 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Approvals({ ctx }: { ctx: LiveCtx }) {
+  const pendingCosts = (ctx.state.lots ?? []).flatMap((lot) =>
+    (lot.pendingCostLines ?? []).map((line) => ({ lot, line })),
+  )
   const pos = ctx.state.purchaseOrders.filter((order) => order.status === 'PENDING_APPROVAL')
   const expenses = ctx.state.expenses.filter((expense) => expense.status === 'PENDING_APPROVAL')
   const payrolls = ctx.state.payrolls.filter((payroll) => payroll.status === 'PENDING_APPROVAL')
   const adjustments = ctx.state.adjustments.filter((adjustment) => adjustment.status === 'PENDING_APPROVAL')
   return (
     <div className="space-y-4">
+      <Card title="تكلفة إنتاج">
+        {pendingCosts.length === 0 ? <p className="text-sm text-[#788983]">لا يوجد</p> : pendingCosts.map(({ lot, line }) => (
+          <div key={line.id} className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#f3f6f5] py-2">
+            <div>{lot.lotNo} — {COST_LABEL[line.type]} — {moneyFmt(line.amount)} <Badge tone="warn">بانتظار الاعتماد</Badge></div>
+            {can(ctx.permissions, 'production.cost.approve') ? (
+              <span className="flex gap-2">
+                <GhostButton type="button" onClick={() => ctx.act('decideProductionCost', { lotId: lot.id, lineId: line.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
+                <GhostButton type="button" onClick={() => ctx.act('decideProductionCost', { lotId: lot.id, lineId: line.id, decision: 'REJECTED' })}>رفض</GhostButton>
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </Card>
       <Card title="أوامر شراء">
         {pos.length === 0 ? <p className="text-sm text-[#788983]">لا يوجد</p> : pos.map((order) => (
           <div key={order.id} className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#f3f6f5] py-2">

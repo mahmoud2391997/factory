@@ -797,7 +797,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
   const [formError, setFormError] = useState('')
   const needsReason = formError.includes('سبب الانحراف')
   return (
-    <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. الناتج المتوقع يُحسب من الوصفة على الكمية الداخلة فعلاً. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي." wide onClose={onClose}>
+    <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. الناتج المتوقع يُحسب من الوصفة على الكمية الداخلة فعلاً. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي. بند تكلفة أعلى من حد الاعتماد يُحفظ بانتظار المدير أو المحاسب ولا يدخل في الهامش قبل ذلك." wide onClose={onClose}>
       <form className="space-y-2" onSubmit={async (event) => {
         event.preventDefault()
         setFormError('')

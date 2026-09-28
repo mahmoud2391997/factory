@@ -1,5 +1,5 @@
 import { money, qty } from './money'
-import type { CostLine, ErpState, Product } from './types'
+import type { CostLine, ErpState, Product, ProductionLot } from './types'
 
 export const ALLOCATED_COST_TYPES = ['ELECTRICITY', 'GAS', 'LABOR', 'TRANSPORT', 'MAINTENANCE', 'OVERHEAD'] as const
 export type AllocatedCostType = (typeof ALLOCATED_COST_TYPES)[number]
@@ -47,4 +47,17 @@ export function buildLotCostLines(
     if (amount > 0) lines.push({ type, amount })
   }
   return lines
+}
+
+/** Posted margin uses approved cost only. Provisional adds lines still waiting for approval. */
+export function lotEconomics(lot: Pick<ProductionLot, 'totalCost' | 'actualOutputKg' | 'costPerTon' | 'salePricePerTon' | 'marginPerTon' | 'marginPct' | 'pendingCostLines'>) {
+  const pending = money((lot.pendingCostLines ?? []).reduce((sum, line) => sum + line.amount, 0))
+  const provisionalTotal = money(lot.totalCost + pending)
+  const provisionalCostPerTon = lot.actualOutputKg > 0 ? money((provisionalTotal / lot.actualOutputKg) * 1000) : 0
+  const provisionalMarginPerTon = lot.salePricePerTon != null ? money(lot.salePricePerTon - provisionalCostPerTon) : undefined
+  const provisionalMarginPct =
+    lot.salePricePerTon != null && lot.salePricePerTon !== 0 && provisionalMarginPerTon != null
+      ? money((provisionalMarginPerTon / lot.salePricePerTon) * 100)
+      : undefined
+  return { pending, provisionalTotal, provisionalCostPerTon, provisionalMarginPerTon, provisionalMarginPct }
 }

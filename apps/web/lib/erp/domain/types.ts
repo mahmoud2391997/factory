@@ -24,6 +24,11 @@ export type Company = {
   /** OMR per bag when no packaging material cost is on hand. */
   bagUnitCost?: number
   packagingMaterialId?: string
+  /**
+   * A manual production cost above this amount (OMR) waits for approval.
+   * 0 means every positive manual line waits. A very high value posts immediately.
+   */
+  costApprovalThreshold?: number
   /** OMR per ton, used when completion has no manual line for that type. */
   costRates?: {
     ELECTRICITY?: number
@@ -375,6 +380,13 @@ export type CostLineType =
 
 export type CostLine = { type: CostLineType; amount: number }
 
+export type PendingCostLine = {
+  id: string
+  type: Exclude<CostLineType, 'RAW_MATERIAL' | 'BAGS'>
+  amount: number
+  status: 'PENDING_APPROVAL'
+}
+
 export type QcResult = 'UNTESTED' | 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
 
 export type ProductionLot = {
@@ -393,6 +405,8 @@ export type ProductionLot = {
   variancePct: number
   materials: Array<{ materialId: string; sourceBatchNo: string; supplierId: string | null; qty: number; unitCost: number }>
   costLines: CostLine[]
+  /** Manual lines above the company threshold. Excluded from totals until approved. */
+  pendingCostLines?: PendingCostLine[]
   totalCost: number
   costPerTon: number
   salePricePerTon?: number
@@ -512,6 +526,7 @@ export type Command =
   | { action: 'decideAdjustment'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createProductionOrder'; input: { productId: string; recipeId: string; plannedQty: number } }
   | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string; costLines?: Array<{ type: 'ELECTRICITY' | 'GAS' | 'LABOR' | 'TRANSPORT' | 'MAINTENANCE' | 'OVERHEAD'; amount: number }> } }
+  | { action: 'decideProductionCost'; input: { lotId: string; lineId: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createInvoice'; input: { customerId: string; notes?: string; lines: Array<{ productId: string; qty: number; unitPrice?: number }> } }
   | { action: 'confirmInvoice'; input: { id: string } }
   | { action: 'recordPayment'; input: { invoiceId: string; amount: number; method?: string } }

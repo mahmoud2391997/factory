@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   'production.read',
   'production.create',
   'production.complete',
+  'production.cost.approve',
   'qc.read',
   'qc.manage',
   'qc.release',
@@ -82,6 +83,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'audit.read',
     'notifications.read',
     'qc.read',
+    'production.cost.approve',
   ],
   OPERATIONS: [
     'warehouses.read',
@@ -112,7 +114,7 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 2
+export const PERMISSIONS_VERSION = 3
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   1: {
@@ -122,5 +124,9 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
   },
   2: {
     QUALITY: ['qc.read', 'qc.manage', 'inventory.read', 'production.read', 'reports.read', 'notifications.read'],
+  },
+  3: {
+    GM: ['production.cost.approve'],
+    ACCOUNTANT: ['production.cost.approve'],
   },
 }
