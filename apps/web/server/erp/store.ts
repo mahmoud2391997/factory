@@ -80,6 +80,7 @@ const DEMO_USERS = [
   { id: 'user-admin', email: 'admin@factory.local', fullName: 'سعيد الوهيبي', role: 'GM' as const },
   { id: 'user-acc', email: 'accounts@factory.local', fullName: 'نورة العامرية', role: 'ACCOUNTANT' as const },
   { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS' as const },
+  { id: 'user-qc', email: 'quality@factory.local', fullName: 'هند البلوشية', role: 'QUALITY' as const },
 ] as const
 
 function isBcryptHash(value: string) {

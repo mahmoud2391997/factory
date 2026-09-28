@@ -52,6 +52,7 @@ export const ROLE_LABELS = {
   GM: 'المدير العام',
   ACCOUNTANT: 'المحاسب والموارد البشرية',
   OPERATIONS: 'المستودع والإنتاج والمبيعات',
+  QUALITY: 'مسؤول الجودة',
 } as const
 
 export type RoleKey = keyof typeof ROLE_LABELS
@@ -103,6 +104,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'reports.read',
     'notifications.read',
   ],
+  QUALITY: ['qc.read', 'qc.manage', 'inventory.read', 'production.read', 'reports.read', 'notifications.read'],
 }
 
 export function hasPermission(permissions: readonly string[], required: string) {
@@ -110,12 +112,15 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 1
+export const PERMISSIONS_VERSION = 2
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   1: {
     GM: ['qc.read', 'qc.manage', 'qc.release', 'qc.limits'],
     ACCOUNTANT: ['qc.read'],
     OPERATIONS: ['qc.read', 'qc.manage'],
+  },
+  2: {
+    QUALITY: ['qc.read', 'qc.manage', 'inventory.read', 'production.read', 'reports.read', 'notifications.read'],
   },
 }

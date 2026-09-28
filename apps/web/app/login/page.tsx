@@ -30,6 +30,7 @@ const DEMO_LOGINS = [
   { email: 'gm@factory.local', label: 'المدير العام' },
   { email: 'accounts@factory.local', label: 'المحاسب والموارد البشرية' },
   { email: 'ops@factory.local', label: 'المستودع والإنتاج والمبيعات' },
+  { email: 'quality@factory.local', label: 'مسؤول الجودة' },
   { email: 'admin@factory.local', label: 'مدير النظام' },
 ] as const
 

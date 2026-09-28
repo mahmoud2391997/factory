@@ -1654,7 +1654,7 @@ function notifyQc(state: ErpState, clock: Clock, sample: { type: string; result:
     'QC',
     `جودة ${label}: ${target}`,
     sample.type === 'FINISHED_PRODUCT' ? 'لا يمكن بيع الدفعة أو سحبها حتى تُفك.' : 'لا يمكن تحويل الدفعة للتصنيع أو استهلاكها حتى تُفك.',
-    ['GM', 'OPERATIONS'],
+    ['GM', 'OPERATIONS', 'QUALITY'],
     `qc:${sample.type}:${sample.materialId ?? ''}:${sample.batchNo ?? ''}:${sample.lotNo ?? ''}:${sample.result}`,
   )
 }

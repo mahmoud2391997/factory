@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 
 import { canSeeEntity } from '@/lib/erp-routes'
-import { PERMISSIONS } from '@/lib/erp/domain/permissions'
+import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import type { VatTreatment } from '@/lib/erp/domain/types'
@@ -12,11 +12,9 @@ import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, 
 import type { LiveCtx } from './ctx'
 import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
 
-const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = [
-  { value: 'GM', label: 'المدير العام' },
-  { value: 'ACCOUNTANT', label: 'المحاسب والموارد البشرية' },
-  { value: 'OPERATIONS', label: 'المستودع والإنتاج والمبيعات' },
-]
+const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = (Object.entries(ROLE_LABELS) as Array<[RoleKey, string]>).map(
+  ([value, label]) => ({ value, label }),
+)
 
 export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
   if (entityKey === 'account') return <Accounts ctx={ctx} />
