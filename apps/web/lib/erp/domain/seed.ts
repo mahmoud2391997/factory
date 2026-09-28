@@ -56,12 +56,15 @@ export function emptyState(passwordHash: string): ErpState {
       vatRatePct: 5,
       varianceThresholdPct: 2,
       notifyEmail: 'gm@factory.local',
+      fuelVarianceThresholdPct: 15,
+      obligationApprovalThreshold: 1000,
     },
     rolePermissions: {
       GM: [...DEFAULT_ROLE_PERMISSIONS.GM],
       ACCOUNTANT: [...DEFAULT_ROLE_PERMISSIONS.ACCOUNTANT],
       OPERATIONS: [...DEFAULT_ROLE_PERMISSIONS.OPERATIONS],
       QUALITY: [...DEFAULT_ROLE_PERMISSIONS.QUALITY],
+      DRIVER: [...DEFAULT_ROLE_PERMISSIONS.DRIVER],
     },
     users: [
       { id: 'user-gm', email: 'gm@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, tokenVersion: 1 },
@@ -69,6 +72,7 @@ export function emptyState(passwordHash: string): ErpState {
       { id: 'user-acc', email: 'accounts@factory.local', fullName: 'نورة العامرية', role: 'ACCOUNTANT', passwordHash, active: true, tokenVersion: 1 },
       { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS', passwordHash, active: true, tokenVersion: 1 },
       { id: 'user-qc', email: 'quality@factory.local', fullName: 'هند البلوشية', role: 'QUALITY', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-driver', email: 'driver@factory.local', fullName: 'محمد الكندي', role: 'DRIVER', passwordHash, active: true, tokenVersion: 1 },
     ],
     accounts: [
       { code: '1100', nameAr: 'مخزون مواد خام', type: 'ASSET' },
@@ -88,6 +92,7 @@ export function emptyState(passwordHash: string): ErpState {
       { code: '6200', nameAr: 'مصروفات تشغيل', type: 'EXPENSE' },
       { code: '6300', nameAr: 'فروقات المخزون', type: 'EXPENSE' },
       { code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' },
+      { code: '2700', nameAr: 'التزامات مالية', type: 'LIABILITY' },
     ],
     warehouses: [
       { key: 'WH_RAW', nameAr: 'مستودع المواد الخام' },
@@ -121,6 +126,14 @@ export function emptyState(passwordHash: string): ErpState {
     auditLogs: [],
     sequences: {},
     idempotency: [],
+    vehicles: [],
+    vehicleServices: [],
+    fuelLogs: [],
+    trips: [],
+    obligations: [],
+    obligationScheduleLines: [],
+    obligationPayments: [],
+    companyDocuments: [],
   }
 }
 

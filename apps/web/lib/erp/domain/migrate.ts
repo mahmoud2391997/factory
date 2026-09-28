@@ -108,43 +108,62 @@ export function migrateErpState(state: ErpState): ErpState {
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
   }
   if (state.schemaVersion === SCHEMA_VERSION) return mergeRolePermissions(state)
-  if (state.schemaVersion != null && state.schemaVersion !== 1) throw new Error('إصدار بيانات المصنع غير مدعوم')
-
-  const freshLotNos = new Set<string>()
-  for (const order of state.productionOrders ?? []) {
-    if (order.status !== 'COMPLETED') continue
-    if (state.lots.some((lot) => lot.productionOrderId === order.id)) continue
-    const inputKg = qty((order.expected ?? []).reduce((sum, line) => sum + (line.actualQty || 0), 0))
-    const wasteKg = qty((order.expected ?? []).reduce((sum, line) => sum + (line.wasteQty || 0), 0))
-    const lotNo = order.outputBatch || order.number
-    const totalCost = money(order.totalCost || 0)
-    const lot: ProductionLot = {
-      id: `migrated-lot-${order.id}`,
-      lotNo,
-      productionOrderId: order.id,
-      productId: order.productId,
-      operatorId: null,
-      manufacturedAt: order.completedAt || order.createdAt,
-      inputKg,
-      expectedOutputKg: qty(order.actualOutputQty || 0),
-      actualOutputKg: qty(order.actualOutputQty || 0),
-      wasteKg,
-      varianceKg: 0,
-      variancePct: 0,
-      materials: [],
-      costLines: [{ type: 'RAW_MATERIAL', amount: totalCost }],
-      totalCost,
-      costPerTon: order.actualOutputQty > 0 ? money((totalCost / order.actualOutputQty) * 1000) : 0,
-      deliveries: [],
-      qcStatus: 'UNTESTED',
-      legacy: true,
-      legacyNote: LEGACY_LOT_NOTE,
-    }
-    state.lots.push(lot)
-    freshLotNos.add(lot.lotNo)
+  if (state.schemaVersion != null && state.schemaVersion !== 1 && state.schemaVersion !== 2) {
+    throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
 
-  attributeLotDeliveries(state, freshLotNos)
-  state.schemaVersion = SCHEMA_VERSION
+  // v1 -> v2 migration (lots and QC)
+  if (state.schemaVersion === 1) {
+    const freshLotNos = new Set<string>()
+    for (const order of state.productionOrders ?? []) {
+      if (order.status !== 'COMPLETED') continue
+      if (state.lots.some((lot) => lot.productionOrderId === order.id)) continue
+      const inputKg = qty((order.expected ?? []).reduce((sum, line) => sum + (line.actualQty || 0), 0))
+      const wasteKg = qty((order.expected ?? []).reduce((sum, line) => sum + (line.wasteQty || 0), 0))
+      const lotNo = order.outputBatch || order.number
+      const totalCost = money(order.totalCost || 0)
+      const lot: ProductionLot = {
+        id: `migrated-lot-${order.id}`,
+        lotNo,
+        productionOrderId: order.id,
+        productId: order.productId,
+        operatorId: null,
+        manufacturedAt: order.completedAt || order.createdAt,
+        inputKg,
+        expectedOutputKg: qty(order.actualOutputQty || 0),
+        actualOutputKg: qty(order.actualOutputQty || 0),
+        wasteKg,
+        varianceKg: 0,
+        variancePct: 0,
+        materials: [],
+        costLines: [{ type: 'RAW_MATERIAL', amount: totalCost }],
+        totalCost,
+        costPerTon: order.actualOutputQty > 0 ? money((totalCost / order.actualOutputQty) * 1000) : 0,
+        deliveries: [],
+        qcStatus: 'UNTESTED',
+        legacy: true,
+        legacyNote: LEGACY_LOT_NOTE,
+      }
+      state.lots.push(lot)
+      freshLotNos.add(lot.lotNo)
+    }
+
+    attributeLotDeliveries(state, freshLotNos)
+    state.schemaVersion = 2
+  }
+
+  // v2 -> v3 migration (fleet, obligations, documents)
+  if (state.schemaVersion === 2) {
+    state.vehicles ??= []
+    state.vehicleServices ??= []
+    state.fuelLogs ??= []
+    state.trips ??= []
+    state.obligations ??= []
+    state.obligationScheduleLines ??= []
+    state.obligationPayments ??= []
+    state.companyDocuments ??= []
+    state.schemaVersion = 3
+  }
+
   return mergeRolePermissions(state)
 }

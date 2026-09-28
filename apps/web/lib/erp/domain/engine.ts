@@ -520,6 +520,16 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createQualitySample: 'qc.manage',
     updateQualityResult: 'qc.manage',
     setQcLimits: 'qc.limits',
+    createVehicle: 'fleet.manage',
+    updateVehicle: 'fleet.manage',
+    addFuelLog: 'fleet.manage',
+    addVehicleService: 'fleet.manage',
+    createTrip: 'fleet.manage',
+    createObligation: 'obligations.manage',
+    decideObligation: 'approvals.decide',
+    payObligationInstallment: 'obligations.pay',
+    createCompanyDocument: 'documents.manage',
+    renewCompanyDocument: 'documents.manage',
   }
   return allow(actor, map[command.action])
 }
@@ -598,6 +608,26 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return updateQualityResult(state, actor, command.input, clock)
     case 'setQcLimits':
       return setQcLimits(state, actor, command.input, clock)
+    case 'createVehicle':
+      return fail('إنشاء المركبات لم يُنفذ بعد - Step 1')
+    case 'updateVehicle':
+      return fail('تحديث المركبات لم يُنفذ بعد - Step 1')
+    case 'addFuelLog':
+      return fail('تسجيل الوقود لم يُنفذ بعد - Step 1')
+    case 'addVehicleService':
+      return fail('تسجيل صيانة المركبات لم يُنفذ بعد - Step 1')
+    case 'createTrip':
+      return fail('إنشاء الرحلات لم يُنفذ بعد - Step 1')
+    case 'createObligation':
+      return fail('إنشاء الالتزامات المالية لم يُنفذ بعد - Step 2')
+    case 'decideObligation':
+      return fail('البت في الالتزامات المالية لم يُنفذ بعد - Step 2')
+    case 'payObligationInstallment':
+      return fail('دفع أقساط الالتزامات لم يُنفذ بعد - Step 2')
+    case 'createCompanyDocument':
+      return fail('إنشاء مستندات الشركة لم يُنفذ بعد - Step 3')
+    case 'renewCompanyDocument':
+      return fail('تجديد مستندات الشركة لم يُنفذ بعد - Step 3')
     default:
       return fail('إجراء غير معروف')
   }

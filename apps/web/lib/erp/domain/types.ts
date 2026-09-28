@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -38,6 +38,10 @@ export type Company = {
     MAINTENANCE?: number
     OVERHEAD?: number
   }
+  /** Flag trips when actual fuel exceeds expected by this percentage (default 15%). */
+  fuelVarianceThresholdPct?: number
+  /** Obligations above this amount (OMR) need approval. */
+  obligationApprovalThreshold?: number
 }
 
 export type AppUser = {
@@ -113,6 +117,12 @@ export type Employee = {
   jobTitle: string
   basicSalary: number
   active: boolean
+  /** ID card expiry date for document expiry alerts. */
+  idExpiryDate?: string
+  /** Residence permit expiry date for document expiry alerts. */
+  residenceExpiryDate?: string
+  /** Employment contract expiry date for document expiry alerts. */
+  contractExpiryDate?: string
 }
 
 export type Recipe = {
@@ -121,6 +131,131 @@ export type Recipe = {
   nameAr: string
   baseOutputQty: number
   items: Array<{ materialId: string; qty: number }>
+}
+
+export type Vehicle = {
+  id: string
+  code: string
+  plateNo: string
+  type: string
+  nameAr: string
+  active: boolean
+  /** Vehicle inspection expiry date. */
+  inspectionExpiryDate?: string
+  /** Insurance expiry date. */
+  insuranceExpiryDate?: string
+  /** Ownership/registration expiry date. */
+  ownershipExpiryDate?: string
+  /** Current odometer reading in km. */
+  currentOdometer: number
+  /** Expected fuel efficiency: km per liter. */
+  kmPerLiter?: number
+}
+
+export type VehicleService = {
+  id: string
+  vehicleId: string
+  date: string
+  kind: 'PERIODIC' | 'TIRES' | 'OIL' | 'PARTS' | 'REPAIR'
+  description: string
+  cost: number
+  odometer: number
+  /** Next service due date. */
+  nextDueDate?: string
+  /** Next service due odometer reading. */
+  nextDueKm?: number
+  supplierId?: string
+  createdBy: string
+  createdAt: string
+}
+
+export type FuelLog = {
+  id: string
+  vehicleId: string
+  date: string
+  liters: number
+  cost: number
+  odometer: number
+  driverId: string
+  station?: string
+  createdBy: string
+  createdAt: string
+}
+
+export type Trip = {
+  id: string
+  vehicleId: string
+  driverId: string
+  date: string
+  destination: string
+  km: number
+  loadKg: number
+  fuelLiters: number
+  customerId?: string
+  invoiceId?: string
+  cost: number
+  /** Optional driver cost line. */
+  driverCost?: number
+  /** Reason for abnormal fuel consumption. */
+  fuelVarianceReason?: string
+  createdBy: string
+  createdAt: string
+}
+
+export type Obligation = {
+  id: string
+  beneficiary: string
+  description: string
+  kind: 'LOAN' | 'INSTALLMENT' | 'RENT' | 'OTHER'
+  total: number
+  installmentAmount: number
+  firstDueDate: string
+  frequency: 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME'
+  numberOfInstallments?: number
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  createdBy: string
+  createdAt: string
+  decidedBy?: string
+  decidedAt?: string
+}
+
+export type ObligationScheduleLine = {
+  id: string
+  obligationId: string
+  dueDate: string
+  amount: number
+  paidAmount: number
+  status: 'PENDING' | 'PAID' | 'OVERDUE'
+}
+
+export type ObligationPayment = {
+  id: string
+  obligationId: string
+  scheduleLineId: string
+  amount: number
+  date: string
+  method: string
+  reference?: string
+  createdBy: string
+  createdAt: string
+}
+
+export type CompanyDocument = {
+  id: string
+  title: string
+  kind: 'LICENSE' | 'OWNERSHIP' | 'INSURANCE' | 'CONTRACT' | 'LEASE' | 'GOV_PERMIT' | 'CERTIFICATE' | 'INSPECTION' | 'OTHER'
+  /** Optional entity link. */
+  entityType?: 'COMPANY' | 'VEHICLE' | 'EMPLOYEE' | 'SUPPLIER' | 'CUSTOMER' | 'MACHINE'
+  entityId?: string
+  issueDate: string
+  expiryDate?: string
+  cost?: number
+  renewalOwnerId?: string
+  notes?: string
+  /** File attachment reference (stored separately). */
+  attachmentId?: string
+  createdBy: string
+  createdAt: string
 }
 
 export type Balance = {
@@ -494,6 +629,17 @@ export type ErpState = {
   ledgerBaselines?: Array<{ warehouse: WarehouseKey; itemType: ItemType; itemId: string; batchNo: string; qty: number }>
   /** Debit/credit totals of journal lines copied to the archive. */
   journalOpenings?: Array<{ accountCode: string; debit: number; credit: number }>
+  /** Phase 3: Fleet management. */
+  vehicles: Vehicle[]
+  vehicleServices: VehicleService[]
+  fuelLogs: FuelLog[]
+  trips: Trip[]
+  /** Phase 3: Financial obligations. */
+  obligations: Obligation[]
+  obligationScheduleLines: ObligationScheduleLine[]
+  obligationPayments: ObligationPayment[]
+  /** Phase 3: Company documents. */
+  companyDocuments: CompanyDocument[]
 }
 
 export type Actor = {
@@ -546,6 +692,16 @@ export type Command =
   | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
   | { action: 'updateQualityResult'; input: { sampleId: string; result: 'PASSED' | 'FAILED' | 'HOLD'; reason: string } }
   | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number } } }
+  | { action: 'createVehicle'; input: { code: string; plateNo: string; type: string; nameAr: string; kmPerLiter?: number } }
+  | { action: 'updateVehicle'; input: { id: string; plateNo?: string; type?: string; nameAr?: string; active?: boolean; inspectionExpiryDate?: string; insuranceExpiryDate?: string; ownershipExpiryDate?: string; kmPerLiter?: number } }
+  | { action: 'addFuelLog'; input: { vehicleId: string; date: string; liters: number; cost: number; odometer: number; driverId: string; station?: string } }
+  | { action: 'addVehicleService'; input: { vehicleId: string; date: string; kind: VehicleService['kind']; description: string; cost: number; odometer: number; nextDueDate?: string; nextDueKm?: number; supplierId?: string } }
+  | { action: 'createTrip'; input: { vehicleId: string; driverId: string; date: string; destination: string; km: number; loadKg: number; fuelLiters: number; customerId?: string; invoiceId?: string; driverCost?: number; fuelVarianceReason?: string } }
+  | { action: 'createObligation'; input: { beneficiary: string; description: string; kind: Obligation['kind']; total: number; installmentAmount: number; firstDueDate: string; frequency: Obligation['frequency']; numberOfInstallments?: number } }
+  | { action: 'decideObligation'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
+  | { action: 'payObligationInstallment'; input: { scheduleLineId: string; amount: number; method: string; reference?: string } }
+  | { action: 'createCompanyDocument'; input: { title: string; kind: CompanyDocument['kind']; entityType?: CompanyDocument['entityType']; entityId?: string; issueDate: string; expiryDate?: string; cost?: number; renewalOwnerId?: string; notes?: string; attachmentId?: string } }
+  | { action: 'renewCompanyDocument'; input: { id: string; issueDate: string; expiryDate?: string; cost?: number; notes?: string; attachmentId?: string } }
 
 export type CommandOk = {
   ok: true
