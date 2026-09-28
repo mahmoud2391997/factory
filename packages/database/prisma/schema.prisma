@@ -569,7 +569,7 @@ enum ProductionCostType {
   OVERHEAD
 }
 
-/// Finished production lot with complete genealogy from raw materials to customer delivery.
+/// NOT IMPLEMENTED: engine state is the source of truth
 model ProductionLot {
   id              String   @id @default(cuid())
   lotNo           String   @unique
@@ -603,6 +603,7 @@ model ProductionLot {
   @@index([customerId])
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model BatchMaterialLink {
   id String @id @default(cuid())
   productionLotId String
@@ -620,6 +621,7 @@ model BatchMaterialLink {
   @@index([supplierId])
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model QualitySample {
   id String @id @default(cuid())
   productionLotId String?
@@ -642,6 +644,7 @@ model QualitySample {
   @@index([productId, sampledAt])
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model ProductionCostLine {
   id String @id @default(cuid())
   productionOrderId String
@@ -656,6 +659,7 @@ model ProductionCostLine {
   @@index([productionOrderId, type])
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model LotDelivery {
   id String @id @default(cuid())
   productionLotId String
@@ -689,6 +693,7 @@ model AuditLog {
 // New Modules: Fleet, Finance, Maintenance, Documents, Utilities
 // -----------------------------------------------------------------
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model Vehicle {
   id String @id @default(cuid())
   plateNumber String @unique
@@ -707,6 +712,7 @@ model Vehicle {
   updatedAt DateTime @updatedAt
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model VehicleMaintenance {
   id String @id @default(cuid())
   vehicleId String
@@ -721,6 +727,7 @@ model VehicleMaintenance {
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model FuelLog {
   id String @id @default(cuid())
   vehicleId String
@@ -734,6 +741,7 @@ model FuelLog {
   driver Employee? @relation(fields: [driverId], references: [id], onDelete: Restrict)
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model TripLog {
   id String @id @default(cuid())
   vehicleId String
@@ -752,6 +760,7 @@ model TripLog {
   driver Employee @relation(fields: [driverId], references: [id], onDelete: Restrict)
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model FinancialObligation {
   id String @id @default(cuid())
   beneficiary String
@@ -767,6 +776,7 @@ model FinancialObligation {
   updatedAt DateTime @updatedAt
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model BankTransaction {
   id String @id @default(cuid())
   referenceId String @unique
@@ -780,6 +790,7 @@ model BankTransaction {
   createdAt DateTime @default(now())
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model Machine {
   id String @id @default(cuid())
   code String @unique
@@ -794,6 +805,7 @@ model Machine {
   updatedAt DateTime @updatedAt
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model MachineMaintenance {
   id String @id @default(cuid())
   machineId String
@@ -808,6 +820,7 @@ model MachineMaintenance {
   machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model CompanyDocument {
   id String @id @default(cuid())
   title String
@@ -825,6 +838,7 @@ model CompanyDocument {
   updatedAt DateTime @updatedAt
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model UtilityMeter {
   id String @id @default(cuid())
   type String // ELECTRICITY, WATER, GAS
@@ -834,6 +848,7 @@ model UtilityMeter {
   readings UtilityReading[]
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model UtilityReading {
   id String @id @default(cuid())
   meterId String
@@ -845,6 +860,7 @@ model UtilityReading {
   meter UtilityMeter @relation(fields: [meterId], references: [id], onDelete: Cascade)
 }
 
+/// NOT IMPLEMENTED: engine state is the source of truth
 model SupplierCommunication {
   id String @id @default(cuid())
   supplierId String
