@@ -35,12 +35,14 @@ function DayNote({ day, shifted }: { day: string; shifted: boolean }) {
   return <p className="text-sm text-[#788983]">{shifted ? `آخر يوم تشغيل: ${dayFmt(day)}` : dayFmt(day)}</p>
 }
 
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Metric({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'bad' | 'good' }) {
+  const toneClass = tone === 'bad' ? 'text-[#dc2626]' : tone === 'good' ? 'text-[#0a825d]' : 'text-[#1f1f1f]'
+  const barClass = tone === 'bad' ? 'bg-[#ef4444]' : tone === 'good' ? 'bg-[#10b981]' : 'bg-[#0d9488]'
   return (
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
-      <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#0d9488]" />
+      <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
       <div className="text-sm font-medium text-[#6b7280]">{label}</div>
-      <div className="mt-2 text-3xl font-semibold leading-none tracking-tight text-[#1f1f1f]">{value}</div>
+      <div className={`mt-2 text-3xl font-semibold leading-none tracking-tight ${toneClass}`}>{value}</div>
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
     </div>
   )
@@ -151,7 +153,7 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="تكلفة الطن" value={moneyFmt(status.profit.costPerTon)} />
           <Metric label="متوسط سعر البيع" value={moneyFmt(status.profit.avgPricePerTon)} />
-          <Metric label="هامش الربح/طن" value={moneyFmt(status.profit.marginPerTon)} hint="متوسط سعر البيع − تكلفة الطن" />
+          <Metric label="هامش الربح/طن" value={moneyFmt(status.profit.marginPerTon)} hint="متوسط سعر البيع − تكلفة الطن" tone={status.profit.marginPerTon < 0 ? 'bad' : status.profit.marginPerTon > 0 ? 'good' : undefined} />
         </div>
         <Card title="تكلفة أوامر اليوم">
           <DataTable

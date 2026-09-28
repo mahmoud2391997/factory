@@ -816,10 +816,15 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
 
       {canSeeEntity(ctx.permissions, 'productionLot') ? (
         <Card title="أقل الدفعات هامشاً" extra={<GhostButton type="button" onClick={() => ctx.navigate('productionLot')}>الدفعات</GhostButton>}>
-          <NameList
-            empty="لا مبيعات مرتبطة بدفعة بعد"
-            rows={status.lowestMarginLots.map((lot) => `${lot.lotNo} — ${lot.productName} — ${moneyFmt(lot.marginPerTon)} / طن (${pctFmt(lot.marginPct)})`)}
-          />
+          {status.lowestMarginLots.length === 0 ? <p className="text-sm text-[#788983]">لا مبيعات مرتبطة بدفعة بعد</p> : (
+            <ul className="space-y-1.5 text-sm text-[#30453d]">
+              {status.lowestMarginLots.map((lot) => (
+                <li key={lot.lotNo} className={lot.marginPerTon < 0 ? 'font-bold text-[#dc2626]' : undefined}>
+                  {lot.lotNo} — {lot.productName} — {moneyFmt(lot.marginPerTon)} / طن ({pctFmt(lot.marginPct)})
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       ) : null}
 

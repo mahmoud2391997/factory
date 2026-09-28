@@ -3,9 +3,9 @@
 import { useState } from 'react'
 
 import { COST_LABEL, lotEconomics } from '@/lib/erp/domain/costing'
-import { operatorLabel, traceLot } from '@/lib/erp/domain/reports'
+import { filterLots, operatorLabel, traceLot } from '@/lib/erp/domain/reports'
 
-import { Badge, Card, DataTable, GhostButton, toneForStatus } from './bits'
+import { Badge, Card, DataTable, Field, GhostButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
 
@@ -23,6 +23,20 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) {
   const lots = ctx.state.lots ?? []
   const [lotNo, setLotNo] = useState(lots[0]?.lotNo ?? '')
+  const [productId, setProductId] = useState('')
+  const [fromDay, setFromDay] = useState('')
+  const [toDay, setToDay] = useState('')
+  const [qcStatus, setQcStatus] = useState('')
+  const [marginSign, setMarginSign] = useState<'all' | 'negative' | 'positive'>('all')
+  const filtered = filterLots(ctx.state, { productId, fromDay, toDay, qcStatus, marginSign })
+  const exportHref = `/api/erp/export?${new URLSearchParams({
+    kind: 'lots',
+    ...(productId ? { productId } : {}),
+    ...(fromDay ? { from: fromDay } : {}),
+    ...(toDay ? { to: toDay } : {}),
+    ...(qcStatus ? { qc: qcStatus } : {}),
+    ...(marginSign !== 'all' ? { margin: marginSign } : {}),
+  }).toString()}`
   const selected = lotNo || lots[0]?.lotNo || ''
   const trace = selected ? traceLot(ctx.state, selected) : null
   const waste = lots.reduce((sum, lot) => sum + lot.wasteKg, 0)
@@ -33,10 +47,37 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
         <Metric label="الهدر المسجل" value={`${qtyFmt(waste)} كجم`} />
         <Metric label="الربط" value={trace?.rawBatches.length ? 'مكتمل' : 'بانتظار دفعة'} hint="الخام والمورد والعامل والعميل يُقرأون من سجل الدفعة" />
       </div>
-      <Card title="دفعات الإنتاج" hint="كل سطر دفعة حقيقية أُنشئت عند إكمال أمر الإنتاج، ورقمها LOT-YYYYMMDD-###.">
+      <Card
+        title="دفعات الإنتاج"
+        hint="كل سطر دفعة حقيقية أُنشئت عند إكمال أمر الإنتاج، ورقمها LOT-YYYYMMDD-###."
+        extra={can(ctx.permissions, 'reports.read') ? <a className="text-sm font-semibold text-[#0d9488]" href={exportHref}>تصدير Excel</a> : null}
+      >
+        <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <Field label="المنتج">
+            <SelectInput value={productId} onChange={(event) => setProductId(event.target.value)}>
+              <option value="">الكل</option>
+              {ctx.state.products.map((product) => <option key={product.id} value={product.id}>{product.nameAr}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label="من"><TextInput type="date" value={fromDay} onChange={(event) => setFromDay(event.target.value)} /></Field>
+          <Field label="إلى"><TextInput type="date" value={toDay} onChange={(event) => setToDay(event.target.value)} /></Field>
+          <Field label="الجودة">
+            <SelectInput value={qcStatus} onChange={(event) => setQcStatus(event.target.value)}>
+              <option value="">الكل</option>
+              {['UNTESTED', 'PENDING', 'PASSED', 'FAILED', 'HOLD'].map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label="الهامش">
+            <SelectInput value={marginSign} onChange={(event) => setMarginSign(event.target.value as 'all' | 'negative' | 'positive')}>
+              <option value="all">الكل</option>
+              <option value="negative">سالب</option>
+              <option value="positive">موجب</option>
+            </SelectInput>
+          </Field>
+        </div>
         <DataTable
           columns={['رقم الدفعة', 'المنتج', 'المشغّل', 'الداخل / المتوقع / الفعلي', 'الفارق', 'تكلفة/طن', 'بيع/طن', 'الهامش/طن', 'الهامش %', '']}
-          rows={lots.map((lot) => {
+          rows={filtered.map((lot) => {
             const margin = lot.marginPerTon
             const operator = operatorLabel(ctx.state.employees, lot.operatorId)
             return [
@@ -55,7 +96,11 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
         />
       </Card>
       {trace ? (
-        <Card title={`تتبع ${trace.lot.lotNo}`} hint={detail ? 'من الدفعة إلى خامات الموردين ثم إلى العملاء.' : 'تفاصيل الدفعة المختارة.'}>
+        <Card
+          title={`تتبع ${trace.lot.lotNo}`}
+          hint={detail ? 'من الدفعة إلى خامات الموردين ثم إلى العملاء.' : 'تفاصيل الدفعة المختارة.'}
+          extra={<a className="text-sm font-semibold text-[#0d9488]" href={`/print/lot/${encodeURIComponent(trace.lot.lotNo)}`} target="_blank" rel="noreferrer">طباعة الشهادة</a>}
+        >
           <div className="mb-4 grid gap-2 text-sm leading-7 text-[#30453d] sm:grid-cols-2">
             <div>المنتج: {trace.product?.nameAr ?? '—'}</div>
             <div>المشغّل: {trace.operatorName}</div>
@@ -97,7 +142,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
                 ])}
               />
               {lotEconomics(trace.lot).provisionalMarginPerTon != null ? (
-                <p className="mt-2 text-sm text-[#53655e]">
+                <p className={`mt-2 text-sm ${(lotEconomics(trace.lot).provisionalMarginPerTon ?? 0) < 0 ? 'font-bold text-[#dc2626]' : 'text-[#53655e]'}`}>
                   هامش مؤقت لو اعتُمدت البنود: {moneyFmt(lotEconomics(trace.lot).provisionalMarginPerTon ?? 0)} / طن. الهامش المعتمد يستثني ما لم يُعتمد.
                 </p>
               ) : (

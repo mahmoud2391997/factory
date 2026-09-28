@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { profitAndLoss, stockRows, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
+import { lotExportRows, profitAndLoss, stockRows, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import { getSessionUser } from '@/server/auth/session'
 import { spreadsheetXml } from '@/server/erp/excel'
 import { loadState } from '@/server/erp/store'
@@ -86,6 +86,15 @@ export async function GET(req: NextRequest) {
     for (const row of stockRows(state)) {
       rows.push([row.warehouse, row.nameAr, row.batchNo, row.qty, row.unitCost, row.value, row.expiryDate ?? ''])
     }
+  } else if (kind === 'lots') {
+    name = 'Lots'
+    rows = lotExportRows(state, {
+      productId: req.nextUrl.searchParams.get('productId') || undefined,
+      fromDay: req.nextUrl.searchParams.get('from') || undefined,
+      toDay: req.nextUrl.searchParams.get('to') || undefined,
+      qcStatus: req.nextUrl.searchParams.get('qc') || undefined,
+      marginSign: (req.nextUrl.searchParams.get('margin') as 'all' | 'negative' | 'positive' | null) || 'all',
+    })
   } else if (kind === 'pnl') {
     name = 'Profit'
     const pnl = profitAndLoss(state)

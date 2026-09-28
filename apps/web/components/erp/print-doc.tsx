@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
 import { barcodeSvg } from '@/lib/erp/domain/barcode'
+import { COST_LABEL } from '@/lib/erp/domain/costing'
+import { traceLot } from '@/lib/erp/domain/reports'
 import type { PublicState } from '@/components/erp/live/ctx'
 import { materialName, moneyFmt, productName, qtyFmt, statusLabel } from '@/components/erp/live/format'
 
-export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' }) {
-  const params = useParams<{ id?: string }>()
+export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' }) {
+  const params = useParams<{ id?: string; lotNo?: string }>()
   const [state, setState] = useState<PublicState | null>(null)
   const [error, setError] = useState('')
 
@@ -46,6 +48,7 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' }) {
       {kind === 'invoice' ? <Invoice state={state} id={params.id ?? ''} /> : null}
       {kind === 'po' ? <PurchaseOrder state={state} id={params.id ?? ''} /> : null}
       {kind === 'labels' ? <Labels state={state} /> : null}
+      {kind === 'lot' ? <LotCertificate state={state} lotNo={decodeURIComponent(params.lotNo ?? '')} /> : null}
     </main>
   )
 }
@@ -153,6 +156,83 @@ function PurchaseOrder({ state, id }: { state: PublicState; id: string }) {
         </tbody>
       </table>
       {order.notes ? <p>ملاحظات: {order.notes}</p> : null}
+    </article>
+  )
+}
+
+function LotCertificate({ state, lotNo }: { state: PublicState; lotNo: string }) {
+  const trace = traceLot(state, lotNo)
+  if (!trace) return <p>دفعة الإنتاج غير موجودة</p>
+  return (
+    <article>
+      <Letterhead state={state} />
+      <h1 style={{ fontSize: 26, margin: '8px 0' }}>شهادة تتبع دفعة إنتاج</h1>
+      <p>
+        رقم الدفعة: {trace.lot.lotNo} — المنتج: {trace.product?.nameAr ?? '—'} — المشغّل: {trace.operatorName}
+      </p>
+      <p>
+        تاريخ التصنيع: {trace.lot.manufacturedAt.slice(0, 10)} — الجودة: {statusLabel(trace.lot.qcStatus ?? 'UNTESTED')} — الناتج: {qtyFmt(trace.lot.actualOutputKg)} كجم
+      </p>
+      {trace.lot.legacyNote ? <p>{trace.lot.legacyNote}</p> : null}
+      <h2 style={{ fontSize: 16 }}>الخامات والموردون</h2>
+      <table>
+        <thead>
+          <tr><th>الخامة</th><th>دفعة الخام</th><th>المورد</th><th>الكمية</th></tr>
+        </thead>
+        <tbody>
+          {trace.rawBatches.map((line) => (
+            <tr key={`${line.materialId}-${line.sourceBatchNo}`}>
+              <td>{line.materialName}</td>
+              <td>{line.sourceBatchNo}</td>
+              <td>{line.supplierName ?? '—'}</td>
+              <td>{qtyFmt(line.qty)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h2 style={{ fontSize: 16 }}>نتائج الجودة</h2>
+      <table>
+        <thead>
+          <tr><th>الوقت</th><th>رطوبة</th><th>بروتين</th><th>رماد</th><th>النتيجة</th></tr>
+        </thead>
+        <tbody>
+          {trace.samples.map((sample) => (
+            <tr key={sample.id}>
+              <td>{sample.sampledAt.slice(0, 16).replace('T', ' ')}</td>
+              <td>{sample.moisturePct ?? '—'}</td>
+              <td>{sample.proteinPct ?? '—'}</td>
+              <td>{sample.ashPct ?? '—'}</td>
+              <td>{statusLabel(sample.result)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h2 style={{ fontSize: 16 }}>العملاء</h2>
+      <table>
+        <thead>
+          <tr><th>العميل</th><th>الكمية</th><th>ملاحظة التخصيص</th></tr>
+        </thead>
+        <tbody>
+          {trace.deliveries.map((delivery, index) => (
+            <tr key={`${delivery.invoiceId ?? delivery.withdrawalId ?? index}`}>
+              <td>{delivery.customerId ? state.customers.find((item) => item.id === delivery.customerId)?.nameAr ?? '—' : 'سحب داخلي'}</td>
+              <td>{qtyFmt(delivery.qty)}</td>
+              <td>{delivery.unallocatedNote ?? (delivery.allocation === 'proportional' ? 'موزّعة بالتساوي' : '')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h2 style={{ fontSize: 16 }}>التكلفة</h2>
+      <table>
+        <thead>
+          <tr><th>البند</th><th>المبلغ</th></tr>
+        </thead>
+        <tbody>
+          {trace.lot.costLines.map((line) => (
+            <tr key={line.type}><td>{COST_LABEL[line.type]}</td><td>{moneyFmt(line.amount)}</td></tr>
+          ))}
+        </tbody>
+      </table>
     </article>
   )
 }

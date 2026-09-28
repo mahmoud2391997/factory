@@ -706,10 +706,24 @@ function createRecipe(state: ErpState, actor: Actor, input: Extract<Command, { a
   return ok(state, 'تم حفظ الوصفة')
 }
 
+function bounded(value: number | undefined, min: number, max: number, message: string) {
+  if (value == null) return null
+  if (!Number.isFinite(value) || value < min || value > max) return message
+  return null
+}
+
 function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCompany' }>['input'], clock: Clock): CommandResult {
-  if (input.vatRatePct != null && (input.vatRatePct < 0 || input.vatRatePct > 100)) return fail('نسبة الضريبة غير صحيحة')
-  if (input.costApprovalThreshold != null && (!Number.isFinite(input.costApprovalThreshold) || input.costApprovalThreshold < 0 || input.costApprovalThreshold > 1_000_000)) {
-    return fail('حد اعتماد التكلفة غير صحيح')
+  const invalid =
+    bounded(input.vatRatePct, 0, 100, 'نسبة الضريبة يجب أن تكون بين 0 و 100') ||
+    bounded(input.varianceThresholdPct, 0, 100, 'حد الانحراف يجب أن يكون بين 0 و 100') ||
+    bounded(input.bagUnitCost, 0, 1000, 'تكلفة الكيس يجب أن تكون بين 0 و 1000') ||
+    bounded(input.costApprovalThreshold, 0, 1_000_000, 'حد اعتماد التكلفة يجب أن يكون بين 0 و 1000000')
+  if (invalid) return fail(invalid)
+  if (input.costRates) {
+    for (const value of Object.values(input.costRates)) {
+      const message = bounded(value, 0, 10000, 'سعر التحميل للطن يجب أن يكون بين 0 و 10000')
+      if (message) return fail(message)
+    }
   }
   state.company = {
     ...state.company,

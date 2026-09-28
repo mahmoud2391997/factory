@@ -571,6 +571,46 @@ export function traceSupplierBatch(state: ReportState, materialId: string, batch
   return { material, batchNo, suppliers, lots }
 }
 
+export type LotListFilter = {
+  productId?: string
+  fromDay?: string
+  toDay?: string
+  qcStatus?: string
+  marginSign?: 'all' | 'negative' | 'positive'
+}
+
+export function filterLots(state: ReportState, filter: LotListFilter = {}) {
+  return (state.lots ?? []).filter((lot) => {
+    if (filter.productId && lot.productId !== filter.productId) return false
+    const day = muscatDay(lot.manufacturedAt)
+    if (filter.fromDay && day < filter.fromDay) return false
+    if (filter.toDay && day > filter.toDay) return false
+    if (filter.qcStatus && (lot.qcStatus ?? 'UNTESTED') !== filter.qcStatus) return false
+    if (filter.marginSign === 'negative' && !(lot.marginPerTon != null && lot.marginPerTon < 0)) return false
+    if (filter.marginSign === 'positive' && !(lot.marginPerTon != null && lot.marginPerTon > 0)) return false
+    return true
+  })
+}
+
+export function lotExportRows(state: ReportState, filter: LotListFilter = {}) {
+  const rows: Array<Array<string | number>> = [['رقم الدفعة', 'المنتج', 'المشغّل', 'تاريخ التصنيع', 'الجودة', 'تكلفة الطن', 'سعر البيع للطن', 'الهامش للطن', 'الهامش %', 'قديم']]
+  for (const lot of filterLots(state, filter)) {
+    rows.push([
+      lot.lotNo,
+      state.products.find((item) => item.id === lot.productId)?.nameAr ?? lot.productId,
+      operatorLabel(state.employees, lot.operatorId),
+      muscatDay(lot.manufacturedAt),
+      lot.qcStatus ?? 'UNTESTED',
+      lot.costPerTon,
+      lot.salePricePerTon ?? '',
+      lot.marginPerTon ?? '',
+      lot.marginPct ?? '',
+      lot.legacy ? 'نعم' : '',
+    ])
+  }
+  return rows
+}
+
 export function traceCustomer(state: ReportState, customerId: string) {
   const customer = state.customers.find((item) => item.id === customerId) ?? null
   const lots = (state.lots ?? []).filter((lot) => lot.deliveries.some((delivery) => delivery.customerId === customerId))
