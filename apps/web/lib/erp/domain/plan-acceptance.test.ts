@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { actorFromUser, applyCommand, publicState } from './engine'
 import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
-import { inventoryIntegrity, itemOnHand, materialStatement, muscatDay, traceProduct, trialBalance, vatReturn } from './reports'
+import { inventoryIntegrity, itemOnHand, materialStatement, muscatDay, traceLot, trialBalance, vatReturn } from './reports'
 import { createClock, emptyState } from './seed'
 import type { Actor, ErpState } from './types'
 
@@ -154,6 +154,11 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
   assert.equal(itemOnHand(state, 'MATERIAL', adjMaterial.id, 'WH_RAW'), 50)
   assert.equal(state.ledger.find((row) => row.refId === adjustmentId)?.type, 'ADJUSTMENT')
 
+  state = must(state, gm(), clock, {
+    action: 'createEmployee',
+    input: { nameAr: 'مشغّل الخطة', department: 'الإنتاج', jobTitle: 'مشغّل خط', basicSalary: 400 },
+  })
+  const operatorId = state.employees[0]!.id
   state = must(state, ops(), clock, {
     action: 'createRecipe',
     input: { productId: product.id, nameAr: 'وصفة الخطة', baseOutputQty: 1000, items: [{ materialId: corn.id, qty: 600 }] },
@@ -172,7 +177,8 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
     ops(),
     {
       action: 'completeProduction',
-      input: {
+        input: {
+          operatorId,
         productionOrderId: order.id,
         actualOutputQty: 980,
         actuals: [{ materialId: corn.id, actualQty: 600, wasteQty: 20 }],
@@ -210,7 +216,8 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
     ops(),
     {
       action: 'completeProduction',
-      input: {
+        input: {
+          operatorId,
         productionOrderId: varianceOrder.id,
         actualOutputQty: 95,
         actuals: [{ materialId: corn.id, actualQty: 66, wasteQty: 2 }],
@@ -222,7 +229,8 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
   if (!missingReason.ok) assert.match(missingReason.error, /سبب الانحراف/)
   state = must(state, ops(), clock, {
     action: 'completeProduction',
-    input: {
+        input: {
+          operatorId,
       productionOrderId: varianceOrder.id,
       actualOutputQty: 95,
       varianceReason: 'رطوبة أعلى في الذرة',
@@ -291,11 +299,11 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
   assert.equal(vat.inputVat, 5)
   assert.equal(inventoryIntegrity(state).ok, true, inventoryIntegrity(state).issues.join(' | '))
 
-  const trace = traceProduct(state, product.id)
-  assert.ok(trace.purchaseOrders.some((item) => item.id === poId && item.supplierId === supplier.id))
-  assert.ok(trace.receipts.some((item) => item.id === receipt.id))
-  assert.ok(trace.orders.some((item) => item.id === order.id && item.status === 'COMPLETED'))
-  assert.ok(trace.sales.some((item) => item.id === invoice.id && item.status === 'PAID'))
+  const traced = state.lots.find((lot) => lot.productionOrderId === order.id)!
+  const trace = traceLot(state, traced.lotNo)
+  assert.ok(trace?.suppliers.some((item) => item.id === supplier.id))
+  assert.equal(trace?.lot.productionOrderId, order.id)
+  assert.ok(trace?.customers.some((item) => item.id === customer.id))
 
   const statement = materialStatement(state, corn.id)
   assert.ok(statement)

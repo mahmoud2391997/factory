@@ -170,7 +170,8 @@ test('transfer cannot make stock negative and production needs the manufacturing
   assert.equal(order.expected.find((line) => line.materialId === corn.id)?.expectedQty, 580)
   const completed = applyCommand(next, gm, {
     action: 'completeProduction',
-    input: {
+      input: {
+        operatorId: 'operator-1',
       productionOrderId: order.id,
       actualOutputQty: 1000,
       actuals: order.expected.map((line) => ({ materialId: line.materialId, actualQty: line.expectedQty })),
@@ -206,9 +207,11 @@ test('variance above the threshold requires a reason', () => {
     input: { productId: beef.id, recipeId: recipe.id, plannedQty: 1000 },
   })
   const order = next.productionOrders[0]!
+  const operatorId = state.employees.find((item) => item.jobTitle.includes('مشغ'))!.id
   const denied = applyCommand(next, gm, {
     action: 'completeProduction',
-    input: {
+      input: {
+        operatorId,
       productionOrderId: order.id,
       actualOutputQty: 1000,
       actuals: order.expected.map((line) => ({
@@ -221,7 +224,8 @@ test('variance above the threshold requires a reason', () => {
   if (!denied.ok) assert.match(denied.error, /سبب الانحراف/)
   const allowed = applyCommand(next, gm, {
     action: 'completeProduction',
-    input: {
+      input: {
+        operatorId,
       productionOrderId: order.id,
       actualOutputQty: 1000,
       varianceReason: 'رطوبة أعلى في الذرة',

@@ -103,6 +103,8 @@ export function emptyState(passwordHash: string): ErpState {
     transfers: [],
     adjustments: [],
     productionOrders: [],
+    lots: [],
+    qualitySamples: [],
     invoices: [],
     payments: [],
     withdrawals: [],
@@ -299,6 +301,7 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
     },
   })
 
+  const operator = state.employees.find((item) => item.jobTitle.includes('مشغ'))!
   const recipe = state.recipes.find((item) => item.productId === beef)!
   state = step(state, clock, {
     action: 'createProductionOrder',
@@ -309,6 +312,7 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
     action: 'completeProduction',
     input: {
       productionOrderId: production.id,
+      operatorId: operator.id,
       actualOutputQty: 17000,
       varianceReason: 'توقف الخط وخفض السرعة بعد انقطاع الكهرباء',
       actuals: transferLines.map(([code, actualQty, , wasteQty]) => ({

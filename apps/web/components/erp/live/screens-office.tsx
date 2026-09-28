@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
-import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceProduct, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
+import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import type { VatTreatment } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
@@ -327,8 +327,10 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
   const pnl = profitAndLoss(ctx.state)
   const stock = stockRows(ctx.state)
   const value = stock.reduce((sum, row) => sum + row.value, 0)
-  const [productId, setProductId] = useState(ctx.state.products[0]?.id ?? '')
-  const trace = useMemo(() => (productId ? traceProduct(ctx.state, productId) : null), [ctx.state, productId])
+  const [lotNo, setLotNo] = useState(ctx.state.lots[0]?.lotNo ?? '')
+  const [customerId, setCustomerId] = useState(ctx.state.customers[0]?.id ?? '')
+  const trace = useMemo(() => (lotNo ? traceLot(ctx.state, lotNo) : null), [ctx.state, lotNo])
+  const customerTrace = useMemo(() => (customerId ? traceCustomer(ctx.state, customerId) : null), [ctx.state, customerId])
   return (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-3">
@@ -339,21 +341,30 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
       <Card title="ميزان المراجعة" hint={tb.balanced ? 'المدين يساوي الدائن.' : 'الميزان غير متوازن — راجع القيود.'} extra={<button type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => window.print()}>طباعة</button>}>
         <DataTable columns={['الحساب', 'مدين', 'دائن']} rows={tb.rows.filter((row) => row.debit || row.credit).map((row) => [row.nameAr, moneyFmt(row.debit), moneyFmt(row.credit)])} />
       </Card>
-      <Card title="تتبع المنتج" hint="من أمر الشراء والاستلام حتى الإنتاج والبيع.">
-        <Field label="المنتج">
-          <SelectInput value={productId} onChange={(e) => setProductId(e.target.value)}>
-            {ctx.state.products.map((product) => <option key={product.id} value={product.id}>{product.nameAr}</option>)}
-          </SelectInput>
-        </Field>
-        {trace?.product ? (
+      <Card title="تتبع الدفعة" hint="من الدفعة إلى خامات الموردين ثم إلى العملاء.">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="الدفعة">
+            <SelectInput value={lotNo} onChange={(e) => setLotNo(e.target.value)}>
+              {(ctx.state.lots ?? []).map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label="العميل">
+            <SelectInput value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              {ctx.state.customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.nameAr}</option>)}
+            </SelectInput>
+          </Field>
+        </div>
+        {trace?.lot ? (
           <div className="mt-4 space-y-2 text-sm leading-7 text-[#30453d]">
-            <div>الرصيد الحالي: {qtyFmt(itemOnHand(ctx.state, 'PRODUCT', trace.product.id))} كجم</div>
-            <div>الموردون: {[...new Set(trace.purchaseOrders.map((order) => partyName(ctx.state.suppliers, order.supplierId)))].join('، ') || '—'}</div>
-            <div>أوامر الشراء: {trace.purchaseOrders.map((order) => `${order.number} — ${partyName(ctx.state.suppliers, order.supplierId)}`).join('، ') || '—'}</div>
-            <div>الاستلامات: {trace.receipts.map((receipt) => receipt.number).join('، ') || '—'}</div>
-            <div>الإنتاج: {trace.orders.map((order) => `${order.number} (${statusLabel(order.status)}) ناتج ${qtyFmt(order.actualOutputQty)}`).join('، ') || '—'}</div>
-            <div>الفواتير: {trace.sales.map((invoice) => `${invoice.number} (${statusLabel(invoice.status)})`).join('، ') || '—'}</div>
+            <div>المنتج: {trace.product?.nameAr ?? '—'} — المشغّل: {trace.operator?.nameAr ?? '—'}</div>
+            <div>الكمية المنتجة: {trace.lot.actualOutputKg} كجم — الفارق: {trace.lot.varianceKg} كجم ({trace.lot.variancePct}%)</div>
+            <div>الموردون: {trace.suppliers.map((item) => item.nameAr).join('، ') || '—'}</div>
+            <div>الخام: {trace.rawBatches.map((item) => `${item.materialName} ${item.sourceBatchNo}`).join('، ') || '—'}</div>
+            <div>العملاء: {trace.customers.map((item) => item.nameAr).join('، ') || '—'}</div>
           </div>
+        ) : <p className="mt-3 text-sm text-[#788983]">لا توجد دفعة بهذا الرقم</p>}
+        {customerTrace ? (
+          <p className="mt-3 text-sm text-[#53655e]">دفعات العميل: {customerTrace.lots.map((lot) => lot.lotNo).join('، ') || 'لا توجد'}</p>
         ) : null}
       </Card>
     </div>

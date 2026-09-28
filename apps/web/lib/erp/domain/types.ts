@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -20,6 +20,15 @@ export type Company = {
   vatRatePct: number
   varianceThresholdPct: number
   notifyEmail: string
+  requireQcBeforeUse?: boolean
+  costRates?: {
+    ELECTRICITY?: number
+    GAS?: number
+    LABOR?: number
+    TRANSPORT?: number
+    MAINTENANCE?: number
+    OVERHEAD?: number
+  }
 }
 
 export type AppUser = {
@@ -51,6 +60,7 @@ export type Material = {
   vatTreatment: VatTreatment
   barcode: string
   active: boolean
+  qcLimits?: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number }
 }
 
 export type Product = {
@@ -63,6 +73,7 @@ export type Product = {
   barcode: string
   bagKg: number
   active: boolean
+  qcLimits?: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number }
 }
 
 export type Supplier = {
@@ -347,6 +358,64 @@ export type AuditLog = {
   detail: string
 }
 
+
+export type CostLineType =
+  | 'RAW_MATERIAL'
+  | 'BAGS'
+  | 'ELECTRICITY'
+  | 'GAS'
+  | 'LABOR'
+  | 'TRANSPORT'
+  | 'MAINTENANCE'
+  | 'OVERHEAD'
+
+export type CostLine = { type: CostLineType; amount: number }
+
+export type QcResult = 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
+
+export type ProductionLot = {
+  id: string
+  lotNo: string
+  productionOrderId: string
+  productId: string
+  operatorId: string
+  manufacturedAt: string
+  inputKg: number
+  expectedOutputKg: number
+  actualOutputKg: number
+  wasteKg: number
+  varianceKg: number
+  variancePct: number
+  materials: Array<{ materialId: string; sourceBatchNo: string; supplierId: string | null; qty: number; unitCost: number }>
+  costLines: CostLine[]
+  totalCost: number
+  costPerTon: number
+  salePricePerTon?: number
+  marginPerTon?: number
+  marginPct?: number
+  deliveries: Array<{ invoiceId?: string; withdrawalId?: string; customerId?: string; qty: number; at: string }>
+  qcStatus?: QcResult
+  /** Synthesized from a v1 completed order. Cost is raw material only. */
+  legacy?: boolean
+  legacyNote?: string
+}
+
+export type QualitySample = {
+  id: string
+  type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'
+  materialId?: string
+  batchNo?: string
+  supplierId?: string
+  lotNo?: string
+  sampledBy: string
+  sampledAt: string
+  moisturePct?: number
+  proteinPct?: number
+  ashPct?: number
+  notes?: string
+  result: 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
+}
+
 export type ErpState = {
   schemaVersion: number
   revision: number
@@ -368,6 +437,8 @@ export type ErpState = {
   transfers: StockTransfer[]
   adjustments: StockAdjustment[]
   productionOrders: ProductionOrder[]
+  lots: ProductionLot[]
+  qualitySamples: QualitySample[]
   invoices: SalesInvoice[]
   payments: SalesPayment[]
   withdrawals: Withdrawal[]
@@ -422,7 +493,7 @@ export type Command =
   | { action: 'requestAdjustment'; input: { warehouse: WarehouseKey; itemType: ItemType; itemId: string; batchNo: string; qtyDelta: number; unitCost?: number; reason: string } }
   | { action: 'decideAdjustment'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createProductionOrder'; input: { productId: string; recipeId: string; plannedQty: number } }
-  | { action: 'completeProduction'; input: { productionOrderId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string } }
+  | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string } }
   | { action: 'createInvoice'; input: { customerId: string; notes?: string; lines: Array<{ productId: string; qty: number; unitPrice?: number }> } }
   | { action: 'confirmInvoice'; input: { id: string } }
   | { action: 'recordPayment'; input: { invoiceId: string; amount: number; method?: string } }
@@ -439,6 +510,8 @@ export type Command =
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }
   | { action: 'setUserPassword'; input: { userId: string; passwordHash: string } }
   | { action: 'archiveHistory'; input: { olderThanDays: number; nowIso?: string } }
+  | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD' } }
+  | { action: 'updateQualityResult'; input: { sampleId: string; result: 'PASSED' | 'FAILED' | 'HOLD'; reason: string } }
 
 export type CommandOk = {
   ok: true

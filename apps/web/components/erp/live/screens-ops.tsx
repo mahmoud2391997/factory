@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { materialStatement, stockRows } from '@/lib/erp/domain/reports'
+import { materialStatement, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
@@ -64,18 +64,44 @@ function busiestMaterialId(ctx: LiveCtx) {
 
 function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
   const [materialId, setMaterialId] = useState(() => busiestMaterialId(ctx))
+  const batches = [...new Set(ctx.state.balances.filter((row) => row.itemType === 'MATERIAL' && row.itemId === materialId).map((row) => row.batchNo))]
+  const [batchNo, setBatchNo] = useState(batches[0] ?? '')
+  const activeBatch = batches.includes(batchNo) ? batchNo : (batches[0] ?? '')
+  const supplierTrace = activeBatch ? traceSupplierBatch(ctx.state, materialId, activeBatch) : null
   const statement = materialStatement(ctx.state, materialId)
   const productLabel = statement?.lines.map((line) => `${line.productName} ${qtyFmt(line.outputQty)} كجم`).join('، ')
   return (
     <div className="space-y-4">
       <Card title="اختر الخامة" hint="نفس الأسئلة على أي مادة: ماذا دخل، ماذا استُهلك، ماذا تبقّى، وماذا نُتج وبيع، وهل يوجد فرق ولماذا.">
-        <Field label="الخامة">
-          <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
-            {ctx.state.materials.map((material) => (
-              <option key={material.id} value={material.id}>{material.nameAr}</option>
-            ))}
-          </SelectInput>
-        </Field>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="الخامة">
+            <SelectInput value={materialId} onChange={(e) => { setMaterialId(e.target.value); setBatchNo('') }}>
+              {ctx.state.materials.map((material) => (
+                <option key={material.id} value={material.id}>{material.nameAr}</option>
+              ))}
+            </SelectInput>
+          </Field>
+          <Field label="دفعة الخام">
+            <SelectInput value={activeBatch} onChange={(e) => setBatchNo(e.target.value)}>
+              {batches.map((batch) => <option key={batch} value={batch}>{batch}</option>)}
+            </SelectInput>
+          </Field>
+        </div>
+        {supplierTrace && supplierTrace.lots.length > 0 ? (
+          <div className="mt-4">
+            <p className="mb-2 text-sm text-[#53655e]">
+              المورد: {supplierTrace.suppliers.map((item) => item.nameAr).join('، ') || '—'} — الدفعات المتأثرة: {supplierTrace.lots.map((lot) => lot.lotNo).join('، ')}
+            </p>
+            <DataTable
+              columns={['الدفعة', 'المنتج', 'العملاء']}
+              rows={supplierTrace.lots.map((lot) => [
+                lot.lotNo,
+                productName(ctx.state, lot.productId),
+                lot.deliveries.map((delivery) => ctx.state.customers.find((item) => item.id === delivery.customerId)?.nameAr ?? 'سحب').join('، ') || '—',
+              ])}
+            />
+          </div>
+        ) : null}
       </Card>
       {statement ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -755,18 +781,21 @@ function Production({ ctx }: { ctx: LiveCtx }) {
 
 function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string; onClose: () => void }) {
   const order = ctx.state.productionOrders.find((item) => item.id === orderId)!
+  const operators = ctx.state.employees.filter((item) => item.active)
+  const [operatorId, setOperatorId] = useState(operators.find((item) => item.department === 'الإنتاج')?.id ?? operators[0]?.id ?? '')
   const [actuals, setActuals] = useState<Record<string, { actualQty: string; wasteQty: string }>>({})
   const [output, setOutput] = useState(String(order.plannedQty))
   const [reason, setReason] = useState('')
   const [formError, setFormError] = useState('')
   const needsReason = formError.includes('سبب الانحراف')
   return (
-    <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي." wide onClose={onClose}>
+    <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. الناتج المتوقع يُحسب من الوصفة على الكمية الداخلة فعلاً. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي." wide onClose={onClose}>
       <form className="space-y-2" onSubmit={async (event) => {
         event.preventDefault()
         setFormError('')
         const result = await ctx.act('completeProduction', {
           productionOrderId: order.id,
+          operatorId,
           actualOutputQty: Number(output),
           varianceReason: reason,
           actuals: order.expected.map((line) => ({
@@ -787,6 +816,11 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
           </div>
         ))}
         <div className="grid gap-3 md:grid-cols-2">
+          <Field label="مشغّل الخط">
+            <SelectInput value={operatorId} onChange={(e) => setOperatorId(e.target.value)} required>
+              {operators.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+            </SelectInput>
+          </Field>
           <Field label="الناتج الفعلي (كجم)"><TextInput type="number" min="0.001" step="0.001" value={output} onChange={(e) => setOutput(e.target.value)} /></Field>
           <Field label={needsReason ? 'سبب الانحراف مطلوب' : 'سبب الانحراف إن وجد'}><TextInput value={reason} onChange={(e) => setReason(e.target.value)} required={needsReason} aria-invalid={needsReason} /></Field>
         </div>

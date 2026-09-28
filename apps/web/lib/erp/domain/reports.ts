@@ -417,12 +417,35 @@ export function materialStatement(state: ReportState, materialId: string) {
   }
 }
 
-export function traceProduct(state: ReportState, productId: string) {
-  const product = state.products.find((item) => item.id === productId)
-  const orders = state.productionOrders.filter((order) => order.productId === productId)
-  const sales = state.invoices.filter((invoice) => invoice.lines.some((line) => line.productId === productId))
-  const materialIds = new Set(orders.flatMap((order) => order.expected.map((line) => line.materialId)))
-  const receipts = state.goodsReceipts.filter((receipt) => receipt.lines.some((line) => materialIds.has(line.materialId)))
-  const purchaseOrders = state.purchaseOrders.filter((order) => receipts.some((receipt) => receipt.purchaseOrderId === order.id))
-  return { product, orders, sales, receipts, purchaseOrders }
+export function traceLot(state: ReportState, lotNo: string) {
+  const lot = (state.lots ?? []).find((item) => item.lotNo === lotNo)
+  if (!lot) return null
+  const product = state.products.find((item) => item.id === lot.productId) ?? null
+  const operator = state.employees.find((item) => item.id === lot.operatorId) ?? null
+  const rawBatches = lot.materials.map((line) => ({
+    ...line,
+    materialName: state.materials.find((item) => item.id === line.materialId)?.nameAr ?? line.materialId,
+    supplierName: line.supplierId ? (state.suppliers.find((item) => item.id === line.supplierId)?.nameAr ?? line.supplierId) : null,
+  }))
+  const suppliers = rawBatches
+    .map((line) => (line.supplierId ? (state.suppliers.find((item) => item.id === line.supplierId) ?? null) : null))
+    .filter((item, index, list): item is NonNullable<typeof item> => Boolean(item) && list.findIndex((other) => other?.id === item?.id) === index)
+  const customers = lot.deliveries
+    .map((delivery) => (delivery.customerId ? (state.customers.find((item) => item.id === delivery.customerId) ?? null) : null))
+    .filter((item, index, list): item is NonNullable<typeof item> => Boolean(item) && list.findIndex((other) => other?.id === item?.id) === index)
+  return { lot, product, operator, rawBatches, suppliers, customers, deliveries: lot.deliveries }
+}
+
+export function traceSupplierBatch(state: ReportState, materialId: string, batchNo: string) {
+  const material = state.materials.find((item) => item.id === materialId) ?? null
+  const lots = (state.lots ?? []).filter((lot) => lot.materials.some((line) => line.materialId === materialId && line.sourceBatchNo === batchNo))
+  const supplierIds = new Set(lots.flatMap((lot) => lot.materials.filter((line) => line.materialId === materialId && line.sourceBatchNo === batchNo).map((line) => line.supplierId).filter(Boolean)))
+  const suppliers = [...supplierIds].map((id) => state.suppliers.find((item) => item.id === id)).filter((item): item is NonNullable<typeof item> => Boolean(item))
+  return { material, batchNo, suppliers, lots }
+}
+
+export function traceCustomer(state: ReportState, customerId: string) {
+  const customer = state.customers.find((item) => item.id === customerId) ?? null
+  const lots = (state.lots ?? []).filter((lot) => lot.deliveries.some((delivery) => delivery.customerId === customerId))
+  return { customer, lots }
 }

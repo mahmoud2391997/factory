@@ -11,9 +11,9 @@ import { getDemoSecrets, isDemoMode } from '@/server/demo'
 import { planArchive } from '@/lib/erp/domain/archive'
 import { commitWithRetry, REVISION_CONFLICT } from '@/lib/erp/domain/commit'
 import { actorFromUser, applyCommand, publicState } from '@/lib/erp/domain/engine'
+import { migrateErpState } from '@/lib/erp/domain/migrate'
 import { buildSeedState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
-import { SCHEMA_VERSION } from '@/lib/erp/domain/types'
 import { resetLoginThrottle } from '@/server/auth/login-throttle'
 import { BCRYPT_ROUNDS } from '@/server/auth/password'
 import { prisma } from '@/server/db'
@@ -72,9 +72,7 @@ export async function createInitialState(passwordHash?: string) {
 
 function asState(value: unknown): ErpState {
   if (!value || typeof value !== 'object') throw new Error('ملف البيانات تالف')
-  const state = value as ErpState
-  if (state.schemaVersion !== SCHEMA_VERSION) throw new Error('إصدار بيانات المصنع غير مدعوم')
-  return state
+  return migrateErpState(value as ErpState)
 }
 
 const DEMO_USERS = [

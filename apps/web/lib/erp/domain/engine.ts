@@ -13,6 +13,7 @@ import type {
   JournalLine,
   LedgerType,
   Notification,
+  ProductionLot,
   VatTreatment,
   WarehouseKey,
 } from './types'
@@ -44,6 +45,63 @@ function allow(actor: Actor, permission: string): CommandResult | null {
 
 function yearOf(iso: string) {
   return iso.slice(0, 4)
+}
+
+function pct2(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function nextLotNo(state: ErpState, at: string) {
+  const day = at.slice(0, 10).replaceAll('-', '')
+  const key = `LOT-${day}`
+  const next = (state.sequences[key] ?? 0) + 1
+  state.sequences[key] = next
+  return `LOT-${day}-${String(next).padStart(3, '0')}`
+}
+
+function supplierForBatch(state: ErpState, materialId: string, batchNo: string) {
+  const receipt = state.goodsReceipts.find((item) =>
+    item.lines.some((line) => line.materialId === materialId && line.batchNo === batchNo),
+  )
+  if (!receipt) return null
+  return state.purchaseOrders.find((item) => item.id === receipt.purchaseOrderId)?.supplierId ?? null
+}
+
+function invoiceUnitPrice(state: ErpState, lot: ProductionLot, invoiceId: string) {
+  const invoice = state.invoices.find((item) => item.id === invoiceId)
+  if (!invoice) return 0
+  const matches = (batchNo: string) => batchNo.split(',').map((part) => part.trim()).includes(lot.lotNo)
+  const line =
+    invoice.lines.find((item) => item.productId === lot.productId && matches(item.batchNo)) ??
+    invoice.lines.find((item) => item.productId === lot.productId)
+  return line?.unitPrice ?? 0
+}
+
+function refreshLotSale(state: ErpState, lot: ProductionLot) {
+  let net = 0
+  let sold = 0
+  for (const delivery of lot.deliveries) {
+    if (!delivery.invoiceId) continue
+    net = money(net + delivery.qty * invoiceUnitPrice(state, lot, delivery.invoiceId))
+    sold = qty(sold + delivery.qty)
+  }
+  if (sold <= 0) {
+    delete lot.salePricePerTon
+    delete lot.marginPerTon
+    delete lot.marginPct
+    return
+  }
+  lot.salePricePerTon = money((net / sold) * 1000)
+  lot.marginPerTon = money(lot.salePricePerTon - lot.costPerTon)
+  lot.marginPct = lot.salePricePerTon !== 0 ? money((lot.marginPerTon / lot.salePricePerTon) * 100) : 0
+}
+
+function recordLotDelivery(state: ErpState, productId: string, batchNo: string, delivery: ProductionLot['deliveries'][number]) {
+  const lot = state.lots?.find((item) => item.lotNo === batchNo && item.productId === productId)
+  if (!lot) return
+  lot.deliveries.push(delivery)
+  refreshLotSale(state, lot)
 }
 
 function nextNumber(state: ErpState, docType: string, at: string) {
@@ -315,7 +373,7 @@ function fifoIssue(
         item.qty > 0,
     )
     .slice()
-    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))
+    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt) || a.batchNo.localeCompare(b.batchNo))
   let left = needQty
   let cost = 0
   const lines: Array<{ batchNo: string; qty: number; unitCost: number }> = []
@@ -448,6 +506,8 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     setRolePermissions: 'users.manage',
     setUserPassword: 'users.manage',
     archiveHistory: 'settings.update',
+    createQualitySample: 'qc.manage',
+    updateQualityResult: 'qc.manage',
   }
   return allow(actor, map[command.action])
 }
@@ -969,21 +1029,41 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   if (!order) return fail('أمر الإنتاج غير موجود')
   if (order.status !== 'RELEASED') return fail('أمر الإنتاج مكتمل بالفعل')
   if (input.actualOutputQty <= 0) return fail('كمية الناتج يجب أن تكون أكبر من صفر')
-  let totalCost = 0
+  const operator = state.employees.find((item) => item.id === input.operatorId && item.active)
+  if (!operator) return fail('مشغّل الإنتاج غير موجود')
+  const recipe = state.recipes.find((item) => item.id === order.recipeId)
+  if (!recipe) return fail('الوصفة غير موجودة')
+
+  let inputKg = 0
+  let wasteKg = 0
   for (const expected of order.expected) {
     const actual = input.actuals.find((item) => item.materialId === expected.materialId)
     const actualQty = qty(actual?.actualQty ?? expected.expectedQty)
-    const wasteQty = qty(actual?.wasteQty ?? 0)
-    if (actualQty < 0 || wasteQty < 0) return fail('الكميات الفعلية غير صحيحة')
-    if (wasteQty - actualQty > 0.001) return fail('الهدر لا يمكن أن يتجاوز الكمية المصروفة')
-    const material = findMaterial(state, expected.materialId)
-    if (!material) return fail('مادة الوصفة غير موجودة')
-    if (expected.expectedQty > 0) {
-      const diffPct = Math.abs((actualQty - expected.expectedQty) / expected.expectedQty) * 100
-      if (diffPct - state.company.varianceThresholdPct > 0.001 && !input.varianceReason?.trim()) {
-        return fail(`الانحراف في ${material.nameAr} تجاوز ${state.company.varianceThresholdPct}% — سبب الانحراف مطلوب`)
-      }
-    }
+    const waste = qty(actual?.wasteQty ?? 0)
+    if (actualQty < 0 || waste < 0) return fail('الكميات الفعلية غير صحيحة')
+    if (waste - actualQty > 0.001) return fail('الهدر لا يمكن أن يتجاوز الكمية المصروفة')
+    if (!findMaterial(state, expected.materialId)) return fail('مادة الوصفة غير موجودة')
+    inputKg = qty(inputKg + actualQty)
+    wasteKg = qty(wasteKg + waste)
+  }
+
+  const recipeInputTotal = qty(recipe.items.reduce((sum, item) => sum + item.qty, 0))
+  const expectedOutputKg = recipeInputTotal > 0 ? qty((inputKg / recipeInputTotal) * recipe.baseOutputQty) : 0
+  const actualOutputKg = qty(input.actualOutputQty)
+  const varianceKg = qty(actualOutputKg - expectedOutputKg)
+  const variancePct = expectedOutputKg > 0 ? pct2((varianceKg / expectedOutputKg) * 100) : 0
+  const overThreshold = Math.abs(variancePct) - state.company.varianceThresholdPct > 0.001
+  if (overThreshold && !input.varianceReason?.trim()) {
+    return fail(`الانحراف الكلي (${variancePct}%) تجاوز الحد المسموح — سبب الانحراف مطلوب`)
+  }
+
+  let totalCost = 0
+  const lotMaterials: ProductionLot['materials'] = []
+  for (const expected of order.expected) {
+    const actual = input.actuals.find((item) => item.materialId === expected.materialId)
+    const actualQty = qty(actual?.actualQty ?? expected.expectedQty)
+    const waste = qty(actual?.wasteQty ?? 0)
+    const material = findMaterial(state, expected.materialId)!
     if (actualQty > 0) {
       const issued = fifoIssue(state, clock, actor, {
         warehouse: 'WH_MFG',
@@ -997,36 +1077,53 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
       if ('error' in issued && issued.error) {
         return fail(`${material.nameAr}: ${issued.error}. حوّل المواد إلى مستودع التصنيع أولاً.`)
       }
-      if (!('error' in issued)) totalCost = money(totalCost + issued.cost)
+      if (!('error' in issued)) {
+        totalCost = money(totalCost + issued.cost)
+        for (const line of issued.lines) {
+          lotMaterials.push({
+            materialId: expected.materialId,
+            sourceBatchNo: line.batchNo,
+            supplierId: supplierForBatch(state, expected.materialId, line.batchNo),
+            qty: line.qty,
+            unitCost: line.unitCost,
+          })
+        }
+      }
     }
     expected.actualQty = actualQty
-    expected.wasteQty = wasteQty
+    expected.wasteQty = waste
   }
-  const outputQty = qty(input.actualOutputQty)
+
+  const costLines: ProductionLot['costLines'] = [{ type: 'RAW_MATERIAL', amount: totalCost }]
+  const outputQty = actualOutputKg
   const unitCost = outputQty > 0 ? money(totalCost / outputQty) : 0
+  const lotNo = nextLotNo(state, clock.now())
+
   const posted = upsertBalance(state, clock, {
     warehouse: 'WH_FG',
     itemType: 'PRODUCT',
     itemId: order.productId,
-    batchNo: order.number,
+    batchNo: lotNo,
     qtyDelta: outputQty,
     unitCost,
   })
   if ('error' in posted && posted.error) return fail(posted.error)
   if (!posted.row || posted.prev == null || posted.next == null) return fail('تعذر إضافة المنتج النهائي')
+  
   addLedger(state, clock, actor, {
     type: 'PRODUCTION_OUTPUT',
     warehouse: 'WH_FG',
     itemType: 'PRODUCT',
     itemId: order.productId,
-    batchNo: order.number,
+    batchNo: lotNo,
     qty: outputQty,
-      unitCost: unitCost ?? 0,
-      prevQty: posted.prev,
+    unitCost: unitCost ?? 0,
+    prevQty: posted.prev,
     newQty: posted.next,
     refType: 'productionOrder',
     refId: order.id,
   })
+  
   postJournal(state, clock, `استهلاك إنتاج ${order.number}`, 'productionOrder', order.id, [
     { accountCode: '1200', debit: totalCost, credit: 0 },
     { accountCode: '1100', debit: 0, credit: totalCost },
@@ -1035,18 +1132,51 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     { accountCode: '1300', debit: totalCost, credit: 0 },
     { accountCode: '1200', debit: 0, credit: totalCost },
   ])
+  
   order.status = 'COMPLETED'
   order.actualOutputQty = outputQty
   order.totalCost = totalCost
   order.unitCost = unitCost
-  order.outputBatch = order.number
+  order.outputBatch = lotNo
   order.varianceReason = input.varianceReason?.trim() ?? ''
   order.completedAt = clock.now()
-  if (order.varianceReason) {
-    notify(state, clock, 'INFO', `انحراف إنتاج ${order.number}`, order.varianceReason, ['GM'], `var:${order.id}`)
+  
+  const lot = {
+    id: clock.id('lot'),
+    lotNo,
+    productionOrderId: order.id,
+    productId: order.productId,
+    operatorId: input.operatorId,
+    manufacturedAt: clock.now(),
+    inputKg,
+    expectedOutputKg,
+    actualOutputKg,
+    wasteKg,
+    varianceKg,
+    variancePct,
+    materials: lotMaterials,
+    costLines,
+    totalCost,
+    costPerTon: outputQty > 0 ? money((totalCost / outputQty) * 1000) : 0,
+    deliveries: [],
+    qcStatus: 'PENDING' as const
   }
-  audit(state, actor, clock, 'إكمال الإنتاج', 'productionOrder', order.id, order.number)
-  return ok(state, `اكتمل ${order.number} ودخل مستودع المنتجات`)
+  state.lots = state.lots ?? []
+  state.lots.unshift(lot)
+
+  if (overThreshold) {
+    notify(
+      state,
+      clock,
+      'INFO',
+      `انحراف إنتاج ${lotNo}`,
+      `${varianceKg} كجم (${variancePct}%) — ${order.varianceReason}`,
+      ['GM', 'OPERATIONS'],
+      `var:${order.id}`,
+    )
+  }
+  audit(state, actor, clock, 'إكمال الإنتاج', 'productionOrder', order.id, lotNo)
+  return ok(state, `اكتمل ${order.number} وتم إنشاء الدفعة ${lotNo}`)
 }
 
 function createInvoice(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createInvoice' }>['input'], clock: Clock): CommandResult {
@@ -1121,6 +1251,15 @@ function confirmInvoice(state: ErpState, actor: Actor, input: Extract<Command, {
       cogs = money(cogs + issued.cost)
       line.batchNo = issued.lines.map((item) => item.batchNo).join(', ')
       line.unitCost = line.qty > 0 ? money(issued.cost / line.qty) : 0
+      
+      for (const issuedLine of issued.lines) {
+        recordLotDelivery(state, line.productId, issuedLine.batchNo, {
+          invoiceId: invoice.id,
+          customerId: invoice.customerId,
+          qty: issuedLine.qty,
+          at: clock.now(),
+        })
+      }
     }
   }
   invoice.status = 'CONFIRMED'
@@ -1202,6 +1341,13 @@ function createWithdrawal(state: ErpState, actor: Actor, input: Extract<Command,
         batchNo: issued.lines.map((item) => item.batchNo).join(', '),
         unitCost: line.qty > 0 ? money(issued.cost / line.qty) : 0,
       })
+      for (const issuedLine of issued.lines) {
+        recordLotDelivery(state, line.productId, issuedLine.batchNo, {
+          withdrawalId: withdrawal.id,
+          qty: issuedLine.qty,
+          at,
+        })
+      }
     }
   }
   withdrawal.totalCost = totalCost

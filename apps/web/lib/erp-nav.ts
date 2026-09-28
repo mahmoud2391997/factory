@@ -290,6 +290,20 @@ export const ERP_NAV: ErpMainTab[] = [
         description: 'المخطط مقابل الفعلي والهدر وسبب الانحراف',
       },
       {
+        id: 'production-lots',
+        label: 'دفعات الإنتاج',
+        entityKey: 'productionLot',
+        description: 'دفعة الإنتاج وربط الخام والمورد والعامل والعميل',
+        permission: ['production.read'],
+      },
+      {
+        id: 'lot-trace',
+        label: 'تتبع الدفعة',
+        entityKey: 'lotTrace',
+        description: 'من الدفعة إلى خامات الموردين ثم العملاء',
+        permission: ['production.read'],
+      },
+      {
         id: 'planned-today',
         label: 'المخطط اليوم',
         entityKey: 'factoryPlanned',
@@ -487,7 +501,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'reports',
         label: 'التقارير',
         entityKey: 'report',
-        description: '��قارير التتبع والمخزون والإنتاج',
+        description: 'تقارير التتبع والمخزون والإنتاج',
         permission: ['reports.read'],
       },
       {
