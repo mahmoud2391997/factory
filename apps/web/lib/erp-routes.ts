@@ -71,6 +71,7 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
           { href: '/inventory/manufacturing/items', entityKey: 'recipeItem', tab: true },
           { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
+          { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
         ],
       },
       {
