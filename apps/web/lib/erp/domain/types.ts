@@ -434,6 +434,8 @@ export type QualitySample = {
 
 export type ErpState = {
   schemaVersion: number
+  /** Last applied default-permission introduction. Missing means 0. */
+  permissionsVersion?: number
   revision: number
   company: Company
   rolePermissions: Record<RoleKey, Permission[]>

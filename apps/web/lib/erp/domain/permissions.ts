@@ -108,3 +108,14 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
 export function hasPermission(permissions: readonly string[], required: string) {
   return permissions.includes(required)
 }
+
+/** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
+export const PERMISSIONS_VERSION = 1
+
+export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
+  1: {
+    GM: ['qc.read', 'qc.manage', 'qc.release', 'qc.limits'],
+    ACCOUNTANT: ['qc.read'],
+    OPERATIONS: ['qc.read', 'qc.manage'],
+  },
+}

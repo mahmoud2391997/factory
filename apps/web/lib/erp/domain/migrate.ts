@@ -1,4 +1,5 @@
 import { money, qty } from './money'
+import { PERMISSIONS_INTRODUCED, PERMISSIONS_VERSION, type Permission, type RoleKey } from './permissions'
 import type { ErpState, ProductionLot } from './types'
 import { SCHEMA_VERSION } from './types'
 
@@ -56,6 +57,45 @@ function attributeLotDeliveries(state: ErpState, freshLotNos: Set<string>) {
   }
 }
 
+/** Add default permissions introduced after the document was saved. Never puts back a key an admin removed once this version was applied. */
+export function mergeRolePermissions(state: ErpState): ErpState {
+  const current = state.permissionsVersion ?? 0
+  if (current >= PERMISSIONS_VERSION) return state
+  const added: string[] = []
+  for (let version = current + 1; version <= PERMISSIONS_VERSION; version += 1) {
+    const introduced = PERMISSIONS_INTRODUCED[version]
+    if (!introduced) continue
+    for (const [role, permissions] of Object.entries(introduced) as Array<[RoleKey, Permission[]]>) {
+      const list = state.rolePermissions[role] ?? []
+      for (const permission of permissions) {
+        if (!list.includes(permission)) {
+          list.push(permission)
+          added.push(`${role}:${permission}`)
+        }
+      }
+      state.rolePermissions[role] = list
+    }
+  }
+  state.permissionsVersion = PERMISSIONS_VERSION
+  if (added.length > 0) {
+    state.auditLogs = state.auditLogs ?? []
+    const already = state.auditLogs.some((entry) => entry.id === `aud-permissions-${PERMISSIONS_VERSION}`)
+    if (!already) {
+      state.auditLogs.unshift({
+        id: `aud-permissions-${PERMISSIONS_VERSION}`,
+        at: '1970-01-01T00:00:00.000Z',
+        userId: 'system',
+        userName: 'النظام',
+        action: 'دمج الصلاحيات الافتراضية',
+        entity: 'rolePermissions',
+        entityId: String(PERMISSIONS_VERSION),
+        detail: added.join('، '),
+      })
+    }
+  }
+  return state
+}
+
 /** Upgrade a stored ErpState document to the current schema. v1 has no lot records. */
 export function migrateErpState(state: ErpState): ErpState {
   if (state.schemaVersion != null && state.schemaVersion > SCHEMA_VERSION) {
@@ -67,7 +107,7 @@ export function migrateErpState(state: ErpState): ErpState {
     state.accounts = state.accounts ?? []
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
   }
-  if (state.schemaVersion === SCHEMA_VERSION) return state
+  if (state.schemaVersion === SCHEMA_VERSION) return mergeRolePermissions(state)
   if (state.schemaVersion != null && state.schemaVersion !== 1) throw new Error('إصدار بيانات المصنع غير مدعوم')
 
   const freshLotNos = new Set<string>()
@@ -106,5 +146,5 @@ export function migrateErpState(state: ErpState): ErpState {
 
   attributeLotDeliveries(state, freshLotNos)
   state.schemaVersion = SCHEMA_VERSION
-  return state
+  return mergeRolePermissions(state)
 }

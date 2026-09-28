@@ -1,5 +1,5 @@
 import { applyCommand } from './engine'
-import { DEFAULT_ROLE_PERMISSIONS } from './permissions'
+import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS_VERSION } from './permissions'
 import type { Actor, Clock, Command, ErpState } from './types'
 import { SCHEMA_VERSION } from './types'
 
@@ -40,6 +40,7 @@ export function createClock(startIso = seedClockStart()): Clock & { advance: (ho
 export function emptyState(passwordHash: string): ErpState {
   return {
     schemaVersion: SCHEMA_VERSION,
+    permissionsVersion: PERMISSIONS_VERSION,
     revision: 0,
     company: {
       nameAr: 'مصنع الخليج للأعلاف',
