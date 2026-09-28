@@ -13,7 +13,8 @@ const ALLOWED_ACTIONS = new Set([
   'requestAdjustment', 'decideAdjustment', 'createProductionOrder', 'completeProduction', 'createInvoice',
   'confirmInvoice', 'recordPayment', 'createWithdrawal', 'createExpense', 'decideExpense', 'recordAttendance',
   'importAttendance', 'createPayroll', 'decidePayroll', 'payPayroll', 'markNotificationRead', 'scanBarcode',
-  'setRolePermissions', 'setUserPassword', 'archiveHistory',
+  'setRolePermissions', 'setUserPassword', 'archiveHistory', 'createQualitySample', 'updateQualityResult', 'setQcLimits',
+  'createVehicle', 'updateVehicle', 'addFuelLog', 'addVehicleService', 'createTrip',
 ])
 
 export async function GET(req: NextRequest) {
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     const loaded = await loadState()
     return NextResponse.json({
       success: true,
-      data: { state: publicState(loaded.state, user.permissions), storage: loaded.storage },
+      data: { state: publicState(loaded.state, user.permissions, user.id), storage: loaded.storage },
     })
   } catch (error) {
     console.error('[erp/get]', error)

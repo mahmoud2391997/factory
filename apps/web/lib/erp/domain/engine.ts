@@ -18,6 +18,10 @@ import type {
   ProductionLot,
   VatTreatment,
   WarehouseKey,
+  Vehicle,
+  VehicleService,
+  FuelLog,
+  Trip,
 } from './types'
 
 const INVENTORY_ACCOUNT: Record<ItemType, string> = {
@@ -609,15 +613,15 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
     case 'setQcLimits':
       return setQcLimits(state, actor, command.input, clock)
     case 'createVehicle':
-      return fail('إنشاء المركبات لم يُنفذ بعد - Step 1')
+      return createVehicle(state, actor, command.input, clock)
     case 'updateVehicle':
-      return fail('تحديث المركبات لم يُنفذ بعد - Step 1')
+      return updateVehicle(state, actor, command.input, clock)
     case 'addFuelLog':
-      return fail('تسجيل الوقود لم يُنفذ بعد - Step 1')
+      return addFuelLog(state, actor, command.input, clock)
     case 'addVehicleService':
-      return fail('تسجيل صيانة المركبات لم يُنفذ بعد - Step 1')
+      return addVehicleService(state, actor, command.input, clock)
     case 'createTrip':
-      return fail('إنشاء الرحلات لم يُنفذ بعد - Step 1')
+      return createTrip(state, actor, command.input, clock)
     case 'createObligation':
       return fail('إنشاء الالتزامات المالية لم يُنفذ بعد - Step 2')
     case 'decideObligation':
@@ -1873,6 +1877,209 @@ function setQcLimits(state: ErpState, actor: Actor, input: Extract<Command, { ac
   return ok(state, 'تم حفظ حدود الجودة')
 }
 
+function createVehicle(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createVehicle' }>['input'], clock: Clock): CommandResult {
+  const code = input.code.trim().toUpperCase()
+  if (!code || !input.plateNo.trim() || !input.type.trim() || !input.nameAr.trim()) {
+    return fail('كود المركبة ورقم اللوحة والنوع والاسم مطلوبة')
+  }
+  if (state.vehicles.some((item) => item.code === code)) return fail('كود المركبة مستخدم')
+  if (state.vehicles.some((item) => item.plateNo === input.plateNo.trim())) return fail('رقم اللوحة مستخدم')
+  if (input.kmPerLiter !== undefined && (input.kmPerLiter <= 0 || input.kmPerLiter > 50)) {
+    return fail('استهلاك الوقود غير صحيح (يجب أن يكون بين 0.1 و 50 كم/لتر)')
+  }
+  const vehicle: Vehicle = {
+    id: clock.id('veh'),
+    code,
+    plateNo: input.plateNo.trim(),
+    type: input.type.trim(),
+    nameAr: input.nameAr.trim(),
+    active: true,
+    currentOdometer: 0,
+    kmPerLiter: input.kmPerLiter,
+  }
+  state.vehicles.push(vehicle)
+  audit(state, actor, clock, 'إنشاء مركبة', 'vehicle', vehicle.id, `${code} - ${input.nameAr.trim()}`)
+  return ok(state, 'تم إنشاء المركبة')
+}
+
+function updateVehicle(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateVehicle' }>['input'], clock: Clock): CommandResult {
+  const vehicle = state.vehicles.find((item) => item.id === input.id)
+  if (!vehicle) return fail('المركبة غير موجودة')
+  if (input.plateNo !== undefined) {
+    const trimmed = input.plateNo.trim()
+    if (!trimmed) return fail('رقم اللوحة مطلوب')
+    if (state.vehicles.some((item) => item.id !== input.id && item.plateNo === trimmed)) {
+      return fail('رقم اللوحة مستخدم')
+    }
+    vehicle.plateNo = trimmed
+  }
+  if (input.type !== undefined) vehicle.type = input.type.trim()
+  if (input.nameAr !== undefined) vehicle.nameAr = input.nameAr.trim()
+  if (input.active !== undefined) vehicle.active = input.active
+  if (input.inspectionExpiryDate !== undefined) vehicle.inspectionExpiryDate = input.inspectionExpiryDate
+  if (input.insuranceExpiryDate !== undefined) vehicle.insuranceExpiryDate = input.insuranceExpiryDate
+  if (input.ownershipExpiryDate !== undefined) vehicle.ownershipExpiryDate = input.ownershipExpiryDate
+  if (input.kmPerLiter !== undefined) {
+    if (input.kmPerLiter <= 0 || input.kmPerLiter > 50) {
+      return fail('استهلاك الوقود غير صحيح (يجب أن يكون بين 0.1 و 50 كم/لتر)')
+    }
+    vehicle.kmPerLiter = input.kmPerLiter
+  }
+  audit(state, actor, clock, 'تحديث مركبة', 'vehicle', vehicle.id, vehicle.code)
+  return ok(state, 'تم تحديث المركبة')
+}
+
+function addFuelLog(state: ErpState, actor: Actor, input: Extract<Command, { action: 'addFuelLog' }>['input'], clock: Clock): CommandResult {
+  const vehicle = state.vehicles.find((item) => item.id === input.vehicleId)
+  if (!vehicle) return fail('المركبة غير موجودة')
+  if (!vehicle.active) return fail('المركبة غير نشطة')
+  const driver = state.employees.find((item) => item.id === input.driverId)
+  if (!driver) return fail('السائق غير موجود')
+  if (input.liters <= 0) return fail('كمية الوقود غير صحيحة')
+  if (input.cost < 0) return fail('تكلفة الوقود غير صحيحة')
+  if (input.odometer < 0) return fail('عداد الكيلومترات غير صحيح')
+  
+  // Validate odometer is not lower than previous reading
+  const previousFuel = state.fuelLogs
+    .filter((log) => log.vehicleId === input.vehicleId)
+    .sort((a, b) => (a.odometer < b.odometer ? 1 : a.odometer > b.odometer ? -1 : 0))[0]
+  if (previousFuel && input.odometer < previousFuel.odometer) {
+    return fail(`عداد الكيلومترات (${input.odometer}) أقل من القراءة السابقة (${previousFuel.odometer})`)
+  }
+  
+  const fuelLog: FuelLog = {
+    id: clock.id('fuel'),
+    vehicleId: input.vehicleId,
+    date: input.date,
+    liters: qty(input.liters),
+    cost: money(input.cost),
+    odometer: qty(input.odometer),
+    driverId: input.driverId,
+    station: input.station?.trim(),
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.fuelLogs.push(fuelLog)
+  vehicle.currentOdometer = qty(input.odometer)
+  audit(state, actor, clock, 'تسجيل وقود', 'fuelLog', fuelLog.id, `${vehicle.code}: ${input.liters} لتر`)
+  return ok(state, 'تم تسجيل الوقود')
+}
+
+function addVehicleService(state: ErpState, actor: Actor, input: Extract<Command, { action: 'addVehicleService' }>['input'], clock: Clock): CommandResult {
+  const vehicle = state.vehicles.find((item) => item.id === input.vehicleId)
+  if (!vehicle) return fail('المركبة غير موجودة')
+  if (!vehicle.active) return fail('المركبة غير نشطة')
+  if (!input.description.trim()) return fail('وصف الصيانة مطلوب')
+  if (input.cost < 0) return fail('تكلفة الصيانة غير صحيحة')
+  if (input.odometer < 0) return fail('عداد الكيلومترات غير صحيح')
+  
+  const service: VehicleService = {
+    id: clock.id('srv'),
+    vehicleId: input.vehicleId,
+    date: input.date,
+    kind: input.kind,
+    description: input.description.trim(),
+    cost: money(input.cost),
+    odometer: qty(input.odometer),
+    nextDueDate: input.nextDueDate,
+    nextDueKm: input.nextDueKm !== undefined ? qty(input.nextDueKm) : undefined,
+    supplierId: input.supplierId,
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.vehicleServices.push(service)
+  audit(state, actor, clock, 'تسجيل صيانة مركبة', 'vehicleService', service.id, `${vehicle.code}: ${input.kind}`)
+  return ok(state, 'تم تسجيل الصيانة')
+}
+
+function createTrip(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createTrip' }>['input'], clock: Clock): CommandResult {
+  const vehicle = state.vehicles.find((item) => item.id === input.vehicleId)
+  if (!vehicle) return fail('المركبة غير موجودة')
+  if (!vehicle.active) return fail('المركبة غير نشطة')
+  const driver = state.employees.find((item) => item.id === input.driverId)
+  if (!driver) return fail('السائق غير موجود')
+  if (!input.destination.trim()) return fail('الوجهة مطلوبة')
+  if (input.km <= 0) return fail('المسافة غير صحيحة')
+  if (input.loadKg < 0) return fail('الحمولة غير صحيحة')
+  if (input.fuelLiters < 0) return fail('وقود الرحلة غير صحيح')
+  if (input.driverCost !== undefined && input.driverCost < 0) return fail('تكلفة السائق غير صحيحة')
+  
+  // Check fuel variance if vehicle has kmPerLiter
+  let fuelVarianceReason = input.fuelVarianceReason
+  if (vehicle.kmPerLiter && input.fuelLiters > 0) {
+    const expectedLiters = input.km / vehicle.kmPerLiter
+    const actualLiters = input.fuelLiters
+    const threshold = state.company.fuelVarianceThresholdPct ?? 15
+    const variancePct = Math.abs((actualLiters - expectedLiters) / expectedLiters) * 100
+    
+    if (variancePct > threshold && !fuelVarianceReason?.trim()) {
+      return fail(`استهلاك الوقود (${variancePct.toFixed(1)}%) يتجاوز الحد المسموح (${threshold}%) - سبب مطلوب`)
+    }
+  }
+  
+  // Calculate trip cost (simplified: fuel cost per liter from recent logs + allocated service cost + driver cost)
+  const recentFuelLogs = state.fuelLogs
+    .filter((log) => log.vehicleId === input.vehicleId)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, 5)
+  
+  const avgFuelCostPerLiter = recentFuelLogs.length > 0
+    ? money(recentFuelLogs.reduce((sum, log) => sum + log.cost / log.liters, 0) / recentFuelLogs.length)
+    : 0.3 // Default fallback
+  
+  const fuelCost = money(avgFuelCostPerLiter * input.fuelLiters)
+  
+  // Allocate a small portion of service cost (1% of total service cost per trip)
+  const totalServiceCost = state.vehicleServices
+    .filter((srv) => srv.vehicleId === input.vehicleId)
+    .reduce((sum, srv) => sum + srv.cost, 0)
+  const allocatedServiceCost = money(totalServiceCost * 0.01)
+  
+  const tripCost = money(fuelCost + allocatedServiceCost + (input.driverCost || 0))
+  
+  const trip: Trip = {
+    id: clock.id('trip'),
+    vehicleId: input.vehicleId,
+    driverId: input.driverId,
+    date: input.date,
+    destination: input.destination.trim(),
+    km: qty(input.km),
+    loadKg: qty(input.loadKg),
+    fuelLiters: qty(input.fuelLiters),
+    customerId: input.customerId,
+    invoiceId: input.invoiceId,
+    cost: tripCost,
+    driverCost: input.driverCost,
+    fuelVarianceReason: fuelVarianceReason?.trim(),
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.trips.push(trip)
+  
+  // Notify if fuel variance exceeds threshold
+  if (vehicle.kmPerLiter && input.fuelLiters > 0) {
+    const expectedLiters = input.km / vehicle.kmPerLiter
+    const actualLiters = input.fuelLiters
+    const threshold = state.company.fuelVarianceThresholdPct ?? 15
+    const variancePct = Math.abs((actualLiters - expectedLiters) / expectedLiters) * 100
+    
+    if (variancePct > threshold) {
+      notify(
+        state,
+        clock,
+        'INFO',
+        `استهلاك وقود غير طبيعي: ${vehicle.code}`,
+        `الرحلة إلى ${input.destination.trim()}: استهلاك ${variancePct.toFixed(1)}% أعلى من المتوقع`,
+        ['GM', 'OPERATIONS'],
+        `fuel-variance:${vehicle.id}:${trip.id}`,
+      )
+    }
+  }
+  
+  audit(state, actor, clock, 'إنشاء رحلة', 'trip', trip.id, `${vehicle.code} → ${input.destination.trim()}`)
+  return ok(state, 'تم إنشاء الرحلة')
+}
+
 function setUserPassword(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setUserPassword' }>['input'], clock: Clock): CommandResult {
   const user = state.users.find((item) => item.id === input.userId)
   if (!user) return fail('المستخدم غير موجود')
@@ -1888,12 +2095,22 @@ function canAny(permissions: readonly string[], keys: readonly string[]) {
 }
 
 /** Strip secrets and collections the caller is not allowed to read. */
-export function publicState(state: ErpState, permissions: readonly string[]): PublicState {
+export function publicState(state: ErpState, permissions: readonly string[], userId?: string): PublicState {
   const seeSalary = canAny(permissions, ['employees.read', 'employees.manage'])
   const seePayroll = canAny(permissions, ['payroll.manage', 'payroll.approve', 'payroll.pay'])
   const seeJournals = canAny(permissions, ['accounting.read', 'accounting.manage'])
   const seeAudit = permissions.includes('audit.read')
   const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
+  const isDriver = permissions.includes('fleet.read') && !permissions.includes('fleet.manage')
+  
+  // DRIVER role filtering: only see own trips and fuel logs, no financial data
+  const filteredTrips = isDriver && userId 
+    ? state.trips.filter((trip) => trip.driverId === userId)
+    : state.trips
+  const filteredFuelLogs = isDriver && userId
+    ? state.fuelLogs.filter((log) => log.driverId === userId)
+    : state.fuelLogs
+  
   return {
     ...state,
     idempotency: [],
@@ -1908,6 +2125,8 @@ export function publicState(state: ErpState, permissions: readonly string[]): Pu
     journals: seeJournals ? state.journals : [],
     auditLogs: seeAudit ? state.auditLogs : [],
     attendance: seeAttendance ? state.attendance : [],
+    trips: filteredTrips,
+    fuelLogs: filteredFuelLogs,
   }
 }
 

@@ -303,7 +303,7 @@ export async function runCommand(
           if (existing.userId === userId && existing.action === action) {
             return {
               ok: true as const,
-              state: publicState(loaded.state, actor.permissions),
+              state: publicState(loaded.state, actor.permissions, userId),
               message: existing.message,
               extra: null,
               storage: loaded.storage,
@@ -321,7 +321,7 @@ export async function runCommand(
         await persist(fresh, loaded.storage)
         return {
           ok: true as const,
-          state: publicState(fresh, actor.permissions),
+          state: publicState(fresh, actor.permissions, userId),
           message: 'تمت إعادة بيانات المصنع التجريبية',
           storage: loaded.storage,
         }
@@ -360,7 +360,7 @@ export async function runCommand(
       const saved = await persistEmailFlags(result.state, loaded.storage)
       return {
         ok: true as const,
-        state: publicState(saved, actor.permissions),
+        state: publicState(saved, actor.permissions, userId),
         message: result.message,
         extra: result.extra,
         storage: loaded.storage,

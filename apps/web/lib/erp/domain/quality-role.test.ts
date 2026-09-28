@@ -84,7 +84,7 @@ test('QUALITY cannot see payroll or journals', () => {
     createdAt: '2026-09-29T04:00:00.000Z',
   })
   state.employees.push({ id: 'e', code: 'E', nameAr: 'موظف', department: 'عام', jobTitle: 'عامل', basicSalary: 400, active: true })
-  const view = publicState(state, state.rolePermissions.QUALITY)
+  const view = publicState(state, state.rolePermissions.QUALITY, 'user-qc')
   assert.equal(view.journals.length, 0)
   assert.equal(view.payrolls.length, 0)
   assert.equal('basicSalary' in view.employees[0]!, false)

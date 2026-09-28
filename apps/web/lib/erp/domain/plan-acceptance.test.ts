@@ -318,7 +318,7 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
   assert.equal(statement.outputKg, 1075)
   assert.ok(statement.reasons.includes('رطوبة أعلى في الذرة'))
 
-  const hidden = publicState(state, ops().permissions)
+  const hidden = publicState(state, ops().permissions, 'user-ops')
   assert.deepEqual(hidden.journals, [])
   assert.deepEqual(hidden.auditLogs, [])
   assert.deepEqual(hidden.payrolls, [])

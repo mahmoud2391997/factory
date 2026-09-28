@@ -409,7 +409,7 @@ test('day 4: goods receipt posts purchase ledger lines that match WH_RAW balance
 test('publicState hides salaries, payroll, journals, and audit logs from operations', () => {
   const state = buildSeedState()
   const ops = actor(state, 'user-ops')
-  const view = publicState(state, ops.permissions)
+  const view = publicState(state, ops.permissions, 'user-ops')
   for (const employee of view.employees) {
     assert.equal(Object.hasOwn(employee, 'basicSalary'), false)
   }
@@ -459,7 +459,7 @@ test('two commands that start from the same revision both commit', async () => {
 test('publicState keeps payroll, journals, and salaries for the general manager', () => {
   const state = buildSeedState()
   const gm = actor(state, 'user-gm')
-  const view = publicState(state, gm.permissions)
+  const view = publicState(state, gm.permissions, 'user-gm')
   assert.ok(view.employees.every((employee) => typeof employee.basicSalary === 'number' && employee.basicSalary > 0))
   assert.ok(view.payrolls.length > 0)
   assert.ok(view.journals.length > 0)
