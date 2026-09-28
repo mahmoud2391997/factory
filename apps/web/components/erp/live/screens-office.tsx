@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 
+import { canSeeEntity } from '@/lib/erp-routes'
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
@@ -772,6 +773,55 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
               {[...spotlight.reasons, ...spotlight.stoppages.map((item) => `${item.area} — ${item.reason}`)].join(' — ')}
             </p>
           ) : null}
+        </Card>
+      ) : null}
+
+      {canSeeEntity(ctx.permissions, 'qualitySample') ? (
+        <Card title="الجودة" hint="المرفوض والمعلّق بانتظار إجراء، ونسبة القبول خلال شهر التشغيل." extra={<GhostButton type="button" onClick={() => ctx.navigate('qualitySample')}>العينات</GhostButton>}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric label="بانتظار إجراء" value={String(status.qc.awaiting.length)} tone={status.qc.awaiting.length ? 'bad' : 'good'} />
+            <Metric label="نسبة القبول الشهرية" value={status.qc.monthPassRate == null ? '—' : pctFmt(status.qc.monthPassRate)} hint={status.qc.monthSamples ? `${status.qc.monthSamples} عينة` : 'لا عينات'} />
+          </div>
+          <div className="mt-3">
+            <NameList empty="لا توجد نتائج مرفوضة أو معلّقة" rows={status.qc.awaiting.map((item) => `${item.label} — ${statusLabel(item.result)}`)} />
+          </div>
+        </Card>
+      ) : null}
+
+      {canSeeEntity(ctx.permissions, 'factoryCostPerTon') ? (
+        <Card title="تكلفة الطن هذا الشهر" hint="متوسط موزون بكل بنود التكلفة." extra={<GhostButton type="button" onClick={() => ctx.navigate('factoryCostPerTon')}>التفاصيل</GhostButton>}>
+          <Metric label="متوسط تكلفة الطن" value={moneyFmt(status.cost.avgCostPerTon)} />
+          <div className="mt-3">
+            <NameList empty="لا إنتاج هذا الشهر" rows={status.cost.breakdown.map((line) => `${line.label} — ${moneyFmt(line.amount)} (${pctFmt(line.pct)})`)} />
+          </div>
+        </Card>
+      ) : null}
+
+      {canSeeEntity(ctx.permissions, 'productionLot') ? (
+        <Card title="أقل الدفعات هامشاً" extra={<GhostButton type="button" onClick={() => ctx.navigate('productionLot')}>الدفعات</GhostButton>}>
+          <NameList
+            empty="لا مبيعات مرتبطة بدفعة بعد"
+            rows={status.lowestMarginLots.map((lot) => `${lot.lotNo} — ${lot.productName} — ${moneyFmt(lot.marginPerTon)} / طن (${pctFmt(lot.marginPct)})`)}
+          />
+        </Card>
+      ) : null}
+
+      {canSeeEntity(ctx.permissions, 'salesPayment') ? (
+        <Card title="التحصيلات" extra={<GhostButton type="button" onClick={() => ctx.navigate('salesPayment')}>التحصيلات</GhostButton>}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric label="تحصيل اليوم" value={moneyFmt(status.collections.today)} />
+            <Metric label="تحصيل الشهر" value={moneyFmt(status.collections.month)} />
+          </div>
+        </Card>
+      ) : null}
+
+      {canSeeEntity(ctx.permissions, 'factoryOpenOrders') ? (
+        <Card title="أعمار الذمم" hint="المتبقي على الفواتير غير المسددة." extra={<GhostButton type="button" onClick={() => ctx.navigate('factoryOpenOrders')}>الفواتير المفتوحة</GhostButton>}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Metric label="0–30 يوماً" value={moneyFmt(status.aging.d0_30)} />
+            <Metric label="31–60 يوماً" value={moneyFmt(status.aging.d31_60)} tone={status.aging.d31_60 > 0 ? 'warn' : undefined} />
+            <Metric label="61 يوماً فأكثر" value={moneyFmt(status.aging.d61)} tone={status.aging.d61 > 0 ? 'bad' : undefined} />
+          </div>
         </Card>
       ) : null}
 

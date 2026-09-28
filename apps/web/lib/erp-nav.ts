@@ -380,6 +380,13 @@ export const ERP_NAV: ErpMainTab[] = [
         description: 'سحب من مستودع المنتجات',
       },
       {
+        id: 'collections',
+        label: 'التحصيلات',
+        entityKey: 'salesPayment',
+        description: 'ما دخل الصندوق أو البنك مقابل الفواتير',
+        permission: ['sales.read', 'sales.payments.manage'],
+      },
+      {
         id: 'production',
         label: 'التصنيع',
         entityKey: 'productionOrder',

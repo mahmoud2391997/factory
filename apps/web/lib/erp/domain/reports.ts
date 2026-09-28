@@ -184,7 +184,8 @@ function openInvoice(invoice: SalesInvoice) {
 type FactorySnapshot = Pick<
   ErpState,
   'materials' | 'customers' | 'balances' | 'ledger' | 'productionOrders' | 'invoices' | 'stoppages'
->
+> &
+  Partial<Pick<ErpState, 'lots' | 'qualitySamples' | 'payments' | 'products' | 'suppliers'>>
 
 /** Factory day for the general manager: production, sales, margin, stock, and run quality. */
 export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOString()) {
@@ -290,6 +291,40 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
 
   const stoppages = (state.stoppages ?? []).filter((item) => muscatDay(item.at) === day)
 
+  const samples = state.qualitySamples ?? []
+  const latestQc = new Map<string, (typeof samples)[number]>()
+  for (const sample of [...samples].sort((a, b) => a.sampledAt.localeCompare(b.sampledAt))) {
+    const key = sample.type === 'FINISHED_PRODUCT' ? `lot:${sample.lotNo}` : `raw:${sample.materialId}:${sample.batchNo}`
+    latestQc.set(key, sample)
+  }
+  const awaiting = [...latestQc.values()].filter((sample) => sample.result === 'FAILED' || sample.result === 'HOLD')
+  const monthSamples = samples.filter((sample) => {
+    const sampleDay = muscatDay(sample.sampledAt)
+    return sampleDay.slice(0, 7) === month && sampleDay <= day && sample.result !== 'PENDING'
+  })
+  const monthPassed = monthSamples.filter((sample) => sample.result === 'PASSED').length
+  const monthLots = (state.lots ?? []).filter((lot) => {
+    const lotDay = muscatDay(lot.manufacturedAt)
+    return lotDay.slice(0, 7) === month && lotDay <= day
+  })
+  const monthCost = money(monthLots.reduce((sum, lot) => sum + lot.totalCost, 0))
+  const monthKg = qty(monthLots.reduce((sum, lot) => sum + lot.actualOutputKg, 0))
+  const breakdownMap = new Map<string, number>()
+  for (const lot of monthLots) {
+    for (const line of lot.costLines) breakdownMap.set(line.type, money((breakdownMap.get(line.type) ?? 0) + line.amount))
+  }
+  const payments = state.payments ?? []
+  const collected = (match: (iso: string) => boolean) =>
+    money(payments.filter((payment) => match(payment.at)).reduce((sum, payment) => sum + payment.amount, 0))
+  const aging = { d0_30: 0, d31_60: 0, d61: 0 }
+  for (const invoice of openInvoices) {
+    const age = daysBetween(muscatDay(invoice.issuedAt), day)
+    const outstanding = money(invoice.total - invoice.paidAmount)
+    if (age <= 30) aging.d0_30 = money(aging.d0_30 + outstanding)
+    else if (age <= 60) aging.d31_60 = money(aging.d31_60 + outstanding)
+    else aging.d61 = money(aging.d61 + outstanding)
+  }
+
   return {
     day,
     month,
@@ -328,6 +363,39 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
       stoppages,
       stoppageMinutes: stoppages.reduce((sum, item) => sum + item.minutes, 0),
     },
+    qc: {
+      awaiting: awaiting.map((sample) => ({
+        id: sample.id,
+        result: sample.result,
+        label: sample.type === 'FINISHED_PRODUCT' ? `دفعة ${sample.lotNo}` : `خامة ${sample.batchNo}`,
+      })),
+      monthPassRate: monthSamples.length > 0 ? money((monthPassed / monthSamples.length) * 100) : null,
+      monthSamples: monthSamples.length,
+    },
+    cost: {
+      avgCostPerTon: monthKg > 0 ? money((monthCost / monthKg) * 1000) : 0,
+      breakdown: [...breakdownMap.entries()].map(([type, amount]) => ({
+        type,
+        label: COST_LABEL[type as keyof typeof COST_LABEL] ?? type,
+        amount,
+        pct: monthCost > 0 ? money((amount / monthCost) * 100) : 0,
+      })),
+    },
+    lowestMarginLots: (state.lots ?? [])
+      .filter((lot) => lot.marginPerTon != null)
+      .map((lot) => ({
+        lotNo: lot.lotNo,
+        productName: (state.products ?? []).find((item) => item.id === lot.productId)?.nameAr ?? lot.productId,
+        marginPerTon: lot.marginPerTon ?? 0,
+        marginPct: lot.marginPct ?? 0,
+      }))
+      .sort((a, b) => a.marginPerTon - b.marginPerTon)
+      .slice(0, 5),
+    collections: {
+      today: collected((iso) => muscatDay(iso) === day),
+      month: collected((iso) => muscatDay(iso).slice(0, 7) === month && muscatDay(iso) <= day),
+    },
+    aging,
   }
 }
 
