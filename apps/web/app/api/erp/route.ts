@@ -17,6 +17,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   createEmployee: true,
   updateEmployee: true,
   createRecipe: true,
+  setVarianceThresholds: true,
   updateCompany: true,
   fundBank: true,
   createPurchaseOrder: true,

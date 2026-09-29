@@ -7,19 +7,20 @@
 - [x] Maintenance: توزيع MaintenanceRecord + SparePartUsage حسب الآلة على دفع الإنتاج في الفترة.
 - [x] Transport: استبدال النسب الثابتة بتوزيع فعلي (تكلفة الرحلة ÷ الحمولة الفعلية) على الفواتير/العملاء.
 - [x] Bags/Packaging: استخدام PackagingConsumption الفعلي.
-- [ ] CostLine: إضافة basis (ACTUAL/ESTIMATED/MANUAL) + source، وإظهار الشارة في عرض تكلفة الدفعة.
-- [ ] snapshot عند إتمام الدفعة + أمر "إعادة الحساب عند إغلاق الشهر" (GM فقط، مُدقّق).
-- [ ] تقرير ربحية حسب المنتج/العميل/الشهر (تكلفة/طن، متوسط سعر بيع/طن، هامش قيمة ونسبة).
+- [x] CostLine: إضافة basis (ACTUAL/ESTIMATED/MANUAL) + source، وإظهار الشارة في عرض تكلفة الدفعة.
+- [x] snapshot عند إتمام الدفعة + أمر "إعادة الحساب عند إغلاق الشهر" (GM فقط، مُدقّق).
+- [x] تقرير ربحية حسب المنتج/العميل/الشهر (تكلفة/طن، متوسط سعر بيع/طن، هامش قيمة ونسبة).
 - [x] اختبارات Phase 1.
-- [ ] تشغيل الاختبارات + build + commit.
+- [x] تشغيل الاختبارات + build + commit. (commit e1a2d60, pushed)
 
 ## Phase 2 — قواعد الانحراف والتقارير
-- [ ] حدود warning/critical لكل منتج/وصفة مع fallback للقيمة العامة + migration.
-- [ ] Warning = علم + إشعار للمدير. Critical = رمز سبب + ملاحظة إلزامية + تنبيه المالك.
-- [ ] إضافة shift و productionLine/machineId لأوامر الإنتاج (اختياري للقديم).
-- [ ] شاشة تقرير: الانحراف والهدر حسب المنتج/الوردية/المشغّل/الخط/الشهر + مخطط اتجاه.
-- [ ] اختبارات Phase 2.
-- [ ] تشغيل الاختبارات + build + commit.
+- [x] حدود warning/critical لكل منتج/وصفة مع fallback للقيمة العامة + migration. (SCHEMA_VERSION 6)
+- [x] Warning = علم + إشعار للمدير. Critical = رمز سبب + ملاحظة إلزامية + تنبيه المالك.
+- [x] إضافة shift و productionLine/machineId لأوامر الإنتاج (اختياري للقديم).
+- [x] شاشة تقرير: الانحراف والهدر حسب المنتج/الوردية/المشغّل/الخط/الشهر + مخطط اتجاه.
+- [x] محرر حدود الانحراف (setVarianceThresholds) لكل منتج/وصفة.
+- [x] اختبارات Phase 2. (variance.test.ts — 9 اختبارات، إجمالي 120)
+- [x] تشغيل الاختبارات + build + commit.
 
 ## Phase 3 — الاستدعاء / الحجر
 - [ ] أوامر holdLot/releaseLot/recallLot و holdRawBatch/releaseRawBatch مع سبب ومستخدم وaudit.

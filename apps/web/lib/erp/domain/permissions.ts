@@ -20,6 +20,7 @@ export const PERMISSIONS = [
   'production.complete',
   'production.cost.approve',
   'production.cost.recalculate',
+  'production.variance.thresholds',
   'qc.read',
   'qc.manage',
   'qc.release',
@@ -150,7 +151,7 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 5
+export const PERMISSIONS_VERSION = 7
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   1: {
@@ -179,5 +180,9 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
   6: {
     // Month-close cost recalculation is a GM-only control.
     GM: ['production.cost.recalculate'],
+  },
+  7: {
+    // Per-product / per-recipe variance thresholds are a GM-only control.
+    GM: ['production.variance.thresholds'],
   },
 }

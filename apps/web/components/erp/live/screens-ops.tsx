@@ -266,6 +266,89 @@ function Products({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function VarianceThresholdsEditor({ ctx }: { ctx: LiveCtx }) {
+  const [targetType, setTargetType] = useState<'PRODUCT' | 'RECIPE'>('PRODUCT')
+  const [productId, setProductId] = useState(ctx.state.products[0]?.id ?? '')
+  const [recipeId, setRecipeId] = useState(ctx.state.recipes[0]?.id ?? '')
+  const companyDefault = ctx.state.company.varianceThresholdPct
+  const product = ctx.state.products.find((item) => item.id === productId)
+  const recipe = ctx.state.recipes.find((item) => item.id === recipeId)
+  const currentWarning = targetType === 'PRODUCT' ? product?.varianceWarningPct : recipe?.varianceWarningPct
+  const currentCritical = targetType === 'PRODUCT' ? product?.varianceCriticalPct : recipe?.varianceCriticalPct
+  const [warning, setWarning] = useState(currentWarning?.toString() ?? '')
+  const [critical, setCritical] = useState(currentCritical?.toString() ?? '')
+  const [formError, setFormError] = useState('')
+  if (!can(ctx.permissions, 'production.variance.thresholds')) return null
+  const targetKey = targetType === 'PRODUCT' ? productId : recipeId
+  const num = (value: string) => (value.trim() === '' ? null : Number(value))
+  return (
+    <Card
+      title="حدود الانحراف"
+      hint={`الحد العام للشركة ${pctFmt(companyDefault)}. حدّد قيمة لكل منتج أو وصفة لتجاوز العام؛ اتركه فارغاً للرجوع إلى الحد العام.`}
+    >
+      <div className="grid gap-3 md:grid-cols-4">
+        <Field label="النطاق">
+          <SelectInput value={targetType} onChange={(e) => { setTargetType(e.target.value as 'PRODUCT' | 'RECIPE'); setWarning(''); setCritical(''); setFormError('') }}>
+            <option value="PRODUCT">منتج</option>
+            <option value="RECIPE">وصفة</option>
+          </SelectInput>
+        </Field>
+        <Field label={targetType === 'PRODUCT' ? 'المنتج' : 'الوصفة'}>
+          {targetType === 'PRODUCT' ? (
+            <SelectInput value={productId} onChange={(e) => { setProductId(e.target.value); setWarning(''); setCritical(''); setFormError('') }}>
+              {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+            </SelectInput>
+          ) : (
+            <SelectInput value={recipeId} onChange={(e) => { setRecipeId(e.target.value); setWarning(''); setCritical(''); setFormError('') }}>
+              {ctx.state.recipes.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+            </SelectInput>
+          )}
+        </Field>
+        <Field label="حد التحذير %">
+          <TextInput key={`${targetKey}-w-${currentWarning}`} type="number" min="0" max="100" step="0.001" value={warning} onChange={(e) => setWarning(e.target.value)} placeholder={String(companyDefault)} />
+        </Field>
+        <Field label="الحد الحرج %">
+          <TextInput key={`${targetKey}-c-${currentCritical}`} type="number" min="0" max="100" step="0.001" value={critical} onChange={(e) => setCritical(e.target.value)} placeholder={String(companyDefault)} />
+        </Field>
+      </div>
+      {formError ? <p role="alert" className="mt-2 rounded-xl border border-[#fecaca] bg-[#fee2e2] px-3 py-2 text-sm font-medium text-[#dc2626]">{formError}</p> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <PrimaryButton
+          disabled={ctx.pending || !targetKey}
+          onClick={async () => {
+            setFormError('')
+            const result = await ctx.act('setVarianceThresholds', {
+              ...(targetType === 'PRODUCT' ? { productId: targetKey } : { recipeId: targetKey }),
+              warningPct: num(warning),
+              criticalPct: num(critical),
+            })
+            if (!result.ok) setFormError(result.message)
+          }}
+        >
+          حفظ الحدود
+        </PrimaryButton>
+        <GhostButton
+          disabled={ctx.pending || !targetKey}
+          onClick={async () => {
+            setFormError('')
+            const result = await ctx.act('setVarianceThresholds', {
+              ...(targetType === 'PRODUCT' ? { productId: targetKey } : { recipeId: targetKey }),
+              warningPct: null,
+              criticalPct: null,
+            })
+            if (result.ok) { setWarning(''); setCritical('') } else setFormError(result.message)
+          }}
+        >
+          مسح والرجوع للعام
+        </GhostButton>
+        <span className="text-sm text-[#788983]">
+          الحالي: {currentWarning != null || currentCritical != null ? `${currentWarning != null ? pctFmt(currentWarning) : '—'} / ${currentCritical != null ? pctFmt(currentCritical) : '—'}` : 'الحد العام'}
+        </span>
+      </div>
+    </Card>
+  )
+}
+
 function Warehouses({ ctx }: { ctx: LiveCtx }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -1055,6 +1138,8 @@ function Production({ ctx }: { ctx: LiveCtx }) {
   const recipes = ctx.state.recipes.filter((recipe) => recipe.productId === productId)
   const [recipeId, setRecipeId] = useState(recipes[0]?.id ?? '')
   const [plannedQty, setPlannedQty] = useState('1000')
+  const [machineId, setMachineId] = useState('')
+  const [shift, setShift] = useState('')
   const [completingId, setCompletingId] = useState<string | null>(null)
   const activeRecipe = ctx.state.recipes.find((recipe) => recipe.id === (recipeId || recipes[0]?.id))
   const completing = ctx.state.productionOrders.find((order) => order.id === completingId && order.status === 'RELEASED')
@@ -1068,7 +1153,13 @@ function Production({ ctx }: { ctx: LiveCtx }) {
             {(close) => (
               <form className="grid gap-3" onSubmit={async (event) => {
                 event.preventDefault()
-                const result = await ctx.act('createProductionOrder', { productId, recipeId: recipeId || recipes[0]?.id, plannedQty: Number(plannedQty) })
+                const result = await ctx.act('createProductionOrder', {
+                  productId,
+                  recipeId: recipeId || recipes[0]?.id,
+                  plannedQty: Number(plannedQty),
+                  ...(machineId ? { machineId } : {}),
+                  ...(shift ? { shift: shift as 'MORNING' | 'EVENING' | 'NIGHT' } : {}),
+                })
                 if (result.ok) close()
               }}>
                 <Field label="المنتج">
@@ -1082,6 +1173,22 @@ function Production({ ctx }: { ctx: LiveCtx }) {
                   </SelectInput>
                 </Field>
                 <Field label="الكمية المخططة"><TextInput type="number" min="0.001" step="0.001" value={plannedQty} onChange={(e) => setPlannedQty(e.target.value)} /></Field>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Field label="الخط/الآلة (اختياري)">
+                    <SelectInput value={machineId} onChange={(e) => setMachineId(e.target.value)}>
+                      <option value="">— بدون —</option>
+                      {(ctx.state.machines ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+                    </SelectInput>
+                  </Field>
+                  <Field label="الوردية (اختياري)">
+                    <SelectInput value={shift} onChange={(e) => setShift(e.target.value)}>
+                      <option value="">— بدون —</option>
+                      <option value="MORNING">صباحية</option>
+                      <option value="EVENING">مسائية</option>
+                      <option value="NIGHT">ليلية</option>
+                    </SelectInput>
+                  </Field>
+                </div>
                 {activeRecipe && Number(plannedQty) > 0 ? (
                   <p className="text-sm text-[#53655e]">
                     المتوقع: {activeRecipe.items.map((item) => `${materialName(ctx.state, item.materialId)} ${qtyFmt(Number(plannedQty) * (item.qty / activeRecipe.baseOutputQty))}`).join(' — ')}
@@ -1117,6 +1224,7 @@ function Production({ ctx }: { ctx: LiveCtx }) {
           ])}
         />
       </Card>
+      <VarianceThresholdsEditor ctx={ctx} />
       {completing ? <CompleteBox ctx={ctx} orderId={completing.id} onClose={() => setCompletingId(null)} /> : null}
     </div>
   )
@@ -1129,9 +1237,12 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
   const [actuals, setActuals] = useState<Record<string, { actualQty: string; wasteQty: string }>>({})
   const [output, setOutput] = useState(String(order.plannedQty))
   const [reason, setReason] = useState('')
+  const [reasonCode, setReasonCode] = useState('')
   const [costs, setCosts] = useState({ ELECTRICITY: '', GAS: '', LABOR: '', TRANSPORT: '', MAINTENANCE: '', OVERHEAD: '' })
   const [formError, setFormError] = useState('')
   const needsReason = formError.includes('سبب الانحراف')
+  const reasonCodes = ctx.state.company.varianceReasonCodes ?? []
+  const needsCode = reasonCodes.length > 0 && (formError.includes('رمز سبب الانحراف') || reasonCode !== '')
   return (
     <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. الناتج المتوقع يُحسب من الوصفة على الكمية الداخلة فعلاً. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي. بند تكلفة أعلى من حد الاعتماد يُحفظ بانتظار المدير أو المحاسب ولا يدخل في الهامش قبل ذلك." wide onClose={onClose}>
       <form className="space-y-2" onSubmit={async (event) => {
@@ -1142,6 +1253,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
           operatorId,
           actualOutputQty: Number(output),
           varianceReason: reason,
+          varianceReasonCode: reasonCode,
           costLines: (Object.entries(costs) as Array<[keyof typeof costs, string]>)
             .filter(([, value]) => value.trim() !== '')
             .map(([type, value]) => ({ type, amount: Number(value) })),
@@ -1170,6 +1282,14 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
           </Field>
           <Field label="الناتج الفعلي (كجم)"><TextInput type="number" min="0.001" step="0.001" value={output} onChange={(e) => setOutput(e.target.value)} /></Field>
           <Field label={needsReason ? 'سبب الانحراف مطلوب' : 'سبب الانحراف إن وجد'}><TextInput value={reason} onChange={(e) => setReason(e.target.value)} required={needsReason} aria-invalid={needsReason} /></Field>
+          {reasonCodes.length > 0 ? (
+            <Field label={needsCode ? 'رمز سبب الانحراف مطلوب' : 'رمز سبب الانحراف'}>
+              <SelectInput value={reasonCode} onChange={(e) => setReasonCode(e.target.value)} required={needsCode} aria-invalid={needsCode}>
+                <option value="">— اختر —</option>
+                {reasonCodes.map((code) => <option key={code} value={code}>{code}</option>)}
+              </SelectInput>
+            </Field>
+          ) : null}
         </div>
         <p className="text-sm text-[#53655e]">بنود التكلفة اليدوية تستبدل سعر التحميل للطن. اتركها فارغة لاستخدام إعدادات الشركة. الأكياس تُحسب من وزن الكيس.</p>
         <div className="grid gap-3 md:grid-cols-3">

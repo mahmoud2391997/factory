@@ -114,7 +114,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 1 &&
     state.schemaVersion !== 2 &&
     state.schemaVersion !== 3 &&
-    state.schemaVersion !== 4
+    state.schemaVersion !== 4 &&
+    state.schemaVersion !== 5
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -242,6 +243,17 @@ export function migrateErpState(state: ErpState): ErpState {
       }
     }
     state.schemaVersion = 5
+  }
+
+  // v5 -> v6 migration (per-product/recipe variance thresholds + coded critical reasons).
+  // Nothing is forced on existing data: thresholds stay undefined (fall back to the company
+  // value) and the reason-code list starts empty, so old documents behave exactly as before.
+  if (state.schemaVersion === 5) {
+    state.company.varianceReasonCodes ??= []
+    for (const order of state.productionOrders ?? []) {
+      if (order.varianceLevel == null) order.varianceLevel = 'NORMAL'
+    }
+    state.schemaVersion = 6
   }
 
   return mergeRolePermissions(state)

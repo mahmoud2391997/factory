@@ -47,6 +47,7 @@ import type {
   CompanyDocument,
   Recipe,
   QualitySample,
+  ProductionOrder,
 } from './types'
 
 const INVENTORY_ACCOUNT: Record<ItemType, string> = {
@@ -731,6 +732,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createEmployee: 'employees.manage',
     updateEmployee: 'employees.manage',
     createRecipe: 'production.create',
+    setVarianceThresholds: 'production.variance.thresholds',
     updateCompany: 'settings.update',
     fundBank: 'settings.update',
     createPurchaseOrder: 'purchasing.po.create',
@@ -812,6 +814,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return updateEmployee(state, actor, command.input, clock)
     case 'createRecipe':
       return createRecipe(state, actor, command.input, clock)
+    case 'setVarianceThresholds':
+      return setVarianceThresholds(state, actor, command.input, clock)
     case 'updateCompany':
       return updateCompany(state, actor, command.input, clock)
     case 'fundBank':
@@ -965,6 +969,10 @@ function createProduct(state: ErpState, actor: Actor, input: Extract<Command, { 
   if (!code || !input.nameAr.trim()) return fail('كود المنتج والاسم مطلوبان')
   if (state.products.some((item) => item.code === code)) return fail('كود المنتج مستخدم')
   if (input.salePrice < 0) return fail('سعر البيع غير صحيح')
+  const varianceInvalid =
+    bounded(input.varianceWarningPct, 0, 100, 'حد الانحراف التحذيري يجب أن يكون بين 0 و 100') ||
+    bounded(input.varianceCriticalPct, 0, 100, 'حد الانحراف الحرج يجب أن يكون بين 0 و 100')
+  if (varianceInvalid) return fail(varianceInvalid)
   const product = {
     id: clock.id('prd'),
     code,
@@ -975,6 +983,8 @@ function createProduct(state: ErpState, actor: Actor, input: Extract<Command, { 
     barcode: (input.barcode || code).trim(),
     bagKg: qty(input.bagKg ?? 50),
     active: true,
+    ...(input.varianceWarningPct != null ? { varianceWarningPct: round3(input.varianceWarningPct) } : {}),
+    ...(input.varianceCriticalPct != null ? { varianceCriticalPct: round3(input.varianceCriticalPct) } : {}),
   }
   state.products.unshift(product)
   audit(state, actor, clock, 'إنشاء منتج', 'product', product.id, product.nameAr)
@@ -1052,16 +1062,78 @@ function createRecipe(state: ErpState, actor: Actor, input: Extract<Command, { a
     if (!findMaterial(state, item.materialId)) return fail('إحدى المواد غير موجودة')
     if (item.qty <= 0) return fail('كمية المكوّن يجب أن تكون أكبر من صفر')
   }
+  const varianceInvalid =
+    bounded(input.varianceWarningPct, 0, 100, 'حد الانحراف التحذيري يجب أن يكون بين 0 و 100') ||
+    bounded(input.varianceCriticalPct, 0, 100, 'حد الانحراف الحرج يجب أن يكون بين 0 و 100')
+  if (varianceInvalid) return fail(varianceInvalid)
   const recipe = {
     id: clock.id('rcp'),
     productId: input.productId,
     nameAr: input.nameAr.trim() || 'وصفة',
     baseOutputQty: qty(input.baseOutputQty),
     items: input.items.map((item) => ({ materialId: item.materialId, qty: qty(item.qty) })),
+    ...(input.varianceWarningPct != null ? { varianceWarningPct: round3(input.varianceWarningPct) } : {}),
+    ...(input.varianceCriticalPct != null ? { varianceCriticalPct: round3(input.varianceCriticalPct) } : {}),
   }
   state.recipes.unshift(recipe)
   audit(state, actor, clock, 'إنشاء وصفة', 'recipe', recipe.id, recipe.nameAr)
   return ok(state, 'تم حفظ الوصفة')
+}
+
+/**
+ * Per-product / per-recipe variance thresholds. Passing `null` clears a threshold so it
+ * falls back to the next level (recipe → company). Exactly one of productId / recipeId
+ * must be supplied.
+ */
+function setVarianceThresholds(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'setVarianceThresholds' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const hasProduct = !!input.productId
+  const hasRecipe = !!input.recipeId
+  if (hasProduct === hasRecipe) return fail('حدّد المنتج أو الوصفة')
+  const invalid =
+    bounded(input.warningPct ?? undefined, 0, 100, 'حد الانحراف التحذيري يجب أن يكون بين 0 و 100') ||
+    bounded(input.criticalPct ?? undefined, 0, 100, 'حد الانحراف الحرج يجب أن يكون بين 0 و 100')
+  if (invalid) return fail(invalid)
+  const warning = input.warningPct == null ? null : round3(input.warningPct)
+  const critical = input.criticalPct == null ? null : round3(input.criticalPct)
+  if (warning != null && critical != null && warning - critical > 0.001) {
+    return fail('حد التحذير لا يمكن أن يتجاوز الحد الحرج')
+  }
+  let label = ''
+  let entityId = ''
+  if (hasProduct) {
+    const product = findProduct(state, input.productId!)
+    if (!product) return fail('المنتج غير موجود')
+    if (warning == null) delete product.varianceWarningPct
+    else product.varianceWarningPct = warning
+    if (critical == null) delete product.varianceCriticalPct
+    else product.varianceCriticalPct = critical
+    label = product.nameAr
+    entityId = product.id
+  } else {
+    const recipe = state.recipes.find((item) => item.id === input.recipeId)
+    if (!recipe) return fail('الوصفة غير موجودة')
+    if (warning == null) delete recipe.varianceWarningPct
+    else recipe.varianceWarningPct = warning
+    if (critical == null) delete recipe.varianceCriticalPct
+    else recipe.varianceCriticalPct = critical
+    label = recipe.nameAr
+    entityId = recipe.id
+  }
+  audit(
+    state,
+    actor,
+    clock,
+    'تحديث حدود الانحراف',
+    hasProduct ? 'product' : 'recipe',
+    entityId,
+    `${label} — تحذير ${warning ?? 'افتراضي'}% / حرج ${critical ?? 'افتراضي'}%`,
+  )
+  return ok(state, 'تم حفظ حدود الانحراف')
 }
 
 function bounded(value: number | undefined, min: number, max: number, message: string) {
@@ -1398,6 +1470,9 @@ function createProductionOrder(state: ErpState, actor: Actor, input: Extract<Com
   if (!product || !recipe) return fail('المنتج أو الوصفة غير موجودة')
   if (input.plannedQty <= 0) return fail('الكمية المخططة غير صحيحة')
   if (recipe.baseOutputQty <= 0) return fail('أساس الوصفة غير صحيح')
+  if (input.machineId && !(state.machines ?? []).some((item) => item.id === input.machineId)) {
+    return fail('الآلة أو خط الإنتاج غير موجود')
+  }
   const at = clock.now()
   const order = {
     id: clock.id('prdord'),
@@ -1419,10 +1494,30 @@ function createProductionOrder(state: ErpState, actor: Actor, input: Extract<Com
     varianceReason: '',
     createdBy: actor.id,
     createdAt: at,
+    ...(input.machineId ? { machineId: input.machineId } : {}),
+    ...(input.shift ? { shift: input.shift } : {}),
   }
   state.productionOrders.unshift(order)
   audit(state, actor, clock, 'إنشاء أمر إنتاج', 'productionOrder', order.id, order.number)
   return ok(state, `تم فتح ${order.number}`, { id: order.id, number: order.number })
+}
+
+/**
+ * Resolve the warning / critical variance thresholds for a production order.
+ * Precedence: product → recipe → company default. The company value is used for both
+ * warning and critical when nothing more specific is configured, preserving legacy behaviour.
+ */
+function resolveVarianceThresholds(
+  state: ErpState,
+  order: ProductionOrder,
+  recipe: Recipe,
+): { warningPct: number; criticalPct: number } {
+  const product = findProduct(state, order.productId)
+  const company = state.company.varianceThresholdPct
+  return {
+    warningPct: product?.varianceWarningPct ?? recipe.varianceWarningPct ?? company,
+    criticalPct: product?.varianceCriticalPct ?? recipe.varianceCriticalPct ?? company,
+  }
 }
 
 function completeProduction(state: ErpState, actor: Actor, input: Extract<Command, { action: 'completeProduction' }>['input'], clock: Clock): CommandResult {
@@ -1453,9 +1548,24 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const actualOutputKg = qty(input.actualOutputQty)
   const varianceKg = qty(actualOutputKg - expectedOutputKg)
   const variancePct = expectedOutputKg > 0 ? pct2((varianceKg / expectedOutputKg) * 100) : 0
-  const overThreshold = Math.abs(variancePct) - state.company.varianceThresholdPct > 0.001
-  if (overThreshold && !input.varianceReason?.trim()) {
-    return fail(`الانحراف الكلي (${variancePct}%) تجاوز الحد المسموح — سبب الانحراف مطلوب`)
+  const thresholds = resolveVarianceThresholds(state, order, recipe)
+  const absVariancePct = Math.abs(variancePct)
+  const isCritical = absVariancePct - thresholds.criticalPct > 0.001
+  const isWarning = !isCritical && absVariancePct - thresholds.warningPct > 0.001
+  const varianceLevel: 'NORMAL' | 'WARNING' | 'CRITICAL' = isCritical ? 'CRITICAL' : isWarning ? 'WARNING' : 'NORMAL'
+  const reasonCodes = state.company.varianceReasonCodes ?? []
+  if (isCritical) {
+    if (reasonCodes.length > 0) {
+      const code = input.varianceReasonCode?.trim()
+      if (!code || !reasonCodes.includes(code)) {
+        return fail(`الانحراف الكلي (${variancePct}%) تجاوز الحد الحرج — اختر رمز سبب الانحراف`)
+      }
+      if (!input.varianceReason?.trim()) {
+        return fail(`الانحراف الكلي (${variancePct}%) تجاوز الحد الحرج — ملاحظة السبب مطلوبة`)
+      }
+    } else if (!input.varianceReason?.trim()) {
+      return fail(`الانحراف الكلي (${variancePct}%) تجاوز الحد المسموح — سبب الانحراف مطلوب`)
+    }
   }
 
   let rawCost = 0
@@ -1568,6 +1678,8 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   order.unitCost = unitCost
   order.outputBatch = lotNo
   order.varianceReason = input.varianceReason?.trim() ?? ''
+  order.varianceReasonCode = input.varianceReasonCode?.trim() ?? ''
+  order.varianceLevel = varianceLevel
   order.completedAt = clock.now()
   
   const lot = {
@@ -1594,15 +1706,25 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   state.lots = state.lots ?? []
   state.lots.unshift(lot)
 
-  if (overThreshold) {
+  if (isCritical) {
+    notify(
+      state,
+      clock,
+      'INFO',
+      `انحراف حرج في إنتاج ${lotNo}`,
+      `${varianceKg} كجم (${variancePct}%) — ${order.varianceReason}${order.varianceReasonCode ? ` [${order.varianceReasonCode}]` : ''}`,
+      ['GM'],
+      `varcrit:${order.id}`,
+    )
+  } else if (isWarning) {
     notify(
       state,
       clock,
       'INFO',
       `انحراف إنتاج ${lotNo}`,
-      `${varianceKg} كجم (${variancePct}%) — ${order.varianceReason}`,
+      `${varianceKg} كجم (${variancePct}%) — تجاوز حد التحذير`,
       ['GM', 'OPERATIONS'],
-      `var:${order.id}`,
+      `varwarn:${order.id}`,
     )
   }
   if (pendingCostLines.length > 0) {

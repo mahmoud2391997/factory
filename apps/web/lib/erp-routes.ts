@@ -134,6 +134,7 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/manufacturing/execution', entityKey: 'factoryExecution', tab: true },
           { href: '/inventory/manufacturing/waste', entityKey: 'factoryWaste', tab: true },
           { href: '/inventory/manufacturing/deviation', entityKey: 'factoryDeviation', tab: true },
+          { href: '/inventory/manufacturing/variance', entityKey: 'varianceReport', tab: true },
           { href: '/inventory/manufacturing/stoppages', entityKey: 'factoryStoppages', tab: true },
         ],
       },

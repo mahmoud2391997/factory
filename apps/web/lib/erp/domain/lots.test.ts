@@ -92,7 +92,7 @@ test('completing production creates a lot linked to the source batch, supplier, 
   assert.equal(lot.legacy, undefined)
   assert.equal(lot.costLines.length, 1)
   assert.equal(lot.costLines[0]?.type, 'RAW_MATERIAL')
-  const varianceNote = state.notifications.find((item) => item.dedupeKey === `var:${order.id}`)
+  const varianceNote = state.notifications.find((item) => item.dedupeKey === `varcrit:${order.id}`)
   assert.ok(varianceNote)
   assert.match(varianceNote.title, /انحراف/)
 
@@ -247,7 +247,7 @@ test('v1 completed orders become legacy lots with raw-material cost only', () =>
     ],
   }
   const migrated = migrateErpState(v1 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 5)
+  assert.equal(migrated.schemaVersion, 6)
   assert.equal(migrated.lots.length, 1)
   const lot = migrated.lots[0]!
   assert.equal(lot.lotNo, 'FG-OLD')

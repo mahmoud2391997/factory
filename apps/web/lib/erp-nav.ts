@@ -134,6 +134,12 @@ export const ERP_NAV: ErpMainTab[] = [
         description: 'الفرق بين المتوقع في الوصفة والمصروف فعلياً',
       },
       {
+        id: 'variance-report',
+        label: 'تحليل الانحراف',
+        entityKey: 'varianceReport',
+        description: 'الانحراف والهدر حسب المنتج والوردية والمشغّل والخط والشهر',
+      },
+      {
         id: 'stoppages',
         label: 'توقفات المصنع',
         entityKey: 'factoryStoppages',

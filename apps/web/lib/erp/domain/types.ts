@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -44,6 +44,11 @@ export type Company = {
   obligationApprovalThreshold?: number
   /** How approved production payroll is spread across the month. Defaults to per ton. */
   laborAllocationBasis?: 'PER_TON' | 'PER_HOUR'
+  /**
+   * Coded reasons offered when a critical variance is closed. When empty, only a free-text
+   * note is required (keeps pre-existing documents behaving exactly as before).
+   */
+  varianceReasonCodes?: string[]
 }
 
 export type AppUser = {
@@ -143,6 +148,10 @@ export type Product = {
   customerPricing?: Record<string, number>
   /** Pricing history for this product. */
   priceHistory?: Array<{ customerId?: string; price: number; effectiveFrom: string; effectiveTo?: string }>
+  /** Output variance % that flags the lot for the manager. Falls back to the recipe, then the company value. */
+  varianceWarningPct?: number
+  /** Output variance % that needs a coded reason to close and alerts the owner. Falls back to the recipe, then the company value. */
+  varianceCriticalPct?: number
 }
 
 export type Supplier = {
@@ -187,6 +196,10 @@ export type Recipe = {
   nameAr: string
   baseOutputQty: number
   items: Array<{ materialId: string; qty: number }>
+  /** Output variance % that flags the lot for the manager. Falls back to the company value. */
+  varianceWarningPct?: number
+  /** Output variance % that needs a coded reason to close and alerts the owner. Falls back to the company value. */
+  varianceCriticalPct?: number
 }
 
 export type Vehicle = {
@@ -423,6 +436,10 @@ export type ProductionOrder = {
   machineId?: string
   /** Shift the order runs in. Optional on old orders. */
   shift?: 'MORNING' | 'EVENING' | 'NIGHT'
+  /** Coded reason for a critical variance. Optional on old orders. */
+  varianceReasonCode?: string
+  /** Variance severity computed at completion. Optional on old orders (treated as NORMAL). */
+  varianceLevel?: 'NORMAL' | 'WARNING' | 'CRITICAL'
 }
 
 export type SalesInvoice = {
@@ -1022,12 +1039,13 @@ export type Clock = {
 
 export type Command =
   | { action: 'createMaterial'; input: { code: string; nameAr: string; category: string; unit?: string; minQty: number; vatTreatment?: VatTreatment; barcode?: string } }
-  | { action: 'createProduct'; input: { code: string; nameAr: string; unit?: string; salePrice: number; vatTreatment?: VatTreatment; barcode?: string; bagKg?: number } }
+  | { action: 'createProduct'; input: { code: string; nameAr: string; unit?: string; salePrice: number; vatTreatment?: VatTreatment; barcode?: string; bagKg?: number; varianceWarningPct?: number; varianceCriticalPct?: number } }
   | { action: 'createSupplier'; input: { nameAr: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
   | { action: 'createCustomer'; input: { nameAr: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
   | { action: 'createEmployee'; input: { nameAr: string; department: string; jobTitle: string; basicSalary: number } }
   | { action: 'updateEmployee'; input: { id: string; nameAr?: string; department?: string; jobTitle?: string; basicSalary?: number; active?: boolean; idExpiryDate?: string; residenceExpiryDate?: string; contractExpiryDate?: string } }
-  | { action: 'createRecipe'; input: { productId: string; nameAr: string; baseOutputQty: number; items: Array<{ materialId: string; qty: number }> } }
+  | { action: 'createRecipe'; input: { productId: string; nameAr: string; baseOutputQty: number; items: Array<{ materialId: string; qty: number }>; varianceWarningPct?: number; varianceCriticalPct?: number } }
+  | { action: 'setVarianceThresholds'; input: { productId?: string; recipeId?: string; warningPct?: number | null; criticalPct?: number | null } }
   | { action: 'updateCompany'; input: Partial<Company> }
   | { action: 'fundBank'; input: { amount: number; memo?: string } }
   | { action: 'createPurchaseOrder'; input: { supplierId: string; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
@@ -1036,8 +1054,8 @@ export type Command =
   | { action: 'transferStock'; input: { from: WarehouseKey; to: WarehouseKey; notes?: string; lines: Array<{ itemType: ItemType; itemId: string; batchNo: string; qty: number }> } }
   | { action: 'requestAdjustment'; input: { warehouse: WarehouseKey; itemType: ItemType; itemId: string; batchNo: string; qtyDelta: number; unitCost?: number; reason: string } }
   | { action: 'decideAdjustment'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
-  | { action: 'createProductionOrder'; input: { productId: string; recipeId: string; plannedQty: number } }
-  | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string; costLines?: Array<{ type: 'ELECTRICITY' | 'GAS' | 'LABOR' | 'TRANSPORT' | 'MAINTENANCE' | 'OVERHEAD'; amount: number }> } }
+  | { action: 'createProductionOrder'; input: { productId: string; recipeId: string; plannedQty: number; machineId?: string; shift?: 'MORNING' | 'EVENING' | 'NIGHT' } }
+  | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string; varianceReasonCode?: string; costLines?: Array<{ type: 'ELECTRICITY' | 'GAS' | 'LABOR' | 'TRANSPORT' | 'MAINTENANCE' | 'OVERHEAD'; amount: number }> } }
   | { action: 'decideProductionCost'; input: { lotId: string; lineId: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'recalculateLotCosts'; input: { month: string } }
   | { action: 'createInvoice'; input: { customerId: string; notes?: string; lines: Array<{ productId: string; qty: number; unitPrice?: number }> } }

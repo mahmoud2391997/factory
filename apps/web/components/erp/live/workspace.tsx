@@ -32,6 +32,7 @@ const SCREEN_MAP: Record<string, typeof FactoryScreens> = {
   factoryWaste: FactoryScreens,
   factoryDeviation: FactoryScreens,
   factoryStoppages: FactoryScreens,
+  varianceReport: FactoryScreens,
   productionLot: FactoryScreens,
   lotTrace: FactoryScreens,
   // Quality

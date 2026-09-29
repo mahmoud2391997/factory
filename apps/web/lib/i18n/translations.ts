@@ -82,6 +82,18 @@ export const translations = {
     source: 'المصدر',
     month: 'الشهر',
 
+    // Variance report
+    varianceReport: 'تحليل الانحراف',
+    expectedOutput: 'المتوقع',
+    actualOutput: 'الفعلي',
+    varianceKg: 'الانحراف (كجم)',
+    variancePct: 'نسبة الانحراف',
+    groupBy: 'التجميع حسب',
+    product: 'المنتج',
+    shift: 'الوردية',
+    operator: 'المشغّل',
+    machine: 'الخط/الآلة',
+
     // Shell
     welcome: 'مرحباً',
     notifications: 'الإشعارات',
@@ -168,6 +180,18 @@ export const translations = {
     source: 'Source',
     month: 'Month',
 
+    // Variance report
+    varianceReport: 'Variance analysis',
+    expectedOutput: 'Expected',
+    actualOutput: 'Actual',
+    varianceKg: 'Variance (kg)',
+    variancePct: 'Variance %',
+    groupBy: 'Group by',
+    product: 'Product',
+    shift: 'Shift',
+    operator: 'Operator',
+    machine: 'Line/machine',
+
     // Shell
     welcome: 'Welcome',
     notifications: 'Notifications',
@@ -253,6 +277,18 @@ export const translations = {
     salePricePerTon: 'विक्रय मूल्य/टन',
     source: 'स्रोत',
     month: 'महीना',
+
+    // Variance report
+    varianceReport: 'विचलन विश्लेषण',
+    expectedOutput: 'अपेक्षित',
+    actualOutput: 'वास्तविक',
+    varianceKg: 'विचलन (किग्रा)',
+    variancePct: 'विचलन %',
+    groupBy: 'समूहीकरण',
+    product: 'उत्पाद',
+    shift: 'शिफ्ट',
+    operator: 'ऑपरेटर',
+    machine: 'लाइन/मशीन',
 
     // Shell
     welcome: 'स्वागत है',

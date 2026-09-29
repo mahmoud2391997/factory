@@ -632,6 +632,74 @@ export function profitabilityReport(state: ReportState, groupBy: ProfitabilityGr
     .sort((a, b) => b.marginValue - a.marginValue)
 }
 
+export type VarianceGroupBy = 'PRODUCT' | 'SHIFT' | 'OPERATOR' | 'MACHINE' | 'MONTH'
+
+export type VarianceRow = {
+  key: string
+  label: string
+  lots: number
+  expectedKg: number
+  actualKg: number
+  varianceKg: number
+  variancePct: number
+  wasteKg: number
+  warning: number
+  critical: number
+}
+
+function pct2(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+/**
+ * Variance / waste grouped by product, shift, operator, line (machine) or month.
+ * Uses the completed lot's expected vs actual output and the severity recorded on the order.
+ */
+export function varianceReport(state: ReportState, groupBy: VarianceGroupBy = 'PRODUCT'): VarianceRow[] {
+  const lots = state.lots ?? []
+  const orders = new Map((state.productionOrders ?? []).map((order) => [order.id, order]))
+  const rows = new Map<string, { label: string; lots: number; expectedKg: number; actualKg: number; wasteKg: number; warning: number; critical: number }>()
+  const ensure = (key: string, label: string) => {
+    if (!rows.has(key)) rows.set(key, { label, lots: 0, expectedKg: 0, actualKg: 0, wasteKg: 0, warning: 0, critical: 0 })
+    return rows.get(key)!
+  }
+  for (const lot of lots) {
+    const order = orders.get(lot.productionOrderId)
+    let key = ''
+    let label = ''
+    if (groupBy === 'PRODUCT') {
+      key = lot.productId
+      label = state.products.find((item) => item.id === lot.productId)?.nameAr ?? lot.productId
+    } else if (groupBy === 'SHIFT') {
+      key = order?.shift ?? 'UNSET'
+      label = order?.shift ?? 'غير محدد'
+    } else if (groupBy === 'OPERATOR') {
+      key = lot.operatorId ?? 'UNSET'
+      label = operatorLabel(state.employees, lot.operatorId)
+    } else if (groupBy === 'MACHINE') {
+      key = order?.machineId ?? 'UNSET'
+      label = (state.machines ?? []).find((item) => item.id === order?.machineId)?.nameAr ?? 'غير محدد'
+    } else {
+      key = muscatDay(lot.manufacturedAt).slice(0, 7)
+      label = key
+    }
+    const row = ensure(key, label)
+    row.lots += 1
+    row.expectedKg = qty(row.expectedKg + lot.expectedOutputKg)
+    row.actualKg = qty(row.actualKg + lot.actualOutputKg)
+    row.wasteKg = qty(row.wasteKg + lot.wasteKg)
+    if (order?.varianceLevel === 'WARNING') row.warning += 1
+    if (order?.varianceLevel === 'CRITICAL') row.critical += 1
+  }
+  return [...rows.entries()]
+    .map(([key, row]) => {
+      const varianceKg = qty(row.actualKg - row.expectedKg)
+      const variancePct = row.expectedKg > 0 ? pct2((varianceKg / row.expectedKg) * 100) : 0
+      return { key, label: row.label, lots: row.lots, expectedKg: row.expectedKg, actualKg: row.actualKg, varianceKg, variancePct, wasteKg: row.wasteKg, warning: row.warning, critical: row.critical }
+    })
+    .sort((a, b) => a.variancePct - b.variancePct)
+}
+
 export function supplierQuality(state: ReportState, supplierId: string) {
   const supplier = state.suppliers.find((item) => item.id === supplierId) ?? null
   const samples = (state.qualitySamples ?? []).filter((item) => item.supplierId === supplierId)

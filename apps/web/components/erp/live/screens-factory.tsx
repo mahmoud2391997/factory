@@ -3,9 +3,11 @@
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { COST_LABEL } from '@/lib/erp/domain/costing'
-import { factoryStatus, muscatDay, productionCostSummary, stockRows } from '@/lib/erp/domain/reports'
+import { factoryStatus, muscatDay, productionCostSummary, stockRows, varianceReport } from '@/lib/erp/domain/reports'
+import type { VarianceGroupBy } from '@/lib/erp/domain/reports'
+import { useLanguage } from '@/lib/i18n/language-provider'
 
-import { Card, DataTable, Field, TextInput } from './bits'
+import { Card, DataTable, Field, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
 import { LotsScreen } from './lot-view'
 import { dayFmt, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
@@ -27,6 +29,7 @@ const FACTORY_KEYS = new Set([
   'factoryWaste',
   'factoryDeviation',
   'factoryStoppages',
+  'varianceReport',
   'productionLot',
   'lotTrace',
 ])
@@ -252,6 +255,10 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
     )
   }
 
+  if (entityKey === 'varianceReport') {
+    return <VarianceReportScreen ctx={ctx} />
+  }
+
   if (entityKey === 'productionLot' || entityKey === 'lotTrace') {
     return (
       <div className="space-y-4">
@@ -288,6 +295,71 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         <DataTable
           columns={['المنطقة', 'المدة', 'السبب']}
           rows={status.operations.stoppages.map((item) => [item.area, `${item.minutes} دقيقة`, item.reason])}
+        />
+      </Card>
+    </div>
+  )
+}
+
+function VarianceReportScreen({ ctx }: { ctx: LiveCtx }) {
+  const { t } = useLanguage()
+  const [groupBy, setGroupBy] = useState<VarianceGroupBy>('PRODUCT')
+  const rows = varianceReport(ctx.state, groupBy)
+  const expected = rows.reduce((sum, row) => sum + row.expectedKg, 0)
+  const actual = rows.reduce((sum, row) => sum + row.actualKg, 0)
+  const varianceKg = actual - expected
+  const variancePct = expected > 0 ? (varianceKg / expected) * 100 : 0
+  const maxAbs = Math.max(1, ...rows.map((row) => Math.abs(row.variancePct)))
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Metric label={t('expectedOutput')} value={`${qtyFmt(expected)} كجم`} />
+        <Metric label={t('actualOutput')} value={`${qtyFmt(actual)} كجم`} />
+        <Metric label={t('varianceKg')} value={`${qtyFmt(varianceKg)} كجم`} tone={varianceKg < 0 ? 'bad' : undefined} />
+        <Metric label={t('variancePct')} value={pctFmt(variancePct)} tone={variancePct < 0 ? 'bad' : undefined} />
+      </div>
+      <Card
+        title={t('varianceReport')}
+        hint="الانحراف والهدر حسب المنتج أو الوردية أو المشغّل أو الخط أو الشهر مع اتجاه زمني."
+      >
+        <div className="mb-3 max-w-xs">
+          <Field label={t('groupBy')}>
+            <SelectInput value={groupBy} onChange={(event) => setGroupBy(event.target.value as VarianceGroupBy)}>
+              <option value="PRODUCT">{t('product')}</option>
+              <option value="SHIFT">{t('shift')}</option>
+              <option value="OPERATOR">{t('operator')}</option>
+              <option value="MACHINE">{t('machine')}</option>
+              <option value="MONTH">{t('month')}</option>
+            </SelectInput>
+          </Field>
+        </div>
+        <div className="mb-4 space-y-2">
+          {rows.map((row) => (
+            <div key={row.key} className="flex items-center gap-3">
+              <div className="w-40 shrink-0 truncate text-sm text-[#53655e]">{row.label}</div>
+              <div className="relative h-4 flex-1 rounded bg-[#f1f5f4]">
+                <div
+                  className={`absolute inset-y-0 rounded ${row.variancePct < 0 ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}
+                  style={{ width: `${(Math.abs(row.variancePct) / maxAbs) * 100}%` }}
+                />
+              </div>
+              <div className={`w-20 text-right text-sm tabular-nums ${row.variancePct < 0 ? 'text-[#dc2626]' : 'text-[#0a825d]'}`}>{pctFmt(row.variancePct)}</div>
+            </div>
+          ))}
+        </div>
+        <DataTable
+          columns={['البند', 'عدد الدفعات', t('expectedOutput'), t('actualOutput'), t('varianceKg'), t('variancePct'), 'الهدر (كجم)', 'تحذير', 'حرج']}
+          rows={rows.map((row) => [
+            row.label,
+            String(row.lots),
+            qtyFmt(row.expectedKg),
+            qtyFmt(row.actualKg),
+            <span key={`${row.key}-v`} className={row.varianceKg < 0 ? 'font-bold text-[#dc2626]' : undefined}>{qtyFmt(row.varianceKg)}</span>,
+            <span key={`${row.key}-p`} className={row.variancePct < 0 ? 'font-bold text-[#dc2626]' : undefined}>{pctFmt(row.variancePct)}</span>,
+            qtyFmt(row.wasteKg),
+            String(row.warning),
+            String(row.critical),
+          ])}
         />
       </Card>
     </div>
