@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 
 import { ThemeInit } from '@/components/theme-init'
 import { AuthProvider } from '@/components/providers/auth-provider'
+import { LanguageProvider } from '@/lib/i18n/language-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -47,7 +48,9 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeInit />
-        <AuthProvider>{children}</AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </LanguageProvider>
         {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === '1' ? <Analytics /> : null}
       </body>
     </html>

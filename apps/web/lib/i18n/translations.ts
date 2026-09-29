@@ -4,6 +4,8 @@ export const translations = {
   ar: {
     // Navigation
     dashboard: 'لوحة التحكم',
+    home: 'الرئيسية',
+    tasks: 'التقارير والمتابعة',
     inventory: 'المخزون',
     purchasing: 'المشتريات',
     production: 'الإنتاج',
@@ -64,10 +66,17 @@ export const translations = {
     bank: 'البنك',
     recipes: 'الخلطات',
     nutrition: 'التغذية',
+
+    // Shell
+    welcome: 'مرحباً',
+    notifications: 'الإشعارات',
+    language: 'اللغة',
   },
   en: {
     // Navigation
     dashboard: 'Dashboard',
+    home: 'Home',
+    tasks: 'Reports & Follow-up',
     inventory: 'Inventory',
     purchasing: 'Purchasing',
     production: 'Production',
@@ -128,10 +137,17 @@ export const translations = {
     bank: 'Bank',
     recipes: 'Recipes',
     nutrition: 'Nutrition',
+
+    // Shell
+    welcome: 'Welcome',
+    notifications: 'Notifications',
+    language: 'Language',
   },
   hi: {
     // Navigation
     dashboard: 'डैशबोर्ड',
+    home: 'होम',
+    tasks: 'रिपोर्ट और अनुसरण',
     inventory: 'इन्वेंटरी',
     purchasing: 'खरीद',
     production: 'उत्पादन',
@@ -192,10 +208,33 @@ export const translations = {
     bank: 'बैंक',
     recipes: 'रेसिपी',
     nutrition: 'पोषण',
+
+    // Shell
+    welcome: 'स्वागत है',
+    notifications: 'सूचनाएं',
+    language: 'भाषा',
   },
 } as const
 
 export type TranslationKey = keyof typeof translations.ar
+
+/** Maps sidebar destination ids to translation keys. */
+export const DESTINATION_KEYS: Record<string, TranslationKey> = {
+  home: 'home',
+  inventory: 'inventory',
+  production: 'production',
+  sales: 'sales',
+  accounting: 'accounting',
+  fleet: 'fleet',
+  hr: 'hr',
+  tasks: 'tasks',
+  settings: 'settings',
+}
+
+export function destinationLabel(lang: Language, id: string, fallback: string): string {
+  const key = DESTINATION_KEYS[id]
+  return key ? t(lang, key) : fallback
+}
 
 export function t(lang: Language, key: TranslationKey): string {
   return translations[lang][key] || translations.en[key] || key

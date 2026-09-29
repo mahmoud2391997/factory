@@ -8,11 +8,11 @@
   2. **اللغة (#18)** — ملف i18n (ar/en/hi) موجود لكنه غير مربوط بالواجهة.
 
 ## Checkpoint 1 — تحليل أسعار المواد الخام (#16)
-- [ ] إضافة دالة `materialPriceAnalysis` في reports.ts (متوسط/أعلى/أقل سعر شهري، المورد، الكمية المشتراة/المستهلكة، تكلفة النقل، Landed Cost، سلسلة زمنية).
-- [ ] إضافة اختبارات في reports/material-price.test.ts.
-- [ ] إضافة شاشة `materialPriceAnalysis` (entityKey + route + SCREEN_MAP + مكوّن).
-- [ ] تشغيل الاختبارات والتأكد من النجاح.
-- [ ] Commit + push إلى main.
+- [x] إضافة دالة `materialPriceAnalysis` في reports.ts (متوسط/أعلى/أقل سعر شهري، المورد، الكمية المشتراة/المستهلكة، تكلفة النقل، Landed Cost، سلسلة زمنية).
+- [x] إضافة اختبارات في reports/material-price.test.ts.
+- [x] إضافة شاشة `materialPriceAnalysis` (entityKey + route + SCREEN_MAP + مكوّن).
+- [x] تشغيل الاختبارات والتأكد من النجاح (99 اختبار ناجح + build ناجح).
+- [x] Commit + push إلى main (45768f1).
 
 ## Checkpoint 2 — دعم اللغة العربية/الإنجليزية/الهندية (#18)
 - [ ] إنشاء LanguageProvider + hook (localStorage + dir=rtl/ltr).

@@ -21,6 +21,9 @@ import {
   visibleDestinations,
 } from '@/lib/erp-routes'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
+import { destinationLabel, getSupportedLanguages } from '@/lib/i18n/translations'
+import type { Language } from '@/lib/i18n/translations'
+import { useLanguage } from '@/lib/i18n/language-provider'
 import { useErp } from '@/lib/use-erp'
 
 const COMPACT_KEY = 'erp-sidebar-compact'
@@ -38,6 +41,7 @@ export function ErpShell() {
   const pathname = usePathname()
   const { user, loading: authLoading, logout, refresh } = useAuth()
   const erp = useErp(Boolean(user))
+  const { language, setLanguage, t } = useLanguage()
   const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
   const permissions = erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? []
 
@@ -54,6 +58,7 @@ export function ErpShell() {
 
   const resolved = resolvePath(pathname)
   const destinations = visibleDestinations(permissions)
+  const destLabel = (destination: { id: string; label: string }) => destinationLabel(language, destination.id, destination.label)
   const iconOnly = compact && !mobileOpen
   const destinationKey = (id: string) => `d:${id}`
   const groupKey = (destinationId: string, groupId: string) => `g:${destinationId}:${groupId}`
@@ -263,8 +268,8 @@ export function ErpShell() {
                   <Link
                     href={href}
                     aria-current={active && pathname === href ? 'page' : undefined}
-                    aria-label={destination.label}
-                    title={destination.label}
+                    aria-label={destLabel(destination)}
+                    title={destLabel(destination)}
                     className={`erp-nav-item relative flex h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 text-sm font-medium transition-all duration-200 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
                       active
                         ? 'erp-nav-item-active border border-[#bde5df] bg-[#e9f7f4] text-[#155e55] shadow-sm'
@@ -272,7 +277,7 @@ export function ErpShell() {
                     }`}
                   >
                     <Icon size={18} aria-hidden strokeWidth={active ? 2.2 : 2} className="transition-transform duration-300 group-hover:scale-110" />
-                    <span className={iconOnly ? 'sr-only' : 'truncate'}>{destination.label}</span>
+                    <span className={iconOnly ? 'sr-only' : 'truncate'}>{destLabel(destination)}</span>
                   </Link>
                   {!iconOnly && nodes.length > 0 ? (
                     <button type="button" aria-label={`${destinationOpen(destination.id) ? 'طي' : 'فتح'} ${destination.label}`} aria-expanded={destinationOpen(destination.id)} title={`${destinationOpen(destination.id) ? 'طي' : 'فتح'} ${destination.label}`} onClick={() => toggleDestination(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
@@ -467,6 +472,20 @@ export function ErpShell() {
             >
               {dark ? <Sun size={22} aria-hidden /> : <Moon size={22} aria-hidden />}
             </button>
+            <label className="relative">
+              <span className="sr-only">{t('language')}</span>
+              <select
+                value={language}
+                onChange={(event) => setLanguage(event.target.value as Language)}
+                aria-label={t('language')}
+                title={t('language')}
+                className="h-[42px] rounded-lg border border-[#e5e7eb] bg-white px-2.5 text-sm font-medium text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
+              >
+                {getSupportedLanguages().map((item) => (
+                  <option key={item.code} value={item.code}>{item.name}</option>
+                ))}
+              </select>
+            </label>
             {erp.storage ? (
               <span className="hidden rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1 text-xs font-medium text-[#6b7280] sm:inline">
                 {erp.storage === 'postgres' ? 'تخزين سحابي' : 'نسخة محلية'}
