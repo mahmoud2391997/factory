@@ -90,6 +90,7 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/raw-materials/running-out', entityKey: 'factoryRunningOut', tab: true },
           { href: '/inventory/raw-materials/stagnant', entityKey: 'factoryStagnant', tab: true },
           { href: '/inventory/raw-materials/reserved', entityKey: 'factoryReserved', tab: true },
+          { href: '/inventory/raw-materials/price-analysis', entityKey: 'materialPriceAnalysis', tab: true },
         ],
       },
     ],

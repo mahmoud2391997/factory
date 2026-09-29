@@ -632,3 +632,156 @@ export function traceCustomer(state: ReportState, customerId: string) {
   const lots = (state.lots ?? []).filter((lot) => lot.deliveries.some((delivery) => delivery.customerId === customerId))
   return { customer, lots }
 }
+
+/** One month of purchasing/consumption history for a raw material. */
+export type MaterialPriceMonth = {
+  month: string
+  purchasedQty: number
+  purchasedValue: number
+  avgPrice: number
+  minPrice: number
+  maxPrice: number
+  usedQty: number
+  transportCost: number
+  landedUnitCost: number
+}
+
+export type MaterialPriceAnalysis = {
+  material: ReportState['materials'][number]
+  /** Latest unit cost actually received, or 0 when never purchased. */
+  currentPrice: number
+  /** Weighted average unit cost across all receipts. */
+  avgPrice: number
+  minPrice: number
+  maxPrice: number
+  purchasedQty: number
+  purchasedValue: number
+  usedQty: number
+  transportCost: number
+  /** (purchased value + allocated transport) / purchased qty. */
+  landedUnitCost: number
+  suppliers: Array<{ id: string; nameAr: string; qty: number; avgPrice: number }>
+  months: MaterialPriceMonth[]
+}
+
+/**
+ * Raw material price analysis (#16): monthly average, highest and lowest price,
+ * the supplier, quantity purchased, quantity used, transport cost and the landed
+ * cost that reaches the factory, plus a month-by-month series for charting.
+ *
+ * Transport is allocated to each material by its share of that month's total
+ * purchased quantity, so a material bought in a heavy haul month carries its part
+ * of the freight.
+ */
+export function materialPriceAnalysis(state: ReportState, materialId?: string): MaterialPriceAnalysis[] {
+  const materials = materialId ? state.materials.filter((item) => item.id === materialId) : state.materials
+
+  type ReceiptRow = { at: string; month: string; qty: number; unitCost: number; supplierId: string | null }
+  const receiptsByMaterial = new Map<string, ReceiptRow[]>()
+  const monthPurchasedQty = new Map<string, number>()
+  const monthTripCost = new Map<string, number>()
+
+  for (const receipt of state.goodsReceipts) {
+    const order = state.purchaseOrders.find((po) => po.id === receipt.purchaseOrderId)
+    const month = muscatDay(receipt.at).slice(0, 7)
+    for (const line of receipt.lines) {
+      const rows = receiptsByMaterial.get(line.materialId) ?? []
+      rows.push({ at: receipt.at, month, qty: line.qty, unitCost: line.unitCost, supplierId: order?.supplierId ?? null })
+      receiptsByMaterial.set(line.materialId, rows)
+      monthPurchasedQty.set(month, qty((monthPurchasedQty.get(month) ?? 0) + line.qty))
+    }
+  }
+
+  for (const trip of state.trips ?? []) {
+    if (trip.cost <= 0) continue
+    const month = muscatDay(trip.date).slice(0, 7)
+    monthTripCost.set(month, money((monthTripCost.get(month) ?? 0) + trip.cost))
+  }
+
+  return materials.map((material) => {
+    const rows = receiptsByMaterial.get(material.id) ?? []
+
+    const monthMap = new Map<string, { qty: number; value: number; min: number; max: number }>()
+    for (const row of rows) {
+      const bucket = monthMap.get(row.month) ?? { qty: 0, value: 0, min: Infinity, max: 0 }
+      bucket.qty = qty(bucket.qty + row.qty)
+      bucket.value = money(bucket.value + row.qty * row.unitCost)
+      bucket.min = Math.min(bucket.min, row.unitCost)
+      bucket.max = Math.max(bucket.max, row.unitCost)
+      monthMap.set(row.month, bucket)
+    }
+
+    const usedByMonth = new Map<string, number>()
+    for (const entry of state.ledger) {
+      if (entry.itemType !== 'MATERIAL' || entry.itemId !== material.id) continue
+      if (entry.type !== 'PRODUCTION_CONSUMPTION') continue
+      const month = muscatDay(entry.at).slice(0, 7)
+      usedByMonth.set(month, qty((usedByMonth.get(month) ?? 0) + Math.abs(entry.qty)))
+    }
+
+    const months: MaterialPriceMonth[] = [...new Set([...monthMap.keys(), ...usedByMonth.keys()])]
+      .sort()
+      .map((month) => {
+        const bucket = monthMap.get(month)
+        const purchasedQty = bucket ? bucket.qty : 0
+        const purchasedValue = bucket ? bucket.value : 0
+        const totalMonthQty = monthPurchasedQty.get(month) ?? 0
+        const share = totalMonthQty > 0 ? purchasedQty / totalMonthQty : 0
+        const transportCost = money((monthTripCost.get(month) ?? 0) * share)
+        const landedUnitCost = purchasedQty > 0 ? money((purchasedValue + transportCost) / purchasedQty) : 0
+        return {
+          month,
+          purchasedQty,
+          purchasedValue,
+          avgPrice: purchasedQty > 0 ? money(purchasedValue / purchasedQty) : 0,
+          minPrice: bucket ? bucket.min : 0,
+          maxPrice: bucket ? bucket.max : 0,
+          usedQty: usedByMonth.get(month) ?? 0,
+          transportCost,
+          landedUnitCost,
+        }
+      })
+
+    const purchasedQty = qty(rows.reduce((sum, row) => sum + row.qty, 0))
+    const purchasedValue = money(rows.reduce((sum, row) => sum + row.qty * row.unitCost, 0))
+    const transportCost = money(months.reduce((sum, month) => sum + month.transportCost, 0))
+    const usedQty = qty(months.reduce((sum, month) => sum + month.usedQty, 0))
+    const prices = rows.map((row) => row.unitCost)
+    const latestRow = rows.reduce<ReceiptRow | null>(
+      (latest, row) => (latest === null || row.at > latest.at ? row : latest),
+      null,
+    )
+
+    const supplierMap = new Map<string, { qty: number; value: number }>()
+    for (const row of rows) {
+      if (!row.supplierId) continue
+      const bucket = supplierMap.get(row.supplierId) ?? { qty: 0, value: 0 }
+      bucket.qty = qty(bucket.qty + row.qty)
+      bucket.value = money(bucket.value + row.qty * row.unitCost)
+      supplierMap.set(row.supplierId, bucket)
+    }
+    const suppliers = [...supplierMap.entries()]
+      .map(([id, bucket]) => ({
+        id,
+        nameAr: state.suppliers.find((supplier) => supplier.id === id)?.nameAr ?? id,
+        qty: bucket.qty,
+        avgPrice: bucket.qty > 0 ? money(bucket.value / bucket.qty) : 0,
+      }))
+      .sort((a, b) => b.qty - a.qty)
+
+    return {
+      material,
+      currentPrice: latestRow ? latestRow.unitCost : 0,
+      avgPrice: purchasedQty > 0 ? money(purchasedValue / purchasedQty) : 0,
+      minPrice: prices.length > 0 ? Math.min(...prices) : 0,
+      maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
+      purchasedQty,
+      purchasedValue,
+      usedQty,
+      transportCost,
+      landedUnitCost: purchasedQty > 0 ? money((purchasedValue + transportCost) / purchasedQty) : 0,
+      suppliers,
+      months,
+    }
+  })
+}

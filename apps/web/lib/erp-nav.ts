@@ -224,6 +224,13 @@ export const ERP_NAV: ErpMainTab[] = [
         description: 'التحليلات والتقارير المخزنية',
         permission: ['inventory.read'],
       },
+      {
+        id: 'material-price-analysis',
+        label: 'تحليل أسعار المواد الخام',
+        entityKey: 'materialPriceAnalysis',
+        description: 'متوسط وأعلى وأقل سعر شهرياً، المورد، الكمية المشتراة والمستهلكة، تكلفة النقل، والتكلفة الواصلة للمصنع',
+        permission: ['inventory.read'],
+      },
     ],
   },
   {

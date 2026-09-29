@@ -50,6 +50,7 @@ const SCREEN_MAP: Record<string, typeof FactoryScreens> = {
   inventoryTransaction: InventoryScreens,
   materialTrace: InventoryScreens,
   inventoryReports: InventoryScreens,
+  materialPriceAnalysis: InventoryScreens,
   // Purchasing
   supplier: PurchasingScreens,
   purchaseOrder: PurchasingScreens,

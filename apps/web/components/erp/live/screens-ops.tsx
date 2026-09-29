@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { materialStatement, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
+import { materialPriceAnalysis, materialStatement, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
@@ -44,6 +44,7 @@ export function InventoryScreens({ entityKey, ctx }: { entityKey: string; ctx: L
   if (entityKey === 'materialBatch' || entityKey === 'inventoryBalance') return <Balances ctx={ctx} materialsOnly={entityKey === 'materialBatch'} />
   if (entityKey === 'inventoryTransaction') return <Ledger ctx={ctx} />
   if (entityKey === 'materialTrace') return <MaterialTrace ctx={ctx} />
+  if (entityKey === 'materialPriceAnalysis') return <MaterialPriceAnalysisScreen ctx={ctx} />
   return null
 }
 
@@ -1797,6 +1798,94 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
 
 export function SupplierRelations(_props: { entityKey: string; ctx: LiveCtx }) {
   return null
+}
+
+function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
+  const [materialId, setMaterialId] = useState(() => ctx.state.materials[0]?.id ?? '')
+  const rows = materialPriceAnalysis(ctx.state)
+  const active = rows.find((row) => row.material.id === materialId) ?? rows[0] ?? null
+
+  if (!active) {
+    return <Card title="تحليل أسعار المواد الخام" hint="لا توجد مواد خام بعد"><p className="text-sm text-[#6b7280]">أضف مواد خام أولاً من شاشة المواد الخام.</p></Card>
+  }
+
+  const maxMonthPrice = Math.max(...active.months.map((month) => month.avgPrice), 0.0001)
+  const maxMonthQty = Math.max(...active.months.map((month) => month.purchasedQty), 1)
+
+  return (
+    <div className="space-y-4">
+      <Card title="تحليل أسعار المواد الخام" hint="متوسط/أعلى/أقل سعر شهرياً، المورد، الكمية المشتراة والمستهلكة، تكلفة النقل، والتكلفة الواصلة للمصنع">
+        <Field label="الخامة">
+          <SelectInput value={active.material.id} onChange={(e) => setMaterialId(e.target.value)}>
+            {rows.map((row) => (
+              <option key={row.material.id} value={row.material.id}>{row.material.nameAr}</option>
+            ))}
+          </SelectInput>
+        </Field>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title={active.material.nameAr} hint="ملخص الشراء والاستهلاك">
+          <Answer label="الكمية المشتراة" value={`${qtyFmt(active.purchasedQty)} ${active.material.unit}`} />
+          <Answer label="قيمة الشراء" value={moneyFmt(active.purchasedValue)} />
+          <Answer label="متوسط السعر" value={moneyFmt(active.avgPrice)} />
+          <Answer label="أقل سعر" value={moneyFmt(active.minPrice)} />
+          <Answer label="أعلى سعر" value={moneyFmt(active.maxPrice)} />
+          <Answer label="آخر سعر (الحالي)" value={moneyFmt(active.currentPrice)} />
+          <Answer label="الكمية المستهلكة في التصنيع" value={`${qtyFmt(active.usedQty)} ${active.material.unit}`} />
+          <Answer label="تكلفة النقل الموزّعة" value={moneyFmt(active.transportCost)} />
+          <Answer label="التكلفة الواصلة للمصنع (Landed)" value={moneyFmt(active.landedUnitCost)} />
+        </Card>
+
+        <Card title="الموردون" hint="الكمية ومتوسط السعر لكل مورد">
+          <DataTable
+            columns={['المورد', 'الكمية', 'متوسط السعر']}
+            rows={active.suppliers.length
+              ? active.suppliers.map((supplier) => [supplier.nameAr, qtyFmt(supplier.qty), moneyFmt(supplier.avgPrice)])
+              : [['—', '—', '—']]}
+          />
+        </Card>
+      </div>
+
+      <Card title="التغيّر الشهري" hint="متوسط السعر والكمية المشتراة والمستهلكة وتكلفة النقل لكل شهر">
+        <DataTable
+          columns={['الشهر', 'الكمية المشتراة', 'متوسط السعر', 'أقل سعر', 'أعلى سعر', 'المستهلك', 'النقل', 'Landed']}
+          rows={active.months.length
+            ? active.months.map((month) => [
+                month.month,
+                qtyFmt(month.purchasedQty),
+                moneyFmt(month.avgPrice),
+                moneyFmt(month.minPrice),
+                moneyFmt(month.maxPrice),
+                qtyFmt(month.usedQty),
+                moneyFmt(month.transportCost),
+                moneyFmt(month.landedUnitCost),
+              ])
+            : [['—', '—', '—', '—', '—', '—', '—', '—']]}
+        />
+        {active.months.length ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-medium text-[#53655e]">منحنى السعر والكمية</p>
+            {active.months.map((month) => (
+              <div key={month.month} className="grid grid-cols-[80px_1fr] items-center gap-2 text-xs">
+                <span className="text-[#6b7280]">{month.month}</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 rounded-full bg-[#0f766e]" style={{ width: `${Math.max((month.avgPrice / maxMonthPrice) * 100, 2)}%` }} />
+                    <span className="whitespace-nowrap text-[#0f766e]">سعر {moneyFmt(month.avgPrice)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 rounded-full bg-[#c2410c]" style={{ width: `${Math.max((month.purchasedQty / maxMonthQty) * 100, 2)}%` }} />
+                    <span className="whitespace-nowrap text-[#c2410c]">كمية {qtyFmt(month.purchasedQty)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Card>
+    </div>
+  )
 }
 
 function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
