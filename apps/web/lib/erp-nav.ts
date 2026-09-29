@@ -432,6 +432,13 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['utilities.read', 'bank.read', 'obligations.read'],
       },
       {
+        id: 'obligations',
+        label: 'الالتزامات المالية',
+        entityKey: 'obligation',
+        description: 'الالتزامات والأقساط والاستحقاقات القادمة',
+        permission: ['obligations.read'],
+      },
+      {
         id: 'documents',
         label: 'الوثائق والتصاريح',
         entityKey: 'documents',
