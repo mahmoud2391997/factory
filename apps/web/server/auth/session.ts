@@ -1,8 +1,11 @@
 import type { NextRequest } from 'next/server'
 
 import { ROLE_LABELS } from '@/lib/erp/domain/permissions'
+import { getDemoSessionUser, isDemoMode, isDemoUserId } from '@/server/demo'
 import { getAccessTokenFromRequest, verifyAccessToken } from '@/server/auth/jwt'
-import { loadState } from '@/server/erp/store'
+async function loadState() {
+  return (await import('@/server/erp/store')).loadState()
+}
 
 export type SessionUser = {
   id: string
@@ -15,6 +18,8 @@ export type SessionUser = {
 }
 
 export async function getSessionUserById(userId: string): Promise<SessionUser | null> {
+  if (isDemoMode() && isDemoUserId(userId)) return getDemoSessionUser()
+
   try {
     const loaded = await loadState()
     const erpUser = loaded.state.users.find((item) => item.id === userId && item.active)
@@ -42,6 +47,10 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
   const payload = await verifyAccessToken(token)
   if (!payload?.sub) return null
   const ver = typeof payload.ver === 'number' ? payload.ver : 1
+
+  if (isDemoMode() && isDemoUserId(payload.sub)) {
+    return ver === 1 ? getDemoSessionUser() : null
+  }
 
   try {
     const loaded = await loadState()

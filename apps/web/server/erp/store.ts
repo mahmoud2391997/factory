@@ -16,8 +16,14 @@ import { buildSeedState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
 import { resetLoginThrottle } from '@/server/auth/login-throttle'
 import { BCRYPT_ROUNDS } from '@/server/auth/password'
-import { prisma } from '@/server/db'
 import { ensureDatabaseUrlEnv } from '@/server/db-url'
+
+let prismaPromise: Promise<typeof import('@/server/db').prisma> | null = null
+
+async function getPrisma() {
+  prismaPromise ??= import('@/server/db').then(({ prisma }) => prisma)
+  return prismaPromise
+}
 
 import { writeFileArchive, writeRelationalArchive } from './archive-store'
 import { deliverPendingEmails } from './mailer'
@@ -192,14 +198,16 @@ function assertStorageConfigured() {
   }
 }
 
-async function readPostgres(): Promise<ErpState | null> {
-  const row = await prisma.erpDocument.findUnique({ where: { id: DOC_ID } })
+  async function readPostgres(): Promise<ErpState | null> {
+    const prisma = await getPrisma()
+    const row = await prisma.erpDocument.findUnique({ where: { id: DOC_ID } })
   if (!row) return null
   return asState(row.payload)
 }
 
-async function writePostgres(state: ErpState, expectedRevision: number) {
-  const updated = await prisma.erpDocument.updateMany({
+  async function writePostgres(state: ErpState, expectedRevision: number) {
+    const prisma = await getPrisma()
+    const updated = await prisma.erpDocument.updateMany({
     where: { id: DOC_ID, version: expectedRevision },
     data: { version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
   })
