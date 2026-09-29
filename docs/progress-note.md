@@ -1,5 +1,7 @@
 # خطة إغلاق متطلبات المالك — نظام ERP مصنع الأعلاف
 
+ملاحظة تقدم تاريخية: هذه الخطة تسجل إنجازات ومهام مرحلة سابقة. راجع `docs/command-coverage.md` و`docs/click-through.md` للتغطية الحالية؛ لا تستخدم علامات الإنجاز أدناه كبديل عن التحقق من الشيفرة.
+
 ## Phase 1 — التكلفة الحقيقية (أولوية قصوى)
 - [x] مراجعة costing.ts + engine.ts (الأسطر ~275، ~2350) + types.ts + migrate.ts.
 - [x] Utilities: توزيع فعلي من UtilitiesReading (كهرباء/ماء/غاز) ÷ طن شهري، fallback إلى costRates مع وسم estimated.
