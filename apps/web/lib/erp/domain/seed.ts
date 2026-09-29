@@ -131,6 +131,7 @@ export function emptyState(passwordHash: string): ErpState {
     vehicleServices: [],
     fuelLogs: [],
     trips: [],
+    tripCostAllocations: [],
     obligations: [],
     obligationScheduleLines: [],
     obligationPayments: [],

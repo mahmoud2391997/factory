@@ -136,6 +136,116 @@ test('inbound trip cost is allocated to lots on input tonnage', () => {
   assert.equal(line.basis, 'ACTUAL')
 })
 
+test('invoice trip cost is distributed by delivered lot quantity, requires independent approval, and is posted once', () => {
+  const clock = createClock('2026-09-15T04:00:00.000Z')
+  let { state } = base(clock)
+  state = must(state, clock, { action: 'createCustomer', input: { nameAr: 'عميل التوصيل' } })
+  const customer = state.customers[0]!
+  state = completeLot(state, clock, 2000, 2000)
+  state = completeLot(state, clock, 3000, 3000)
+  state = must(state, clock, { action: 'createInvoice', input: { customerId: customer.id, lines: [{ productId: state.products[0]!.id, qty: 5000 }] } })
+  const invoice = state.invoices[0]!
+  state = must(state, clock, { action: 'confirmInvoice', input: { id: invoice.id } })
+  state = must(state, clock, { action: 'createVehicle', input: { code: 'V-ALLOC', plateNo: 'ALLOC-1', type: 'TRUCK', nameAr: 'شاحنة توزيع' } })
+  state = must(state, clock, { action: 'createTrip', input: { vehicleId: state.vehicles[0]!.id, driverId: state.employees[0]!.id, date: '2026-09-15', destination: 'عميل التوصيل', km: 30, loadKg: 5000, fuelLiters: 0, invoiceId: invoice.id, driverCost: 100 } })
+  const trip = state.trips[0]!
+
+  state = must(state, clock, { action: 'requestTripCostAllocation', input: { tripId: trip.id } })
+  const request = state.tripCostAllocations[0]!
+  const lines = [...request.allocations].sort((a, b) => a.quantityKg - b.quantityKg)
+  assert.equal(request.status, 'PENDING_APPROVAL')
+  assert.deepEqual(lines.map((line) => [line.quantityKg, line.amount]), [[2000, 40], [3000, 60]])
+
+  const requesterCannotApprove = actorFromUser(state, 'user-gm')!
+  const duplicateRequest = applyCommand(state, requesterCannotApprove, {
+    action: 'requestTripCostAllocation',
+    input: { tripId: trip.id },
+  }, clock)
+  assert.equal(duplicateRequest.ok, false)
+  const selfApproval = applyCommand(state, requesterCannotApprove, {
+    action: 'decideTripCostAllocation',
+    input: { id: request.id, decision: 'APPROVED' },
+  }, clock)
+  assert.equal(selfApproval.ok, false)
+  const operationsActor = actorFromUser(state, 'user-ops')!
+  const denied = applyCommand(state, operationsActor, {
+    action: 'decideTripCostAllocation',
+    input: { id: request.id, decision: 'APPROVED' },
+  }, clock)
+  assert.equal(denied.ok, false)
+  if (!denied.ok) assert.match(denied.error, /صلاحية/)
+
+  const accountant = actorFromUser(state, 'user-acc')!
+  const missingRejectionReason = applyCommand(state, accountant, {
+    action: 'decideTripCostAllocation',
+    input: { id: request.id, decision: 'REJECTED' },
+  }, clock)
+  assert.equal(missingRejectionReason.ok, false)
+  if (!missingRejectionReason.ok) assert.match(missingRejectionReason.error, /سبب رفض/)
+  const approved = applyCommand(state, accountant, {
+    action: 'decideTripCostAllocation',
+    input: { id: request.id, decision: 'APPROVED' },
+  }, clock)
+  if (!approved.ok) throw new Error(approved.error)
+  assert.equal(approved.ok, true)
+  state = approved.state
+
+  const lots = [...state.lots].sort((a, b) => a.actualOutputKg - b.actualOutputKg)
+  assert.equal(lots[0]!.costLines.find((line) => line.type === 'TRANSPORT')?.amount, 40)
+  assert.equal(lots[1]!.costLines.find((line) => line.type === 'TRANSPORT')?.amount, 60)
+  assert.equal(trialBalance(state).balanced, true)
+  const repeated = applyCommand(state, accountant, {
+    action: 'decideTripCostAllocation',
+    input: { id: request.id, decision: 'APPROVED' },
+  }, clock)
+  assert.equal(repeated.ok, false)
+
+  state = must(state, clock, { action: 'recalculateLotCosts', input: { month: '2026-09' } })
+  const afterClose = [...state.lots].sort((a, b) => a.actualOutputKg - b.actualOutputKg)
+  assert.equal(afterClose[0]!.costLines.find((line) => line.type === 'TRANSPORT')?.amount, 40)
+  assert.equal(afterClose[1]!.costLines.find((line) => line.type === 'TRANSPORT')?.amount, 60)
+  assert.equal(trialBalance(state).balanced, true)
+})
+
+test('approved customer delivery cost is charged only to that invoice and excluded from remaining stock value', () => {
+  const clock = createClock('2026-09-15T04:00:00.000Z')
+  let { state } = base(clock)
+  state = must(state, clock, { action: 'createCustomer', input: { nameAr: 'عميل أ' } })
+  state = must(state, clock, { action: 'createCustomer', input: { nameAr: 'عميل ب' } })
+  const [customerA, customerB] = state.customers
+  assert.ok(customerA && customerB)
+  state = completeLot(state, clock, 2000, 2000)
+  const lot = state.lots[0]!
+  const baseCost = lot.totalCost
+  state = must(state, clock, { action: 'createInvoice', input: { customerId: customerA.id, lines: [{ productId: state.products[0]!.id, qty: 400 }] } })
+  const invoiceA = state.invoices[0]!
+  state = must(state, clock, { action: 'confirmInvoice', input: { id: invoiceA.id } })
+  state = must(state, clock, { action: 'createInvoice', input: { customerId: customerB.id, lines: [{ productId: state.products[0]!.id, qty: 600 }] } })
+  const invoiceB = state.invoices[0]!
+  state = must(state, clock, { action: 'confirmInvoice', input: { id: invoiceB.id } })
+  state = must(state, clock, { action: 'createVehicle', input: { code: 'V-CUSTOMER', plateNo: 'CUS-1', type: 'TRUCK', nameAr: 'شاحنة' } })
+  state = must(state, clock, { action: 'createTrip', input: { vehicleId: state.vehicles[0]!.id, driverId: state.employees[0]!.id, date: '2026-09-15', destination: 'عميل أ', km: 20, loadKg: 400, fuelLiters: 0, invoiceId: invoiceA.id, driverCost: 40 } })
+  state = must(state, clock, { action: 'requestTripCostAllocation', input: { tripId: state.trips[0]!.id } })
+  const request = state.tripCostAllocations[0]!
+  const accountant = actorFromUser(state, 'user-acc')!
+  const approved = applyCommand(state, accountant, {
+    action: 'decideTripCostAllocation',
+    input: { id: request.id, decision: 'APPROVED' },
+  }, clock)
+  if (!approved.ok) throw new Error(approved.error)
+  state = approved.state
+
+  const actualLot = state.lots.find((item) => item.lotNo === lot.lotNo)!
+  assert.equal(actualLot.totalCost, baseCost + 40)
+  assert.equal(state.balances.find((row) => row.batchNo === lot.lotNo)?.unitCost, Math.round((baseCost / 2000 + Number.EPSILON) * 1000) / 1000)
+  const byCustomer = profitabilityReport(state, 'CUSTOMER')
+  const rowA = byCustomer.find((row) => row.label === customerA.nameAr)!
+  const rowB = byCustomer.find((row) => row.label === customerB.nameAr)!
+  assert.equal(rowA.cost, Math.round((baseCost * 0.2 + 40 + Number.EPSILON) * 1000) / 1000)
+  assert.equal(rowB.cost, Math.round((baseCost * 0.3 + Number.EPSILON) * 1000) / 1000)
+  assert.equal(trialBalance(state).balanced, true)
+})
+
 test('profitability report shows margin per customer at their own price', () => {
   const clock = createClock('2026-09-15T04:00:00.000Z')
   let { state } = base(clock)
@@ -198,7 +308,7 @@ test('v4 lots gain a cost basis on migration and keep their totals', () => {
   }
   const v4 = { ...baseState, schemaVersion: 4 as const, lots: [lot] }
   const migrated = migrateErpState(v4 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 7)
+  assert.equal(migrated.schemaVersion, 8)
   assert.equal(migrated.lots[0]!.costLines[0]!.basis, 'ACTUAL')
   assert.equal(migrated.lots[0]!.costLines[1]!.basis, 'ESTIMATED')
   assert.equal(migrated.lots[0]!.totalCost, 44)

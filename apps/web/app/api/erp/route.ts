@@ -79,6 +79,8 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   addFuelLog: true,
   addVehicleService: true,
   createTrip: true,
+  requestTripCostAllocation: true,
+  decideTripCostAllocation: true,
   createObligation: true,
   decideObligation: true,
   payObligationInstallment: true,

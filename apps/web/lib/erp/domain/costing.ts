@@ -160,6 +160,38 @@ function transportAllocation(state: ErpState, month: string, inputTons: number) 
   return { amount: money((cost / tons) * inputTons), source: `نقل الخامات ${month}` }
 }
 
+export function approvedTripTransportCost(state: Pick<ErpState, 'tripCostAllocations'>, lotNo: string) {
+  return money((state.tripCostAllocations ?? [])
+    .filter((allocation) => allocation.status === 'APPROVED')
+    .reduce((sum, allocation) => sum + allocation.allocations
+      .filter((line) => line.lotNo === lotNo)
+      .reduce((lineSum, line) => lineSum + line.amount, 0), 0))
+}
+
+export function transportCostBreakdown(state: ErpState, outputKg: number, context: CostContext) {
+  const month = context.manufacturedAt ? monthOf(context.manufacturedAt) : ''
+  const inputTons = context.inputKg != null ? context.inputKg / 1000 : outputKg / 1000
+  const inbound = month ? transportAllocation(state, month, inputTons) : null
+  const outboundAmount = context.lotNo ? approvedTripTransportCost(state, context.lotNo) : 0
+  const inboundAmount = inbound?.amount ?? 0
+  const amount = money(inboundAmount + outboundAmount)
+  if (amount <= 0) return null
+  const sources = [
+    inbound?.source,
+    ...(context.lotNo
+      ? (state.tripCostAllocations ?? [])
+        .filter((allocation) => allocation.status === 'APPROVED')
+        .filter((allocation) => allocation.allocations.some((line) => line.lotNo === context.lotNo))
+        .map((allocation) => `رحلة توصيل ${allocation.tripId}`)
+      : []),
+  ].filter((source): source is string => Boolean(source))
+  return {
+    line: { type: 'TRANSPORT' as const, amount, basis: 'ACTUAL' as const, source: sources.join('، ') },
+    inboundAmount,
+    outboundAmount,
+  }
+}
+
 /** Bags: recorded packaging consumption wins, otherwise the bag weight estimate. */
 export function packagingCostLine(state: ErpState, product: Product | undefined, outputKg: number, lotNo?: string): CostLine | null {
   if (lotNo) {
@@ -197,8 +229,8 @@ export function allocateCostType(state: ErpState, type: AllocatedCostType, outpu
       if (actual && actual.amount > 0) return { type, amount: actual.amount, basis: 'ACTUAL', source: actual.source }
     }
     if (type === 'TRANSPORT') {
-      const actual = transportAllocation(state, month, inputTons)
-      if (actual && actual.amount > 0) return { type, amount: actual.amount, basis: 'ACTUAL', source: actual.source }
+      const actual = transportCostBreakdown(state, outputKg, context)
+      if (actual) return actual.line
     }
   }
   const rate = state.company.costRates?.[type] ?? 0

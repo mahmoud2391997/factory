@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -269,6 +269,18 @@ export type Trip = {
   fuelVarianceReason?: string
   createdBy: string
   createdAt: string
+}
+
+export type TripCostAllocation = {
+  id: string
+  tripId: string
+  allocations: Array<{ lotNo: string; quantityKg: number; amount: number }>
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  createdBy: string
+  createdAt: string
+  decidedBy?: string
+  decidedAt?: string
+  decisionReason?: string
 }
 
 export type Obligation = {
@@ -1006,6 +1018,7 @@ export type ErpState = {
   vehicleServices: VehicleService[]
   fuelLogs: FuelLog[]
   trips: Trip[]
+  tripCostAllocations: TripCostAllocation[]
   /** Phase 3: Financial obligations. */
   obligations: Obligation[]
   obligationScheduleLines: ObligationScheduleLine[]
@@ -1123,6 +1136,8 @@ export type Command =
   | { action: 'addFuelLog'; input: { vehicleId: string; date: string; liters: number; cost: number; odometer: number; driverId: string; station?: string } }
   | { action: 'addVehicleService'; input: { vehicleId: string; date: string; kind: VehicleService['kind']; description: string; cost: number; odometer: number; nextDueDate?: string; nextDueKm?: number; supplierId?: string } }
   | { action: 'createTrip'; input: { vehicleId: string; driverId: string; date: string; destination: string; km: number; loadKg: number; fuelLiters: number; customerId?: string; invoiceId?: string; driverCost?: number; fuelVarianceReason?: string } }
+  | { action: 'requestTripCostAllocation'; input: { tripId: string } }
+  | { action: 'decideTripCostAllocation'; input: { id: string; decision: 'APPROVED' | 'REJECTED'; reason?: string } }
   | { action: 'createObligation'; input: { beneficiary: string; description: string; kind: Obligation['kind']; total: number; installmentAmount: number; firstDueDate: string; frequency: Obligation['frequency']; numberOfInstallments?: number } }
   | { action: 'decideObligation'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'payObligationInstallment'; input: { scheduleLineId: string; amount: number; date?: string; method: string; reference?: string } }

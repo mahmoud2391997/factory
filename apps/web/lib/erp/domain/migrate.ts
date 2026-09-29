@@ -104,6 +104,7 @@ export function migrateErpState(state: ErpState): ErpState {
   state.lots ??= []
   state.qualitySamples ??= []
   state.qualityHolds ??= []
+  state.tripCostAllocations ??= []
   if (!state.accounts?.some((account) => account.code === '2600')) {
     state.accounts = state.accounts ?? []
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
@@ -117,7 +118,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 3 &&
     state.schemaVersion !== 4 &&
     state.schemaVersion !== 5 &&
-    state.schemaVersion !== 6
+    state.schemaVersion !== 6 &&
+    state.schemaVersion !== 7
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -262,6 +264,12 @@ export function migrateErpState(state: ErpState): ErpState {
   if (state.schemaVersion === 6) {
     state.qualityHolds ??= []
     state.schemaVersion = 7
+  }
+
+  // v7 -> v8: approval-backed outbound trip cost allocations.
+  if (state.schemaVersion === 7) {
+    state.tripCostAllocations ??= []
+    state.schemaVersion = 8
   }
 
   return mergeRolePermissions(state)

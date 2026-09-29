@@ -1,6 +1,6 @@
 import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
-import { ALLOCATED_COST_TYPES, allocateCostType, buildLotCostLines, COST_LABEL, packagingCostLine, type CostContext } from './costing'
+import { ALLOCATED_COST_TYPES, allocateCostType, approvedTripTransportCost, buildLotCostLines, COST_LABEL, packagingCostLine, transportCostBreakdown, type CostContext } from './costing'
 import { lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
@@ -48,6 +48,7 @@ import type {
   Recipe,
   QualitySample,
   QualityHold,
+  TripCostAllocation,
   ProductionOrder,
 } from './types'
 
@@ -775,6 +776,8 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     addFuelLog: 'fleet.manage',
     addVehicleService: 'fleet.manage',
     createTrip: 'fleet.manage',
+    requestTripCostAllocation: 'fleet.manage',
+    decideTripCostAllocation: 'accounting.manage',
     createObligation: 'obligations.manage',
     decideObligation: 'approvals.decide',
     payObligationInstallment: 'obligations.pay',
@@ -904,6 +907,10 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return addVehicleService(state, actor, command.input, clock)
     case 'createTrip':
       return createTrip(state, actor, command.input, clock)
+    case 'requestTripCostAllocation':
+      return requestTripCostAllocation(state, actor, command.input, clock)
+    case 'decideTripCostAllocation':
+      return decideTripCostAllocation(state, actor, command.input, clock)
     case 'createObligation':
       return createObligation(state, actor, command.input, clock)
     case 'decideObligation':
@@ -1762,6 +1769,7 @@ function syncLotValuation(state: ErpState, lot: ProductionLot) {
   const totalCost = money(lot.costLines.reduce((sum, line) => sum + line.amount, 0))
   lot.totalCost = totalCost
   lot.costPerTon = lot.actualOutputKg > 0 ? money((totalCost / lot.actualOutputKg) * 1000) : 0
+  const inventoryCost = money(Math.max(0, totalCost - approvedTripTransportCost(state, lot.lotNo)))
   const order = state.productionOrders.find((item) => item.id === lot.productionOrderId)
   if (order) {
     order.totalCost = totalCost
@@ -1770,7 +1778,7 @@ function syncLotValuation(state: ErpState, lot: ProductionLot) {
   const row = state.balances.find(
     (item) => item.warehouse === 'WH_FG' && item.itemType === 'PRODUCT' && item.itemId === lot.productId && item.batchNo === lot.lotNo,
   )
-  if (row) row.unitCost = lot.costPerTon > 0 && lot.actualOutputKg > 0 ? money(totalCost / lot.actualOutputKg) : row.unitCost
+  if (row) row.unitCost = inventoryCost > 0 && lot.actualOutputKg > 0 ? money(inventoryCost / lot.actualOutputKg) : row.unitCost
   refreshLotSale(state, lot)
 }
 
@@ -2654,6 +2662,9 @@ function createTrip(state: ErpState, actor: Actor, input: Extract<Command, { act
   if (!vehicle.active) return fail('المركبة غير نشطة')
   const driver = state.employees.find((item) => item.id === input.driverId)
   if (!driver) return fail('السائق غير موجود')
+  const invoice = input.invoiceId ? state.invoices.find((item) => item.id === input.invoiceId) : undefined
+  if (input.invoiceId && (!invoice || invoice.status === 'DRAFT')) return fail('فاتورة الرحلة غير موجودة أو غير مؤكدة')
+  if (invoice && input.customerId && input.customerId !== invoice.customerId) return fail('عميل الرحلة لا يطابق عميل الفاتورة')
   if (!input.destination.trim()) return fail('الوجهة مطلوبة')
   if (input.km <= 0) return fail('المسافة غير صحيحة')
   if (input.loadKg < 0) return fail('الحمولة غير صحيحة')
@@ -2703,7 +2714,7 @@ function createTrip(state: ErpState, actor: Actor, input: Extract<Command, { act
     km: qty(input.km),
     loadKg: qty(input.loadKg),
     fuelLiters: qty(input.fuelLiters),
-    customerId: input.customerId,
+    customerId: input.customerId ?? invoice?.customerId,
     invoiceId: input.invoiceId,
     cost: tripCost,
     driverCost: input.driverCost,
@@ -2735,6 +2746,144 @@ function createTrip(state: ErpState, actor: Actor, input: Extract<Command, { act
   
   audit(state, actor, clock, 'إنشاء رحلة', 'trip', trip.id, `${vehicle.code} → ${input.destination.trim()}`)
   return ok(state, 'تم إنشاء الرحلة')
+}
+
+function requestTripCostAllocation(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'requestTripCostAllocation' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const trip = state.trips.find((item) => item.id === input.tripId)
+  if (!trip) return fail('الرحلة غير موجودة')
+  if (!trip.invoiceId) return fail('يجب ربط الرحلة بفاتورة مؤكدة لتوزيع تكلفة التوصيل')
+  if (trip.cost <= 0) return fail('تكلفة الرحلة يجب أن تكون أكبر من صفر')
+  const invoice = state.invoices.find((item) => item.id === trip.invoiceId)
+  if (!invoice || invoice.status === 'DRAFT') return fail('فاتورة الرحلة غير موجودة أو غير مؤكدة')
+  const latest = (state.tripCostAllocations ?? []).filter((item) => item.tripId === trip.id).at(-1)
+  if (latest?.status === 'PENDING_APPROVAL' || latest?.status === 'APPROVED') {
+    return fail('توزيع تكلفة الرحلة قيد الاعتماد أو معتمد بالفعل')
+  }
+
+  const quantities = new Map<string, number>()
+  for (const lot of state.lots) {
+    const deliveredKg = qty(lot.deliveries
+      .filter((delivery) => delivery.invoiceId === invoice.id)
+      .reduce((sum, delivery) => sum + delivery.qty, 0))
+    if (deliveredKg > 0) {
+      if (lot.costLines.some((line) => line.type === 'TRANSPORT' && line.basis === 'MANUAL')
+        || lot.pendingCostLines?.some((line) => line.type === 'TRANSPORT')) {
+        return fail(`دفعة ${lot.lotNo} لديها تكلفة نقل يدوية؛ راجعها قبل توزيع تكلفة الرحلة`)
+      }
+      quantities.set(lot.lotNo, deliveredKg)
+    }
+  }
+  const totalKg = qty([...quantities.values()].reduce((sum, value) => sum + value, 0))
+  if (totalKg <= 0) return fail('لا توجد دفعات إنتاج متتبعة على فاتورة الرحلة')
+  const invoicedKg = qty(invoice.lines.reduce((sum, line) => sum + line.qty, 0))
+  if (Math.abs(totalKg - invoicedKg) > 0.001) return fail('لا يمكن توزيع التكلفة قبل تتبع كامل كميات الفاتورة إلى دفعات إنتاج')
+
+  let allocated = 0
+  const lines = [...quantities.entries()].map(([lotNo, quantityKg], index, entries) => {
+    const amount = index === entries.length - 1
+      ? money(trip.cost - allocated)
+      : money(trip.cost * quantityKg / totalKg)
+    allocated = money(allocated + amount)
+    return { lotNo, quantityKg, amount }
+  }).filter((line) => line.amount > 0)
+  if (lines.length === 0) return fail('تكلفة الرحلة أقل من دقة التوزيع المالية')
+  if (money(lines.reduce((sum, line) => sum + line.amount, 0)) !== trip.cost) {
+    return fail('تعذر توزيع تكلفة الرحلة بالكامل')
+  }
+
+  const allocation: TripCostAllocation = {
+    id: clock.id('tripalloc'),
+    tripId: trip.id,
+    allocations: lines,
+    status: 'PENDING_APPROVAL',
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.tripCostAllocations ??= []
+  state.tripCostAllocations.push(allocation)
+  notify(
+    state,
+    clock,
+    'APPROVAL',
+    'توزيع تكلفة رحلة بانتظار الاعتماد',
+    `${trip.destination}: ${trip.cost} ر.ع. على ${lines.length} دفعة إنتاج`,
+    ['GM', 'ACCOUNTANT'],
+    `trip-cost-allocation:${allocation.id}`,
+  )
+  audit(state, actor, clock, 'طلب توزيع تكلفة رحلة', 'tripCostAllocation', allocation.id, `${trip.id}: ${trip.cost} ر.ع. على ${lines.map((line) => `${line.lotNo}=${line.amount}`).join('، ')}`)
+  return ok(state, 'أُرسل توزيع تكلفة الرحلة للاعتماد')
+}
+
+function decideTripCostAllocation(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'decideTripCostAllocation' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const allocation = (state.tripCostAllocations ?? []).find((item) => item.id === input.id)
+  if (!allocation || allocation.status !== 'PENDING_APPROVAL') return fail('توزيع الرحلة غير موجود أو سبق البت فيه')
+  if (allocation.createdBy === actor.id) return fail('يجب أن يعتمد التوزيع مستخدم آخر غير مقدمه')
+  if (input.decision === 'REJECTED' && !input.reason?.trim()) return fail('سبب رفض التوزيع مطلوب')
+  const trip = state.trips.find((item) => item.id === allocation.tripId)
+  if (!trip) return fail('الرحلة المرتبطة غير موجودة')
+  const previousOutboundByLot = new Map(
+    allocation.allocations.map((line) => [line.lotNo, approvedTripTransportCost(state, line.lotNo)]),
+  )
+
+  allocation.status = input.decision
+  allocation.decidedBy = actor.id
+  allocation.decidedAt = clock.now()
+  allocation.decisionReason = input.reason?.trim()
+
+  if (input.decision === 'APPROVED') {
+    for (const line of allocation.allocations) {
+      const lot = state.lots.find((item) => item.lotNo === line.lotNo)
+      if (!lot) return fail(`دفعة الإنتاج ${line.lotNo} غير موجودة`)
+      if (lot.costLines.some((costLine) => costLine.type === 'TRANSPORT' && costLine.basis === 'MANUAL')
+        || lot.pendingCostLines?.some((costLine) => costLine.type === 'TRANSPORT')) {
+        return fail(`دفعة ${lot.lotNo} لديها تكلفة نقل يدوية؛ لا يمكن اعتماد التوزيع`)
+      }
+      const order = state.productionOrders.find((item) => item.id === lot.productionOrderId)
+      const context: CostContext = {
+        manufacturedAt: lot.manufacturedAt,
+        inputKg: lot.inputKg,
+        machineId: order?.machineId,
+        productionOrderId: lot.productionOrderId,
+        lotNo: lot.lotNo,
+        alreadyCounted: true,
+      }
+      const breakdown = transportCostBreakdown(state, lot.actualOutputKg, context)
+      if (!breakdown) return fail(`تعذر احتساب تكلفة النقل الفعلية للدفعة ${lot.lotNo}`)
+      const current = lot.costLines.find((costLine) => costLine.type === 'TRANSPORT')
+      const oldInboundOrEstimate = money((current?.amount ?? 0) - (previousOutboundByLot.get(lot.lotNo) ?? 0))
+      const inboundDelta = money(breakdown.inboundAmount - oldInboundOrEstimate)
+      const index = lot.costLines.findIndex((costLine) => costLine.type === 'TRANSPORT')
+      if (index >= 0) lot.costLines[index] = breakdown.line
+      else lot.costLines.push(breakdown.line)
+      syncLotValuation(state, lot)
+      postCostAdjustment(state, clock, `تسوية نقل المصنع ${lot.lotNo} عند اعتماد الرحلة ${trip.id}`, lot.id, inboundDelta)
+      postJournal(state, clock, `نقل الفاتورة من الرحلة ${trip.id} للدفعة ${lot.lotNo}`, 'tripCostAllocation', allocation.id, [
+        { accountCode: '5100', debit: line.amount, credit: 0 },
+        { accountCode: '2600', debit: 0, credit: line.amount },
+      ])
+    }
+  }
+
+  audit(
+    state,
+    actor,
+    clock,
+    input.decision === 'APPROVED' ? 'اعتماد توزيع تكلفة رحلة' : 'رفض توزيع تكلفة رحلة',
+    'tripCostAllocation',
+    allocation.id,
+    `${trip.id}: ${input.decision}${allocation.decisionReason ? ` — ${allocation.decisionReason}` : ''}`,
+  )
+  return ok(state, input.decision === 'APPROVED' ? 'تم اعتماد تكلفة الرحلة على دفعات الإنتاج' : 'تم رفض توزيع تكلفة الرحلة')
 }
 
 function createObligation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createObligation' }>['input'], clock: Clock): CommandResult {

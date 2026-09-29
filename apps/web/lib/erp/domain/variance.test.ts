@@ -154,7 +154,7 @@ test('v5 documents migrate to v6 without changing existing behaviour', () => {
   }
   const v5 = { ...state, schemaVersion: 5 as const, productionOrders: [legacyOrder] }
   const migrated = migrateErpState(v5 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 7)
+  assert.equal(migrated.schemaVersion, 8)
   assert.deepEqual(migrated.company.varianceReasonCodes, [])
   assert.equal(migrated.productionOrders[0]!.varianceLevel, 'NORMAL')
   // No thresholds are forced, so the company default still governs.

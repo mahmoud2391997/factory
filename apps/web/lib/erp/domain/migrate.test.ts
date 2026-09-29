@@ -37,6 +37,15 @@ test('v6 documents receive an empty manual quality-hold log', () => {
   assert.deepEqual(migrated.qualityHolds, [])
 })
 
+test('v7 documents receive an empty trip-cost allocation log', () => {
+  const state = emptyState('migration-v7-trip-cost')
+  state.schemaVersion = 7
+  Reflect.deleteProperty(state, 'tripCostAllocations')
+  const migrated = migrateErpState(state)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
+  assert.deepEqual(migrated.tripCostAllocations, [])
+})
+
 test('permissions introduced after v2 are merged and later admin removals stay removed', () => {
   const state = emptyState('permissions-v2')
   state.permissionsVersion = 2

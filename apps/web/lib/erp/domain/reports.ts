@@ -1,4 +1,4 @@
-import { COST_LABEL } from './costing'
+import { approvedTripTransportCost, COST_LABEL } from './costing'
 import { almostEqual, money, qty } from './money'
 import type { ErpState, ItemType, SalesInvoice, WarehouseKey } from './types'
 
@@ -602,7 +602,19 @@ export function profitabilityReport(state: ReportState, groupBy: ProfitabilityGr
         const row = ensure(key, customer?.nameAr ?? 'سحب داخلي')
         row.outputKg = qty(row.outputKg + delivery.qty)
         row.soldQty = qty(row.soldQty + delivery.qty)
-        row.cost = money(row.cost + (lot.costPerTon * delivery.qty) / 1000)
+        const productionCost = money(Math.max(0, lot.totalCost - approvedTripTransportCost(state, lot.lotNo)))
+        const productionShare = lot.actualOutputKg > 0
+          ? money((productionCost * delivery.qty) / lot.actualOutputKg)
+          : money((lot.costPerTon * delivery.qty) / 1000)
+        const deliveryTransport = delivery.invoiceId
+          ? money((state.tripCostAllocations ?? [])
+            .filter((allocation) => allocation.status === 'APPROVED')
+            .filter((allocation) => state.trips.find((trip) => trip.id === allocation.tripId)?.invoiceId === delivery.invoiceId)
+            .reduce((sum, allocation) => sum + allocation.allocations
+              .filter((line) => line.lotNo === lot.lotNo)
+              .reduce((lineSum, line) => lineSum + line.amount, 0), 0))
+          : 0
+        row.cost = money(row.cost + productionShare + deliveryTransport)
         row.revenue = money(row.revenue + deliveryRevenue(state, lot, delivery))
       }
     }

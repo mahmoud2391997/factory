@@ -71,6 +71,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   const [nextDueKm, setNextDueKm] = useState('')
   const [serviceSupplierId, setServiceSupplierId] = useState('')
   const [driverId, setDriverId] = useState(ctx.state.employees[0]?.id ?? '')
+  const [tripInvoiceId, setTripInvoiceId] = useState(ctx.state.invoices.find((invoice) => invoice.status !== 'DRAFT')?.id ?? '')
   const selectedVehicle = ctx.state.vehicles.find((vehicle) => vehicle.id === vehicleId)
 
   if (mode === 'fleetFuel') return (
@@ -87,17 +88,42 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   )
 
   if (mode === 'fleetTrips') return (
-    <Card title="رحلات التوزيع" hint="تُحسب التكلفة من الوقود، المسافة، وسائق الرحلة، ويُطلب سبب عند تجاوز استهلاك الوقود.">
+    <Card title="رحلات التوزيع" hint="تُحسب التكلفة من الوقود والمسافة والسائق. رحلة الفاتورة يمكن توزيع تكلفتها على دفعاتها حسب الكمية ثم إرسالها للمحاسبة للاعتماد.">
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr}</option>)}</SelectInput></Field>
         <Field label="السائق"><SelectInput value={driverId} onChange={(event) => setDriverId(event.target.value)}>{ctx.state.employees.filter((employee) => employee.active).map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput></Field>
+        <Field label="فاتورة التوصيل"><SelectInput value={tripInvoiceId} onChange={(event) => setTripInvoiceId(event.target.value)}><option value="">بدون ربط بفاتورة</option>{ctx.state.invoices.filter((invoice) => invoice.status !== 'DRAFT').map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} — {partyName(ctx.state.customers, invoice.customerId)}</option>)}</SelectInput></Field>
         <Field label="الوجهة"><TextInput value={destination} onChange={(event) => setDestination(event.target.value)} /></Field>
         <Field label="الكيلومترات"><TextInput type="number" min="0.1" value={km} onChange={(event) => setKm(event.target.value)} /></Field>
         <Field label="حمولة كجم"><TextInput type="number" min="0" value={loadKg} onChange={(event) => setLoadKg(event.target.value)} /></Field>
         <Field label="وقود الرحلة"><TextInput type="number" min="0.001" value={tripFuel} onChange={(event) => setTripFuel(event.target.value)} /></Field>
       </div>
-      <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId || !driverId || !destination} onClick={async () => { const result = await ctx.act('createTrip', { vehicleId, driverId, date: new Date().toISOString().slice(0, 10), destination, km: Number(km), loadKg: Number(loadKg), fuelLiters: Number(tripFuel) }); if (result.ok) { setDestination(''); setKm(''); setLoadKg(''); setTripFuel('') } }}>حفظ الرحلة</PrimaryButton>
-      <DataTable columns={['التاريخ', 'المركبة', 'الوجهة', 'كم', 'الحمولة', 'التكلفة']} rows={ctx.state.trips.map((trip) => [trip.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)?.nameAr ?? '—', trip.destination, String(trip.km), String(trip.loadKg), moneyFmt(trip.cost)])} />
+      <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId || !driverId || !destination} onClick={async () => { const result = await ctx.act('createTrip', { vehicleId, driverId, date: new Date().toISOString().slice(0, 10), destination, km: Number(km), loadKg: Number(loadKg), fuelLiters: Number(tripFuel), invoiceId: tripInvoiceId || undefined }); if (result.ok) { setDestination(''); setKm(''); setLoadKg(''); setTripFuel('') } }}>حفظ الرحلة</PrimaryButton>
+      <DataTable columns={['التاريخ', 'المركبة', 'الوجهة', 'الفاتورة', 'كم', 'الحمولة', 'التكلفة', 'توزيع التكلفة']} rows={ctx.state.trips.map((trip) => {
+        const allocation = ctx.state.tripCostAllocations.filter((item) => item.tripId === trip.id).at(-1)
+        const allocationLabel = allocation
+          ? `${statusLabel(allocation.status)}: ${allocation.allocations.map((line) => `${line.lotNo} ${qtyFmt(line.quantityKg)} كجم / ${moneyFmt(line.amount)}`).join('، ')}`
+          : 'غير موزعة'
+        const controls = allocation?.status === 'PENDING_APPROVAL'
+          ? can(ctx.permissions, 'accounting.manage') ? <TripCostAllocationReview ctx={ctx} allocationId={allocation.id} /> : <Badge tone="warn">بانتظار اعتماد المحاسبة</Badge>
+          : allocation?.status === 'APPROVED'
+            ? <Badge tone="good">معتمد</Badge>
+            : allocation?.status === 'REJECTED'
+              ? <Badge tone="bad">مرفوض</Badge>
+              : trip.invoiceId && can(ctx.permissions, 'fleet.manage')
+                ? <GhostButton type="button" disabled={ctx.pending} onClick={() => ctx.act('requestTripCostAllocation', { tripId: trip.id })}>توزيع حسب الفاتورة</GhostButton>
+                : '—'
+        return [
+          trip.date.slice(0, 10),
+          ctx.state.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)?.nameAr ?? '—',
+          trip.destination,
+          ctx.state.invoices.find((invoice) => invoice.id === trip.invoiceId)?.number ?? '—',
+          String(trip.km),
+          String(trip.loadKg),
+          moneyFmt(trip.cost),
+          <div key={trip.id} className="grid gap-1"><span>{allocationLabel}</span>{controls}</div>,
+        ]
+      })} />
     </Card>
   )
 
@@ -146,6 +172,22 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   )
 }
 
+function TripCostAllocationReview({ ctx, allocationId }: { ctx: LiveCtx; allocationId: string }) {
+  const [reason, setReason] = useState('')
+  return <div className="flex flex-wrap gap-1">
+    <GhostButton type="button" disabled={ctx.pending} onClick={() => ctx.act('decideTripCostAllocation', { id: allocationId, decision: 'APPROVED' })}>اعتماد</GhostButton>
+    <FormDialog title="رفض توزيع تكلفة الرحلة" openLabel="رفض">
+      {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+        event.preventDefault()
+        const result = await ctx.act('decideTripCostAllocation', { id: allocationId, decision: 'REJECTED', reason })
+        if (result.ok) { setReason(''); close() }
+      }}>
+        <Field label="سبب الرفض"><TextInput value={reason} onChange={(event) => setReason(event.target.value)} required minLength={2} /></Field>
+        <PrimaryButton disabled={ctx.pending || reason.trim().length < 2}>تأكيد الرفض</PrimaryButton>
+      </form>}
+    </FormDialog>
+  </div>
+}
 
 function Documents({ ctx }: { ctx: LiveCtx }) {
   const [title, setTitle] = useState('')
