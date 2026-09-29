@@ -49,6 +49,7 @@ export const PERMISSIONS = [
   'notifications.read',
   'fleet.read',
   'fleet.manage',
+  'fleet.service.manage',
   'obligations.read',
   'obligations.manage',
   'obligations.pay',
@@ -83,6 +84,10 @@ export const ROLE_LABELS = {
   OPERATIONS: 'المستودع والإنتاج والمبيعات',
   QUALITY: 'مسؤول الجودة',
   DRIVER: 'سائق',
+  STOREKEEPER: 'أمين المخزن',
+  PRODUCTION: 'مسؤول الإنتاج',
+  MAINTENANCE: 'مسؤول الصيانة',
+  SALES: 'مسؤول المبيعات',
 } as const
 
 export type RoleKey = keyof typeof ROLE_LABELS
@@ -140,10 +145,64 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'notifications.read',
     'fleet.read',
     'fleet.manage',
+    'fleet.service.manage',
     'documents.read',
   ],
   QUALITY: ['qc.read', 'qc.manage', 'inventory.read', 'production.read', 'reports.read', 'notifications.read'],
   DRIVER: ['fleet.read', 'reports.read', 'notifications.read'],
+  STOREKEEPER: [
+    'warehouses.read',
+    'inventory.read',
+    'inventory.transfer.create',
+    'inventory.adjust',
+    'inventory.ledger.read',
+    'purchasing.read',
+    'purchasing.gr.create',
+    'barcode.scan',
+    'packaging.read',
+    'spareparts.read',
+    'reports.read',
+    'notifications.read',
+  ],
+  PRODUCTION: [
+    'inventory.read',
+    'warehouses.read',
+    'production.read',
+    'production.create',
+    'production.complete',
+    'qc.read',
+    'qc.manage',
+    'packaging.read',
+    'packaging.manage',
+    'scale.read',
+    'scale.manage',
+    'reports.read',
+    'notifications.read',
+  ],
+  MAINTENANCE: [
+    'maintenance.read',
+    'maintenance.manage',
+    'spareparts.read',
+    'spareparts.manage',
+    'inventory.read',
+    'warehouses.read',
+    'inventory.ledger.read',
+    'purchasing.read',
+    'fleet.service.manage',
+    'reports.read',
+    'notifications.read',
+  ],
+  SALES: [
+    'sales.read',
+    'sales.create',
+    'sales.confirm',
+    'distribution.read',
+    'distribution.manage',
+    'delivery.track',
+    'pricing.custom',
+    'reports.read',
+    'notifications.read',
+  ],
 }
 
 export function hasPermission(permissions: readonly string[], required: string) {
@@ -151,7 +210,7 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 7
+export const PERMISSIONS_VERSION = 8
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   1: {
@@ -184,5 +243,13 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
   7: {
     // Per-product / per-recipe variance thresholds are a GM-only control.
     GM: ['production.variance.thresholds'],
+  },
+  8: {
+    GM: ['fleet.service.manage'],
+    OPERATIONS: ['fleet.service.manage'],
+    STOREKEEPER: [...DEFAULT_ROLE_PERMISSIONS.STOREKEEPER],
+    PRODUCTION: [...DEFAULT_ROLE_PERMISSIONS.PRODUCTION],
+    MAINTENANCE: [...DEFAULT_ROLE_PERMISSIONS.MAINTENANCE],
+    SALES: [...DEFAULT_ROLE_PERMISSIONS.SALES],
   },
 }

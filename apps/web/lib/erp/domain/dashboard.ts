@@ -27,7 +27,10 @@ export function dashboardAccess(permissions: readonly string[]) {
       hasPermission(permissions, 'qc.read') ||
       hasPermission(permissions, 'qc.manage') ||
       hasPermission(permissions, 'qc.release'),
-    fleet: hasPermission(permissions, 'fleet.read'),
+    fleet:
+      hasPermission(permissions, 'fleet.read') ||
+      hasPermission(permissions, 'fleet.service.manage') ||
+      hasPermission(permissions, 'fleet.manage'),
     obligations:
       hasPermission(permissions, 'obligations.read') ||
       hasPermission(permissions, 'obligations.manage') ||

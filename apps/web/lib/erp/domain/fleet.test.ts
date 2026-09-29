@@ -158,6 +158,14 @@ test('addVehicleService creates service record', () => {
   })
   
   const vehicle = state.vehicles[0]!
+  state.users.push({
+    id: 'user-maintenance',
+    email: 'maintenance@factory.local',
+    fullName: 'مسؤول الصيانة',
+    role: 'MAINTENANCE',
+    passwordHash: 'hash',
+    active: true,
+  })
   
   state = must(state, clock, {
     action: 'addVehicleService',
@@ -171,7 +179,7 @@ test('addVehicleService creates service record', () => {
       nextDueDate: '2026-12-29',
       nextDueKm: 10000,
     },
-  })
+  }, 'user-maintenance')
   
   assert.equal(state.vehicleServices.length, 1)
   assert.equal(state.vehicleServices[0].kind, 'OIL')
@@ -179,6 +187,13 @@ test('addVehicleService creates service record', () => {
   assert.equal(state.vehicleServices[0].cost, 50)
   assert.equal(state.vehicleServices[0].nextDueDate, '2026-12-29')
   assert.equal(state.vehicleServices[0].nextDueKm, 10000)
+  assert.match(
+    fail(state, clock, {
+      action: 'createTrip',
+      input: { vehicleId: vehicle.id, driverId: 'employee-1', date: '2026-09-29', destination: 'صحار', km: 100, loadKg: 5000, fuelLiters: 12.5 },
+    }, 'user-maintenance'),
+    /صلاحية/,
+  )
 })
 
 test('createTrip requires valid input and calculates cost', () => {
@@ -372,6 +387,11 @@ test('DRIVER role can only see own trips and fuel logs', () => {
   const gmView = publicState(state, state.rolePermissions.GM)
   assert.equal(gmView.trips.length, 2)
   assert.equal(gmView.fuelLogs.length, 2)
+
+  const maintenanceView = publicState(state, state.rolePermissions.MAINTENANCE)
+  assert.equal(maintenanceView.vehicles.length, 1)
+  assert.equal(maintenanceView.trips.length, 0)
+  assert.equal(maintenanceView.fuelLogs.length, 0)
 })
 
 test('fleet.manage permission required for fleet commands', () => {

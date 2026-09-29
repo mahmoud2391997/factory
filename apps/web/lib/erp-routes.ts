@@ -106,6 +106,7 @@ export const DESTINATIONS: Destination[] = [
         leaves: [
           { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
           { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
+          { href: '/inventory/manufacturing/scale', entityKey: 'scaleReading', tab: true },
           { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
         ],
       },
@@ -159,6 +160,7 @@ export const DESTINATIONS: Destination[] = [
         label: 'التوزيع',
         leaves: [
           { href: '/sales/distribution', entityKey: 'distribution', tab: true },
+          { href: '/sales/delivery', entityKey: 'invoiceDelivery', tab: true },
         ],
       },
       {

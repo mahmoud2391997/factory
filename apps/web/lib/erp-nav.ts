@@ -305,6 +305,13 @@ export const ERP_NAV: ErpMainTab[] = [
         description: 'أوامر الإنتاج والدفعات',
       },
       {
+        id: 'scale',
+        label: 'الميزان',
+        entityKey: 'scaleReading',
+        description: 'قراءات الميزان وربطها بالإنتاج',
+        permission: ['scale.read'],
+      },
+      {
         id: 'production-lots',
         label: 'دفعات الإنتاج',
         entityKey: 'productionLot',
@@ -379,6 +386,13 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['distribution.read'],
       },
       {
+        id: 'invoice-delivery',
+        label: 'تسليم الفواتير',
+        entityKey: 'invoiceDelivery',
+        description: 'مراحل اعتماد الفاتورة حتى التسليم للعميل',
+        permission: ['delivery.track', 'sales.read'],
+      },
+      {
         id: 'sales-reports',
         label: 'تقارير المبيعات',
         entityKey: 'salesReports',
@@ -398,7 +412,7 @@ export const ERP_NAV: ErpMainTab[] = [
     icon: CarFront,
     permission: ['fleet.read'],
     subs: [
-      { id: 'vehicles', label: 'المركبات', entityKey: 'fleet', description: 'المركبات والوثائق والعدادات', permission: ['fleet.read'] },
+      { id: 'vehicles', label: 'المركبات', entityKey: 'fleet', description: 'المركبات والوثائق والعدادات', permission: ['fleet.read', 'fleet.service.manage', 'fleet.manage'] },
       { id: 'fleet-fuel', label: 'الوقود', entityKey: 'fleetFuel', description: 'سجل الوقود والاستهلاك', permission: ['fleet.read'] },
       { id: 'fleet-trips', label: 'الرحلات', entityKey: 'fleetTrips', description: 'الرحلات والتكاليف والمسافات', permission: ['fleet.read'] },
     ],

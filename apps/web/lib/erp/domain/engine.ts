@@ -683,7 +683,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createVehicle: 'fleet.manage',
     updateVehicle: 'fleet.manage',
     addFuelLog: 'fleet.manage',
-    addVehicleService: 'fleet.manage',
+    addVehicleService: 'fleet.service.manage',
     createTrip: 'fleet.manage',
     requestTripCostAllocation: 'fleet.manage',
     decideTripCostAllocation: 'accounting.manage',
@@ -3487,6 +3487,8 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   const seeAudit = permissions.includes('audit.read')
   const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
   const seeQuality = canAny(permissions, ['qc.read', 'qc.manage', 'qc.release'])
+  const seeFleet = canAny(permissions, ['fleet.read', 'fleet.manage'])
+  const seeVehicleServices = canAny(permissions, ['fleet.read', 'fleet.manage', 'fleet.service.manage'])
   const isDriver = permissions.includes('fleet.read') && !permissions.includes('fleet.manage')
   
   // DRIVER role filtering: only see own trips and fuel logs, no financial data
@@ -3514,8 +3516,10 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     qualitySamples: seeQuality ? state.qualitySamples : [],
     qualityHolds: seeQuality ? state.qualityHolds : [],
     companyDocuments: canAny(permissions, ['documents.read', 'documents.manage']) ? state.companyDocuments : [],
-    trips: filteredTrips,
-    fuelLogs: filteredFuelLogs,
+    vehicles: seeVehicleServices ? state.vehicles : [],
+    vehicleServices: seeVehicleServices ? state.vehicleServices : [],
+    trips: seeFleet ? filteredTrips : [],
+    fuelLogs: seeFleet ? filteredFuelLogs : [],
   }
 }
 

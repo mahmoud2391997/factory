@@ -31,6 +31,11 @@ const DEMO_LOGINS = [
   { email: 'accounts@factory.local', label: 'المحاسب والموارد البشرية' },
   { email: 'ops@factory.local', label: 'المستودع والإنتاج والمبيعات' },
   { email: 'quality@factory.local', label: 'مسؤول الجودة' },
+  { email: 'driver@factory.local', label: 'سائق' },
+  { email: 'store@factory.local', label: 'أمين المخزن' },
+  { email: 'production@factory.local', label: 'مسؤول الإنتاج' },
+  { email: 'maintenance@factory.local', label: 'مسؤول الصيانة' },
+  { email: 'sales@factory.local', label: 'مسؤول المبيعات' },
   { email: 'admin@factory.local', label: 'مدير النظام' },
 ] as const
 

@@ -43,3 +43,21 @@ test('a custom removal by the admin is preserved and running twice is a no-op', 
   assert.ok(again.rolePermissions.OPERATIONS.includes('qc.read'))
   assert.equal(again.auditLogs.filter((entry) => entry.action === 'دمج الصلاحيات الافتراضية').length, 1)
 })
+
+test('v7 permissions gain the functional roles and fleet service control once', () => {
+  const state = emptyState('perm-v7')
+  state.permissionsVersion = 7
+  state.rolePermissions.GM = state.rolePermissions.GM.filter((permission) => permission !== 'fleet.service.manage')
+  state.rolePermissions.OPERATIONS = state.rolePermissions.OPERATIONS.filter((permission) => permission !== 'fleet.service.manage')
+
+  const migrated = migrateErpState(state)
+  assert.ok(migrated.rolePermissions.GM.includes('fleet.service.manage'))
+  assert.ok(migrated.rolePermissions.OPERATIONS.includes('fleet.service.manage'))
+  assert.ok(migrated.rolePermissions.STOREKEEPER.includes('inventory.read'))
+  assert.ok(migrated.rolePermissions.PRODUCTION.includes('production.create'))
+  assert.ok(migrated.rolePermissions.MAINTENANCE.includes('fleet.service.manage'))
+  assert.ok(migrated.rolePermissions.SALES.includes('sales.create'))
+
+  migrated.rolePermissions.GM = migrated.rolePermissions.GM.filter((permission) => permission !== 'fleet.service.manage')
+  assert.equal(migrateErpState(migrated).rolePermissions.GM.includes('fleet.service.manage'), false)
+})

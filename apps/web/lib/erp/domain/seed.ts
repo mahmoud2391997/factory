@@ -65,6 +65,10 @@ export function emptyState(passwordHash: string): ErpState {
       OPERATIONS: [...DEFAULT_ROLE_PERMISSIONS.OPERATIONS],
       QUALITY: [...DEFAULT_ROLE_PERMISSIONS.QUALITY],
       DRIVER: [...DEFAULT_ROLE_PERMISSIONS.DRIVER],
+      STOREKEEPER: [...DEFAULT_ROLE_PERMISSIONS.STOREKEEPER],
+      PRODUCTION: [...DEFAULT_ROLE_PERMISSIONS.PRODUCTION],
+      MAINTENANCE: [...DEFAULT_ROLE_PERMISSIONS.MAINTENANCE],
+      SALES: [...DEFAULT_ROLE_PERMISSIONS.SALES],
     },
     users: [
       { id: 'user-gm', email: 'gm@factory.local', fullName: 'سعيد الوهيبي', role: 'GM', passwordHash, active: true, tokenVersion: 1 },
@@ -73,6 +77,10 @@ export function emptyState(passwordHash: string): ErpState {
       { id: 'user-ops', email: 'ops@factory.local', fullName: 'سالم الحارثي', role: 'OPERATIONS', passwordHash, active: true, tokenVersion: 1 },
       { id: 'user-qc', email: 'quality@factory.local', fullName: 'هند البلوشية', role: 'QUALITY', passwordHash, active: true, tokenVersion: 1 },
       { id: 'user-driver', email: 'driver@factory.local', fullName: 'محمد الكندي', role: 'DRIVER', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-store', email: 'store@factory.local', fullName: 'خالد البلوشي', role: 'STOREKEEPER', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-production', email: 'production@factory.local', fullName: 'راشد الشحي', role: 'PRODUCTION', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-maintenance', email: 'maintenance@factory.local', fullName: 'مازن الهنائي', role: 'MAINTENANCE', passwordHash, active: true, tokenVersion: 1 },
+      { id: 'user-sales', email: 'sales@factory.local', fullName: 'أحمد الرواحي', role: 'SALES', passwordHash, active: true, tokenVersion: 1 },
     ],
     accounts: [
       { code: '1100', nameAr: 'مخزون مواد خام', type: 'ASSET' },

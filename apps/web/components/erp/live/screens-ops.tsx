@@ -1130,10 +1130,21 @@ export function ProductionScreens({ entityKey, ctx }: { entityKey: string; ctx: 
   if (entityKey === 'productionOrder') return <Production ctx={ctx} />
   if (entityKey === 'customerRecipe') return <CustomerRecipes ctx={ctx} />
   if (entityKey === 'scaleReading') return <ScaleReadings ctx={ctx} />
+  if (entityKey === 'maintenance') return <MaintenanceHub ctx={ctx} />
   if (entityKey === 'machine') return <Machines ctx={ctx} />
   if (entityKey === 'maintenanceSchedule') return <MaintenanceSchedules ctx={ctx} />
   if (entityKey === 'maintenanceRecord') return <MaintenanceRecords ctx={ctx} />
   return null
+}
+
+function MaintenanceHub({ ctx }: { ctx: LiveCtx }) {
+  return (
+    <div className="space-y-4">
+      <Machines ctx={ctx} />
+      <MaintenanceSchedules ctx={ctx} />
+      <MaintenanceRecords ctx={ctx} />
+    </div>
+  )
 }
 
 function Recipes({ ctx }: { ctx: LiveCtx }) {
