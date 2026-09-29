@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Truck,
+  CarFront,
   Users,
   Warehouse,
 } from 'lucide-react'
@@ -248,7 +249,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'supplier-templates',
         label: 'قوالب الرسائل',
         entityKey: 'supplierTemplate',
-        description: 'قوالب طلبات الأسعار والاستفسارات',
+        description: 'قوال�� طلبات الأسعار والاستفسارات',
         permission: ['suppliers.communicate'],
       },
       {
@@ -373,6 +374,17 @@ export const ERP_NAV: ErpMainTab[] = [
     ],
   },
   {
+    id: 'fleet',
+    label: 'الأسطول',
+    icon: CarFront,
+    permission: ['fleet.read'],
+    subs: [
+      { id: 'vehicles', label: 'المركبات', entityKey: 'fleet', description: 'المركبات والوثائق والعدادات', permission: ['fleet.read'] },
+      { id: 'fleet-fuel', label: 'الوقود', entityKey: 'fleetFuel', description: 'سجل الوقود والاستهلاك', permission: ['fleet.read'] },
+      { id: 'fleet-trips', label: 'الرحلات', entityKey: 'fleetTrips', description: 'الرحلات والتكاليف والمسافات', permission: ['fleet.read'] },
+    ],
+  },
+  {
     id: 'accounting',
     label: 'الحسابات',
     icon: FileText,
@@ -418,6 +430,13 @@ export const ERP_NAV: ErpMainTab[] = [
         entityKey: 'financialOps',
         description: 'المرافق والبنك والالتزامات',
         permission: ['utilities.read', 'bank.read', 'obligations.read'],
+      },
+      {
+        id: 'documents',
+        label: 'الوثائق والتصاريح',
+        entityKey: 'documents',
+        description: 'سجل الوثائق وتواريخ الانتهاء والتجديد',
+        permission: ['documents.read'],
       },
       {
         id: 'accounting-reports',
@@ -480,7 +499,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'material-trace',
         label: 'تتبع الخامة',
         entityKey: 'materialTrace',
-        description: 'دخول الخامة واستهلاكها والمتبقي والمنتج المباع والهدر وسبب الفرق',
+        description: 'دخول الخامة واستهلاكها وا��متبقي والمنتج المباع والهدر وسبب الفرق',
         permission: ['reports.read', 'inventory.read'],
       },
       {
@@ -499,7 +518,7 @@ export const ERP_NAV: ErpMainTab[] = [
       },
       {
         id: 'users',
-        label: 'المستخدمون والصلاحيات',
+        label: 'المستخ��مون والصلاحيات',
         entityKey: 'users',
         description: 'الأدوار وصلاحيات كل دور',
         permission: ['users.manage'],

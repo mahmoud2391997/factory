@@ -47,7 +47,14 @@ export async function POST(req: NextRequest) {
 
     if (isDemoMode()) {
       const demo = getDemoSecrets()
-      if (email === 'admin@factory.local' && password === demo.password) {
+      const demoEmails = new Set([
+        'admin@factory.local',
+        'gm@factory.local',
+        'accounts@factory.local',
+        'ops@factory.local',
+        'quality@factory.local',
+      ])
+      if (demoEmails.has(email) && password === demo.password) {
         recordLoginSuccess(email, ip)
         const accessToken = await issueAccessToken({ sub: 'demo-admin-user', ver: 1 })
         const refreshToken = await issueRefreshToken({ sub: 'demo-admin-user', ver: 1 })
