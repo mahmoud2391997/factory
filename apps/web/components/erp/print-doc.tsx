@@ -10,7 +10,7 @@ import type { Company } from '@/lib/erp/domain/types'
 import type { PublicState } from '@/components/erp/live/ctx'
 import { materialName, moneyFmt, productName, qtyFmt, statusLabel } from '@/components/erp/live/format'
 
-export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' | 'recall' }) {
+export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' | 'recall' | 'delivery' }) {
   const params = useParams<{ id?: string; lotNo?: string }>()
   const [state, setState] = useState<PublicState | null>(null)
   const [recallData, setRecallData] = useState<{ company: Company; report: ReturnType<typeof recallReport> } | null>(null)
@@ -63,6 +63,7 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' |
       {kind === 'po' ? <PurchaseOrder state={state} id={params.id ?? ''} /> : null}
       {kind === 'labels' ? <Labels state={state} /> : null}
       {kind === 'lot' ? <LotCertificate state={state} lotNo={decodeURIComponent(params.lotNo ?? '')} /> : null}
+      {kind === 'delivery' ? <DeliveryNote state={state} id={params.id ?? ''} /> : null}
     </main>
   )
 }
@@ -169,6 +170,53 @@ function PurchaseOrder({ state, id }: { state: PublicState; id: string }) {
         </tbody>
       </table>
       {order.notes ? <p>ملاحظات: {order.notes}</p> : null}
+    </article>
+  )
+}
+
+function DeliveryNote({ state, id }: { state: PublicState; id: string }) {
+  const delivery = state.invoiceDeliveries.find((item) => item.id === id)
+  if (!delivery) return <p>أمر التسليم غير موجود</p>
+  const invoice = state.invoices.find((item) => item.id === delivery.invoiceId)
+  if (!invoice) return <p>فاتورة أمر التسليم غير موجودة</p>
+  const customer = state.customers.find((item) => item.id === invoice.customerId)
+  return (
+    <article>
+      <Letterhead company={state.company} />
+      <h1 style={{ fontSize: 26, margin: '8px 0' }}>أمر تسليم</h1>
+      <p>الفاتورة: {invoice.number} — الحالة: {statusLabel(delivery.currentStep)}</p>
+      <h2 style={{ fontSize: 16 }}>العميل</h2>
+      <p>{customer?.nameAr ?? '—'} — {customer?.phone ?? '—'}</p>
+      <table>
+        <thead><tr><th>الصنف</th><th>الكمية</th><th>الوحدة</th></tr></thead>
+        <tbody>{invoice.lines.map((line, index) => (
+          <tr key={index}>
+            <td>{productName(state, line.productId)}</td>
+            <td>{qtyFmt(line.qty)}</td>
+            <td>{state.products.find((item) => item.id === line.productId)?.unit ?? ''}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      <h2 style={{ fontSize: 16 }}>اعتمادات المراحل</h2>
+      <table>
+        <thead><tr><th>المرحلة</th><th>اعتمد بواسطة</th><th>الوقت</th><th>ملاحظات</th></tr></thead>
+        <tbody>{delivery.steps.map((step, index) => (
+          <tr key={`${step.step}-${index}`}>
+            <td>{statusLabel(step.step)}</td>
+            <td>{state.users.find((user) => user.id === step.completedBy)?.fullName ?? state.employees.find((employee) => employee.id === step.completedBy)?.nameAr ?? step.completedBy}</td>
+            <td>{step.completedAt.replace('T', ' ').slice(0, 16)}</td>
+            <td>{step.notes ?? ''}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      {delivery.deliveryProof ? (
+        <section style={{ marginTop: 20 }}>
+          <h2 style={{ fontSize: 16 }}>إثبات التسليم</h2>
+          <p>المستلم: {delivery.deliveryProof.recipientName} — الهاتف: {delivery.deliveryProof.recipientPhone ?? '—'}</p>
+          <p>وقت التسليم: {delivery.deliveryProof.deliveredAt.replace('T', ' ').slice(0, 16)}</p>
+          {delivery.deliveryProof.location ? <p>الموقع: {delivery.deliveryProof.location.lat}, {delivery.deliveryProof.location.lng}</p> : null}
+        </section>
+      ) : <p style={{ marginTop: 20 }}>لم يُسجّل إثبات التسليم بعد.</p>}
     </article>
   )
 }

@@ -94,7 +94,7 @@ export function EntityPage({
             onClick={exportCsv}
             className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-3 text-base font-semibold text-[#53655e] hover:bg-[#f8faf9]"
           >
-            تصدير Excel
+            تصدير CSV
           </button>
           <button
             type="button"

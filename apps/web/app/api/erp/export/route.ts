@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { lotExportRows, profitAndLoss, stockRows, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import { getSessionUser } from '@/server/auth/session'
 import { spreadsheetXml } from '@/server/erp/excel'
+import { canExport, canExportCosts, csvSpreadsheet, exportRowsForPermissions, isExportKind } from '@/server/erp/export'
 import { loadState } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
@@ -11,21 +12,18 @@ export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
   const kind = req.nextUrl.searchParams.get('kind') || 'journals'
-  const accountingExport = ['journals', 'vat', 'trial', 'pnl'].includes(kind)
-  if (kind === 'documents' && !user.permissions.includes('documents.read') && !user.permissions.includes('documents.manage')) {
-    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية تصدير الوثائق' }, { status: 403 })
+  if (!isExportKind(kind)) {
+    return NextResponse.json({ success: false, message: 'نوع التصدير غير معروف' }, { status: 400 })
   }
-  if (accountingExport && !user.permissions.includes('accounting.read') && !user.permissions.includes('accounting.manage')) {
-    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
+  const format = req.nextUrl.searchParams.get('format') || 'excel'
+  if (format !== 'excel' && format !== 'csv') {
+    return NextResponse.json({ success: false, message: 'صيغة التصدير غير مدعومة' }, { status: 400 })
   }
-  if (kind === 'payroll' && !user.permissions.includes('payroll.manage') && !user.permissions.includes('payroll.approve') && !user.permissions.includes('payroll.pay')) {
-    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
+  const itemType = req.nextUrl.searchParams.get('itemType')
+  if (kind === 'stock' && itemType && itemType !== 'MATERIAL' && itemType !== 'PRODUCT') {
+    return NextResponse.json({ success: false, message: 'نوع صنف المخزون غير صحيح' }, { status: 400 })
   }
-  const financial = ['journals', 'invoices', 'vat', 'trial', 'payroll', 'pnl'].includes(kind)
-  if (financial && !user.permissions.includes('accounting.read') && !user.permissions.includes('reports.read') && !user.permissions.includes('payroll.manage')) {
-    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
-  }
-  if (kind !== 'documents' && !user.permissions.includes('reports.read') && !user.permissions.includes('accounting.read')) {
+  if (!canExport(kind, user.permissions)) {
     return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
   }
 
@@ -86,7 +84,7 @@ export async function GET(req: NextRequest) {
   } else if (kind === 'stock') {
     name = 'Stock'
     rows = [['المستودع', 'الصنف', 'الدفعة', 'الكمية', 'التكلفة', 'القيمة', 'الصلاحية']]
-    for (const row of stockRows(state)) {
+    for (const row of stockRows(state).filter((item) => !itemType || item.itemType === itemType)) {
       rows.push([row.warehouse, row.nameAr, row.batchNo, row.qty, row.unitCost, row.value, row.expiryDate ?? ''])
     }
   } else if (kind === 'lots') {
@@ -96,7 +94,9 @@ export async function GET(req: NextRequest) {
       fromDay: req.nextUrl.searchParams.get('from') || undefined,
       toDay: req.nextUrl.searchParams.get('to') || undefined,
       qcStatus: req.nextUrl.searchParams.get('qc') || undefined,
-      marginSign: (req.nextUrl.searchParams.get('margin') as 'all' | 'negative' | 'positive' | null) || 'all',
+      marginSign: canExportCosts(user.permissions)
+        ? (req.nextUrl.searchParams.get('margin') as 'all' | 'negative' | 'positive' | null) || 'all'
+        : 'all',
     })
   } else if (kind === 'pnl') {
     name = 'Profit'
@@ -139,11 +139,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, message: 'نوع التصدير غير معروف' }, { status: 400 })
   }
 
-  const xml = spreadsheetXml(name, rows)
-  return new NextResponse(xml, {
+  const projectedRows = exportRowsForPermissions(kind, rows, user.permissions)
+  const body = format === 'csv' ? csvSpreadsheet(projectedRows) : spreadsheetXml(name, projectedRows)
+  const extension = format === 'csv' ? 'csv' : 'xls'
+  const contentType = format === 'csv'
+    ? 'text/csv; charset=utf-8'
+    : 'application/vnd.ms-excel; charset=utf-8'
+  return new NextResponse(body, {
     headers: {
-      'content-type': 'application/vnd.ms-excel; charset=utf-8',
-      'content-disposition': `attachment; filename="gulf-feed-${kind}.xls"`,
+      'content-type': contentType,
+      'content-disposition': `attachment; filename="gulf-feed-${kind}.${extension}"`,
+      'x-content-type-options': 'nosniff',
     },
   })
 }

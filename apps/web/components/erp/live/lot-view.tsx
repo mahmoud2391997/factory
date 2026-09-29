@@ -7,7 +7,7 @@ import { filterLots, operatorLabel, recallReport, traceLot } from '@/lib/erp/dom
 import { useLanguage } from '@/lib/i18n/language-provider'
 import type { TranslationKey } from '@/lib/i18n/translations'
 
-import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
 
@@ -74,7 +74,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
       <Card
         title="دفعات الإنتاج"
         hint="كل سطر دفعة حقيقية أُنشئت عند إكمال أمر الإنتاج، ورقمها LOT-YYYYMMDD-###."
-        extra={can(ctx.permissions, 'reports.read') ? <a className="text-sm font-semibold text-[#0d9488]" href={exportHref}>تصدير Excel</a> : null}
+        extra={can(ctx.permissions, 'production.read') || can(ctx.permissions, 'accounting.read') ? <ExportLinks href={exportHref} /> : null}
       >
         <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <Field label="المنتج">

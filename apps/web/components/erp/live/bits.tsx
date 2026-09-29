@@ -37,6 +37,22 @@ export function Card({
   )
 }
 
+export function ExportLinks({ href }: { href: string }) {
+  const [path, query = ''] = href.split('?', 2)
+  const params = new URLSearchParams(query)
+  const makeHref = (format: 'excel' | 'csv') => {
+    const next = new URLSearchParams(params)
+    next.set('format', format)
+    return `${path}?${next.toString()}`
+  }
+  return (
+    <div className="flex items-center gap-3 text-sm font-bold text-[#1d7f72]">
+      <a href={makeHref('excel')}>Excel</a>
+      <a href={makeHref('csv')}>CSV</a>
+    </div>
+  )
+}
+
 export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
   const [sort, setSort] = useState<{ index: number; dir: 'asc' | 'desc' } | null>(null)
   const [page, setPage] = useState(0)

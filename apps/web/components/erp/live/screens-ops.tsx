@@ -7,7 +7,7 @@ import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
 
-import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import { QcLimitsEditor } from './screens-qc'
 import type { LiveCtx } from './ctx'
 import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
@@ -368,11 +368,19 @@ function Warehouses({ ctx }: { ctx: LiveCtx }) {
 
 function Balances({ ctx, materialsOnly }: { ctx: LiveCtx; materialsOnly: boolean }) {
   const rows = stockRows(ctx.state).filter((row) => (materialsOnly ? row.itemType === 'MATERIAL' : true))
+  const includeCosts = can(ctx.permissions, 'accounting.read') || can(ctx.permissions, 'accounting.manage') || can(ctx.permissions, 'production.cost.approve')
   return (
-    <Card title={materialsOnly ? 'دفعات المواد' : 'أرصدة المخزون'} extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=stock">تصدير Excel</a>}>
+    <Card title={materialsOnly ? 'دفعات المواد' : 'أرصدة المخزون'} extra={<ExportLinks href={`/api/erp/export?kind=stock${materialsOnly ? '&itemType=MATERIAL' : ''}`} />}>
       <DataTable
-        columns={['المستودع', 'الصنف', 'الدفعة', 'الكمية', 'التكلفة', 'القيمة', 'الصلاحية']}
-        rows={rows.map((row) => [WAREHOUSE_LABEL[row.warehouse], row.nameAr, row.batchNo, qtyFmt(row.qty), moneyFmt(row.unitCost), moneyFmt(row.value), row.expiryDate ?? '—'])}
+        columns={['المستودع', 'الصنف', 'الدفعة', 'الكمية', ...(includeCosts ? ['التكلفة', 'القيمة'] : []), 'الصلاحية']}
+        rows={rows.map((row) => [
+          WAREHOUSE_LABEL[row.warehouse],
+          row.nameAr,
+          row.batchNo,
+          qtyFmt(row.qty),
+          ...(includeCosts ? [moneyFmt(row.unitCost), moneyFmt(row.value)] : []),
+          row.expiryDate ?? '—',
+        ])}
       />
     </Card>
   )
@@ -1752,7 +1760,7 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
         hint="الأسعار غير شاملة الضريبة. التأكيد يخصم من مستودع المنتجات النهائية."
         extra={
           <div className="flex flex-wrap items-center gap-3">
-            <a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=invoices">تصدير Excel</a>
+            <ExportLinks href="/api/erp/export?kind=invoices" />
             {can(ctx.permissions, 'sales.create') ? (
               <FormDialog title="فاتورة مبيعات" openLabel="فاتورة جديدة" wide>
                 {(close) => (
@@ -2038,12 +2046,13 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
     <div className="space-y-4">
       <Card title="تسليم الفواتير" hint="تتبع سير عمل تسليم الفواتير من المحاسب إلى العميل.">
         <DataTable
-          columns={['الفاتورة', 'الخطوة الحالية', 'الخطوات المنجزة', 'حالة التسليم']}
+          columns={['الفاتورة', 'الخطوة الحالية', 'الخطوات المنجزة', 'حالة التسليم', 'أمر التسليم']}
           rows={(ctx.state.invoiceDeliveries ?? []).map((item) => [
             ctx.state.invoices.find((i) => i.id === item.invoiceId)?.number || '—',
             statusLabel(item.currentStep),
             item.steps.length.toString(),
             item.deliveryProof ? 'مكتمل' : 'قيد التنفيذ',
+            <a key={`delivery-print-${item.id}`} className="font-semibold text-[#0d9488]" href={`/print/delivery/${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer">طباعة</a>,
           ])}
         />
       </Card>

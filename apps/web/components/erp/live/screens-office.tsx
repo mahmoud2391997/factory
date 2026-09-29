@@ -10,7 +10,7 @@ import { dashboardAccess, dashboardAlerts } from '@/lib/erp/domain/dashboard'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
 import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
 
-import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
 
@@ -44,7 +44,7 @@ export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: Live
 function Accounts({ ctx }: { ctx: LiveCtx }) {
   const tb = trialBalance(ctx.state)
   return (
-    <Card title="دليل الحسابات" hint="الأرصدة تُحسب من القيود الناتجة عن العمليات، وليست إدخالاً يدوياً منفصلاً." extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=trial">تصدير Excel</a>}>
+    <Card title="دليل الحسابات" hint="الأرصدة تُحسب من القيود الناتجة عن العمليات، وليست إدخالاً يدوياً منفصلاً." extra={<ExportLinks href="/api/erp/export?kind=trial" />}>
       <DataTable columns={['الرمز', 'الحساب', 'النوع', 'الرصيد']} rows={tb.rows.map((row) => [row.code, row.nameAr, row.type, moneyFmt(row.balance)])} />
     </Card>
   )
@@ -225,7 +225,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
   }
   return (
     <div className="space-y-4">
-      <Card title="الوثائق والتصاريح" hint="سجل موحد للوثائق حسب الجهة وتاريخ الانتهاء؛ تنبيهات التجديد تصدر قبل 90 و60 و30 و7 أيام." extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=documents">تصدير Excel</a>}>
+      <Card title="الوثائق والتصاريح" hint="سجل موحد للوثائق حسب الجهة وتاريخ الانتهاء؛ تنبيهات التجديد تصدر قبل 90 و60 و30 و7 أيام." extra={<ExportLinks href="/api/erp/export?kind=documents" />}>
         {can(ctx.permissions, 'documents.manage') ? (
           <FormDialog title="وثيقة جديدة" openLabel="إضافة وثيقة">
             {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
@@ -371,7 +371,7 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
 
 function Journals({ ctx }: { ctx: LiveCtx }) {
   return (
-    <Card title="القيود اليومية" extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=journals">تصدير Excel</a>}>
+    <Card title="القيود اليومية" extra={<ExportLinks href="/api/erp/export?kind=journals" />}>
       <DataTable
         columns={['القيد', 'التاريخ', 'البيان', 'البنود']}
         rows={ctx.state.journals.slice(0, 40).map((entry) => [
@@ -448,7 +448,7 @@ function VatScreen({ ctx, settings }: { ctx: LiveCtx; settings: boolean }) {
   const [vatNumber, setVatNumber] = useState(ctx.state.company.vatNumber)
   return (
     <div className="space-y-4">
-      <Card title="إقرار ضريبة القيمة المضافة" hint="مخرجات الفواتير المؤكدة مقابل مدخلات الاستلام والمصروفات المرحّلة. راجع المعاملة الضريبية للأعلاف مع المستشار الضريبي؛ النسبة الافتراضية 5%." extra={<a className="text-sm font-bold text-[#1d7f72]" href={`/api/erp/export?kind=vat&month=${month}`}>تصدير Excel</a>}>
+      <Card title="إقرار ضريبة القيمة المضافة" hint="مخرجات الفواتير المؤكدة مقابل مدخلات الاستلام والمصروفات المرحّلة. راجع المعاملة الضريبية للأعلاف مع المستشار الضريبي؛ النسبة الافتراضية 5%." extra={can(ctx.permissions, 'accounting.read') || can(ctx.permissions, 'accounting.manage') ? <ExportLinks href={`/api/erp/export?kind=vat&month=${month}`} /> : null}>
         <Field label="الشهر"><TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <Metric label="ضريبة المخرجات" value={moneyFmt(vat.outputVat)} />
@@ -883,7 +883,7 @@ function Payroll({ ctx }: { ctx: LiveCtx }) {
         hint="المحاسب يجهّز المسير، المدير يعتمده، ثم يُصرف من البنك."
         extra={
           <div className="flex flex-wrap items-center gap-3">
-            <a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=payroll">تصدير Excel</a>
+            <ExportLinks href="/api/erp/export?kind=payroll" />
             <FormDialog title="مسير رواتب" openLabel="مسير جديد" wide>
               {(close) => (
                 <form className="space-y-3" onSubmit={async (event) => {
@@ -944,6 +944,9 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
         <Metric label="قيمة المخزون" value={moneyFmt(value)} />
         <Metric label="الإيرادات" value={moneyFmt(pnl.revenue)} />
         <Metric label="الربح" value={moneyFmt(pnl.profit)} />
+      </div>
+      <div className="flex justify-end">
+        <ExportLinks href="/api/erp/export?kind=pnl" />
       </div>
       <Card title="ميزان المراجعة" hint={tb.balanced ? 'المدين يساوي الدائن.' : 'الميزان غير متوازن — راجع القيود.'} extra={<button type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => window.print()}>طباعة</button>}>
         <DataTable columns={['الحساب', 'مدين', 'دائن']} rows={tb.rows.filter((row) => row.debit || row.credit).map((row) => [row.nameAr, moneyFmt(row.debit), moneyFmt(row.credit)])} />
