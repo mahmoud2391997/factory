@@ -15,12 +15,12 @@
 - [x] Commit + push إلى main (45768f1).
 
 ## Checkpoint 2 — دعم اللغة العربية/الإنجليزية/الهندية (#18)
-- [ ] إنشاء LanguageProvider + hook (localStorage + dir=rtl/ltr).
-- [ ] إضافة مبدّل اللغة في الشريط العلوي.
-- [ ] ربط ترجمات التنقل (ERP_NAV) والعناصر الأساسية باللغة المختارة.
-- [ ] تشغيل الاختبارات + بناء الويب للتأكد.
-- [ ] Commit + push إلى main.
+- [x] إنشاء LanguageProvider + hook (localStorage + dir=rtl/ltr).
+- [x] إضافة مبدّل اللغة في الشريط العلوي.
+- [x] ربط ترجمات التنقل (ERP_NAV) والعناصر الأساسية باللغة المختارة.
+- [x] تشغيل الاختبارات + بناء الويب للتأكد (103 اختبار + build ناجح).
+- [x] Commit + push إلى main (de68a30).
 
 ## Checkpoint 3 — التحقق النهائي والتوثيق
-- [ ] تحديث docs/command-coverage.md والتوثيق.
-- [ ] Commit + push إلى main.
+- [x] تحديث docs/command-coverage.md والتوثيق.
+- [x] Commit + push إلى main.
