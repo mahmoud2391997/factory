@@ -641,6 +641,8 @@ export type PackagingMaterial = {
   minStock: number
   supplierId?: string
   active: boolean
+  /** Expected units consumed per ton of finished output. Bags default to 1000 / product.bagKg. */
+  expectedPerTon?: number
 }
 
 /** Packaging consumption linked to production. */
@@ -719,7 +721,10 @@ export type DistributionClosing = {
   closingStock: Record<string, number>
   cash: number
   transfers: number
+  /** Money variance in OMR: takings received minus the value of net sales. */
   variance: number
+  /** Goods variance in tons: expected closing stock minus the counted closing stock. */
+  stockVariance?: number
   closedBy: string
   closedAt: string
   status: 'PENDING' | 'RECONCILED' | 'DISCREPANCY'
@@ -786,6 +791,8 @@ export type MaintenanceSchedule = {
   interval: number
   lastCompleted: string
   nextDue: string
+  /** machine.operatingHours when the schedule was last completed; baseline for HOURS_BASED. */
+  hoursAtLastCompletion?: number
   sparePartIds?: string[]
   estimatedCost: number
   assignedTo: string
@@ -799,6 +806,8 @@ export type MaintenanceRecord = {
   startDate: string
   endDate: string
   downtimeMinutes: number
+  /** Run hours reported at service time, in minutes. Feeds machine.operatingHours. */
+  operatingMinutes?: number
   description: string
   cost: number
   sparePartsUsed: Array<{ sparePartId: string; quantity: number; cost: number }>
@@ -1008,6 +1017,7 @@ export type Command =
   | { action: 'createSupplier'; input: { nameAr: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
   | { action: 'createCustomer'; input: { nameAr: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
   | { action: 'createEmployee'; input: { nameAr: string; department: string; jobTitle: string; basicSalary: number } }
+  | { action: 'updateEmployee'; input: { id: string; nameAr?: string; department?: string; jobTitle?: string; basicSalary?: number; active?: boolean; idExpiryDate?: string; residenceExpiryDate?: string; contractExpiryDate?: string } }
   | { action: 'createRecipe'; input: { productId: string; nameAr: string; baseOutputQty: number; items: Array<{ materialId: string; qty: number }> } }
   | { action: 'updateCompany'; input: Partial<Company> }
   | { action: 'fundBank'; input: { amount: number; memo?: string } }
@@ -1041,7 +1051,7 @@ export type Command =
   | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number; minEnergy?: number; maxEnergy?: number; minFat?: number; maxFat?: number; minFiber?: number; maxFiber?: number; minCalcium?: number; maxCalcium?: number; minPhosphorus?: number; maxPhosphorus?: number } } }
   | { action: 'createSparePart'; input: { code: string; nameAr: string; description?: string; quantity: number; unitCost: number; minStock: number; supplierId?: string; machineIds?: string[] } }
   | { action: 'recordSparePartUsage'; input: { sparePartId: string; machineId: string; quantity: number; reason: string; maintenanceId?: string } }
-  | { action: 'createPackagingMaterial'; input: { code: string; nameAr: string; category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'; quantity: number; unit: string; unitCost: number; minStock: number; supplierId?: string } }
+  | { action: 'createPackagingMaterial'; input: { code: string; nameAr: string; category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'; quantity: number; unit: string; unitCost: number; minStock: number; supplierId?: string; expectedPerTon?: number } }
   | { action: 'recordPackagingConsumption'; input: { packagingMaterialId: string; productionOrderId: string; lotNo: string; quantity: number } }
   | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
   | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
@@ -1053,7 +1063,7 @@ export type Command =
   | { action: 'recordUtilitiesReading'; input: { utility: 'ELECTRICITY' | 'WATER' | 'GAS'; readingDate: string; previousReading: number; currentReading: number; cost: number; productionTon: number; notes?: string } }
   | { action: 'createMachine'; input: { code: string; nameAr: string; type: string; location: string } }
   | { action: 'createMaintenanceSchedule'; input: { machineId: string; type: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'HOURS_BASED'; description: string; interval: number; sparePartIds?: string[]; estimatedCost: number; assignedTo: string } }
-  | { action: 'recordMaintenance'; input: { machineId: string; scheduleId?: string; type: 'ROUTINE' | 'EMERGENCY' | 'PREVENTIVE'; startDate: string; endDate: string; description: string; cost: number; sparePartsUsed: Array<{ sparePartId: string; quantity: number; cost: number }>; notes?: string } }
+  | { action: 'recordMaintenance'; input: { machineId: string; scheduleId?: string; type: 'ROUTINE' | 'EMERGENCY' | 'PREVENTIVE'; startDate: string; endDate: string; description: string; cost: number; sparePartsUsed: Array<{ sparePartId: string; quantity: number; cost: number }>; operatingMinutes?: number; notes?: string } }
   | { action: 'recordBankTransaction'; input: { bankAccount: string; transactionId: string; date: string; amount: number; type: 'CREDIT' | 'DEBIT'; description: string; reference?: string } }
   | { action: 'matchBankTransaction'; input: { transactionId: string; matchTo: { type: 'INVOICE' | 'SUPPLIER' | 'EXPENSE'; id: string } } }
   | { action: 'createCustomerRecipe'; input: { customerId: string; productId: string; recipeId: string; nameAr: string; baseOutputQty: number; items: Array<{ materialId: string; qty: number }>; salePrice: number; effectiveFrom: string } }
@@ -1066,7 +1076,7 @@ export type Command =
   | { action: 'createTrip'; input: { vehicleId: string; driverId: string; date: string; destination: string; km: number; loadKg: number; fuelLiters: number; customerId?: string; invoiceId?: string; driverCost?: number; fuelVarianceReason?: string } }
   | { action: 'createObligation'; input: { beneficiary: string; description: string; kind: Obligation['kind']; total: number; installmentAmount: number; firstDueDate: string; frequency: Obligation['frequency']; numberOfInstallments?: number } }
   | { action: 'decideObligation'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
-  | { action: 'payObligationInstallment'; input: { scheduleLineId: string; amount: number; method: string; reference?: string } }
+  | { action: 'payObligationInstallment'; input: { scheduleLineId: string; amount: number; date?: string; method: string; reference?: string } }
   | { action: 'createCompanyDocument'; input: { title: string; kind: CompanyDocument['kind']; entityType?: CompanyDocument['entityType']; entityId?: string; issueDate: string; expiryDate?: string; cost?: number; renewalOwnerId?: string; notes?: string; attachmentId?: string } }
   | { action: 'renewCompanyDocument'; input: { id: string; issueDate: string; expiryDate?: string; cost?: number; notes?: string; attachmentId?: string } }
 

@@ -3,20 +3,86 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSessionUser } from '@/server/auth/session'
 import { loadState, runCommand } from '@/server/erp/store'
 import { publicState } from '@/lib/erp/domain/engine'
+import type { Command } from '@/lib/erp/domain/types'
 import { toApiError } from '@/server/env'
 
 export const runtime = 'nodejs'
 
-const ALLOWED_ACTIONS = new Set([
-  'createMaterial', 'createProduct', 'createSupplier', 'createCustomer', 'createEmployee', 'createRecipe',
-  'updateCompany', 'fundBank', 'createPurchaseOrder', 'decidePurchaseOrder', 'receiveGoods', 'transferStock',
-  'requestAdjustment', 'decideAdjustment', 'createProductionOrder', 'completeProduction', 'createInvoice',
-  'confirmInvoice', 'recordPayment', 'createWithdrawal', 'createExpense', 'decideExpense', 'recordAttendance',
-  'importAttendance', 'createPayroll', 'decidePayroll', 'payPayroll', 'markNotificationRead', 'scanBarcode',
-  'setRolePermissions', 'setUserPassword', 'archiveHistory', 'createQualitySample', 'updateQualityResult', 'setQcLimits',
-  'createVehicle', 'updateVehicle', 'addFuelLog', 'addVehicleService', 'createTrip',
-  'createObligation', 'decideObligation', 'payObligationInstallment',
-])
+/** Typed as a total record so adding a Command action without listing it here fails the build. */
+const COMMAND_ACTIONS: Record<Command['action'], true> = {
+  createMaterial: true,
+  createProduct: true,
+  createSupplier: true,
+  createCustomer: true,
+  createEmployee: true,
+  updateEmployee: true,
+  createRecipe: true,
+  updateCompany: true,
+  fundBank: true,
+  createPurchaseOrder: true,
+  decidePurchaseOrder: true,
+  receiveGoods: true,
+  transferStock: true,
+  requestAdjustment: true,
+  decideAdjustment: true,
+  createProductionOrder: true,
+  completeProduction: true,
+  decideProductionCost: true,
+  createInvoice: true,
+  confirmInvoice: true,
+  recordPayment: true,
+  createWithdrawal: true,
+  createExpense: true,
+  decideExpense: true,
+  recordAttendance: true,
+  importAttendance: true,
+  createPayroll: true,
+  decidePayroll: true,
+  payPayroll: true,
+  markNotificationRead: true,
+  scanBarcode: true,
+  setRolePermissions: true,
+  setUserPassword: true,
+  archiveHistory: true,
+  createQualitySample: true,
+  updateQualityResult: true,
+  setQcLimits: true,
+  createSparePart: true,
+  recordSparePartUsage: true,
+  createPackagingMaterial: true,
+  recordPackagingConsumption: true,
+  createSupplierTemplate: true,
+  sendSupplierCommunication: true,
+  approveSupplierCommunication: true,
+  recordScaleReading: true,
+  createDistributionPoint: true,
+  closeDistributionDay: true,
+  advanceInvoiceDelivery: true,
+  recordUtilitiesReading: true,
+  createMachine: true,
+  createMaintenanceSchedule: true,
+  recordMaintenance: true,
+  recordBankTransaction: true,
+  matchBankTransaction: true,
+  createCustomerRecipe: true,
+  setCustomerPricing: true,
+  setAlternativeBagWeights: true,
+  createVehicle: true,
+  updateVehicle: true,
+  addFuelLog: true,
+  addVehicleService: true,
+  createTrip: true,
+  createObligation: true,
+  decideObligation: true,
+  payObligationInstallment: true,
+  createCompanyDocument: true,
+  renewCompanyDocument: true,
+}
+
+/** Handled by the store rather than applyCommand, so not part of the Command union. */
+const STORE_ACTIONS = ['resetDemo']
+
+const ALLOWED_ACTIONS = new Set<string>([...Object.keys(COMMAND_ACTIONS), ...STORE_ACTIONS])
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)

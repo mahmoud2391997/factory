@@ -13,7 +13,7 @@ function must(state: ErpState, clock: ReturnType<typeof defaultClock>, command: 
   return result.state
 }
 
-function fail(state: ErpState, clock: ReturnType<typeof defaultClock>, command: Command, id: string) {
+function fail(state: ErpState, clock: ReturnType<typeof defaultClock>, command: Command, id = 'user-gm') {
   const actor = actorFromUser(state, id)
   if (!actor) return 'المستخدم غير موجود'
   const result = applyCommand(state, actor, command, clock)
@@ -24,6 +24,8 @@ function fail(state: ErpState, clock: ReturnType<typeof defaultClock>, command: 
 test('createObligation requires valid input and generates schedule', () => {
   const clock = defaultClock()
   let state = emptyState('obligations')
+  
+  state.company.obligationApprovalThreshold = 20000
   
   state = must(state, clock, {
     action: 'createObligation',
@@ -44,7 +46,7 @@ test('createObligation requires valid input and generates schedule', () => {
   assert.equal(obligation.beneficiary, 'بنك عمان')
   assert.equal(obligation.total, 12000)
   assert.equal(obligation.installmentAmount, 1000)
-  assert.equal(obligation.status, 'ACTIVE') // Below threshold
+  assert.equal(obligation.status, 'ACTIVE')
   
   assert.equal(state.obligationScheduleLines.length, 12)
   assert.equal(state.obligationScheduleLines[0].dueDate, '2026-10-01')
@@ -164,6 +166,8 @@ test('payObligationInstallment creates payment and posts journal', () => {
   const clock = defaultClock()
   let state = emptyState('obligations')
   
+  state.company.obligationApprovalThreshold = 5000
+  
   state = must(state, clock, {
     action: 'createObligation',
     input: {
@@ -214,6 +218,8 @@ test('payObligationInstallment rejects overpayment', () => {
   const clock = defaultClock()
   let state = emptyState('obligations')
   
+  state.company.obligationApprovalThreshold = 5000
+  
   state = must(state, clock, {
     action: 'createObligation',
     input: {
@@ -247,6 +253,8 @@ test('payObligationInstallment rejects overpayment', () => {
 test('payObligationInstallment allows partial payments', () => {
   const clock = defaultClock()
   let state = emptyState('obligations')
+  
+  state.company.obligationApprovalThreshold = 5000
   
   state = must(state, clock, {
     action: 'createObligation',
@@ -378,6 +386,8 @@ test('obligations.pay permission required for payment', () => {
 test('trial balance remains balanced after obligation payment', () => {
   const clock = defaultClock()
   let state = emptyState('obligations')
+  
+  state.company.obligationApprovalThreshold = 5000
   
   // Fund bank first
   state = must(state, clock, {

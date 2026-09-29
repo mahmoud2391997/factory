@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, FileText, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
+import { ClipboardList, Factory, FileText, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
 
 import { canAccessSub, ERP_NAV } from '@/lib/erp-nav'
 
@@ -45,8 +45,8 @@ export const DESTINATIONS: Destination[] = [
     ],
   },
   {
-    id: 'stock',
-    label: 'المخزون والإنتاج',
+    id: 'inventory',
+    label: 'المخزون',
     icon: Warehouse,
     groups: [
       {
@@ -54,27 +54,23 @@ export const DESTINATIONS: Destination[] = [
         label: 'المواد الخام',
         leaves: [
           { href: '/inventory/raw-materials', entityKey: 'material', tab: true },
-          { href: '/inventory/raw-materials/transfers', entityKey: 'stockTransfer', tab: true },
-          { href: '/inventory/raw-materials/adjustments', entityKey: 'stockAdjustment', tab: true },
-          { href: '/inventory/raw-materials/barcode', entityKey: 'barcode', tab: true },
+        ],
+      },
+      {
+        id: 'inventory-extensions',
+        label: 'المخزون الإضافي',
+        leaves: [
+          { href: '/inventory/extensions', entityKey: 'inventoryExtensions', tab: true },
         ],
       },
       {
         id: 'warehouses',
         label: 'المستودعات',
-        leaves: [{ href: '/inventory/warehouses', entityKey: 'warehouse', tab: true }],
-      },
-      {
-        id: 'production',
-        label: 'التصنيع',
         leaves: [
-          { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
-          { href: '/inventory/manufacturing/items', entityKey: 'recipeItem', tab: true },
-          { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
-          { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
-          { href: '/inventory/manufacturing/trace', entityKey: 'lotTrace', tab: true },
-          { href: '/inventory/manufacturing/quality', entityKey: 'qualitySample', tab: true },
-          { href: '/inventory/manufacturing/supplier-quality', entityKey: 'supplierQuality', tab: true },
+          { href: '/inventory/warehouses', entityKey: 'warehouse', tab: true },
+          { href: '/inventory/warehouses/transfers', entityKey: 'stockTransfer', tab: true },
+          { href: '/inventory/warehouses/adjustments', entityKey: 'stockAdjustment', tab: true },
+          { href: '/inventory/warehouses/barcode', entityKey: 'barcode', tab: true },
         ],
       },
       {
@@ -86,6 +82,7 @@ export const DESTINATIONS: Destination[] = [
         id: 'stock-reports',
         label: 'التقارير',
         leaves: [
+          { href: '/inventory/reports', entityKey: 'inventoryReports', tab: true },
           { href: '/inventory/raw-materials/batches', entityKey: 'materialBatch', tab: true },
           { href: '/inventory/raw-materials/balances', entityKey: 'inventoryBalance', tab: true },
           { href: '/inventory/raw-materials/ledger', entityKey: 'inventoryTransaction', tab: true },
@@ -93,6 +90,44 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/raw-materials/running-out', entityKey: 'factoryRunningOut', tab: true },
           { href: '/inventory/raw-materials/stagnant', entityKey: 'factoryStagnant', tab: true },
           { href: '/inventory/raw-materials/reserved', entityKey: 'factoryReserved', tab: true },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'production',
+    label: 'الإنتاج',
+    icon: Factory,
+    groups: [
+      {
+        id: 'manufacturing',
+        label: 'التصنيع',
+        leaves: [
+          { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
+          { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
+          { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
+        ],
+      },
+      {
+        id: 'quality',
+        label: 'الجودة',
+        leaves: [
+          { href: '/inventory/manufacturing/quality', entityKey: 'qualitySample', tab: true },
+          { href: '/inventory/manufacturing/supplier-quality', entityKey: 'supplierQuality', tab: true },
+        ],
+      },
+      {
+        id: 'maintenance',
+        label: 'الصيانة',
+        leaves: [
+          { href: '/inventory/manufacturing/maintenance', entityKey: 'maintenance', tab: true },
+        ],
+      },
+      {
+        id: 'production-reports',
+        label: 'التقارير',
+        leaves: [
+          { href: '/inventory/manufacturing/reports', entityKey: 'productionReports', tab: true },
           { href: '/inventory/manufacturing/planned', entityKey: 'factoryPlanned', tab: true },
           { href: '/inventory/manufacturing/actual', entityKey: 'factoryActual', tab: true },
           { href: '/inventory/manufacturing/execution', entityKey: 'factoryExecution', tab: true },
@@ -118,6 +153,13 @@ export const DESTINATIONS: Destination[] = [
         ],
       },
       {
+        id: 'distribution',
+        label: 'التوزيع',
+        leaves: [
+          { href: '/sales/distribution', entityKey: 'distribution', tab: true },
+        ],
+      },
+      {
         id: 'parties',
         label: 'العملاء والموردين',
         leaves: [
@@ -128,9 +170,19 @@ export const DESTINATIONS: Destination[] = [
         ],
       },
       {
+        id: 'supplier-relations',
+        label: 'علاقات الموردين',
+        leaves: [
+          { href: '/sales/parties/relations', entityKey: 'supplierRelations', tab: true },
+          { href: '/sales/parties/templates', entityKey: 'supplierTemplate', tab: true },
+          { href: '/sales/parties/communications', entityKey: 'supplierCommunication', tab: true },
+        ],
+      },
+      {
         id: 'sales-reports',
         label: 'التقارير',
         leaves: [
+          { href: '/sales/reports', entityKey: 'salesReports', tab: true },
           { href: '/sales/today', entityKey: 'factorySalesToday', tab: true },
           { href: '/sales/month', entityKey: 'factorySalesMonth', tab: true },
           { href: '/sales/open-orders', entityKey: 'factoryOpenOrders', tab: true },
@@ -145,19 +197,33 @@ export const DESTINATIONS: Destination[] = [
     groups: [
       {
         id: 'accounting',
-        label: 'الحسابات',
+        label: 'المحاسبة',
         leaves: [
+          { href: '/accounting', entityKey: 'account', tab: true },
+          { href: '/accounting/journals', entityKey: 'journalEntry', tab: true },
           { href: '/accounting/expenses', entityKey: 'expense', tab: true },
+        ],
+      },
+      {
+        id: 'tax',
+        label: 'الضرائب',
+        leaves: [
           { href: '/accounting/tax', entityKey: 'taxSettings', tab: true },
+          { href: '/accounting/vat', entityKey: 'vatReport', tab: true },
+        ],
+      },
+      {
+        id: 'financial-operations',
+        label: 'العمليات المالية',
+        leaves: [
+          { href: '/accounting/financial-ops', entityKey: 'financialOps', tab: true },
         ],
       },
       {
         id: 'accounting-reports',
         label: 'التقارير',
         leaves: [
-          { href: '/accounting', entityKey: 'account', tab: true },
-          { href: '/accounting/journals', entityKey: 'journalEntry', tab: true },
-          { href: '/accounting/vat', entityKey: 'vatReport', tab: true },
+          { href: '/accounting/reports', entityKey: 'accountingReports', tab: true },
           { href: '/accounting/cost', entityKey: 'factoryCostPerTon', tab: true },
           { href: '/accounting/price', entityKey: 'factoryAvgPrice', tab: true },
           { href: '/accounting/margin', entityKey: 'factoryMargin', tab: true },
@@ -242,10 +308,21 @@ for (const leaf of ALL_LEAVES) {
   ENTITY_TO_HREF.set(leaf.entityKey, leaf.href)
 }
 
+const NAV_ENTITY_KEYS = new Set<string>()
 for (const main of ERP_NAV) {
   for (const sub of main.subs) {
     if (!ENTITY_TO_HREF.has(sub.entityKey)) throw new Error(`مسار مفقود: ${sub.entityKey}`)
+    if (NAV_ENTITY_KEYS.has(sub.entityKey)) throw new Error(`شاشة مكررة في ERP_NAV: ${sub.entityKey}`)
+    NAV_ENTITY_KEYS.add(sub.entityKey)
   }
+}
+
+/**
+ * canSeeEntity resolves permissions through ERP_NAV, so a route leaf with no entry there
+ * is hidden from the sidebar and denied on its own URL — for every role, including the GM.
+ */
+for (const leaf of ALL_LEAVES) {
+  if (!NAV_ENTITY_KEYS.has(leaf.entityKey)) throw new Error(`شاشة بلا تعريف في ERP_NAV: ${leaf.entityKey}`)
 }
 
 export function leafMeta(entityKey: string) {

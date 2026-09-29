@@ -22,11 +22,14 @@ export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: Live
   if (entityKey === 'journalEntry') return <Journals ctx={ctx} />
   if (entityKey === 'expense') return <Expenses ctx={ctx} />
   if (entityKey === 'vatReport' || entityKey === 'taxSettings') return <VatScreen ctx={ctx} settings={entityKey === 'taxSettings'} />
+  if (entityKey === 'utilitiesReading' || entityKey === 'financialOps') return <Utilities ctx={ctx} />
+  if (entityKey === 'bankTransaction') return <BankTransactions ctx={ctx} />
+  if (entityKey === 'obligation') return <Obligations ctx={ctx} />
   if (entityKey === 'employee') return <Employees ctx={ctx} />
   if (entityKey === 'attendance') return <Attendance ctx={ctx} />
   if (entityKey === 'overtime') return <Overtime ctx={ctx} />
   if (entityKey === 'payroll') return <Payroll ctx={ctx} />
-  if (entityKey === 'report') return <Reports ctx={ctx} />
+  if (entityKey === 'report' || entityKey === 'accountingReports') return <Reports ctx={ctx} />
   if (entityKey === 'notification') return <Notifications ctx={ctx} />
   if (entityKey === 'auditLog') return <Audit ctx={ctx} />
   if (entityKey === 'companySettings') return <Settings ctx={ctx} />
@@ -146,6 +149,180 @@ function VatScreen({ ctx, settings }: { ctx: LiveCtx; settings: boolean }) {
           </form>
         </Card>
       ) : null}
+    </div>
+  )
+}
+
+function Utilities({ ctx }: { ctx: LiveCtx }) {
+  const [utility, setUtility] = useState<'ELECTRICITY' | 'WATER' | 'GAS'>('ELECTRICITY')
+  const [readingDate, setReadingDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [previousReading, setPreviousReading] = useState('')
+  const [currentReading, setCurrentReading] = useState('')
+  const [cost, setCost] = useState('')
+  const [productionTon, setProductionTon] = useState('')
+  const [notes, setNotes] = useState('')
+  return (
+    <div className="space-y-4">
+      <Card
+        title="استهلاك المرافق"
+        extra={
+          can(ctx.permissions, 'utilities.manage') ? (
+            <FormDialog title="قراءة مرافق جديدة" openLabel="إضافة قراءة">
+              {(close) => (
+                <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('createUtilitiesReading', {
+                    utility,
+                    readingDate,
+                    previousReading: Number(previousReading),
+                    currentReading: Number(currentReading),
+                    cost: Number(cost),
+                    productionTon: Number(productionTon),
+                    notes,
+                  })
+                  if (result.ok) {
+                    setPreviousReading('')
+                    setCurrentReading('')
+                    setCost('')
+                    setProductionTon('')
+                    setNotes('')
+                    close()
+                  }
+                }}>
+                  <Field label="المرافق">
+                    <SelectInput value={utility} onChange={(e) => setUtility(e.target.value as 'ELECTRICITY' | 'WATER' | 'GAS')}>
+                      <option value="ELECTRICITY">كهرباء</option>
+                      <option value="WATER">ماء</option>
+                      <option value="GAS">غاز</option>
+                    </SelectInput>
+                  </Field>
+                  <Field label="تاريخ القراءة"><TextInput type="date" value={readingDate} onChange={(e) => setReadingDate(e.target.value)} required /></Field>
+                  <Field label="القراءة السابقة"><TextInput type="number" min="0" step="0.001" value={previousReading} onChange={(e) => setPreviousReading(e.target.value)} required /></Field>
+                  <Field label="القراءة الحالية"><TextInput type="number" min="0" step="0.001" value={currentReading} onChange={(e) => setCurrentReading(e.target.value)} required /></Field>
+                  <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(e) => setCost(e.target.value)} required /></Field>
+                  <Field label="الإنتاج (طن)"><TextInput type="number" min="0" step="0.001" value={productionTon} onChange={(e) => setProductionTon(e.target.value)} required /></Field>
+                  <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+                  <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['المرافق', 'تاريخ القراءة', 'الاستهلاك', 'التكلفة', 'التكلفة/طن']}
+          rows={(ctx.state.utilitiesReadings ?? []).map((item) => [
+            statusLabel(item.utility),
+            item.readingDate.slice(0, 10),
+            qtyFmt(item.consumption),
+            moneyFmt(item.cost),
+            moneyFmt(item.costPerTon),
+          ])}
+        />
+      </Card>
+    </div>
+  )
+}
+
+function BankTransactions({ ctx }: { ctx: LiveCtx }) {
+  return (
+    <div className="space-y-4">
+      <Card title="معاملات البنك" hint="تكامل مع البنك لمطابقة المعاملات تلقائياً.">
+        <DataTable
+          columns={['التاريخ', 'المعرف', 'المبلغ', 'النوع', 'الوصف', 'الحالة']}
+          rows={(ctx.state.bankTransactions ?? []).map((item) => [
+            item.date.slice(0, 10),
+            item.transactionId,
+            moneyFmt(item.amount),
+            statusLabel(item.type),
+            item.description,
+            statusLabel(item.status),
+          ])}
+        />
+      </Card>
+    </div>
+  )
+}
+
+function Obligations({ ctx }: { ctx: LiveCtx }) {
+  const [beneficiary, setBeneficiary] = useState('')
+  const [description, setDescription] = useState('')
+  const [kind, setKind] = useState<'LOAN' | 'INSTALLMENT' | 'RENT' | 'OTHER'>('LOAN')
+  const [total, setTotal] = useState('')
+  const [installmentAmount, setInstallmentAmount] = useState('')
+  const [firstDueDate, setFirstDueDate] = useState('')
+  const [frequency, setFrequency] = useState<'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME'>('MONTHLY')
+  const [numberOfInstallments, setNumberOfInstallments] = useState('')
+  return (
+    <div className="space-y-4">
+      <Card
+        title="الالتزامات المالية"
+        extra={
+          can(ctx.permissions, 'obligations.manage') ? (
+            <FormDialog title="التزام مالي جديد" openLabel="إضافة التزام">
+              {(close) => (
+                <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('createObligation', {
+                    beneficiary,
+                    description,
+                    kind,
+                    total: Number(total),
+                    installmentAmount: Number(installmentAmount),
+                    firstDueDate,
+                    frequency,
+                    numberOfInstallments: numberOfInstallments ? Number(numberOfInstallments) : undefined,
+                  })
+                  if (result.ok) {
+                    setBeneficiary('')
+                    setDescription('')
+                    setTotal('')
+                    setInstallmentAmount('')
+                    setFirstDueDate('')
+                    setNumberOfInstallments('')
+                    close()
+                  }
+                }}>
+                  <Field label="المستفيد"><TextInput value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} required /></Field>
+                  <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+                  <Field label="النوع">
+                    <SelectInput value={kind} onChange={(e) => setKind(e.target.value as 'LOAN' | 'INSTALLMENT' | 'RENT' | 'OTHER')}>
+                      <option value="LOAN">قرض</option>
+                      <option value="INSTALLMENT">قسط</option>
+                      <option value="RENT">إيجار</option>
+                      <option value="OTHER">أخرى</option>
+                    </SelectInput>
+                  </Field>
+                  <Field label="المبلغ الإجمالي"><TextInput type="number" min="0" step="0.001" value={total} onChange={(e) => setTotal(e.target.value)} required /></Field>
+                  <Field label="قيمة القسط"><TextInput type="number" min="0" step="0.001" value={installmentAmount} onChange={(e) => setInstallmentAmount(e.target.value)} required /></Field>
+                  <Field label="تاريخ أول استحقاق"><TextInput type="date" value={firstDueDate} onChange={(e) => setFirstDueDate(e.target.value)} required /></Field>
+                  <Field label="التكرار">
+                    <SelectInput value={frequency} onChange={(e) => setFrequency(e.target.value as 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME')}>
+                      <option value="MONTHLY">شهري</option>
+                      <option value="QUARTERLY">ربع سنوي</option>
+                      <option value="YEARLY">سنوي</option>
+                      <option value="ONE_TIME">مرة واحدة</option>
+                    </SelectInput>
+                  </Field>
+                  <Field label="عدد الأقساط"><TextInput type="number" min="1" step="1" value={numberOfInstallments} onChange={(e) => setNumberOfInstallments(e.target.value)} /></Field>
+                  <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['المستفيد', 'الوصف', 'النوع', 'المبلغ الإجمالي', 'الحالة']}
+          rows={(ctx.state.obligations ?? []).map((item) => [
+            item.beneficiary,
+            item.description,
+            statusLabel(item.kind),
+            moneyFmt(item.total),
+            statusLabel(item.status),
+          ])}
+        />
+      </Card>
     </div>
   )
 }

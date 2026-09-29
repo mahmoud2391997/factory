@@ -21,6 +21,16 @@ function LimitsForm({ ctx, itemType, itemId }: { ctx: LiveCtx; itemType: 'MATERI
     maxProtein: limits.maxProtein?.toString() ?? '',
     minAsh: limits.minAsh?.toString() ?? '',
     maxAsh: limits.maxAsh?.toString() ?? '',
+    minEnergy: limits.minEnergy?.toString() ?? '',
+    maxEnergy: limits.maxEnergy?.toString() ?? '',
+    minFat: limits.minFat?.toString() ?? '',
+    maxFat: limits.maxFat?.toString() ?? '',
+    minFiber: limits.minFiber?.toString() ?? '',
+    maxFiber: limits.maxFiber?.toString() ?? '',
+    minCalcium: limits.minCalcium?.toString() ?? '',
+    maxCalcium: limits.maxCalcium?.toString() ?? '',
+    minPhosphorus: limits.minPhosphorus?.toString() ?? '',
+    maxPhosphorus: limits.maxPhosphorus?.toString() ?? '',
   })
   const num = (value: string) => (value.trim() === '' ? undefined : Number(value))
   return (
@@ -36,6 +46,16 @@ function LimitsForm({ ctx, itemType, itemId }: { ctx: LiveCtx; itemType: 'MATERI
           maxProtein: num(form.maxProtein),
           minAsh: num(form.minAsh),
           maxAsh: num(form.maxAsh),
+          minEnergy: num(form.minEnergy),
+          maxEnergy: num(form.maxEnergy),
+          minFat: num(form.minFat),
+          maxFat: num(form.maxFat),
+          minFiber: num(form.minFiber),
+          maxFiber: num(form.maxFiber),
+          minCalcium: num(form.minCalcium),
+          maxCalcium: num(form.maxCalcium),
+          minPhosphorus: num(form.minPhosphorus),
+          maxPhosphorus: num(form.maxPhosphorus),
         },
       })
     }}>
@@ -46,6 +66,16 @@ function LimitsForm({ ctx, itemType, itemId }: { ctx: LiveCtx; itemType: 'MATERI
         ['maxProtein', 'أعلى بروتين %'],
         ['minAsh', 'أدنى رماد %'],
         ['maxAsh', 'أعلى رماد %'],
+        ['minEnergy', 'أدنى طاقة'],
+        ['maxEnergy', 'أعلى طاقة'],
+        ['minFat', 'أدنى دهون %'],
+        ['maxFat', 'أعلى دهون %'],
+        ['minFiber', 'أدنى ألياف %'],
+        ['maxFiber', 'أعلى ألياف %'],
+        ['minCalcium', 'أدنى كالسيوم %'],
+        ['maxCalcium', 'أعلى كالسيوم %'],
+        ['minPhosphorus', 'أدنى فوسفور %'],
+        ['maxPhosphorus', 'أعلى فوسفور %'],
       ] as const).map(([key, label]) => (
         <Field key={key} label={label}>
           <TextInput type="number" min="0" max="100" step="0.001" value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
@@ -93,6 +123,11 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
   const [moisture, setMoisture] = useState('')
   const [protein, setProtein] = useState('')
   const [ash, setAsh] = useState('')
+  const [energy, setEnergy] = useState('')
+  const [fat, setFat] = useState('')
+  const [fiber, setFiber] = useState('')
+  const [calcium, setCalcium] = useState('')
+  const [phosphorus, setPhosphorus] = useState('')
   const [notes, setNotes] = useState('')
   const [override, setOverride] = useState('')
   const [reason, setReason] = useState('')
@@ -122,6 +157,11 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
               moisturePct: num(moisture),
               proteinPct: num(protein),
               ashPct: num(ash),
+              energy: num(energy),
+              fatPct: num(fat),
+              fiberPct: num(fiber),
+              calciumPct: num(calcium),
+              phosphorusPct: num(phosphorus),
               notes,
               result: override ? (override as 'PASSED' | 'FAILED' | 'HOLD') : undefined,
               reason,
@@ -130,6 +170,11 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
               setMoisture('')
               setProtein('')
               setAsh('')
+              setEnergy('')
+              setFat('')
+              setFiber('')
+              setCalcium('')
+              setPhosphorus('')
               setNotes('')
               setOverride('')
               setReason('')
@@ -167,6 +212,11 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
             <Field label="رطوبة %"><TextInput type="number" min="0" max="100" step="0.001" value={moisture} onChange={(e) => setMoisture(e.target.value)} /></Field>
             <Field label="بروتين %"><TextInput type="number" min="0" max="100" step="0.001" value={protein} onChange={(e) => setProtein(e.target.value)} /></Field>
             <Field label="رماد %"><TextInput type="number" min="0" max="100" step="0.001" value={ash} onChange={(e) => setAsh(e.target.value)} /></Field>
+            <Field label="طاقة"><TextInput type="number" min="0" step="0.001" value={energy} onChange={(e) => setEnergy(e.target.value)} /></Field>
+            <Field label="دهون %"><TextInput type="number" min="0" max="100" step="0.001" value={fat} onChange={(e) => setFat(e.target.value)} /></Field>
+            <Field label="ألياف %"><TextInput type="number" min="0" max="100" step="0.001" value={fiber} onChange={(e) => setFiber(e.target.value)} /></Field>
+            <Field label="كالسيوم %"><TextInput type="number" min="0" max="100" step="0.001" value={calcium} onChange={(e) => setCalcium(e.target.value)} /></Field>
+            <Field label="فوسفور %"><TextInput type="number" min="0" max="100" step="0.001" value={phosphorus} onChange={(e) => setPhosphorus(e.target.value)} /></Field>
             <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
             <Field label="تجاوز النتيجة المقترحة">
               <SelectInput value={override} onChange={(e) => setOverride(e.target.value)}>
@@ -211,7 +261,7 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
           <Field label="إلى"><TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
         </div>
         <DataTable
-          columns={['الوقت', 'النوع', 'المرجع', 'رطوبة', 'بروتين', 'رماد', 'النتيجة', '']}
+          columns={['الوقت', 'النوع', 'المرجع', 'رطوبة', 'بروتين', 'رماد', 'طاقة', 'دهون', 'ألياف', 'كالسيوم', 'فوسفور', 'النتيجة', '']}
           rows={rows.map((sample) => [
             sample.sampledAt.slice(0, 16).replace('T', ' '),
             statusLabel(sample.type),
@@ -219,6 +269,11 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
             sample.moisturePct != null ? qtyFmt(sample.moisturePct) : '—',
             sample.proteinPct != null ? qtyFmt(sample.proteinPct) : '—',
             sample.ashPct != null ? qtyFmt(sample.ashPct) : '—',
+            sample.energy != null ? qtyFmt(sample.energy) : '—',
+            sample.fatPct != null ? qtyFmt(sample.fatPct) : '—',
+            sample.fiberPct != null ? qtyFmt(sample.fiberPct) : '—',
+            sample.calciumPct != null ? qtyFmt(sample.calciumPct) : '—',
+            sample.phosphorusPct != null ? qtyFmt(sample.phosphorusPct) : '—',
             statusLabel(sample.result),
             can(ctx.permissions, 'qc.manage') ? (
               <ResultButtons key={sample.id} ctx={ctx} sampleId={sample.id} />

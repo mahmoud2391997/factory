@@ -9,7 +9,7 @@ type Load = {
   storage: 'postgres' | 'file'
 }
 
-export function useErp(enabled: boolean) {
+export function useErp(enabled: boolean = true) {
   const [data, setData] = useState<Load | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)

@@ -146,7 +146,7 @@ export function EntityPage({
                 </tr>
               ) : (
                 filtered.map((row) => (
-                  <tr key={row.id} className="border-b border-[#f0f4f2] last:border-0">
+                  <tr key={row.id} className="border-b border-[#f0f4f2] transition-colors duration-200 last:border-0 hover:bg-[#fcfdfd]">
                     <td className="py-4 text-base font-semibold text-[#50635b]">{row.id}</td>
                     {columns.map((col) => (
                       <td key={col.key} className="py-4 text-base text-[#53655e]">
