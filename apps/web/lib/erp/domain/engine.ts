@@ -2967,6 +2967,30 @@ function refreshEntityAlerts(state: ErpState, clock: Clock, today: string) {
         ['GM', 'OPERATIONS'],
       )
     }
+
+    // Latest service per kind with a nextDueDate drives the upcoming-maintenance alert.
+    const latestServiceByKind = new Map<VehicleService['kind'], VehicleService>()
+    for (const service of state.vehicleServices) {
+      if (service.vehicleId !== vehicle.id || !service.nextDueDate) continue
+      const current = latestServiceByKind.get(service.kind)
+      if (!current || service.date > current.date) latestServiceByKind.set(service.kind, service)
+    }
+    for (const service of latestServiceByKind.values()) {
+      expiryLadder(
+        state,
+        clock,
+        today,
+        `vehicle:${vehicle.id}:service:${service.kind}:${service.nextDueDate}`,
+        service.nextDueDate!,
+        `صيانة سيارة متأخرة: ${vehicle.nameAr}`,
+        `صيانة سيارة قادمة: ${vehicle.nameAr}`,
+        (left) =>
+          left < 0
+            ? `صيانة ${vehicle.plateNo} (${service.kind}) كانت مستحقة ${service.nextDueDate}.`
+            : `صيانة ${vehicle.plateNo} (${service.kind}) تستحق ${service.nextDueDate} — بعد ${left} يوماً.`,
+        ['GM', 'OPERATIONS'],
+      )
+    }
   }
 
   for (const employee of state.employees) {

@@ -53,6 +53,30 @@ test('vehicle papers fire the 90/60/30/7 ladder and an expired alert', () => {
   assert.equal(state.notifications.length, before)
 })
 
+test('vehicle upcoming service fires the ladder off the latest service of that kind', () => {
+  const clock = createClock(NOW)
+  let state = emptyState('alerts-service')
+  state = must(state, clock, { action: 'createVehicle', input: { code: 'V1', plateNo: '12345', type: 'TRUCK', nameAr: 'شاحنة' } })
+  const vehicleId = state.vehicles[0]!.id
+
+  state = must(state, clock, {
+    action: 'addVehicleService',
+    input: { vehicleId, date: daysFromNow(-30), kind: 'OIL', description: 'تغيير زيت', cost: 20, odometer: 1000, nextDueDate: daysFromNow(95) },
+  })
+  assert.deepEqual(keys(state).filter((key) => key.startsWith(`vehicle:${vehicleId}:service:`)), [])
+
+  // A later OIL service supersedes the earlier one's due date.
+  state = must(state, clock, {
+    action: 'addVehicleService',
+    input: { vehicleId, date: daysFromNow(-1), kind: 'OIL', description: 'تغيير زيت', cost: 20, odometer: 1500, nextDueDate: daysFromNow(6) },
+  })
+  const noteKeys = keys(state).filter((key) => key.startsWith(`vehicle:${vehicleId}:service:`))
+  assert.deepEqual(noteKeys, [`vehicle:${vehicleId}:service:OIL:${daysFromNow(6)}:expiry:7`])
+  const note = state.notifications.find((n) => n.dedupeKey === noteKeys[0])!
+  assert.equal(note.kind, 'EXPIRY')
+  assert.deepEqual(note.roles, ['GM', 'OPERATIONS'])
+})
+
 test('employee residence and contract papers alert the GM and the accountant', () => {
   const clock = createClock(NOW)
   let state = emptyState('alerts-emp')
