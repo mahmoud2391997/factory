@@ -1,10 +1,29 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
 export type VatTreatment = 'STANDARD' | 'ZERO' | 'EXEMPT'
+
+export type QcLimits = {
+  minMoisture?: number
+  maxMoisture?: number
+  minProtein?: number
+  maxProtein?: number
+  minAsh?: number
+  maxAsh?: number
+  minEnergy?: number
+  maxEnergy?: number
+  minFat?: number
+  maxFat?: number
+  minFiber?: number
+  maxFiber?: number
+  minCalcium?: number
+  maxCalcium?: number
+  minPhosphorus?: number
+  maxPhosphorus?: number
+}
 
 export type Company = {
   nameAr: string
@@ -81,36 +100,9 @@ export type Material = {
   barcode: string
   active: boolean
   /** Nutritional analysis specification limits. */
-  qcLimits?: { 
-    minMoisture?: number; 
-    maxMoisture?: number; 
-    minProtein?: number; 
-    maxProtein?: number; 
-    minAsh?: number; 
-    maxAsh?: number
-    minEnergy?: number
-    maxEnergy?: number
-    minFat?: number
-    maxFat?: number
-    minFiber?: number
-    maxFiber?: number
-    minCalcium?: number
-    maxCalcium?: number
-    minPhosphorus?: number
-    maxPhosphorus?: number
-  }
+  qcLimits?: QcLimits
   /** Last known lab analysis values for this material. */
-  labAnalysis?: {
-    moisturePct?: number
-    proteinPct?: number
-    ashPct?: number
-    energy?: number
-    fatPct?: number
-    fiberPct?: number
-    calciumPct?: number
-    phosphorusPct?: number
-    lastLabDate?: string
-  }
+  labAnalysis?: Partial<NutritionalProfile> & { lastLabDate?: string }
 }
 
 export type Product = {
@@ -124,24 +116,7 @@ export type Product = {
   bagKg: number
   active: boolean
   /** Nutritional analysis specification limits. */
-  qcLimits?: { 
-    minMoisture?: number; 
-    maxMoisture?: number; 
-    minProtein?: number; 
-    maxProtein?: number; 
-    minAsh?: number; 
-    maxAsh?: number
-    minEnergy?: number
-    maxEnergy?: number
-    minFat?: number
-    maxFat?: number
-    minFiber?: number
-    maxFiber?: number
-    minCalcium?: number
-    maxCalcium?: number
-    minPhosphorus?: number
-    maxPhosphorus?: number
-  }
+  qcLimits?: QcLimits
   /** Alternative bag weights supported (e.g., 40kg, 50kg). */
   alternativeBagKg?: number[]
   /** Customer-specific pricing: customerId -> special price. */
@@ -650,9 +625,17 @@ export type NutritionalProfile = {
   phosphorusPct: number
 }
 
+export type NutritionalCalculation = {
+  profile: NutritionalProfile
+  coveragePct: Partial<Record<keyof NutritionalProfile, number>>
+  missingMaterials: string[]
+}
+
 /** Comparison between calculated, lab, and specification values. */
 export type NutritionalComparison = {
+  key: keyof NutritionalProfile
   parameter: string
+  unit: string
   calculated: number
   lab?: number
   specMin?: number
@@ -950,13 +933,23 @@ export type ProductionLot = {
   legacyNote?: string
 }
 
+export type QualitySampleAttachment = {
+  id: string
+  fileName: string
+  mediaType: CompanyDocumentAttachment['mediaType']
+  sizeBytes: number
+  uploadedBy: string
+  uploadedAt: string
+}
+
 export type QualitySample = {
   id: string
-  type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'
+  type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'IN_PROCESS'
   materialId?: string
   batchNo?: string
   supplierId?: string
   lotNo?: string
+  productionOrderId?: string
   sampledBy: string
   sampledAt: string
   moisturePct?: number
@@ -967,7 +960,10 @@ export type QualitySample = {
   fiberPct?: number
   calciumPct?: number
   phosphorusPct?: number
+  labName?: string
+  testMethod?: string
   notes?: string
+  attachments?: QualitySampleAttachment[]
   result: 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
 }
 
@@ -1125,9 +1121,10 @@ export type Command =
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }
   | { action: 'setUserPassword'; input: { userId: string; passwordHash: string } }
   | { action: 'archiveHistory'; input: { olderThanDays: number; nowIso?: string } }
-  | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
+  | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'IN_PROCESS'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; productionOrderId?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; energy?: number; fatPct?: number; fiberPct?: number; calciumPct?: number; phosphorusPct?: number; labName?: string; testMethod?: string; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
   | { action: 'updateQualityResult'; input: { sampleId: string; result: 'PASSED' | 'FAILED' | 'HOLD'; reason: string } }
-  | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number; minEnergy?: number; maxEnergy?: number; minFat?: number; maxFat?: number; minFiber?: number; maxFiber?: number; minCalcium?: number; maxCalcium?: number; minPhosphorus?: number; maxPhosphorus?: number } } }
+  | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: QcLimits } }
+  | { action: 'addQualitySampleAttachment'; input: { sampleId: string; id: string; fileName: string; mediaType: CompanyDocumentAttachment['mediaType']; sizeBytes: number } }
   | { action: 'holdLot'; input: { lotNo: string; reason: string } }
   | { action: 'releaseLot'; input: { lotNo: string; reason: string } }
   | { action: 'recallLot'; input: { lotNo: string; reason: string } }

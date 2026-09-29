@@ -23,7 +23,115 @@ test('limits suggest passed or failed, and never hold', () => {
   assert.equal(suggestQcResult({ maxMoisture: 14, minProtein: 18 }, { moisturePct: 12, proteinPct: 20 }), 'PASSED')
   assert.equal(suggestQcResult({ maxMoisture: 14, minProtein: 18 }, { moisturePct: 15, proteinPct: 20 }), 'FAILED')
   assert.equal(suggestQcResult({ minAsh: 2, maxAsh: 8 }, { ashPct: 1 }), 'FAILED')
+  assert.equal(suggestQcResult({ minEnergy: 12, maxFat: 8, maxFiber: 10 }, { energy: 11, fatPct: 5, fiberPct: 4 }), 'FAILED')
+  assert.equal(suggestQcResult({ minCalcium: 1, maxPhosphorus: 0.8 }, { calciumPct: 1.1, phosphorusPct: 0.7 }), 'PASSED')
   assert.equal(suggestQcResult(undefined, { moisturePct: 12 }), 'PENDING')
+})
+
+test('all lab readings, metadata and full nutritional limits are saved', () => {
+  const clock = createClock('2026-09-29T04:00:00.000Z')
+  let state = emptyState('qc-analysis')
+  state = must(state, clock, { action: 'createMaterial', input: { code: 'RM-A', nameAr: 'مادة تحليلية', category: 'حبوب', minQty: 1, vatTreatment: 'ZERO' } })
+  const material = state.materials[0]!
+  state = must(state, clock, {
+    action: 'setQcLimits',
+    input: { itemType: 'MATERIAL', itemId: material.id, limits: { minEnergy: 12, maxFat: 8, maxFiber: 10, minCalcium: 1, maxPhosphorus: 0.8 } },
+  })
+  state = must(state, clock, {
+    action: 'createQualitySample',
+    input: {
+      type: 'RAW_MATERIAL',
+      materialId: material.id,
+      batchNo: 'ANALYSIS-1',
+      moisturePct: 9,
+      proteinPct: 21,
+      ashPct: 4,
+      energy: 13,
+      fatPct: 3,
+      fiberPct: 7,
+      calciumPct: 1.2,
+      phosphorusPct: 0.7,
+      labName: 'مختبر المصنع',
+      testMethod: 'NIR',
+    },
+  })
+  const sample = state.qualitySamples[0]!
+  assert.equal(sample.result, 'PASSED')
+  assert.equal(sample.labName, 'مختبر المصنع')
+  assert.equal(sample.testMethod, 'NIR')
+  assert.equal(sample.energy, 13)
+  assert.equal(sample.fatPct, 3)
+  assert.equal(sample.fiberPct, 7)
+  assert.equal(sample.calciumPct, 1.2)
+  assert.equal(sample.phosphorusPct, 0.7)
+  assert.equal(state.materials.find((item) => item.id === material.id)?.labAnalysis?.proteinPct, 21)
+  assert.equal(state.materials.find((item) => item.id === material.id)?.labAnalysis?.lastLabDate, '2026-09-29')
+})
+
+test('pending sample results block use and lab report attachments are audited', () => {
+  const clock = createClock('2026-09-29T04:00:00.000Z')
+  let state = emptyState('qc-attachment')
+  state = must(state, clock, { action: 'createMaterial', input: { code: 'RM-P', nameAr: 'مادة معلقة', category: 'حبوب', minQty: 1, vatTreatment: 'ZERO' } })
+  const material = state.materials[0]!
+  state = must(state, clock, {
+    action: 'createQualitySample',
+    input: { type: 'RAW_MATERIAL', materialId: material.id, batchNo: 'B-PENDING' },
+  })
+  const sample = state.qualitySamples[0]!
+  assert.equal(sample.result, 'PENDING')
+  assert.match(rawBatchQcBlock(state, material.id, 'B-PENDING') ?? '', /تنتظر اعتماد/)
+  assert.match(
+    (() => {
+      const result = applyCommand(state, who(state, 'user-driver'), {
+        action: 'addQualitySampleAttachment',
+        input: { sampleId: sample.id, id: 'f89f087c-2c71-47e0-9ba3-51f8f5128abb', fileName: 'report.pdf', mediaType: 'application/pdf', sizeBytes: 200 },
+      }, clock)
+      return result.ok ? '' : result.error
+    })(),
+    /صلاحية/,
+  )
+  state = must(state, clock, {
+    action: 'addQualitySampleAttachment',
+    input: { sampleId: sample.id, id: 'f89f087c-2c71-47e0-9ba3-51f8f5128abb', fileName: 'report.pdf', mediaType: 'application/pdf', sizeBytes: 200 },
+  })
+  assert.equal(state.qualitySamples[0]!.attachments?.[0]?.uploadedBy, 'user-gm')
+  assert.ok(state.auditLogs.some((item) => item.action === 'إضافة تقرير مختبر'))
+})
+
+test('failed in-process quality result blocks production completion until released', () => {
+  const clock = createClock('2026-09-29T04:00:00.000Z')
+  let state = emptyState('qc-in-process')
+  state = must(state, clock, { action: 'createProduct', input: { code: 'FG-IP', nameAr: 'منتج', salePrice: 1, vatTreatment: 'ZERO' } })
+  state = must(state, clock, { action: 'createMaterial', input: { code: 'RM-IP', nameAr: 'مادة', category: 'حبوب', minQty: 1, vatTreatment: 'ZERO' } })
+  const product = state.products[0]!
+  const material = state.materials[0]!
+  state = must(state, clock, { action: 'createRecipe', input: { productId: product.id, nameAr: 'خلطة', baseOutputQty: 100, items: [{ materialId: material.id, qty: 100 }] } })
+  const recipe = state.recipes[0]!
+  state = must(state, clock, { action: 'createProductionOrder', input: { productId: product.id, recipeId: recipe.id, plannedQty: 100 } })
+  const order = state.productionOrders[0]!
+  state = must(state, clock, { action: 'setQcLimits', input: { itemType: 'PRODUCT', itemId: product.id, limits: { minProtein: 18 } } })
+  state = must(state, clock, {
+    action: 'createQualitySample',
+    input: { type: 'IN_PROCESS', productionOrderId: order.id, proteinPct: 12 },
+  })
+  assert.equal(state.qualitySamples[0]?.result, 'FAILED')
+  const blocked = applyCommand(state, who(state, 'user-gm'), {
+    action: 'completeProduction',
+    input: { productionOrderId: order.id, operatorId: 'missing', actuals: [], actualOutputQty: 100 },
+  }, clock)
+  assert.equal(blocked.ok, false)
+  if (!blocked.ok) assert.match(blocked.error, /أثناء الإنتاج/)
+
+  state = must(state, clock, {
+    action: 'updateQualityResult',
+    input: { sampleId: state.qualitySamples[0]!.id, result: 'PASSED', reason: 'إعادة التحليل مطابقة' },
+  })
+  const released = applyCommand(state, who(state, 'user-gm'), {
+    action: 'completeProduction',
+    input: { productionOrderId: order.id, operatorId: 'missing', actuals: [], actualOutputQty: 100 },
+  }, clock)
+  assert.equal(released.ok, false)
+  if (!released.ok) assert.match(released.error, /مشغّل الإنتاج غير موجود/)
 })
 
 test('quality blocks raw use, finished lots, release, and duplicate alerts', () => {
@@ -68,9 +176,10 @@ test('quality blocks raw use, finished lots, release, and duplicate alerts', () 
 
   const failed = must(state, clock, {
     action: 'createQualitySample',
-    input: { type: 'RAW_MATERIAL', materialId: material.id, batchNo: 'B-QC', supplierId: supplier.id, moisturePct: 16, proteinPct: 10 },
+    input: { type: 'RAW_MATERIAL', materialId: material.id, batchNo: 'B-QC', moisturePct: 16, proteinPct: 10 },
   })
   assert.equal(failed.qualitySamples[0]!.result, 'FAILED')
+  assert.equal(failed.qualitySamples[0]!.supplierId, supplier.id)
   const again = must(failed, clock, {
     action: 'createQualitySample',
     input: { type: 'RAW_MATERIAL', materialId: material.id, batchNo: 'B-QC', supplierId: supplier.id, moisturePct: 17, proteinPct: 10 },
@@ -113,6 +222,19 @@ test('quality blocks raw use, finished lots, release, and duplicate alerts', () 
   const summary = supplierQuality(state, supplier.id)
   assert.equal(summary.samples, 2)
   assert.equal(summary.passRate, 50)
+  assert.equal(summary.monthlyTrend.length, 1)
+  assert.equal(summary.monthlyTrend[0]?.samples, 2)
+  assert.equal(summary.monthlyTrend[0]?.passRate, 50)
+  state.qualitySamples.push({
+    ...state.qualitySamples[0]!,
+    id: 'qc-next-month',
+    sampledAt: '2026-10-02T04:00:00.000Z',
+    result: 'PASSED',
+    moisturePct: 11,
+  })
+  const trend = supplierQuality(state, supplier.id).monthlyTrend
+  assert.deepEqual(trend.map((row) => row.month), ['2026-09', '2026-10'])
+  assert.equal(trend[1]?.avgMoisture, 11)
 })
 
 test('held raw material cannot be consumed and a held lot cannot be sold or withdrawn', () => {

@@ -1,7 +1,8 @@
 import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
 import { ALLOCATED_COST_TYPES, allocateCostType, approvedTripTransportCost, buildLotCostLines, COST_LABEL, packagingCostLine, transportCostBreakdown, type CostContext } from './costing'
-import { lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
+import { inProcessQcBlock, latestSample, lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
+import { calculateLotNutrition, calculateRecipeNutrition, compareNutrition } from './nutrition'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
   Actor,
@@ -25,8 +26,6 @@ import type {
   Obligation,
   ObligationScheduleLine,
   ObligationPayment,
-  NutritionalProfile,
-  NutritionalComparison,
   SparePart,
   SparePartUsage,
   PackagingMaterial,
@@ -43,10 +42,10 @@ import type {
   MaintenanceSchedule,
   MaintenanceRecord,
   BankTransaction,
+  QualitySample,
   CustomerRecipe,
   CompanyDocument,
   Recipe,
-  QualitySample,
   QualityHold,
   TripCostAllocation,
   ProductionOrder,
@@ -141,97 +140,6 @@ function recordLotDelivery(state: ErpState, productId: string, batchNo: string, 
   if (!lot) return
   lot.deliveries.push(delivery)
   refreshLotSale(state, lot)
-}
-
-/** Calculate nutritional profile from recipe ingredients. */
-function calculateRecipeNutrition(state: ErpState, recipe: Recipe): NutritionalProfile {
-  let totalMoisture = 0
-  let totalProtein = 0
-  let totalAsh = 0
-  let totalEnergy = 0
-  let totalFat = 0
-  let totalFiber = 0
-  let totalCalcium = 0
-  let totalPhosphorus = 0
-  let totalQty = 0
-
-  for (const item of recipe.items) {
-    const material = state.materials.find((m) => m.id === item.materialId)
-    if (!material?.labAnalysis) continue
-
-    const qty = item.qty
-    totalQty += qty
-
-    // Weighted average calculation
-    totalMoisture += (material.labAnalysis.moisturePct ?? 0) * qty
-    totalProtein += (material.labAnalysis.proteinPct ?? 0) * qty
-    totalAsh += (material.labAnalysis.ashPct ?? 0) * qty
-    totalEnergy += (material.labAnalysis.energy ?? 0) * qty
-    totalFat += (material.labAnalysis.fatPct ?? 0) * qty
-    totalFiber += (material.labAnalysis.fiberPct ?? 0) * qty
-    totalCalcium += (material.labAnalysis.calciumPct ?? 0) * qty
-    totalPhosphorus += (material.labAnalysis.phosphorusPct ?? 0) * qty
-  }
-
-  if (totalQty === 0) {
-    return {
-      moisturePct: 0,
-      proteinPct: 0,
-      ashPct: 0,
-      energy: 0,
-      fatPct: 0,
-      fiberPct: 0,
-      calciumPct: 0,
-      phosphorusPct: 0,
-    }
-  }
-
-  return {
-    moisturePct: pct2(totalMoisture / totalQty),
-    proteinPct: pct2(totalProtein / totalQty),
-    ashPct: pct2(totalAsh / totalQty),
-    energy: pct2(totalEnergy / totalQty),
-    fatPct: pct2(totalFat / totalQty),
-    fiberPct: pct2(totalFiber / totalQty),
-    calciumPct: pct2(totalCalcium / totalQty),
-    phosphorusPct: pct2(totalPhosphorus / totalQty),
-  }
-}
-
-/** Compare calculated nutrition with lab results and specifications. */
-function compareNutrition(calculated: NutritionalProfile, lab?: QualitySample, spec?: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number; minEnergy?: number; maxEnergy?: number; minFat?: number; maxFat?: number; minFiber?: number; maxFiber?: number; minCalcium?: number; maxCalcium?: number; minPhosphorus?: number; maxPhosphorus?: number }): NutritionalComparison[] {
-  const parameters: Array<{ key: keyof NutritionalProfile; label: string; unit: string }> = [
-    { key: 'moisturePct', label: 'الرطوبة', unit: '%' },
-    { key: 'proteinPct', label: 'البروتين', unit: '%' },
-    { key: 'ashPct', label: 'الرماد', unit: '%' },
-    { key: 'energy', label: 'الطاقة', unit: 'MJ/kg' },
-    { key: 'fatPct', label: 'الدهون', unit: '%' },
-    { key: 'fiberPct', label: 'الألياف', unit: '%' },
-    { key: 'calciumPct', label: 'الكالسيوم', unit: '%' },
-    { key: 'phosphorusPct', label: 'الفوسفور', unit: '%' },
-  ]
-
-  return parameters.map(({ key, label, unit }) => {
-    const calculatedValue = calculated[key]
-    const labValue = lab ? (lab as any)[key] : undefined
-    const specMin = spec ? (spec as any)[`min${key.charAt(0).toUpperCase() + key.slice(1).replace('Pct', '')}`] : undefined
-    const specMax = spec ? (spec as any)[`max${key.charAt(0).toUpperCase() + key.slice(1).replace('Pct', '')}`] : undefined
-
-    const variance = labValue !== undefined ? pct2(labValue - calculatedValue) : undefined
-    const inSpec = labValue !== undefined && specMin !== undefined && specMax !== undefined
-      ? labValue >= specMin && labValue <= specMax
-      : true
-
-    return {
-      parameter: label,
-      calculated: calculatedValue,
-      lab: labValue,
-      specMin,
-      specMax,
-      variance,
-      inSpec,
-    }
-  })
 }
 
 /** Automatically match bank transaction to invoice, supplier, or expense. */
@@ -764,6 +672,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     setUserPassword: 'users.manage',
     archiveHistory: 'settings.update',
     createQualitySample: 'qc.manage',
+    addQualitySampleAttachment: 'qc.manage',
     updateQualityResult: 'qc.manage',
     setQcLimits: 'qc.limits',
     holdLot: 'qc.manage',
@@ -884,6 +793,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return archiveHistory(state, actor, command.input, clock)
     case 'createQualitySample':
       return createQualitySample(state, actor, command.input, clock)
+    case 'addQualitySampleAttachment':
+      return addQualitySampleAttachment(state, actor, command.input, clock)
     case 'updateQualityResult':
       return updateQualityResult(state, actor, command.input, clock)
     case 'setQcLimits':
@@ -1550,6 +1461,8 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const order = state.productionOrders.find((item) => item.id === input.productionOrderId)
   if (!order) return fail('أمر الإنتاج غير موجود')
   if (order.status !== 'RELEASED') return fail('أمر الإنتاج مكتمل بالفعل')
+  const qcBlock = inProcessQcBlock(state, order.id)
+  if (qcBlock) return fail(qcBlock)
   if (input.actualOutputQty <= 0) return fail('كمية الناتج يجب أن تكون أكبر من صفر')
   const operator = state.employees.find((item) => item.id === input.operatorId && item.active)
   if (!operator) return fail('مشغّل الإنتاج غير موجود')
@@ -2330,17 +2243,27 @@ function archiveHistory(state: ErpState, actor: Actor, input: Extract<Command, {
 
 function cleanLimits(limits: Extract<Command, { action: 'setQcLimits' }>['input']['limits']) {
   const next: typeof limits = {}
-  const keys = ['minMoisture', 'maxMoisture', 'minProtein', 'maxProtein', 'minAsh', 'maxAsh'] as const
+  const keys = [
+    'minMoisture', 'maxMoisture', 'minProtein', 'maxProtein', 'minAsh', 'maxAsh',
+    'minEnergy', 'maxEnergy', 'minFat', 'maxFat', 'minFiber', 'maxFiber',
+    'minCalcium', 'maxCalcium', 'minPhosphorus', 'maxPhosphorus',
+  ] as const
   for (const key of keys) {
     const value = limits[key]
-    if (value == null || value === ('' as unknown)) continue
-    if (!Number.isFinite(value) || value < 0 || value > 100) return { error: 'حد الجودة يجب أن يكون بين 0 و 100' }
+    if (value == null) continue
+    const maximum = key.endsWith('Energy') ? 10000 : 100
+    if (!Number.isFinite(value) || value < 0 || value > maximum) return { error: 'حد الجودة خارج النطاق المسموح' }
     next[key] = round3(value)
   }
   const pairs = [
     ['minMoisture', 'maxMoisture'],
     ['minProtein', 'maxProtein'],
     ['minAsh', 'maxAsh'],
+    ['minEnergy', 'maxEnergy'],
+    ['minFat', 'maxFat'],
+    ['minFiber', 'maxFiber'],
+    ['minCalcium', 'maxCalcium'],
+    ['minPhosphorus', 'maxPhosphorus'],
   ] as const
   for (const [minKey, maxKey] of pairs) {
     if (next[minKey] != null && next[maxKey] != null && next[minKey]! > next[maxKey]!) return { error: 'الحد الأدنى للجودة أكبر من الحد الأعلى' }
@@ -2354,39 +2277,93 @@ function syncLotQc(state: ErpState, lotNo: string | undefined, result: 'PASSED' 
   if (lot) lot.qcStatus = result
 }
 
-function notifyQc(state: ErpState, clock: Clock, sample: { type: string; result: string; materialId?: string; batchNo?: string; lotNo?: string; id: string }) {
+function notifyQc(state: ErpState, clock: Clock, sample: QualitySample) {
   if (sample.result !== 'FAILED' && sample.result !== 'HOLD') return
   const label = sample.result === 'FAILED' ? 'مرفوضة' : 'معلّقة'
-  const target = sample.type === 'FINISHED_PRODUCT' ? `دفعة ${sample.lotNo}` : `خامة ${sample.batchNo}`
+  const target = sample.type === 'FINISHED_PRODUCT'
+    ? `دفعة ${sample.lotNo}`
+    : sample.type === 'IN_PROCESS'
+      ? `أمر إنتاج ${sample.productionOrderId}`
+      : `خامة ${sample.batchNo}`
   notify(
     state,
     clock,
     'QC',
     `جودة ${label}: ${target}`,
-    sample.type === 'FINISHED_PRODUCT' ? 'لا يمكن بيع الدفعة أو سحبها حتى تُفك.' : 'لا يمكن تحويل الدفعة للتصنيع أو استهلاكها حتى تُفك.',
+    sample.type === 'FINISHED_PRODUCT'
+      ? 'لا يمكن بيع الدفعة أو سحبها حتى تُفك.'
+      : sample.type === 'IN_PROCESS'
+        ? 'لا يمكن إكمال أمر الإنتاج حتى يُعاد الفحص ويُعتمد.'
+        : 'لا يمكن تحويل الدفعة للتصنيع أو استهلاكها حتى تُفك.',
     ['GM', 'OPERATIONS', 'QUALITY'],
-    `qc:${sample.type}:${sample.materialId ?? ''}:${sample.batchNo ?? ''}:${sample.lotNo ?? ''}:${sample.result}`,
+    `qc:${sample.type}:${sample.materialId ?? ''}:${sample.batchNo ?? ''}:${sample.lotNo ?? ''}:${sample.productionOrderId ?? ''}:${sample.result}`,
   )
+}
+
+function updateMaterialLabAnalysis(state: ErpState, sample: QualitySample) {
+  if (sample.type !== 'RAW_MATERIAL' || !sample.materialId || !sample.batchNo) return
+  const newest = latestSample(
+    state.qualitySamples,
+    (item) => item.type === 'RAW_MATERIAL' && item.materialId === sample.materialId && item.batchNo === sample.batchNo,
+  )
+  if (newest?.id !== sample.id) return
+  const material = state.materials.find((item) => item.id === sample.materialId)
+  if (!material || sample.result !== 'PASSED') return
+  material.labAnalysis = {
+    moisturePct: sample.moisturePct,
+    proteinPct: sample.proteinPct,
+    ashPct: sample.ashPct,
+    energy: sample.energy,
+    fatPct: sample.fatPct,
+    fiberPct: sample.fiberPct,
+    calciumPct: sample.calciumPct,
+    phosphorusPct: sample.phosphorusPct,
+    lastLabDate: sample.sampledAt.slice(0, 10),
+  }
 }
 
 function createQualitySample(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createQualitySample' }>['input'], clock: Clock): CommandResult {
   state.qualitySamples ??= []
-  const reading = { moisturePct: input.moisturePct, proteinPct: input.proteinPct, ashPct: input.ashPct }
-  for (const value of Object.values(reading)) {
+  const reading = {
+    moisturePct: input.moisturePct,
+    proteinPct: input.proteinPct,
+    ashPct: input.ashPct,
+    energy: input.energy,
+    fatPct: input.fatPct,
+    fiberPct: input.fiberPct,
+    calciumPct: input.calciumPct,
+    phosphorusPct: input.phosphorusPct,
+  }
+  for (const key of ['moisturePct', 'proteinPct', 'ashPct', 'fatPct', 'fiberPct', 'calciumPct', 'phosphorusPct'] as const) {
+    const value = reading[key]
     if (value != null && (!Number.isFinite(value) || value < 0 || value > 100)) return fail('نسبة الفحص يجب أن تكون بين 0 و 100')
   }
+  if (reading.energy != null && (!Number.isFinite(reading.energy) || reading.energy < 0 || reading.energy > 10000)) return fail('قيمة الطاقة غير صحيحة')
+  const labName = input.labName?.trim()
+  const testMethod = input.testMethod?.trim()
+  if (labName && labName.length > 120) return fail('اسم المختبر يتجاوز الحد المسموح')
+  if (testMethod && testMethod.length > 120) return fail('طريقة الفحص تتجاوز الحد المسموح')
   let limits: ReturnType<typeof cleanLimits>['limits']
+  let supplierId = input.supplierId
   if (input.type === 'RAW_MATERIAL') {
     if (!input.materialId || !input.batchNo?.trim()) return fail('المادة ورقم الدفعة مطلوبان لعينة الخام')
     const material = state.materials.find((item) => item.id === input.materialId)
     if (!material) return fail('المادة غير موجودة')
-    if (input.supplierId && !state.suppliers.some((item) => item.id === input.supplierId)) return fail('المورد غير موجود')
+    const receiptSupplierId = supplierForBatch(state, input.materialId, input.batchNo.trim())
+    if (supplierId && !state.suppliers.some((item) => item.id === supplierId)) return fail('المورد غير موجود')
+    if (supplierId && receiptSupplierId && supplierId !== receiptSupplierId) return fail('المورد لا يطابق مورد دفعة الاستلام')
+    supplierId ??= receiptSupplierId ?? undefined
     limits = material.qcLimits
-  } else {
+  } else if (input.type === 'FINISHED_PRODUCT') {
     if (!input.lotNo?.trim()) return fail('رقم دفعة الإنتاج مطلوب')
     const lot = state.lots?.find((item) => item.lotNo === input.lotNo)
     if (!lot) return fail('دفعة الإنتاج غير موجودة')
     limits = state.products.find((item) => item.id === lot.productId)?.qcLimits
+  } else {
+    if (!input.productionOrderId) return fail('أمر الإنتاج مطلوب لعينة أثناء الإنتاج')
+    const order = state.productionOrders.find((item) => item.id === input.productionOrderId && item.status === 'RELEASED')
+    if (!order) return fail('أمر الإنتاج غير موجود أو مكتمل')
+    limits = state.products.find((item) => item.id === order.productId)?.qcLimits
   }
   const suggested = suggestQcResult(limits, reading)
   const chosen = input.result ?? suggested
@@ -2395,22 +2372,32 @@ function createQualitySample(state: ErpState, actor: Actor, input: Extract<Comma
     return fail('ليست لديك صلاحية لفك الحجز أو تجاوز الرفض')
   }
   if (releasesBlock(suggested, chosen) && !input.reason?.trim()) return fail('فك الحجز أو تجاوز الرفض يحتاج سبباً')
-  const sample = {
+  const sample: QualitySample = {
     id: clock.id('qc'),
     type: input.type,
     materialId: input.materialId,
     batchNo: input.batchNo?.trim(),
-    supplierId: input.supplierId,
+    supplierId,
     lotNo: input.lotNo?.trim(),
+    productionOrderId: input.productionOrderId,
     sampledBy: actor.id,
     sampledAt: clock.now(),
-    moisturePct: input.moisturePct != null ? round3(input.moisturePct) : undefined,
-    proteinPct: input.proteinPct != null ? round3(input.proteinPct) : undefined,
-    ashPct: input.ashPct != null ? round3(input.ashPct) : undefined,
+    moisturePct: reading.moisturePct != null ? round3(reading.moisturePct) : undefined,
+    proteinPct: reading.proteinPct != null ? round3(reading.proteinPct) : undefined,
+    ashPct: reading.ashPct != null ? round3(reading.ashPct) : undefined,
+    energy: reading.energy != null ? round3(reading.energy) : undefined,
+    fatPct: reading.fatPct != null ? round3(reading.fatPct) : undefined,
+    fiberPct: reading.fiberPct != null ? round3(reading.fiberPct) : undefined,
+    calciumPct: reading.calciumPct != null ? round3(reading.calciumPct) : undefined,
+    phosphorusPct: reading.phosphorusPct != null ? round3(reading.phosphorusPct) : undefined,
+    labName: labName || undefined,
+    testMethod: testMethod || undefined,
     notes: input.notes?.trim() || undefined,
+    attachments: [],
     result: chosen,
   }
   state.qualitySamples.unshift(sample)
+  updateMaterialLabAnalysis(state, sample)
   if (sample.type === 'FINISHED_PRODUCT') syncLotQc(state, sample.lotNo, sample.result)
   notifyQc(state, clock, sample)
   const detail = input.result && input.result !== suggested ? `تجاوز ${suggested} إلى ${chosen}: ${input.reason?.trim()}` : chosen
@@ -2427,10 +2414,37 @@ function updateQualityResult(state: ErpState, actor: Actor, input: Extract<Comma
   }
   const previous = sample.result
   sample.result = input.result
+  updateMaterialLabAnalysis(state, sample)
   if (sample.type === 'FINISHED_PRODUCT') syncLotQc(state, sample.lotNo, sample.result)
   notifyQc(state, clock, sample)
   audit(state, actor, clock, 'تغيير نتيجة الجودة', 'qualitySample', sample.id, `${previous} → ${input.result}: ${input.reason.trim()}`)
   return ok(state, 'تم تحديث نتيجة الجودة')
+}
+
+function addQualitySampleAttachment(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'addQualitySampleAttachment' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const sample = state.qualitySamples.find((item) => item.id === input.sampleId)
+  if (!sample) return fail('عينة الجودة غير موجودة')
+  const fileName = input.fileName.trim()
+  if (!fileName || fileName.length > 160 || /[\u0000-\u001f\u007f]/.test(fileName)) return fail('اسم الملف غير صحيح')
+  if (!['application/pdf', 'image/jpeg', 'image/png'].includes(input.mediaType)) return fail('نوع الملف غير مدعوم')
+  if (!Number.isInteger(input.sizeBytes) || input.sizeBytes < 1 || input.sizeBytes > 10 * 1024 * 1024) return fail('حجم الملف غير صحيح')
+  if (sample.attachments?.some((attachment) => attachment.id === input.id)) return fail('مرفق العينة موجود مسبقاً')
+  sample.attachments ??= []
+  sample.attachments.unshift({
+    id: input.id,
+    fileName,
+    mediaType: input.mediaType,
+    sizeBytes: input.sizeBytes,
+    uploadedBy: actor.id,
+    uploadedAt: clock.now(),
+  })
+  audit(state, actor, clock, 'إضافة تقرير مختبر', 'qualitySample', sample.id, fileName)
+  return ok(state, 'تم حفظ تقرير المختبر')
 }
 
 function setQcLimits(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setQcLimits' }>['input'], clock: Clock): CommandResult {
@@ -3472,6 +3486,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   const seeJournals = canAny(permissions, ['accounting.read', 'accounting.manage'])
   const seeAudit = permissions.includes('audit.read')
   const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
+  const seeQuality = canAny(permissions, ['qc.read', 'qc.manage', 'qc.release'])
   const isDriver = permissions.includes('fleet.read') && !permissions.includes('fleet.manage')
   
   // DRIVER role filtering: only see own trips and fuel logs, no financial data
@@ -3496,6 +3511,8 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     journals: seeJournals ? state.journals : [],
     auditLogs: seeAudit ? state.auditLogs : [],
     attendance: seeAttendance ? state.attendance : [],
+    qualitySamples: seeQuality ? state.qualitySamples : [],
+    qualityHolds: seeQuality ? state.qualityHolds : [],
     companyDocuments: canAny(permissions, ['documents.read', 'documents.manage']) ? state.companyDocuments : [],
     trips: filteredTrips,
     fuelLogs: filteredFuelLogs,
@@ -4115,4 +4132,4 @@ function minutesBetween(start: string, end: string): number {
   return Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60))
 }
 
-export { hoursBetween, INVENTORY_ACCOUNT, calculateRecipeNutrition, compareNutrition, autoMatchBankTransaction, calculateLandedCost }
+export { hoursBetween, INVENTORY_ACCOUNT, calculateLotNutrition, calculateRecipeNutrition, compareNutrition, autoMatchBankTransaction, calculateLandedCost }

@@ -49,6 +49,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   createQualitySample: true,
   updateQualityResult: true,
   setQcLimits: true,
+  addQualitySampleAttachment: true,
   holdLot: true,
   releaseLot: true,
   recallLot: true,
@@ -91,7 +92,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
 
 /** Handled by the store rather than applyCommand, so not part of the Command union. */
 const STORE_ACTIONS = ['resetDemo']
-const INTERNAL_ACTIONS = new Set(['addCompanyDocumentAttachment'])
+const INTERNAL_ACTIONS = new Set(['addCompanyDocumentAttachment', 'addQualitySampleAttachment'])
 
 const ALLOWED_ACTIONS = new Set<string>([
   ...Object.keys(COMMAND_ACTIONS).filter((action) => !INTERNAL_ACTIONS.has(action)),

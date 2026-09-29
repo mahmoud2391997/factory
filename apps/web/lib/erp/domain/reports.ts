@@ -722,12 +722,38 @@ export function supplierQuality(state: ReportState, supplierId: string) {
     if (rows.length === 0) return null
     return money(rows.reduce((sum, item) => sum + (item[key] ?? 0), 0) / rows.length)
   }
+  const byMonth = new Map<string, typeof samples>()
+  for (const sample of samples) {
+    const month = sample.sampledAt.slice(0, 7)
+    if (!/^\d{4}-\d{2}$/.test(month)) continue
+    const rows = byMonth.get(month) ?? []
+    rows.push(sample)
+    byMonth.set(month, rows)
+  }
+  const monthlyTrend = [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, rows]) => {
+    const monthDecided = rows.filter((item) => item.result !== 'PENDING')
+    const monthPassed = monthDecided.filter((item) => item.result === 'PASSED').length
+    const monthlyAverage = (key: 'moisturePct' | 'proteinPct') => {
+      const values = rows.filter((item) => item[key] !== undefined)
+      return values.length ? money(values.reduce((sum, item) => sum + (item[key] ?? 0), 0) / values.length) : null
+    }
+    return {
+      month,
+      samples: rows.length,
+      decided: monthDecided.length,
+      passRate: monthDecided.length ? money((monthPassed / monthDecided.length) * 100) : null,
+      rejected: monthDecided.filter((item) => item.result === 'FAILED' || item.result === 'HOLD').length,
+      avgMoisture: monthlyAverage('moisturePct'),
+      avgProtein: monthlyAverage('proteinPct'),
+    }
+  })
   return {
     supplier,
     samples: samples.length,
     passRate: decided.length > 0 ? money((passed / decided.length) * 100) : null,
     avgMoisture: average('moisturePct'),
     avgProtein: average('proteinPct'),
+    monthlyTrend,
   }
 }
 

@@ -63,7 +63,7 @@ function attachmentPath(id: string) {
   return path.join(dataDir(), 'document-attachments', `${id}.bin`)
 }
 
-export async function writeCompanyDocumentAttachment(id: string, bytes: Uint8Array) {
+export async function writePrivateAttachment(id: string, bytes: Uint8Array) {
   const file = attachmentPath(id)
   const dir = path.dirname(file)
   await mkdir(dir, { recursive: true, mode: 0o700 })
@@ -71,7 +71,7 @@ export async function writeCompanyDocumentAttachment(id: string, bytes: Uint8Arr
   await writeFile(file, bytes, { flag: 'wx', mode: 0o600 })
 }
 
-export async function readCompanyDocumentAttachment(id: string) {
+export async function readPrivateAttachment(id: string) {
   try {
     return await readFile(attachmentPath(id))
   } catch (error) {
@@ -80,7 +80,7 @@ export async function readCompanyDocumentAttachment(id: string) {
   }
 }
 
-export async function removeCompanyDocumentAttachment(id: string) {
+export async function removePrivateAttachment(id: string) {
   await rm(attachmentPath(id), { force: true })
 }
 

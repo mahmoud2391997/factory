@@ -120,7 +120,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 5 &&
     state.schemaVersion !== 6 &&
     state.schemaVersion !== 7 &&
-    state.schemaVersion !== 8
+    state.schemaVersion !== 8 &&
+    state.schemaVersion !== 9
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -281,6 +282,12 @@ export function migrateErpState(state: ErpState): ErpState {
       document.renewalHistory ??= []
     }
     state.schemaVersion = 9
+  }
+
+  // v9 -> v10: prepare private lab-report attachment metadata on existing samples.
+  if (state.schemaVersion === 9) {
+    for (const sample of state.qualitySamples ?? []) sample.attachments ??= []
+    state.schemaVersion = 10
   }
 
   return mergeRolePermissions(state)

@@ -64,6 +64,15 @@ test('QUALITY can create samples but cannot release a block or edit limits', () 
 
 test('QUALITY cannot see payroll or journals', () => {
   const state = emptyState('role')
+  state.qualitySamples.push({
+    id: 'qc-visible',
+    type: 'RAW_MATERIAL',
+    materialId: 'm',
+    batchNo: 'B',
+    sampledBy: 'user-qc',
+    sampledAt: '2026-09-29T04:00:00.000Z',
+    result: 'PENDING',
+  })
   state.journals.push({
     id: 'je',
     number: 'JE-1',
@@ -89,6 +98,8 @@ test('QUALITY cannot see payroll or journals', () => {
   assert.equal(view.payrolls.length, 0)
   assert.equal('basicSalary' in view.employees[0]!, false)
   assert.equal(view.auditLogs.length, 0)
+  assert.equal(view.qualitySamples.length, 1)
+  assert.equal(publicState(state, []).qualitySamples.length, 0)
 })
 
 test('a failed sample notifies quality once', () => {

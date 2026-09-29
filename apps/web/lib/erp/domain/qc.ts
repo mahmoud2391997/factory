@@ -1,25 +1,24 @@
-import type { ErpState, QcResult, QualitySample } from './types'
+import type { ErpState, NutritionalProfile, QcLimits, QcResult, QualitySample } from './types'
 
-export type QcLimits = {
-  minMoisture?: number
-  maxMoisture?: number
-  minProtein?: number
-  maxProtein?: number
-  minAsh?: number
-  maxAsh?: number
-}
-
-export type QcReading = { moisturePct?: number; proteinPct?: number; ashPct?: number }
+export type QcReading = Partial<NutritionalProfile>
 
 /** Compare a reading with the material or product limits. HOLD is never suggested. */
 export function suggestQcResult(limits: QcLimits | undefined, reading: QcReading): 'PASSED' | 'FAILED' | 'PENDING' {
-  const checks: Array<[number | undefined, number | undefined, number | undefined]> = [
-    [reading.moisturePct, limits?.minMoisture, limits?.maxMoisture],
-    [reading.proteinPct, limits?.minProtein, limits?.maxProtein],
-    [reading.ashPct, limits?.minAsh, limits?.maxAsh],
+  const checks: Array<[keyof NutritionalProfile, keyof QcLimits, keyof QcLimits]> = [
+    ['moisturePct', 'minMoisture', 'maxMoisture'],
+    ['proteinPct', 'minProtein', 'maxProtein'],
+    ['ashPct', 'minAsh', 'maxAsh'],
+    ['energy', 'minEnergy', 'maxEnergy'],
+    ['fatPct', 'minFat', 'maxFat'],
+    ['fiberPct', 'minFiber', 'maxFiber'],
+    ['calciumPct', 'minCalcium', 'maxCalcium'],
+    ['phosphorusPct', 'minPhosphorus', 'maxPhosphorus'],
   ]
   let checked = false
-  for (const [value, min, max] of checks) {
+  for (const [key, minKey, maxKey] of checks) {
+    const value = reading[key]
+    const min = limits?.[minKey]
+    const max = limits?.[maxKey]
     if (value == null || !Number.isFinite(value)) continue
     if (min == null && max == null) continue
     checked = true
@@ -54,6 +53,7 @@ export function rawBatchQcBlock(state: ErpState, materialId: string, batchNo: st
       ? `لا توجد عينة جودة للدفعة ${batchNo} والإعداد يتطلب الفحص قبل الاستخدام`
       : null
   }
+  if (sample.result === 'PENDING') return `دفعة ${batchNo} تنتظر اعتماد نتيجة فحص الجودة`
   if (sample.result === 'FAILED') return `دفعة ${batchNo} مرفوضة في الجودة ولا يمكن تحويلها للتصنيع أو استهلاكها`
   if (sample.result === 'HOLD') return `دفعة ${batchNo} معلّقة في الجودة ولا يمكن تحويلها للتصنيع أو استهلاكها`
   return null
@@ -67,6 +67,7 @@ export function lotQcBlock(state: ErpState, lotNo: string): string | null {
       ? `دفعة الإنتاج ${lotNo} مستدعاة: ${hold.reason}`
       : `دفعة الإنتاج ${lotNo} محجورة: ${hold.reason}`
   }
+
   const sample = latestSample(state.qualitySamples ?? [], (item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lotNo)
   const lot = (state.lots ?? []).find((item) => item.lotNo === lotNo)
   if (!sample && !lot) return null
@@ -75,7 +76,19 @@ export function lotQcBlock(state: ErpState, lotNo: string): string | null {
   if (untested && state.company.requireQcBeforeUse) {
     return `لا توجد عينة جودة للدفعة ${lotNo} والإعداد يتطلب الفحص قبل الاستخدام`
   }
+  if (result === 'PENDING') return `دفعة الإنتاج ${lotNo} تنتظر اعتماد نتيجة فحص الجودة`
   if (result === 'FAILED') return `دفعة الإنتاج ${lotNo} مرفوضة في الجودة ولا يمكن بيعها أو سحبها`
   if (result === 'HOLD') return `دفعة الإنتاج ${lotNo} معلّقة في الجودة ولا يمكن بيعها أو سحبها`
+  return null
+}
+
+export function inProcessQcBlock(state: ErpState, productionOrderId: string): string | null {
+  const sample = latestSample(
+    state.qualitySamples ?? [],
+    (item) => item.type === 'IN_PROCESS' && item.productionOrderId === productionOrderId,
+  )
+  if (sample?.result === 'PENDING') return 'نتيجة فحص أثناء الإنتاج معلّقة؛ يجب اعتمادها قبل إكمال الأمر'
+  if (sample?.result === 'FAILED') return 'نتيجة فحص أثناء الإنتاج مرفوضة؛ يجب إعادة الفحص قبل إكمال الأمر'
+  if (sample?.result === 'HOLD') return 'نتيجة فحص أثناء الإنتاج معلّقة؛ يجب فك الحجز قبل إكمال الأمر'
   return null
 }

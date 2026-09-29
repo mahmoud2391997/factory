@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 
 import { supplierQuality } from '@/lib/erp/domain/reports'
-import type { QcResult } from '@/lib/erp/domain/types'
+import { calculateLotNutrition, compareNutrition } from '@/lib/erp/domain/nutrition'
+import type { QcResult, QualitySample } from '@/lib/erp/domain/types'
 
 import { Card, DataTable, Field, GhostButton, PrimaryButton, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
@@ -78,7 +79,7 @@ function LimitsForm({ ctx, itemType, itemId }: { ctx: LiveCtx; itemType: 'MATERI
         ['maxPhosphorus', 'أعلى فوسفور %'],
       ] as const).map(([key, label]) => (
         <Field key={key} label={label}>
-          <TextInput type="number" min="0" max="100" step="0.001" value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+          <TextInput type="number" min="0" max={key.endsWith('Energy') ? '10000' : '100'} step="0.001" value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
         </Field>
       ))}
       <div className="flex items-end">
@@ -118,8 +119,9 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
   const [result, setResult] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [type, setType] = useState<'RAW_MATERIAL' | 'FINISHED_PRODUCT'>('RAW_MATERIAL')
+  const [type, setType] = useState<'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'IN_PROCESS'>('RAW_MATERIAL')
   const [batchNo, setBatchNo] = useState('')
+  const [productionOrderId, setProductionOrderId] = useState(ctx.state.productionOrders.find((order) => order.status === 'RELEASED')?.id ?? '')
   const [moisture, setMoisture] = useState('')
   const [protein, setProtein] = useState('')
   const [ash, setAsh] = useState('')
@@ -128,6 +130,8 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
   const [fiber, setFiber] = useState('')
   const [calcium, setCalcium] = useState('')
   const [phosphorus, setPhosphorus] = useState('')
+  const [labName, setLabName] = useState('')
+  const [testMethod, setTestMethod] = useState('')
   const [notes, setNotes] = useState('')
   const [override, setOverride] = useState('')
   const [reason, setReason] = useState('')
@@ -154,6 +158,7 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
               batchNo: type === 'RAW_MATERIAL' ? batchNo : undefined,
               supplierId: type === 'RAW_MATERIAL' ? supplierId || undefined : undefined,
               lotNo: type === 'FINISHED_PRODUCT' ? lotNo : undefined,
+              productionOrderId: type === 'IN_PROCESS' ? productionOrderId || undefined : undefined,
               moisturePct: num(moisture),
               proteinPct: num(protein),
               ashPct: num(ash),
@@ -162,6 +167,8 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
               fiberPct: num(fiber),
               calciumPct: num(calcium),
               phosphorusPct: num(phosphorus),
+              labName,
+              testMethod,
               notes,
               result: override ? (override as 'PASSED' | 'FAILED' | 'HOLD') : undefined,
               reason,
@@ -175,6 +182,8 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
               setFiber('')
               setCalcium('')
               setPhosphorus('')
+              setLabName('')
+              setTestMethod('')
               setNotes('')
               setOverride('')
               setReason('')
@@ -183,6 +192,7 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
             <Field label="النوع">
               <SelectInput value={type} onChange={(e) => setType(e.target.value as 'RAW_MATERIAL' | 'FINISHED_PRODUCT')}>
                 <option value="RAW_MATERIAL">خام</option>
+                <option value="IN_PROCESS">أثناء الإنتاج</option>
                 <option value="FINISHED_PRODUCT">منتج نهائي</option>
               </SelectInput>
             </Field>
@@ -202,6 +212,12 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
                   </SelectInput>
                 </Field>
               </>
+            ) : type === 'IN_PROCESS' ? (
+              <Field label="أمر الإنتاج">
+                <SelectInput value={productionOrderId} onChange={(e) => setProductionOrderId(e.target.value)} required>
+                  {ctx.state.productionOrders.filter((order) => order.status === 'RELEASED').map((order) => <option key={order.id} value={order.id}>{order.number}</option>)}
+                </SelectInput>
+              </Field>
             ) : (
               <Field label="دفعة الإنتاج">
                 <SelectInput value={lotNo} onChange={(e) => setLotNo(e.target.value)}>
@@ -217,6 +233,8 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
             <Field label="ألياف %"><TextInput type="number" min="0" max="100" step="0.001" value={fiber} onChange={(e) => setFiber(e.target.value)} /></Field>
             <Field label="كالسيوم %"><TextInput type="number" min="0" max="100" step="0.001" value={calcium} onChange={(e) => setCalcium(e.target.value)} /></Field>
             <Field label="فوسفور %"><TextInput type="number" min="0" max="100" step="0.001" value={phosphorus} onChange={(e) => setPhosphorus(e.target.value)} /></Field>
+            <Field label="المختبر"><TextInput maxLength={120} value={labName} onChange={(e) => setLabName(e.target.value)} /></Field>
+            <Field label="طريقة الفحص"><TextInput maxLength={120} value={testMethod} onChange={(e) => setTestMethod(e.target.value)} /></Field>
             <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
             <Field label="تجاوز النتيجة المقترحة">
               <SelectInput value={override} onChange={(e) => setOverride(e.target.value)}>
@@ -261,11 +279,17 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
           <Field label="إلى"><TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
         </div>
         <DataTable
-          columns={['الوقت', 'النوع', 'المرجع', 'رطوبة', 'بروتين', 'رماد', 'طاقة', 'دهون', 'ألياف', 'كالسيوم', 'فوسفور', 'النتيجة', '']}
+          columns={['الوقت', 'نوع العينة', 'المرجع', 'المختبر/الطريقة', 'الفاحص', 'رطوبة', 'بروتين', 'رماد', 'طاقة', 'دهون', 'ألياف', 'كالسيوم', 'فوسفور', 'النتيجة', 'التقرير', '']}
           rows={rows.map((sample) => [
             sample.sampledAt.slice(0, 16).replace('T', ' '),
-            statusLabel(sample.type),
-            sample.lotNo || `${ctx.state.materials.find((item) => item.id === sample.materialId)?.nameAr ?? ''} ${sample.batchNo ?? ''}`,
+            qualitySampleTypeLabel(sample.type),
+            sample.type === 'FINISHED_PRODUCT'
+              ? sample.lotNo
+              : sample.type === 'IN_PROCESS'
+                ? ctx.state.productionOrders.find((order) => order.id === sample.productionOrderId)?.number ?? sample.productionOrderId
+                : `${ctx.state.materials.find((item) => item.id === sample.materialId)?.nameAr ?? ''} ${sample.batchNo ?? ''}`,
+            [sample.labName, sample.testMethod].filter(Boolean).join(' / ') || '—',
+            ctx.state.users.find((user) => user.id === sample.sampledBy)?.fullName ?? sample.sampledBy,
             sample.moisturePct != null ? qtyFmt(sample.moisturePct) : '—',
             sample.proteinPct != null ? qtyFmt(sample.proteinPct) : '—',
             sample.ashPct != null ? qtyFmt(sample.ashPct) : '—',
@@ -275,13 +299,94 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
             sample.calciumPct != null ? qtyFmt(sample.calciumPct) : '—',
             sample.phosphorusPct != null ? qtyFmt(sample.phosphorusPct) : '—',
             statusLabel(sample.result),
+            <QualitySampleAttachments key={`${sample.id}-attachments`} ctx={ctx} sample={sample} />,
             can(ctx.permissions, 'qc.manage') ? (
               <ResultButtons key={sample.id} ctx={ctx} sampleId={sample.id} />
             ) : '—',
           ])}
         />
       </Card>
+      {rows.find((sample) => sample.type === 'FINISHED_PRODUCT') ? (
+        <NutritionalComparisonPanel
+          ctx={ctx}
+          sample={[...rows].filter((item) => item.type === 'FINISHED_PRODUCT').sort((a, b) => b.sampledAt.localeCompare(a.sampledAt))[0]!}
+        />
+      ) : null}
     </div>
+  )
+}
+
+function qualitySampleTypeLabel(type: QualitySample['type']) {
+  if (type === 'RAW_MATERIAL') return 'خام'
+  if (type === 'IN_PROCESS') return 'أثناء الإنتاج'
+  return 'منتج نهائي'
+}
+
+function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: QualitySample }) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+  return (
+    <div className="flex flex-col gap-1">
+      {(sample.attachments ?? []).map((attachment) => (
+        <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/quality-samples/attachments/${attachment.id}`} target="_blank" rel="noreferrer">
+          {attachment.fileName}
+        </a>
+      ))}
+      {can(ctx.permissions, 'qc.manage') ? (
+        <form onSubmit={async (event) => {
+          event.preventDefault()
+          const form = event.currentTarget
+          const file = new FormData(form).get('file')
+          if (!(file instanceof File)) return
+          setUploading(true)
+          setError('')
+          try {
+            const response = await fetch(`/api/erp/quality-samples/${sample.id}/attachments`, { method: 'POST', body: new FormData(form) })
+            const payload = await response.json() as { success?: boolean; message?: string }
+            if (!response.ok || !payload.success) {
+              setError(payload.message || 'تعذر رفع التقرير')
+              return
+            }
+            await ctx.refreshUser()
+            form.reset()
+          } catch {
+            setError('تعذر الاتصال بالخادم لرفع التقرير')
+          } finally {
+            setUploading(false)
+          }
+        }}>
+          <label className="cursor-pointer text-xs font-semibold text-[#1d7f72]">
+            {uploading ? 'جارٍ الرفع…' : 'إرفاق تقرير'}
+            <input className="sr-only" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" disabled={uploading} onChange={(event) => event.currentTarget.form?.requestSubmit()} />
+          </label>
+          {error ? <span role="alert" className="text-xs text-red-700">{error}</span> : null}
+        </form>
+      ) : null}
+    </div>
+  )
+}
+
+function NutritionalComparisonPanel({ ctx, sample }: { ctx: LiveCtx; sample: QualitySample }) {
+  const lot = ctx.state.lots.find((item) => item.lotNo === sample.lotNo)
+  if (!lot) return null
+  const product = ctx.state.products.find((item) => item.id === lot.productId)
+  const calculation = calculateLotNutrition(ctx.state, lot)
+  const comparison = compareNutrition(calculation.profile, sample, product?.qcLimits)
+  return (
+    <Card title={`التحليل الغذائي — ${lot.lotNo}`} hint="مقارنة قيم الخامات المحسوبة بقراءة المختبر ومواصفة المنتج.">
+      {calculation.missingMaterials.length ? (
+        <p className="mb-3 text-sm text-amber-800">تحليل بعض الخامات غير متوفر؛ تغطية كل عنصر موضحة أدناه: {calculation.missingMaterials.join('، ')}</p>
+      ) : null}
+      <DataTable columns={['العنصر', 'المحسوب من الدفعة', 'المختبر', 'المواصفة', 'الفرق %', 'تغطية التحليل', 'المطابقة']} rows={comparison.map((item) => [
+        `${item.parameter} (${item.unit})`,
+        qtyFmt(item.calculated),
+        item.lab === undefined ? '—' : qtyFmt(item.lab),
+        item.specMin === undefined && item.specMax === undefined ? '—' : `${item.specMin ?? '—'} – ${item.specMax ?? '—'}`,
+        item.variance === undefined ? '—' : pctFmt(item.variance),
+        calculation.coveragePct[item.key] === undefined ? '—' : pctFmt(calculation.coveragePct[item.key]!),
+        item.lab === undefined ? 'لا توجد قراءة' : item.inSpec ? 'مطابق' : 'خارج المواصفة',
+      ])} />
+    </Card>
   )
 }
 
@@ -309,12 +414,24 @@ function SupplierQuality({ ctx }: { ctx: LiveCtx }) {
           </SelectInput>
         </Field>
         {summary ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
-            <div>العينات: {summary.samples}</div>
-            <div>نسبة القبول: {summary.passRate == null ? '—' : pctFmt(summary.passRate)}</div>
-            <div>متوسط الرطوبة: {summary.avgMoisture == null ? '—' : pctFmt(summary.avgMoisture)}</div>
-            <div>متوسط البروتين: {summary.avgProtein == null ? '—' : pctFmt(summary.avgProtein)}</div>
-          </div>
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
+              <div>العينات: {summary.samples}</div>
+              <div>نسبة القبول: {summary.passRate == null ? '—' : pctFmt(summary.passRate)}</div>
+              <div>متوسط الرطوبة: {summary.avgMoisture == null ? '—' : pctFmt(summary.avgMoisture)}</div>
+              <div>متوسط البروتين: {summary.avgProtein == null ? '—' : pctFmt(summary.avgProtein)}</div>
+            </div>
+            <h3 className="mt-5 font-bold">اتجاه جودة المورد شهرياً</h3>
+            <DataTable columns={['الشهر', 'العينات', 'المفحوص', 'نسبة القبول', 'مرفوض/معلّق', 'متوسط الرطوبة', 'متوسط البروتين']} rows={summary.monthlyTrend.map((month) => [
+              month.month,
+              String(month.samples),
+              String(month.decided),
+              month.passRate == null ? '—' : pctFmt(month.passRate),
+              String(month.rejected),
+              month.avgMoisture == null ? '—' : pctFmt(month.avgMoisture),
+              month.avgProtein == null ? '—' : pctFmt(month.avgProtein),
+            ])} />
+          </>
         ) : null}
       </Card>
     </div>

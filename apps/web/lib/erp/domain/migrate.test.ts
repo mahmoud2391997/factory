@@ -63,6 +63,23 @@ test('v8 documents initialize renewal histories and attachment metadata', () => 
   assert.deepEqual(migrated.companyDocuments[0]!.renewalHistory, [])
 })
 
+test('v9 documents initialize quality sample report metadata', () => {
+  const state = emptyState('migration-v9-quality-attachments')
+  state.schemaVersion = 9
+  state.qualitySamples.push({
+    id: 'legacy-sample',
+    type: 'RAW_MATERIAL',
+    materialId: 'mat-1',
+    batchNo: 'B-1',
+    sampledBy: 'user-qc',
+    sampledAt: '2026-01-01T00:00:00.000Z',
+    result: 'PENDING',
+  })
+  const migrated = migrateErpState(state)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
+  assert.deepEqual(migrated.qualitySamples[0]!.attachments, [])
+})
+
 test('permissions introduced after v2 are merged and later admin removals stay removed', () => {
   const state = emptyState('permissions-v2')
   state.permissionsVersion = 2
