@@ -217,6 +217,7 @@ export const DESTINATIONS: Destination[] = [
         label: 'العمليات المالية',
         leaves: [
           { href: '/accounting/financial-ops', entityKey: 'financialOps', tab: true },
+          { href: '/accounting/obligations', entityKey: 'obligation', tab: true },
           { href: '/accounting/documents', entityKey: 'documents', tab: true },
         ],
       },
