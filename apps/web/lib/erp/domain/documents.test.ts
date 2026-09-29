@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { actorFromUser, applyCommand, defaultClock } from './engine'
+import { actorFromUser, applyCommand, defaultClock, publicState } from './engine'
+import { inspectDocumentAttachment } from './document-attachments'
 import { emptyState } from './seed'
 import type { Clock, Command, ErpState } from './types'
 
@@ -96,6 +97,18 @@ test('createCompanyDocument rejects an expiry on or before the issue date', () =
       input: { title: 'عقد', kind: 'CONTRACT', issueDate: '2026-01-01', expiryDate: '2026-01-01' },
     }),
     /بعد تاريخ الإصدار/,
+  )
+})
+
+test('createCompanyDocument rejects impossible calendar dates', () => {
+  const clock = fixedClock()
+  const state = emptyState('documents')
+  assert.match(
+    fail(state, clock, {
+      action: 'createCompanyDocument',
+      input: { title: 'ترخيص', kind: 'LICENSE', issueDate: '2026-02-30' },
+    }),
+    /تاريخ الإصدار غير صحيح/,
   )
 })
 
@@ -252,6 +265,16 @@ test('renewCompanyDocument moves the dates and clears the old alerts', () => {
   assert.equal(renewed.issueDate, '2026-09-29')
   assert.equal(renewed.cost, 320)
   assert.equal(renewed.notes, 'تجديد')
+  assert.equal(renewed.renewalHistory?.length, 1)
+  assert.deepEqual(renewed.renewalHistory?.[0], {
+    issueDate: '2025-01-01',
+    expiryDate: daysFromNow(20),
+    cost: 300,
+    notes: undefined,
+    attachmentIds: [],
+    renewedBy: 'user-gm',
+    renewedAt: NOW,
+  })
   // Pushed outside every window, so no new alert, and the old one is marked read.
   assert.equal(expiryAlerts(state, document.id).length, 1)
   assert.equal(expiryAlerts(state, document.id)[0]!.read, true)
@@ -297,6 +320,85 @@ test('renewing without an expiry date keeps the one already on file', () => {
   })
 
   assert.equal(state.companyDocuments[0]!.expiryDate, daysFromNow(300))
+})
+
+test('document attachments are permission checked, validated and kept with their issue-date version', () => {
+  const clock = fixedClock()
+  let state = must(emptyState('documents'), clock, {
+    action: 'createCompanyDocument',
+    input: { title: 'ترخيص', kind: 'LICENSE', issueDate: '2025-01-01', expiryDate: '2027-01-01' },
+  })
+  const document = state.companyDocuments[0]!
+  const input = {
+    documentId: document.id,
+    id: '7f16e395-d44f-44e8-b302-06117c7c221e',
+    fileName: 'license.pdf',
+    mediaType: 'application/pdf' as const,
+    sizeBytes: 512,
+  }
+
+  assert.match(
+    fail(state, clock, { action: 'addCompanyDocumentAttachment', input }, 'user-acc'),
+    /صلاحية/,
+  )
+  assert.match(
+    fail(state, clock, {
+      action: 'addCompanyDocumentAttachment',
+      input: { ...input, mediaType: 'text/html' as typeof input.mediaType },
+    }),
+    /نوع الملف غير مدعوم/,
+  )
+  assert.match(
+    fail(state, clock, {
+      action: 'addCompanyDocumentAttachment',
+      input: { ...input, sizeBytes: 10 * 1024 * 1024 + 1 },
+    }),
+    /حجم الملف غير صحيح/,
+  )
+
+  state = must(state, clock, { action: 'addCompanyDocumentAttachment', input })
+  assert.deepEqual(state.companyDocuments[0]!.attachments, [{
+    id: input.id,
+    fileName: input.fileName,
+    mediaType: input.mediaType,
+    sizeBytes: input.sizeBytes,
+    issueDate: '2025-01-01',
+    uploadedBy: 'user-gm',
+    uploadedAt: NOW,
+  }])
+
+  state = must(state, clock, {
+    action: 'renewCompanyDocument',
+    input: { id: document.id, issueDate: '2026-09-29', expiryDate: '2028-09-29' },
+  })
+  assert.equal(state.companyDocuments[0]!.attachments?.[0]?.issueDate, '2025-01-01')
+  assert.deepEqual(state.companyDocuments[0]!.renewalHistory?.[0]?.attachmentIds, [input.id])
+})
+
+test('attachment inspection rejects spoofed content and sanitizes upload names', () => {
+  const pdf = new TextEncoder().encode('%PDF-1.7 test')
+  assert.deepEqual(inspectDocumentAttachment('../../contract.pdf', pdf), {
+    ok: true,
+    fileName: 'contract.pdf',
+    mediaType: 'application/pdf',
+  })
+  assert.equal(inspectDocumentAttachment('fake.pdf', new TextEncoder().encode('<script>')).ok, false)
+  assert.equal(inspectDocumentAttachment('contract.pdf', new Uint8Array()).ok, false)
+})
+
+test('public state does not reveal company documents without documents.read', () => {
+  const state = emptyState('documents')
+  state.companyDocuments.push({
+    id: 'private-doc',
+    title: 'عقد سري',
+    kind: 'CONTRACT',
+    issueDate: '2026-01-01',
+    createdBy: 'user-gm',
+    createdAt: NOW,
+  })
+  assert.deepEqual(publicState(state, [] as string[]).companyDocuments, [])
+  assert.equal(publicState(state, ['documents.read']).companyDocuments.length, 1)
+  assert.equal(publicState(state, ['documents.manage']).companyDocuments.length, 1)
 })
 
 test('the default clock still files documents', () => {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -54,6 +54,34 @@ function dataDir() {
 
 function statePath() {
   return path.join(dataDir(), 'erp-state.json')
+}
+
+function attachmentPath(id: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error('INVALID_ATTACHMENT_ID')
+  }
+  return path.join(dataDir(), 'document-attachments', `${id}.bin`)
+}
+
+export async function writeCompanyDocumentAttachment(id: string, bytes: Uint8Array) {
+  const file = attachmentPath(id)
+  const dir = path.dirname(file)
+  await mkdir(dir, { recursive: true, mode: 0o700 })
+  await chmod(dir, 0o700)
+  await writeFile(file, bytes, { flag: 'wx', mode: 0o600 })
+}
+
+export async function readCompanyDocumentAttachment(id: string) {
+  try {
+    return await readFile(attachmentPath(id))
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null
+    throw error
+  }
+}
+
+export async function removeCompanyDocumentAttachment(id: string) {
+  await rm(attachmentPath(id), { force: true })
 }
 
 let queue: Promise<unknown> = Promise.resolve()

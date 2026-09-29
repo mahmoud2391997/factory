@@ -119,7 +119,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 4 &&
     state.schemaVersion !== 5 &&
     state.schemaVersion !== 6 &&
-    state.schemaVersion !== 7
+    state.schemaVersion !== 7 &&
+    state.schemaVersion !== 8
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -270,6 +271,16 @@ export function migrateErpState(state: ErpState): ErpState {
   if (state.schemaVersion === 7) {
     state.tripCostAllocations ??= []
     state.schemaVersion = 8
+  }
+
+  // v8 -> v9: retain document renewal snapshots and private attachment metadata.
+  if (state.schemaVersion === 8) {
+    state.companyDocuments ??= []
+    for (const document of state.companyDocuments) {
+      document.attachments ??= []
+      document.renewalHistory ??= []
+    }
+    state.schemaVersion = 9
   }
 
   return mergeRolePermissions(state)

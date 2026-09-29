@@ -6,7 +6,7 @@ import { LEGACY_LOT_NOTE, migrateErpState } from './migrate'
 import { lotQcBlock } from './qc'
 import { operatorLabel, traceCustomer, traceLot, traceSupplierBatch, UNKNOWN_OPERATOR, trialBalance } from './reports'
 import { createClock, emptyState } from './seed'
-import type { Actor, Command, ErpState } from './types'
+import { SCHEMA_VERSION, type Actor, type Command, type ErpState } from './types'
 
 function actor(state: ErpState): Actor {
   const found = actorFromUser(state, 'user-gm')
@@ -247,7 +247,7 @@ test('v1 completed orders become legacy lots with raw-material cost only', () =>
     ],
   }
   const migrated = migrateErpState(v1 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 8)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
   assert.equal(migrated.lots.length, 1)
   const lot = migrated.lots[0]!
   assert.equal(lot.lotNo, 'FG-OLD')
@@ -367,7 +367,7 @@ test('the migration is idempotent and a future schema fails', () => {
   const migrated = migrateErpState(legacyDocument() as unknown as ErpState)
   const snapshot = JSON.stringify(migrated)
   assert.equal(JSON.stringify(migrateErpState(migrated)), snapshot)
-  assert.throws(() => migrateErpState({ ...emptyState('x'), schemaVersion: 9 } as ErpState), /إصدار بيانات المصنع غير مدعوم/)
+  assert.throws(() => migrateErpState({ ...emptyState('x'), schemaVersion: SCHEMA_VERSION + 1 } as ErpState), /إصدار بيانات المصنع غير مدعوم/)
 })
 
 test('requireQcBeforeUse blocks an untested legacy lot only when it is on', () => {

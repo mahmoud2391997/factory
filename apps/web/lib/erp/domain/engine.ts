@@ -783,6 +783,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     payObligationInstallment: 'obligations.pay',
     createCompanyDocument: 'documents.manage',
     renewCompanyDocument: 'documents.manage',
+    addCompanyDocumentAttachment: 'documents.manage',
     createSparePart: 'spareparts.manage',
     recordSparePartUsage: 'spareparts.manage',
     createPackagingMaterial: 'packaging.manage',
@@ -921,6 +922,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return createCompanyDocument(state, actor, command.input, clock)
     case 'renewCompanyDocument':
       return renewCompanyDocument(state, actor, command.input, clock)
+    case 'addCompanyDocumentAttachment':
+      return addCompanyDocumentAttachment(state, actor, command.input, clock)
     case 'createSparePart':
       return createSparePart(state, actor, command.input, clock)
     case 'recordSparePartUsage':
@@ -3072,7 +3075,8 @@ function daysUntil(today: string, dateIso: string) {
 }
 
 function isDay(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value))) return false
+  return new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value
 }
 
 function isKnownPerson(state: ErpState, id: string) {
@@ -3099,9 +3103,10 @@ function resolveDocumentEntity(state: ErpState, entityType?: CompanyDocument['en
 function createCompanyDocument(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createCompanyDocument' }>['input'], clock: Clock): CommandResult {
   const title = input.title.trim()
   if (!title) return fail('عنوان المستند مطلوب')
-  if (!input.issueDate) return fail('تاريخ الإصدار مطلوب')
+  if (!isDay(input.issueDate)) return fail('تاريخ الإصدار غير صحيح')
   const entity = resolveDocumentEntity(state, input.entityType, input.entityId)
   if (!entity.ok) return fail(entity.error)
+  if (input.expiryDate && !isDay(input.expiryDate)) return fail('تاريخ الانتهاء غير صحيح')
   if (input.expiryDate && input.expiryDate <= input.issueDate) return fail('تاريخ الانتهاء يجب أن يكون بعد تاريخ الإصدار')
   if (input.cost !== undefined && (!Number.isFinite(input.cost) || input.cost < 0)) return fail('تكلفة المستند غير صحيحة')
   const renewalOwnerId = input.renewalOwnerId?.trim()
@@ -3131,11 +3136,24 @@ function createCompanyDocument(state: ErpState, actor: Actor, input: Extract<Com
 function renewCompanyDocument(state: ErpState, actor: Actor, input: Extract<Command, { action: 'renewCompanyDocument' }>['input'], clock: Clock): CommandResult {
   const document = state.companyDocuments.find((item) => item.id === input.id)
   if (!document) return fail('المستند غير موجود')
-  if (!input.issueDate) return fail('تاريخ الإصدار مطلوب')
+  if (!isDay(input.issueDate)) return fail('تاريخ الإصدار غير صحيح')
   const expiryDate = input.expiryDate === undefined ? document.expiryDate : input.expiryDate || undefined
+  if (expiryDate && !isDay(expiryDate)) return fail('تاريخ الانتهاء غير صحيح')
   if (expiryDate && expiryDate <= input.issueDate) return fail('تاريخ الانتهاء يجب أن يكون بعد تاريخ الإصدار')
   if (input.cost !== undefined && (!Number.isFinite(input.cost) || input.cost < 0)) return fail('تكلفة التجديد غير صحيحة')
 
+  document.renewalHistory ??= []
+  document.renewalHistory.unshift({
+    issueDate: document.issueDate,
+    expiryDate: document.expiryDate,
+    cost: document.cost,
+    notes: document.notes,
+    attachmentIds: (document.attachments ?? [])
+      .filter((attachment) => attachment.issueDate === document.issueDate)
+      .map((attachment) => attachment.id),
+    renewedBy: actor.id,
+    renewedAt: clock.now(),
+  })
   document.issueDate = input.issueDate
   document.expiryDate = expiryDate
   if (input.cost !== undefined) document.cost = money(input.cost)
@@ -3148,6 +3166,35 @@ function renewCompanyDocument(state: ErpState, actor: Actor, input: Extract<Comm
 
   audit(state, actor, clock, 'تجديد مستند', 'companyDocument', document.id, `${document.title} — إصدار ${document.issueDate}`)
   return ok(state, 'تم تجديد المستند')
+}
+
+function addCompanyDocumentAttachment(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'addCompanyDocumentAttachment' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const document = state.companyDocuments.find((item) => item.id === input.documentId)
+  if (!document) return fail('المستند غير موجود')
+  const fileName = input.fileName.trim()
+  if (!fileName || fileName.length > 160 || /[\u0000-\u001f\u007f]/.test(fileName)) return fail('اسم الملف غير صحيح')
+  if (!['application/pdf', 'image/jpeg', 'image/png'].includes(input.mediaType)) return fail('نوع الملف غير مدعوم')
+  if (!Number.isInteger(input.sizeBytes) || input.sizeBytes < 1 || input.sizeBytes > 10 * 1024 * 1024) return fail('حجم الملف غير صحيح')
+  if (document.attachments?.some((attachment) => attachment.id === input.id)) return fail('مرفق المستند موجود مسبقاً')
+
+  const attachment = {
+    id: input.id,
+    fileName,
+    mediaType: input.mediaType,
+    sizeBytes: input.sizeBytes,
+    issueDate: document.issueDate,
+    uploadedBy: actor.id,
+    uploadedAt: clock.now(),
+  }
+  document.attachments ??= []
+  document.attachments.unshift(attachment)
+  audit(state, actor, clock, 'إضافة مرفق مستند', 'companyDocument', document.id, `${document.title} — ${fileName}`)
+  return ok(state, 'تم حفظ المرفق')
 }
 
 function refreshDocumentAlerts(state: ErpState, clock: Clock, today: string) {
@@ -3449,6 +3496,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     journals: seeJournals ? state.journals : [],
     auditLogs: seeAudit ? state.auditLogs : [],
     attendance: seeAttendance ? state.attendance : [],
+    companyDocuments: canAny(permissions, ['documents.read', 'documents.manage']) ? state.companyDocuments : [],
     trips: filteredTrips,
     fuelLogs: filteredFuelLogs,
   }

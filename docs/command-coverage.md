@@ -19,7 +19,7 @@
 | المرافق والصيانة | `recordUtilitiesReading`, `createMachine`, `createMaintenanceSchedule`, `recordMaintenance` | قراءة المرافق `utilitiesReading`، الآلات `machine`، جداول الصيانة `maintenanceSchedule`، وسجلها `maintenanceRecord` |
 | البنك | `recordBankTransaction`, `matchBankTransaction` | سجل معاملات البنك والمطابقة `bankTransaction` |
 | الأسطول | `createVehicle`, `updateVehicle`, `addFuelLog`, `addVehicleService`, `createTrip`, `requestTripCostAllocation`, `decideTripCostAllocation` | الأسطول `fleet`، الوقود `fleetFuel`، والرحلات `fleetTrips`؛ توزيع التوصيل حسب كميات دفعات الفاتورة ثم اعتماد محاسبي مستقل |
-| الالتزامات والوثائق | `createObligation`, `decideObligation`, `payObligationInstallment`, `createCompanyDocument`, `renewCompanyDocument` | الالتزامات والأقساط `obligation`، ومركز الوثائق والتجديد `documents` |
+| الالتزامات والوثائق | `createObligation`, `decideObligation`, `payObligationInstallment`, `createCompanyDocument`, `renewCompanyDocument`, `addCompanyDocumentAttachment` | الالتزامات والأقساط `obligation`، ومركز الوثائق والتجديد والمرفقات `documents` |
 | المستخدمون والتدقيق | `setRolePermissions`, `setUserPassword`, `archiveHistory` | المستخدمون/الصلاحيات `users`، الأرشفة من الإعدادات، وسجل التدقيق `auditLog` |
 | الإشعارات | `markNotificationRead` | الإشعارات `notification` |
 
@@ -34,6 +34,6 @@
 
 - معاملات البنك تُسجّل وتُطابق من الشاشة؛ لا يوجد ربط بمصرف خارجي لأن توفر API واعتماداته لم يُحددا.
 - مراسلات الموردين تسجل مسار التحضير والاعتماد؛ ربط إرسال فعلي عبر WhatsApp Business أو البريد يتطلب اعتماد قناة ومزود خارجي.
-- الأوامر `createCompanyDocument` و`renewCompanyDocument` تدير بيانات الوثيقة وتواريخها؛ رفع الملفات وتخزينها الآمن يحتاج مسار مرفقات مستقل، ولا تُرسل البايتات داخل `/api/erp`.
+- الأمر `addCompanyDocumentAttachment` يسجل بيانات الملف وتاريخ إصدار الوثيقة في سجل التدقيق؛ ترفع البايتات عبر `/api/erp/documents/[documentId]/attachments` وتُنزّل عبر مسار محمي منفصل، ولا تمر عبر JSON في `/api/erp`.
 - الإضافات الحالية تخص الأوامر/الشاشات المذكورة فقط؛ تبقى استكمالات الجودة، لوحة المالك، التصدير، الأدوار الإضافية، محول الميزان، والترجمة الشاملة موثقة كعمل تالٍ ولا تُعد منجزة بمجرد وجود command.
 - تكلفة رحلة مرتبطة بفاتورة لا تدخل تكلفة الدفعات إلا بعد اعتماد المحاسبة؛ اعتمادها يحدّث الدفعات المرتبطة مباشرة.

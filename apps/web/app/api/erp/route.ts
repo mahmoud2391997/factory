@@ -86,12 +86,17 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   payObligationInstallment: true,
   createCompanyDocument: true,
   renewCompanyDocument: true,
+  addCompanyDocumentAttachment: true,
 }
 
 /** Handled by the store rather than applyCommand, so not part of the Command union. */
 const STORE_ACTIONS = ['resetDemo']
+const INTERNAL_ACTIONS = new Set(['addCompanyDocumentAttachment'])
 
-const ALLOWED_ACTIONS = new Set<string>([...Object.keys(COMMAND_ACTIONS), ...STORE_ACTIONS])
+const ALLOWED_ACTIONS = new Set<string>([
+  ...Object.keys(COMMAND_ACTIONS).filter((action) => !INTERNAL_ACTIONS.has(action)),
+  ...STORE_ACTIONS,
+])
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)

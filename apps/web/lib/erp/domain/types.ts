@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -335,8 +335,30 @@ export type CompanyDocument = {
   notes?: string
   /** File attachment reference (stored separately). */
   attachmentId?: string
+  attachments?: CompanyDocumentAttachment[]
+  renewalHistory?: CompanyDocumentRenewal[]
   createdBy: string
   createdAt: string
+}
+
+export type CompanyDocumentAttachment = {
+  id: string
+  fileName: string
+  mediaType: 'application/pdf' | 'image/jpeg' | 'image/png'
+  sizeBytes: number
+  issueDate: string
+  uploadedBy: string
+  uploadedAt: string
+}
+
+export type CompanyDocumentRenewal = {
+  issueDate: string
+  expiryDate?: string
+  cost?: number
+  notes?: string
+  attachmentIds: string[]
+  renewedBy: string
+  renewedAt: string
 }
 
 export type Balance = {
@@ -1143,6 +1165,7 @@ export type Command =
   | { action: 'payObligationInstallment'; input: { scheduleLineId: string; amount: number; date?: string; method: string; reference?: string } }
   | { action: 'createCompanyDocument'; input: { title: string; kind: CompanyDocument['kind']; entityType?: CompanyDocument['entityType']; entityId?: string; issueDate: string; expiryDate?: string; cost?: number; renewalOwnerId?: string; notes?: string; attachmentId?: string } }
   | { action: 'renewCompanyDocument'; input: { id: string; issueDate: string; expiryDate?: string; cost?: number; notes?: string; attachmentId?: string } }
+  | { action: 'addCompanyDocumentAttachment'; input: { documentId: string; id: string; fileName: string; mediaType: CompanyDocumentAttachment['mediaType']; sizeBytes: number } }
 
 export type CommandOk = {
   ok: true

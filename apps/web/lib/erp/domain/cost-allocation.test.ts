@@ -5,7 +5,7 @@ import { actorFromUser, applyCommand } from './engine'
 import { migrateErpState } from './migrate'
 import { profitabilityReport, trialBalance } from './reports'
 import { createClock, emptyState } from './seed'
-import type { Actor, Command, ErpState, ProductionLot } from './types'
+import { SCHEMA_VERSION, type Actor, type Command, type ErpState, type ProductionLot } from './types'
 
 function actor(state: ErpState): Actor {
   const found = actorFromUser(state, 'user-gm')
@@ -308,7 +308,7 @@ test('v4 lots gain a cost basis on migration and keep their totals', () => {
   }
   const v4 = { ...baseState, schemaVersion: 4 as const, lots: [lot] }
   const migrated = migrateErpState(v4 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 8)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
   assert.equal(migrated.lots[0]!.costLines[0]!.basis, 'ACTUAL')
   assert.equal(migrated.lots[0]!.costLines[1]!.basis, 'ESTIMATED')
   assert.equal(migrated.lots[0]!.totalCost, 44)

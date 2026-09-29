@@ -5,7 +5,7 @@ import { actorFromUser, applyCommand } from './engine'
 import { migrateErpState } from './migrate'
 import { varianceReport } from './reports'
 import { createClock, emptyState } from './seed'
-import type { Actor, Command, ErpState, ProductionOrder } from './types'
+import { SCHEMA_VERSION, type Actor, type Command, type ErpState, type ProductionOrder } from './types'
 
 function actor(state: ErpState, id = 'user-gm'): Actor {
   const found = actorFromUser(state, id)
@@ -154,7 +154,7 @@ test('v5 documents migrate to v6 without changing existing behaviour', () => {
   }
   const v5 = { ...state, schemaVersion: 5 as const, productionOrders: [legacyOrder] }
   const migrated = migrateErpState(v5 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 8)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
   assert.deepEqual(migrated.company.varianceReasonCodes, [])
   assert.equal(migrated.productionOrders[0]!.varianceLevel, 'NORMAL')
   // No thresholds are forced, so the company default still governs.

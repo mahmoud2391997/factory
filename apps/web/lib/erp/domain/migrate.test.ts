@@ -46,6 +46,23 @@ test('v7 documents receive an empty trip-cost allocation log', () => {
   assert.deepEqual(migrated.tripCostAllocations, [])
 })
 
+test('v8 documents initialize renewal histories and attachment metadata', () => {
+  const state = emptyState('migration-v8-documents')
+  state.schemaVersion = 8
+  state.companyDocuments.push({
+    id: 'legacy-doc',
+    title: 'ترخيص',
+    kind: 'LICENSE',
+    issueDate: '2025-01-01',
+    createdBy: 'user-gm',
+    createdAt: '2025-01-01T00:00:00.000Z',
+  })
+  const migrated = migrateErpState(state)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
+  assert.deepEqual(migrated.companyDocuments[0]!.attachments, [])
+  assert.deepEqual(migrated.companyDocuments[0]!.renewalHistory, [])
+})
+
 test('permissions introduced after v2 are merged and later admin removals stay removed', () => {
   const state = emptyState('permissions-v2')
   state.permissionsVersion = 2

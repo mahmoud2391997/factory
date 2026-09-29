@@ -7,7 +7,7 @@ import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
-import type { VatTreatment } from '@/lib/erp/domain/types'
+import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
@@ -191,41 +191,181 @@ function TripCostAllocationReview({ ctx, allocationId }: { ctx: LiveCtx; allocat
 
 function Documents({ ctx }: { ctx: LiveCtx }) {
   const [title, setTitle] = useState('')
-  const [kind, setKind] = useState<'LICENSE' | 'INSURANCE' | 'CONTRACT' | 'GOV_PERMIT' | 'CERTIFICATE' | 'OTHER'>('LICENSE')
+  const [kind, setKind] = useState<CompanyDocument['kind']>('LICENSE')
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [expiryDate, setExpiryDate] = useState('')
+  const [cost, setCost] = useState('')
   const [notes, setNotes] = useState('')
+  const [renewalOwnerId, setRenewalOwnerId] = useState('')
+  const [entityType, setEntityType] = useState<NonNullable<CompanyDocument['entityType']>>('COMPANY')
+  const [entityId, setEntityId] = useState('')
   const today = new Date().toISOString().slice(0, 10)
   const sorted = [...ctx.state.companyDocuments].sort((a, b) => (a.expiryDate ?? '9999').localeCompare(b.expiryDate ?? '9999'))
+  const linkedEntities = entityType === 'VEHICLE'
+    ? ctx.state.vehicles.map((item) => ({ id: item.id, name: `${item.nameAr} — ${item.plateNo}` }))
+    : entityType === 'EMPLOYEE'
+      ? ctx.state.employees.map((item) => ({ id: item.id, name: item.nameAr }))
+      : entityType === 'SUPPLIER'
+        ? ctx.state.suppliers.map((item) => ({ id: item.id, name: item.nameAr }))
+        : entityType === 'CUSTOMER'
+          ? ctx.state.customers.map((item) => ({ id: item.id, name: item.nameAr }))
+          : entityType === 'MACHINE'
+            ? ctx.state.machines.map((item) => ({ id: item.id, name: item.nameAr }))
+            : []
   const status = (expiry?: string) => {
     if (!expiry) return 'بلا انتهاء'
     if (expiry < today) return 'منتهية'
     const days = Math.ceil((Date.parse(expiry) - Date.parse(today)) / 86400000)
-    return days <= 30 ? 'توشك على الانتهاء' : 'سارية'
+    if (days <= 7) return `عاجلة — ${days} يوم`
+    if (days <= 30) return `تنتهي خلال ${days} يوم`
+    if (days <= 60) return `تنتهي خلال ${days} يوم`
+    if (days <= 90) return `تنتهي خلال ${days} يوم`
+    return 'سارية'
   }
   return (
     <div className="space-y-4">
-      <Card title="الوثائق والتصاريح" hint="قائمة موحدة للوثائق مرتبة حسب أقرب تاريخ انتهاء." extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=documents">تصدير Excel</a>}>
+      <Card title="الوثائق والتصاريح" hint="سجل موحد للوثائق حسب الجهة وتاريخ الانتهاء؛ تنبيهات التجديد تصدر قبل 90 و60 و30 و7 أيام." extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=documents">تصدير Excel</a>}>
         {can(ctx.permissions, 'documents.manage') ? (
           <FormDialog title="وثيقة جديدة" openLabel="إضافة وثيقة">
             {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
               event.preventDefault()
-              const result = await ctx.act('createCompanyDocument', { title, kind, issueDate, expiryDate: expiryDate || undefined, notes })
-              if (result.ok) { setTitle(''); setExpiryDate(''); setNotes(''); close() }
+              const result = await ctx.act('createCompanyDocument', {
+                title,
+                kind,
+                entityType,
+                entityId: entityType === 'COMPANY' ? undefined : entityId,
+                issueDate,
+                expiryDate: expiryDate || undefined,
+                cost: cost ? Number(cost) : undefined,
+                renewalOwnerId: renewalOwnerId || undefined,
+                notes,
+              })
+              if (result.ok) {
+                setTitle('')
+                setExpiryDate('')
+                setCost('')
+                setNotes('')
+                setEntityId('')
+                close()
+              }
             }}>
               <Field label="العنوان"><TextInput value={title} onChange={(event) => setTitle(event.target.value)} required /></Field>
-              <Field label="النوع"><SelectInput value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="LICENSE">ترخيص</option><option value="INSURANCE">تأمين</option><option value="CONTRACT">عقد</option><option value="GOV_PERMIT">تصريح حكومي</option><option value="CERTIFICATE">شهادة</option><option value="OTHER">أخرى</option></SelectInput></Field>
+              <Field label="النوع"><SelectInput value={kind} onChange={(event) => setKind(event.target.value as CompanyDocument['kind'])}><option value="LICENSE">ترخيص</option><option value="OWNERSHIP">ملكية</option><option value="INSURANCE">تأمين</option><option value="CONTRACT">عقد</option><option value="LEASE">إيجار</option><option value="GOV_PERMIT">تصريح حكومي</option><option value="CERTIFICATE">شهادة</option><option value="INSPECTION">فحص دوري</option><option value="OTHER">أخرى</option></SelectInput></Field>
+              <Field label="الجهة"><SelectInput value={entityType} onChange={(event) => { setEntityType(event.target.value as NonNullable<CompanyDocument['entityType']>); setEntityId('') }}><option value="COMPANY">الشركة</option><option value="VEHICLE">مركبة</option><option value="EMPLOYEE">موظف</option><option value="SUPPLIER">مورد</option><option value="CUSTOMER">عميل</option><option value="MACHINE">ماكينة</option></SelectInput></Field>
+              {entityType !== 'COMPANY' ? <Field label="العنصر"><SelectInput value={entityId} onChange={(event) => setEntityId(event.target.value)} required><option value="">اختر</option>{linkedEntities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectInput></Field> : null}
               <Field label="تاريخ الإصدار"><TextInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required /></Field>
               <Field label="تاريخ الانتهاء"><TextInput type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>
+              <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(event) => setCost(event.target.value)} /></Field>
+              <Field label="مسؤول التجديد"><SelectInput value={renewalOwnerId} onChange={(event) => setRenewalOwnerId(event.target.value)}><option value="">غير محدد</option>{ctx.state.users.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}{ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput></Field>
               <Field label="ملاحظات"><TextInput value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
               <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
             </form>}
           </FormDialog>
         ) : null}
-        <DataTable columns={['الوثيقة', 'النوع', 'الإصدار', 'الانتهاء', 'الحالة']} rows={sorted.map((document) => [document.title, document.kind, document.issueDate, document.expiryDate ?? '—', status(document.expiryDate)])} />
+        <DataTable columns={['الوثيقة', 'الجهة', 'النوع', 'الإصدار', 'الانتهاء', 'الحالة', 'المرفقات', 'التجديد']} rows={sorted.map((document) => [
+          document.title,
+          documentEntityName(ctx, document),
+          document.kind,
+          document.issueDate,
+          document.expiryDate ?? '—',
+          status(document.expiryDate),
+          <div key={`${document.id}-files`} className="flex flex-col gap-1">
+            {(document.attachments ?? []).map((attachment) => <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName} — إصدار {attachment.issueDate}</a>)}
+            {document.attachmentId ? <span className="text-xs text-[#7c8c86]">مرفق قديم</span> : null}
+          </div>,
+          <div key={`${document.id}-actions`} className="flex flex-wrap gap-1">
+            {can(ctx.permissions, 'documents.manage') ? <DocumentActions key={document.id} ctx={ctx} document={document} /> : null}
+            {(document.renewalHistory ?? []).length ? <span className="text-xs text-[#52635d]">سجل تجديد: {document.renewalHistory!.length}</span> : null}
+          </div>,
+        ])} />
+        {sorted.some((document) => document.renewalHistory?.length) ? (
+          <details className="mt-4 rounded-xl border border-[#e1e8e4] p-3">
+            <summary className="cursor-pointer font-bold">سجل التجديدات السابقة</summary>
+            <DataTable columns={['الوثيقة', 'تاريخ الإصدار السابق', 'تاريخ الانتهاء السابق', 'التكلفة', 'تاريخ التجديد', 'مرفقات الإصدار']} rows={sorted.flatMap((document) => (document.renewalHistory ?? []).map((renewal) => [
+              document.title,
+              renewal.issueDate,
+              renewal.expiryDate ?? '—',
+              renewal.cost === undefined ? '—' : moneyFmt(renewal.cost),
+              renewal.renewedAt.slice(0, 10),
+              <div key={`${document.id}-${renewal.renewedAt}`} className="flex flex-col gap-1">{(document.attachments ?? []).filter((attachment) => renewal.attachmentIds.includes(attachment.id)).map((attachment) => <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName}</a>)}</div>,
+            ]))} />
+          </details>
+        ) : null}
       </Card>
     </div>
   )
+}
+
+function documentEntityName(ctx: LiveCtx, document: CompanyDocument) {
+  if (!document.entityType || document.entityType === 'COMPANY') return ctx.state.company.nameAr
+  if (document.entityType === 'VEHICLE') return ctx.state.vehicles.find((item) => item.id === document.entityId)?.plateNo ?? 'مركبة محذوفة'
+  if (document.entityType === 'EMPLOYEE') return ctx.state.employees.find((item) => item.id === document.entityId)?.nameAr ?? 'موظف محذوف'
+  if (document.entityType === 'SUPPLIER') return ctx.state.suppliers.find((item) => item.id === document.entityId)?.nameAr ?? 'مورد محذوف'
+  if (document.entityType === 'CUSTOMER') return ctx.state.customers.find((item) => item.id === document.entityId)?.nameAr ?? 'عميل محذوف'
+  return ctx.state.machines.find((item) => item.id === document.entityId)?.nameAr ?? 'ماكينة محذوفة'
+}
+
+function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDocument }) {
+  const [issueDate, setIssueDate] = useState(document.issueDate)
+  const [expiryDate, setExpiryDate] = useState(document.expiryDate ?? '')
+  const [cost, setCost] = useState(document.cost === undefined ? '' : String(document.cost))
+  const [notes, setNotes] = useState(document.notes ?? '')
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading] = useState(false)
+
+  return <>
+    <FormDialog title={`تجديد ${document.title}`} openLabel="تجديد">
+      {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+        event.preventDefault()
+        const result = await ctx.act('renewCompanyDocument', {
+          id: document.id,
+          issueDate,
+          expiryDate: expiryDate || undefined,
+          cost: cost ? Number(cost) : undefined,
+          notes,
+        })
+        if (result.ok) {
+          await ctx.refreshUser()
+          close()
+        }
+      }}>
+        <Field label="تاريخ الإصدار الجديد"><TextInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required /></Field>
+        <Field label="تاريخ الانتهاء الجديد"><TextInput type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>
+        <Field label="تكلفة التجديد"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(event) => setCost(event.target.value)} /></Field>
+        <Field label="ملاحظات"><TextInput value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
+        <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ التجديد</PrimaryButton></div>
+      </form>}
+    </FormDialog>
+    <FormDialog title={`إرفاق ملف — ${document.title}`} openLabel="رفع ملف">
+      {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+        event.preventDefault()
+        const form = event.currentTarget
+        const file = new FormData(form).get('file')
+        if (!(file instanceof File)) return
+        setUploading(true)
+        setUploadError('')
+        try {
+          const response = await fetch(`/api/erp/documents/${document.id}/attachments`, { method: 'POST', body: new FormData(form) })
+          const payload = await response.json() as { success?: boolean; message?: string }
+          if (!response.ok || !payload.success) {
+            setUploadError(payload.message || 'تعذر رفع الملف')
+            return
+          }
+          await ctx.refreshUser()
+          form.reset()
+          close()
+        } catch {
+          setUploadError('تعذر الاتصال بالخادم لرفع الملف')
+        } finally {
+          setUploading(false)
+        }
+      }}>
+        <Field label="PDF أو صورة PNG/JPEG — حتى 10 ميغابايت"><TextInput name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" required /></Field>
+        {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
+        <PrimaryButton disabled={uploading}>{uploading ? 'جارٍ الرفع…' : 'رفع المرفق'}</PrimaryButton>
+      </form>}
+    </FormDialog>
+  </>
 }
 
 function Journals({ ctx }: { ctx: LiveCtx }) {

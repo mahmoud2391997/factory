@@ -12,6 +12,9 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
   const kind = req.nextUrl.searchParams.get('kind') || 'journals'
   const accountingExport = ['journals', 'vat', 'trial', 'pnl'].includes(kind)
+  if (kind === 'documents' && !user.permissions.includes('documents.read') && !user.permissions.includes('documents.manage')) {
+    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية تصدير الوثائق' }, { status: 403 })
+  }
   if (accountingExport && !user.permissions.includes('accounting.read') && !user.permissions.includes('accounting.manage')) {
     return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
   }
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (financial && !user.permissions.includes('accounting.read') && !user.permissions.includes('reports.read') && !user.permissions.includes('payroll.manage')) {
     return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
   }
-  if (!user.permissions.includes('reports.read') && !user.permissions.includes('accounting.read')) {
+  if (kind !== 'documents' && !user.permissions.includes('reports.read') && !user.permissions.includes('accounting.read')) {
     return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
   }
 
@@ -104,6 +107,34 @@ export async function GET(req: NextRequest) {
       ['المصروفات', pnl.expense],
       ['الربح', pnl.profit],
     ]
+  } else if (kind === 'documents') {
+    name = 'Documents'
+    rows = [['الوثيقة', 'الجهة', 'النوع', 'تاريخ الإصدار', 'تاريخ الانتهاء', 'التكلفة', 'مسؤول التجديد', 'عدد المرفقات']]
+    for (const document of state.companyDocuments) {
+      const owner = state.users.find((item) => item.id === document.renewalOwnerId)?.fullName
+        ?? state.employees.find((item) => item.id === document.renewalOwnerId)?.nameAr
+        ?? ''
+      rows.push([
+        document.title,
+        document.entityType === 'VEHICLE'
+          ? state.vehicles.find((item) => item.id === document.entityId)?.plateNo ?? ''
+          : document.entityType === 'EMPLOYEE'
+            ? state.employees.find((item) => item.id === document.entityId)?.nameAr ?? ''
+            : document.entityType === 'SUPPLIER'
+              ? state.suppliers.find((item) => item.id === document.entityId)?.nameAr ?? ''
+              : document.entityType === 'CUSTOMER'
+                ? state.customers.find((item) => item.id === document.entityId)?.nameAr ?? ''
+                : document.entityType === 'MACHINE'
+                  ? state.machines.find((item) => item.id === document.entityId)?.nameAr ?? ''
+                  : state.company.nameAr,
+        document.kind,
+        document.issueDate,
+        document.expiryDate ?? '',
+        document.cost ?? '',
+        owner,
+        document.attachments?.length ?? 0,
+      ])
+    }
   } else {
     return NextResponse.json({ success: false, message: 'نوع التصدير غير معروف' }, { status: 400 })
   }
