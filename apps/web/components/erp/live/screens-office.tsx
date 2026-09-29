@@ -6,6 +6,7 @@ import { canSeeEntity } from '@/lib/erp-routes'
 import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
+import { dashboardAccess, dashboardAlerts } from '@/lib/erp/domain/dashboard'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
 import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
 
@@ -1240,21 +1241,27 @@ function NameList({ rows, empty }: { rows: string[]; empty: string }) {
 
 export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
   const status = useMemo(() => factoryStatus(ctx.state, new Date().toISOString()), [ctx.state])
+  const access = dashboardAccess(ctx.permissions)
+  const alerts = useMemo(() => dashboardAlerts(ctx.state, new Date().toISOString()), [ctx.state])
   const spotlight = useMemo(
-    () =>
-      ctx.state.materials
-        .map((material) => materialStatement(ctx.state, material.id))
-        .filter((row): row is NonNullable<ReturnType<typeof materialStatement>> => Boolean(row && row.consumedQty > 0))
-        .sort((a, b) => b.consumedQty - a.consumedQty)[0] ?? null,
-    [ctx.state],
+    () => access.inventory
+      ? ctx.state.materials
+          .map((material) => materialStatement(ctx.state, material.id))
+          .filter((row): row is NonNullable<ReturnType<typeof materialStatement>> => Boolean(row && row.consumedQty > 0))
+          .sort((a, b) => b.consumedQty - a.consumedQty)[0] ?? null
+      : null,
+    [access.inventory, ctx.state],
   )
   const executionTone = status.production.executionPct >= 95 ? 'good' : status.production.executionPct >= 80 ? 'warn' : 'bad'
   const marginTone = status.profit.marginPerTon > 0 ? 'good' : status.profit.marginPerTon < 0 ? 'bad' : undefined
+  const canViewApprovals = ctx.permissions.includes('approvals.decide')
   const pending =
-    ctx.state.purchaseOrders.filter((order) => order.status === 'PENDING_APPROVAL').length +
-    ctx.state.expenses.filter((expense) => expense.status === 'PENDING_APPROVAL').length +
-    ctx.state.payrolls.filter((payroll) => payroll.status === 'PENDING_APPROVAL').length +
-    ctx.state.adjustments.filter((adjustment) => adjustment.status === 'PENDING_APPROVAL').length
+    canViewApprovals
+      ? ctx.state.purchaseOrders.filter((order) => order.status === 'PENDING_APPROVAL').length +
+        ctx.state.expenses.filter((expense) => expense.status === 'PENDING_APPROVAL').length +
+        ctx.state.payrolls.filter((payroll) => payroll.status === 'PENDING_APPROVAL').length +
+        ctx.state.adjustments.filter((adjustment) => adjustment.status === 'PENDING_APPROVAL').length
+      : 0
   const dateLabel = dayFmt(status.day)
   return (
     <div className="space-y-5">
@@ -1267,7 +1274,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </p>
       </div>
 
-      <Card title="الإنتاج" hint="المخطط مقابل ما خرج فعلياً من خط الإنتاج.">
+      {access.production ? <Card title="الإنتاج" hint="المخطط مقابل ما خرج فعلياً من خط الإنتاج.">
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="المخطط اليوم" value={tonsFmt(status.production.plannedKg)} />
           <Metric label="الفعلي" value={tonsFmt(status.production.actualKg)} />
@@ -1279,9 +1286,9 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
             style={{ width: `${Math.max(0, Math.min(100, status.production.executionPct))}%` }}
           />
         </div>
-      </Card>
+      </Card> : null}
 
-      <Card title="المبيعات" hint="صافي الفواتير المؤكدة قبل الضريبة.">
+      {access.sales ? <Card title="المبيعات" hint="صافي الفواتير المؤكدة قبل الضريبة.">
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="مبيعات اليوم" value={moneyFmt(status.sales.today)} hint={status.sales.todayCount ? `${status.sales.todayCount} فاتورة` : 'لا توجد فواتير'} />
           <Metric label="مبيعات الشهر" value={moneyFmt(status.sales.month)} hint={status.sales.monthCount ? `${status.sales.monthCount} فاتورة` : 'لا توجد فواتير'} />
@@ -1295,27 +1302,27 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
             />
           </div>
         ) : null}
-      </Card>
+      </Card> : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="الربحية" hint="متوسط سعر البيع ناقص تكلفة الطن المنتج في هذا اليوم.">
+      {access.profitability || access.inventory ? <div className="grid gap-4 lg:grid-cols-2">
+        {access.profitability ? <Card title="الربحية" hint="متوسط سعر البيع ناقص تكلفة الطن المنتج في هذا اليوم.">
           <div className="grid gap-3 sm:grid-cols-3">
             <Metric label="تكلفة الطن" value={moneyFmt(status.profit.costPerTon)} />
             <Metric label="متوسط سعر البيع" value={moneyFmt(status.profit.avgPricePerTon)} />
             <Metric label="هامش الربح/طن" value={moneyFmt(status.profit.marginPerTon)} tone={marginTone} />
           </div>
-        </Card>
-        <Card title="المخزون">
+        </Card> : null}
+        {access.inventory ? <Card title="المخزون">
           <div className="grid grid-cols-2 gap-3">
-            <Metric label="قيمة المخزون" value={moneyFmt(status.inventory.value)} />
+            {access.profitability ? <Metric label="قيمة المخزون" value={moneyFmt(status.inventory.value)} /> : null}
             <Metric label="المواد التي ستنفد" value={String(status.inventory.runningOut.length)} tone={status.inventory.runningOut.length ? 'bad' : 'good'} />
             <Metric label="المواد الراكدة" value={String(status.inventory.stagnant.length)} tone={status.inventory.stagnant.length ? 'warn' : 'good'} />
             <Metric label="المواد المحجوزة" value={String(status.inventory.reserved.length)} />
           </div>
-        </Card>
-      </div>
+        </Card> : null}
+      </div> : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {access.inventory ? <div className="grid gap-4 lg:grid-cols-3">
         <Card title="المواد التي ستنفد" hint="رصيدها عند الحد الأدنى أو دونه.">
           <NameList
             empty="لا توجد مواد قاربت على النفاد"
@@ -1334,28 +1341,38 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
             rows={status.inventory.reserved.map((item) => `${item.nameAr} — ${qtyFmt(item.qty)} ${item.unit}`)}
           />
         </Card>
-      </div>
+      </div> : null}
 
-      <Card title="مركز المالك" hint="تنبيهات التشغيل والالتزامات والوثائق التي تحتاج متابعة اليوم.">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Metric label="السيارات" value={String(ctx.state.vehicles.length)} hint="ملفات الأسطول" />
-          <Metric label="التزامات قادمة" value={String(ctx.state.obligationScheduleLines.filter((line) => line.status !== 'PAID').length)} tone={ctx.state.obligationScheduleLines.some((line) => line.status === 'OVERDUE') ? 'bad' : 'warn'} />
-          <Metric label="وثائق خلال 90 يوم" value={String(ctx.state.companyDocuments.filter((doc) => doc.expiryDate && Date.parse(doc.expiryDate) - Date.now() <= 90 * 86400000).length)} tone={ctx.state.companyDocuments.some((doc) => doc.expiryDate && Date.parse(doc.expiryDate) < Date.now()) ? 'bad' : 'warn'} />
-          <Metric label="صيانة مسجلة" value={String(ctx.state.maintenanceRecords.length)} hint={`${ctx.state.maintenanceSchedules.length} جدول دوري`} />
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <NameList
-            empty="لا توجد التزامات غير مدفوعة"
-            rows={ctx.state.obligationScheduleLines.filter((line) => line.status !== 'PAID').sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 5).map((line) => `استحقاق ${line.dueDate} — ${moneyFmt(line.amount - line.paidAmount)} — ${line.status === 'OVERDUE' ? 'متأخر' : 'قادم'}`)}
-          />
-          <NameList
-            empty="لا توجد وثائق قريبة الانتهاء"
-            rows={ctx.state.companyDocuments.filter((doc) => doc.expiryDate && Date.parse(doc.expiryDate) - Date.now() <= 90 * 86400000).sort((a, b) => (a.expiryDate ?? '').localeCompare(b.expiryDate ?? '')).slice(0, 5).map((doc) => `${doc.title} — ${doc.expiryDate}`)}
-          />
-        </div>
-      </Card>
+      {access.fleet || access.obligations || access.documents || access.maintenance ? (
+        <Card title="مركز المالك" hint={`تنبيهات متابعة حسب صلاحياتك — ${dayFmt(alerts.today)}.`}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {access.fleet ? <Metric label="السيارات النشطة" value={String(ctx.state.vehicles.filter((vehicle) => vehicle.active).length)} hint={`${alerts.vehicleServices.length} موعد صيانة قريب`} tone={alerts.vehicleServices.some((item) => item.overdue) ? 'bad' : undefined} /> : null}
+            {access.obligations ? <Metric label="أقساط خلال 90 يوم" value={String(alerts.obligations.length)} tone={alerts.obligations.some((item) => (item.daysLeft ?? 0) < 0) ? 'bad' : alerts.obligations.length ? 'warn' : 'good'} /> : null}
+            {access.documents ? <Metric label="وثائق خلال 90 يوم" value={String(alerts.documents.length)} tone={alerts.documents.some((item) => item.daysLeft != null && item.daysLeft < 0) ? 'bad' : alerts.documents.length ? 'warn' : 'good'} /> : null}
+            {access.maintenance ? <Metric label="صيانة ماكينات مستحقة" value={String(alerts.machineMaintenance.length)} tone={alerts.machineMaintenance.some((item) => item.overdue) ? 'bad' : alerts.machineMaintenance.length ? 'warn' : 'good'} /> : null}
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {access.obligations ? <NameList
+              empty="لا توجد التزامات مستحقة خلال 90 يوماً"
+              rows={alerts.obligations.map((item) => `استحقاق ${item.dueDate} — ${item.beneficiary} — ${moneyFmt(item.outstanding)} — ${(item.daysLeft ?? 0) < 0 ? `متأخر ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
+            /> : null}
+            {access.documents ? <NameList
+              empty="لا توجد وثائق قريبة الانتهاء"
+              rows={alerts.documents.map((item) => `${item.title} — ${item.dueDate} — ${(item.daysLeft ?? 0) < 0 ? `منتهية منذ ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
+            /> : null}
+            {access.fleet ? <NameList
+              empty="لا توجد صيانة سيارات قريبة"
+              rows={alerts.vehicleServices.map((item) => `${item.vehicle} (${item.plateNo}) — ${item.kind}${item.dueDate ? ` — ${item.dueDate}` : ''}${item.kmLeft != null ? ` — ${item.kmLeft < 0 ? `متأخرة ${Math.abs(item.kmLeft)} كم` : `متبقي ${item.kmLeft} كم`}` : ''}`)}
+            /> : null}
+            {access.maintenance ? <NameList
+              empty="لا توجد صيانة ماكينات مستحقة"
+              rows={alerts.machineMaintenance.map((item) => `${item.machine} — ${item.description}${item.hoursDue ? ' — مستحقة حسب ساعات التشغيل' : ` — ${(item.daysLeft ?? 0) < 0 ? `متأخرة ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`}`)}
+            /> : null}
+          </div>
+        </Card>
+      ) : null}
 
-      <Card title="الإنتاج" hint="الهدر، الانحراف عن الوصفة، وتوقفات المصنع في يوم التشغيل.">
+      {access.production ? <Card title="الإنتاج" hint="الهدر، الانحراف عن الوصفة، وتوقفات المصنع في يوم التشغيل.">
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} من الكمية المصروفة`} />
           <Metric
@@ -1388,7 +1405,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
             />
           </div>
         </div>
-      </Card>
+      </Card> : null}
 
       {spotlight ? (
         <Card
@@ -1418,7 +1435,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
 
-      {canSeeEntity(ctx.permissions, 'qualitySample') ? (
+      {access.quality ? (
         <Card title="الجودة" hint="المرفوض والمعلّق بانتظار إجراء، ونسبة القبول خلال شهر التشغيل." extra={<GhostButton type="button" onClick={() => ctx.navigate('qualitySample')}>العينات</GhostButton>}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Metric label="بانتظار إجراء" value={String(status.qc.awaiting.length)} tone={status.qc.awaiting.length ? 'bad' : 'good'} />
@@ -1430,8 +1447,8 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
 
-      {canSeeEntity(ctx.permissions, 'factoryCostPerTon') ? (
-        <Card title="تكلفة الطن هذا الشهر" hint="متوسط موزون بكل بنود التكلفة." extra={<GhostButton type="button" onClick={() => ctx.navigate('factoryCostPerTon')}>التفاصيل</GhostButton>}>
+      {access.profitability ? (
+        <Card title="تكلفة الطن هذا الشهر" hint="متوسط موزون بكل بنود التكلفة." extra={canSeeEntity(ctx.permissions, 'factoryCostPerTon') ? <GhostButton type="button" onClick={() => ctx.navigate('factoryCostPerTon')}>التفاصيل</GhostButton> : undefined}>
           <Metric label="متوسط تكلفة الطن" value={moneyFmt(status.cost.avgCostPerTon)} />
           <div className="mt-3">
             <NameList empty="لا إنتاج هذا الشهر" rows={status.cost.breakdown.map((line) => `${line.label} — ${moneyFmt(line.amount)} (${pctFmt(line.pct)})`)} />
@@ -1439,8 +1456,8 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
 
-      {canSeeEntity(ctx.permissions, 'productionLot') ? (
-        <Card title="أقل الدفعات هامشاً" extra={<GhostButton type="button" onClick={() => ctx.navigate('productionLot')}>الدفعات</GhostButton>}>
+      {access.profitability ? (
+        <Card title="أقل الدفعات هامشاً" extra={canSeeEntity(ctx.permissions, 'productionLot') ? <GhostButton type="button" onClick={() => ctx.navigate('productionLot')}>الدفعات</GhostButton> : undefined}>
           {status.lowestMarginLots.length === 0 ? <p className="text-sm text-[#788983]">لا مبيعات مرتبطة بدفعة بعد</p> : (
             <ul className="space-y-1.5 text-sm text-[#30453d]">
               {status.lowestMarginLots.map((lot) => (
@@ -1453,7 +1470,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
 
-      {canSeeEntity(ctx.permissions, 'salesPayment') ? (
+      {access.sales ? (
         <Card title="التحصيلات" extra={<GhostButton type="button" onClick={() => ctx.navigate('salesPayment')}>التحصيلات</GhostButton>}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Metric label="تحصيل اليوم" value={moneyFmt(status.collections.today)} />
@@ -1462,7 +1479,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
 
-      {canSeeEntity(ctx.permissions, 'factoryOpenOrders') ? (
+      {access.sales ? (
         <Card title="أعمار الذمم" hint="المتبقي على الفواتير غير المسددة." extra={<GhostButton type="button" onClick={() => ctx.navigate('factoryOpenOrders')}>الفواتير المفتوحة</GhostButton>}>
           <div className="grid gap-3 sm:grid-cols-3">
             <Metric label="0–30 يوماً" value={moneyFmt(status.aging.d0_30)} />
@@ -1472,17 +1489,17 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="اعتمادات معلّقة">
+      {canViewApprovals || ctx.permissions.includes('inventory.ledger.read') ? <div className="grid gap-4 lg:grid-cols-2">
+        {canViewApprovals ? <Card title="اعتمادات معلّقة">
           <Metric label="بانتظار اعتماد المدير العام" value={String(pending)} tone={pending ? 'warn' : 'good'} />
-        </Card>
-        <Card title="آخر الحركات">
+        </Card> : null}
+        {ctx.permissions.includes('inventory.ledger.read') ? <Card title="آخر الحركات">
           <DataTable
             columns={['النوع', 'الصنف', 'الكمية']}
             rows={ctx.state.ledger.slice(0, 6).map((row) => [statusLabel(row.type), row.batchNo, qtyFmt(row.qty)])}
           />
-        </Card>
-      </div>
+        </Card> : null}
+      </div> : null}
     </div>
   )
 }

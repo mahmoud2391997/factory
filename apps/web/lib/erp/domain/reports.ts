@@ -310,10 +310,16 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
   const samples = state.qualitySamples ?? []
   const latestQc = new Map<string, (typeof samples)[number]>()
   for (const sample of [...samples].sort((a, b) => a.sampledAt.localeCompare(b.sampledAt))) {
-    const key = sample.type === 'FINISHED_PRODUCT' ? `lot:${sample.lotNo}` : `raw:${sample.materialId}:${sample.batchNo}`
+    const key = sample.type === 'FINISHED_PRODUCT'
+      ? `lot:${sample.lotNo}`
+      : sample.type === 'IN_PROCESS'
+        ? `process:${sample.productionOrderId ?? sample.id}`
+        : `raw:${sample.materialId}:${sample.batchNo}`
     latestQc.set(key, sample)
   }
-  const awaiting = [...latestQc.values()].filter((sample) => sample.result === 'FAILED' || sample.result === 'HOLD')
+  const awaiting = [...latestQc.values()].filter((sample) =>
+    sample.result === 'PENDING' || sample.result === 'FAILED' || sample.result === 'HOLD',
+  )
   const monthSamples = samples.filter((sample) => {
     const sampleDay = muscatDay(sample.sampledAt)
     return sampleDay.slice(0, 7) === month && sampleDay <= day && sample.result !== 'PENDING'
@@ -383,7 +389,11 @@ export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOS
       awaiting: awaiting.map((sample) => ({
         id: sample.id,
         result: sample.result,
-        label: sample.type === 'FINISHED_PRODUCT' ? `دفعة ${sample.lotNo}` : `خامة ${sample.batchNo}`,
+        label: sample.type === 'FINISHED_PRODUCT'
+          ? `دفعة ${sample.lotNo}`
+          : sample.type === 'IN_PROCESS'
+            ? `أمر إنتاج ${sample.productionOrderId ?? ''}`
+            : `خامة ${sample.batchNo}`,
       })),
       monthPassRate: monthSamples.length > 0 ? money((monthPassed / monthSamples.length) * 100) : null,
       monthSamples: monthSamples.length,
