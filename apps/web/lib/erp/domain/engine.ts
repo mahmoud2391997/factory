@@ -3230,8 +3230,12 @@ function createSparePart(state: ErpState, actor: Actor, input: Extract<Command, 
 function recordSparePartUsage(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordSparePartUsage' }>['input'], clock: Clock): CommandResult {
   const sparePart = state.spareParts.find((item) => item.id === input.sparePartId)
   if (!sparePart) return fail('قطعة الغيار غير موجودة')
+  const machine = state.machines.find((item) => item.id === input.machineId && item.active)
+  if (!machine) return fail('الماكينة غير موجودة أو غير نشطة')
+  if (sparePart.machineIds?.length && !sparePart.machineIds.includes(machine.id)) return fail('قطعة الغيار غير مخصصة لهذه الماكينة')
   if (input.quantity <= 0) return fail('الكمية غير صحيحة')
   if (input.quantity > sparePart.quantity) return fail('الكمية تتجاوز الرصيد المتاح')
+  if (!input.reason.trim()) return fail('سبب الصرف مطلوب')
 
   const usage: SparePartUsage = {
     id: clock.id('spu'),
@@ -3279,13 +3283,16 @@ function createPackagingMaterial(state: ErpState, actor: Actor, input: Extract<C
 function recordPackagingConsumption(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordPackagingConsumption' }>['input'], clock: Clock): CommandResult {
   const packaging = state.packagingMaterials.find((item) => item.id === input.packagingMaterialId)
   if (!packaging) return fail('مادة التعبئة غير موجودة')
+  if (!packaging.active) return fail('مادة التعبئة غير نشطة')
   if (input.quantity <= 0) return fail('الكمية غير صحيحة')
+  if (input.quantity > packaging.quantity) return fail('الكمية تتجاوز رصيد مادة التعبئة')
 
   const productionOrder = state.productionOrders.find((item) => item.id === input.productionOrderId)
   if (!productionOrder) return fail('أمر الإنتاج غير موجود')
 
   const lot = state.lots?.find((l) => l.lotNo === input.lotNo)
   if (!lot) return fail('الدفعة غير موجودة')
+  if (lot.productionOrderId !== productionOrder.id) return fail('دفعة الإنتاج لا تتبع أمر الإنتاج المحدد')
 
   const product = state.products.find((item) => item.id === lot.productId)
   const tons = qty(lot.actualOutputKg / 1000)
@@ -3582,8 +3589,27 @@ function recordMaintenance(state: ErpState, actor: Actor, input: Extract<Command
   if (input.operatingMinutes !== undefined && (!Number.isFinite(input.operatingMinutes) || input.operatingMinutes < 0)) {
     return fail('ساعات التشغيل المبلّغ عنها غير صحيحة')
   }
+  if (!input.description.trim()) return fail('وصف الصيانة مطلوب')
+  if (!Number.isFinite(input.cost) || input.cost < 0) return fail('تكلفة الصيانة غير صحيحة')
+  if (input.scheduleId && !state.maintenanceSchedules.some((schedule) => schedule.id === input.scheduleId && schedule.machineId === machine.id)) {
+    return fail('جدول الصيانة لا يتبع الماكينة المحددة')
+  }
 
-  const totalSpareCost = input.sparePartsUsed.reduce((sum, part) => sum + part.cost, 0)
+  const usedQtyByPart = new Map<string, number>()
+  for (const part of input.sparePartsUsed) {
+    if (!Number.isFinite(part.quantity) || part.quantity <= 0) return fail('كمية قطعة الغيار غير صحيحة')
+    const sparePart = state.spareParts.find((item) => item.id === part.sparePartId && item.active)
+    if (!sparePart) return fail('قطعة الغيار غير موجودة أو غير نشطة')
+    if (sparePart.machineIds?.length && !sparePart.machineIds.includes(machine.id)) return fail('قطعة الغيار غير مخصصة لهذه الماكينة')
+    const totalQty = qty((usedQtyByPart.get(part.sparePartId) ?? 0) + part.quantity)
+    if (totalQty > sparePart.quantity) return fail('كمية قطعة الغيار تتجاوز الرصيد المتاح')
+    usedQtyByPart.set(part.sparePartId, totalQty)
+  }
+  const normalizedParts = [...usedQtyByPart.entries()].map(([sparePartId, quantity]) => {
+    const sparePart = state.spareParts.find((item) => item.id === sparePartId)!
+    return { sparePartId, quantity, cost: money(quantity * sparePart.unitCost) }
+  })
+  const totalSpareCost = normalizedParts.reduce((sum, part) => sum + part.cost, 0)
   const record: MaintenanceRecord = {
     id: clock.id('mr'),
     machineId: input.machineId,
@@ -3595,7 +3621,7 @@ function recordMaintenance(state: ErpState, actor: Actor, input: Extract<Command
     operatingMinutes: input.operatingMinutes,
     description: input.description.trim(),
     cost: money(input.cost + totalSpareCost),
-    sparePartsUsed: input.sparePartsUsed,
+    sparePartsUsed: normalizedParts,
     performedBy: actor.id,
     notes: input.notes,
   }
@@ -3612,7 +3638,7 @@ function recordMaintenance(state: ErpState, actor: Actor, input: Extract<Command
     }
   }
 
-  for (const part of input.sparePartsUsed) {
+  for (const part of normalizedParts) {
     const sparePart = state.spareParts.find((sp) => sp.id === part.sparePartId)
     if (sparePart) {
       sparePart.quantity = qty(sparePart.quantity - part.quantity)

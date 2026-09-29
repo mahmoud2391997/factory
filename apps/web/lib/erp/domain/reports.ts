@@ -925,3 +925,71 @@ export function materialPriceAnalysis(state: ReportState, materialId?: string): 
     }
   })
 }
+
+export function obligationForecast(state: ReportState, firstMonth: string, monthCount = 12) {
+  if (!/^\d{4}-\d{2}$/.test(firstMonth)) throw new Error('شهر بداية التوقع غير صحيح')
+  if (!Number.isInteger(monthCount) || monthCount < 1 || monthCount > 120) throw new Error('عدد أشهر التوقع غير صحيح')
+  const start = new Date(`${firstMonth}-01T00:00:00.000Z`)
+  const months = Array.from({ length: monthCount }, (_, offset) => {
+    const date = new Date(start)
+    date.setUTCMonth(date.getUTCMonth() + offset)
+    return { month: date.toISOString().slice(0, 7), amount: 0, installments: 0 }
+  })
+  const activeObligationIds = new Set(state.obligations.filter((item) => item.status === 'ACTIVE').map((item) => item.id))
+  const byMonth = new Map(months.map((item) => [item.month, item]))
+  for (const line of state.obligationScheduleLines) {
+    if (!activeObligationIds.has(line.obligationId) || line.status === 'PAID') continue
+    const month = byMonth.get(line.dueDate.slice(0, 7))
+    if (!month) continue
+    month.amount = money(month.amount + Math.max(0, line.amount - line.paidAmount))
+    month.installments += 1
+  }
+  return months.map((item) => ({ ...item, amount: money(item.amount) }))
+}
+
+export function machineCostsByMachine(state: ReportState) {
+  return state.machines.map((machine) => {
+    const maintenanceCost = money(
+      state.maintenanceRecords.filter((record) => record.machineId === machine.id).reduce((sum, record) => sum + record.cost, 0),
+    )
+    const issuedPartsCost = money(
+      state.sparePartUsages.filter((usage) => usage.machineId === machine.id).reduce((sum, usage) => sum + usage.cost, 0),
+    )
+    return {
+      machineId: machine.id,
+      maintenanceCost,
+      issuedPartsCost,
+      totalCost: money(maintenanceCost + issuedPartsCost),
+    }
+  })
+}
+
+export function unmatchedBankTransactions(state: ReportState) {
+  return state.bankTransactions.filter((transaction) => transaction.status !== 'MATCHED')
+}
+
+export function packagingVarianceSummary(state: ReportState) {
+  return state.packagingMaterials.map((material) => {
+    const records = state.packagingConsumption.filter((item) => item.packagingMaterialId === material.id)
+    const expected = qty(records.reduce((sum, item) => sum + item.calculatedQty, 0))
+    const actual = qty(records.reduce((sum, item) => sum + item.quantity, 0))
+    return {
+      packagingMaterialId: material.id,
+      expected,
+      actual,
+      variance: qty(actual - expected),
+      cost: money(records.reduce((sum, item) => sum + item.cost, 0)),
+    }
+  })
+}
+
+export function utilitiesPerTon(state: ReportState) {
+  return state.utilitiesReadings.map((reading) => ({
+    readingId: reading.id,
+    month: reading.readingDate.slice(0, 7),
+    utility: reading.utility,
+    consumption: reading.consumption,
+    productionTon: reading.productionTon,
+    costPerTon: reading.costPerTon,
+  }))
+}

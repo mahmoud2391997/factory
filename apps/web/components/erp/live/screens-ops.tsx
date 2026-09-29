@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { materialPriceAnalysis, materialStatement, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
+import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
@@ -564,8 +564,32 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
   const [unitCost, setUnitCost] = useState('')
   const [minStock, setMinStock] = useState('')
   const [supplierId, setSupplierId] = useState('')
+  const [usagePartId, setUsagePartId] = useState(ctx.state.spareParts[0]?.id ?? '')
+  const [usageMachineId, setUsageMachineId] = useState(ctx.state.machines[0]?.id ?? '')
+  const [usageQuantity, setUsageQuantity] = useState('')
+  const [usageReason, setUsageReason] = useState('')
   return (
     <div className="space-y-4">
+      <Card title="صرف قطعة غيار" hint="يُخصم الصرف من الرصيد ويُسجل على الماكينة والسبب.">
+        {can(ctx.permissions, 'spareparts.manage') ? <FormDialog title="تسجيل صرف قطعة" openLabel="صرف قطعة">
+          {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+            event.preventDefault()
+            const result = await ctx.act('recordSparePartUsage', { sparePartId: usagePartId, machineId: usageMachineId, quantity: Number(usageQuantity), reason: usageReason })
+            if (result.ok) { setUsageQuantity(''); setUsageReason(''); close() }
+          }}>
+            <Field label="القطعة"><SelectInput value={usagePartId} onChange={(event) => setUsagePartId(event.target.value)}>{(ctx.state.spareParts ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr} — الرصيد {qtyFmt(item.quantity)}</option>)}</SelectInput></Field>
+            <Field label="الماكينة"><SelectInput value={usageMachineId} onChange={(event) => setUsageMachineId(event.target.value)}>{(ctx.state.machines ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput></Field>
+            <Field label="الكمية"><TextInput type="number" min="0.001" step="0.001" max={ctx.state.spareParts.find((item) => item.id === usagePartId)?.quantity ?? 0} value={usageQuantity} onChange={(event) => setUsageQuantity(event.target.value)} required /></Field>
+            <Field label="سبب الصرف"><TextInput value={usageReason} onChange={(event) => setUsageReason(event.target.value)} required /></Field>
+            <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !usagePartId || !usageMachineId}>تسجيل الصرف</PrimaryButton></div>
+          </form>}
+        </FormDialog> : <p className="text-sm text-[#6b7280]">لا تملك صلاحية صرف قطع الغيار.</p>}
+        <DataTable columns={['التاريخ', 'القطعة', 'الماكينة', 'الكمية', 'التكلفة', 'السبب', 'المستخدم']} rows={(ctx.state.sparePartUsages ?? []).map((usage) => [
+          usage.date.slice(0, 10), ctx.state.spareParts.find((item) => item.id === usage.sparePartId)?.nameAr ?? '—',
+          ctx.state.machines.find((item) => item.id === usage.machineId)?.nameAr ?? '—', qtyFmt(usage.quantity), moneyFmt(usage.cost),
+          usage.reason, ctx.state.users.find((user) => user.id === usage.usedBy)?.fullName ?? usage.usedBy,
+        ])} />
+      </Card>
       <Card
         title="قطع الغيار"
         extra={
@@ -625,7 +649,7 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
             qtyFmt(item.quantity),
             moneyFmt(item.unitCost),
             qtyFmt(item.minStock),
-            item.active ? 'نشط' : 'موقوف',
+            item.quantity <= item.minStock ? <Badge key={`${item.id}-stock`} tone="bad">تحت الحد الأدنى</Badge> : item.active ? 'نشط' : 'موقوف',
           ])}
         />
       </Card>
@@ -643,12 +667,23 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
   const [minStock, setMinStock] = useState('')
   const [expectedPerTon, setExpectedPerTon] = useState('')
   const [supplierId, setSupplierId] = useState('')
+  const [consumptionMaterialId, setConsumptionMaterialId] = useState(ctx.state.packagingMaterials[0]?.id ?? '')
+  const [productionOrderId, setProductionOrderId] = useState(ctx.state.productionOrders[0]?.id ?? '')
+  const availableLots = ctx.state.lots.filter((lot) => !productionOrderId || lot.productionOrderId === productionOrderId)
+  const [lotNo, setLotNo] = useState(availableLots[0]?.lotNo ?? '')
+  const [consumptionQuantity, setConsumptionQuantity] = useState('')
+  const selectedPackaging = ctx.state.packagingMaterials.find((item) => item.id === consumptionMaterialId)
+  const selectedLot = availableLots.find((item) => item.lotNo === lotNo)
+  const product = selectedLot ? ctx.state.products.find((item) => item.id === selectedLot.productId) : undefined
+  const expectedRate = selectedPackaging?.expectedPerTon ?? (selectedPackaging?.category === 'BAG' && product?.bagKg ? 1000 / product.bagKg : undefined)
+  const expectedQuantity = expectedRate != null && selectedLot ? selectedLot.actualOutputKg / 1000 * expectedRate : undefined
+  const consumptionVariance = expectedQuantity == null || consumptionQuantity === '' ? undefined : Number(consumptionQuantity) - expectedQuantity
   return (
     <div className="space-y-4">
       <Card
         title="مواد التعبئة"
-        extra={
-          can(ctx.permissions, 'packaging.manage') ? (
+        extra={<div className="flex flex-wrap gap-2">
+          {can(ctx.permissions, 'packaging.manage') ? (
             <FormDialog title="مادة تعبئة جديدة" openLabel="إضافة مادة تعبئة">
               {(close) => (
                 <form
@@ -707,8 +742,22 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
                 </form>
               )}
             </FormDialog>
-          ) : null
-        }
+          ) : null}
+          {can(ctx.permissions, 'packaging.manage') ? <FormDialog title="تسجيل استهلاك مادة" openLabel="تسجيل استهلاك">
+            {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+              event.preventDefault()
+              const result = await ctx.act('recordPackagingConsumption', { packagingMaterialId: consumptionMaterialId, productionOrderId, lotNo, quantity: Number(consumptionQuantity) })
+              if (result.ok) { setConsumptionQuantity(''); close() }
+            }}>
+              <Field label="مادة التعبئة"><SelectInput value={consumptionMaterialId} onChange={(event) => setConsumptionMaterialId(event.target.value)}>{ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput></Field>
+              <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { setProductionOrderId(event.target.value); setLotNo(ctx.state.lots.find((lot) => lot.productionOrderId === event.target.value)?.lotNo ?? '') }}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput></Field>
+              <Field label="دفعة الإنتاج"><SelectInput value={lotNo} onChange={(event) => setLotNo(event.target.value)}>{availableLots.map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}</SelectInput></Field>
+              <Field label="الكمية الفعلية المصروفة"><TextInput type="number" min="0.001" step="0.001" value={consumptionQuantity} onChange={(event) => setConsumptionQuantity(event.target.value)} required /></Field>
+              <p className="text-sm text-[#6b7280]">المتوقع: {expectedQuantity == null ? 'لا يوجد معدل محدد' : qtyFmt(expectedQuantity)} {consumptionVariance == null ? '' : ` — الفارق/الهدر: ${qtyFmt(consumptionVariance)}`}</p>
+              <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !consumptionMaterialId || !productionOrderId || !lotNo}>حفظ الاستهلاك</PrimaryButton></div>
+            </form>}
+          </FormDialog> : null}
+        </div>}
       >
         <DataTable
           columns={['الكود', 'الاسم', 'التصنيف', 'الكمية', 'الوحدة', 'تكلفة الوحدة', 'الحد الأدنى', 'الحالة']}
@@ -720,9 +769,14 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
             item.unit,
             moneyFmt(item.unitCost),
             qtyFmt(item.minStock),
-            item.active ? 'نشط' : 'موقوف',
+            item.quantity <= item.minStock ? <Badge key={`${item.id}-stock`} tone="bad">تحت الحد الأدنى</Badge> : item.active ? 'نشط' : 'موقوف',
           ])}
         />
+        <h4 className="mb-2 mt-5 font-semibold">الاستهلاك والانحراف</h4>
+        <DataTable columns={['المادة', 'المتوقع', 'المصروف فعلياً', 'الفارق/الهدر', 'التكلفة']} rows={packagingVarianceSummary(ctx.state).map((summary) => [
+          ctx.state.packagingMaterials.find((item) => item.id === summary.packagingMaterialId)?.nameAr ?? '—',
+          qtyFmt(summary.expected), qtyFmt(summary.actual), qtyFmt(summary.variance), moneyFmt(summary.cost),
+        ])} />
       </Card>
     </div>
   )
@@ -1003,7 +1057,7 @@ function SupplierCommunications({ ctx }: { ctx: LiveCtx }) {
               {(close) => (
                 <form className="grid gap-3" onSubmit={async (event) => {
                   event.preventDefault()
-                  const result = await ctx.act('createSupplierCommunication', {
+                  const result = await ctx.act('sendSupplierCommunication', {
                     supplierId,
                     templateId: templateId || undefined,
                     subject,
@@ -1045,13 +1099,16 @@ function SupplierCommunications({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['المورد', 'الموضوع', 'القناة', 'الحالة', 'التاريخ']}
+          columns={['المورد', 'الموضوع', 'القناة', 'الحالة', 'التاريخ', 'الإجراء']}
           rows={(ctx.state.supplierCommunications ?? []).map((item) => [
             partyName(ctx.state.suppliers, item.supplierId),
             item.subject,
             statusLabel(item.channel),
             statusLabel(item.status),
             item.sentAt.slice(0, 10),
+            item.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'suppliers.approve')
+              ? <GhostButton key={item.id} type="button" disabled={ctx.pending} onClick={() => ctx.act('approveSupplierCommunication', { id: item.id })}>اعتماد وإرسال</GhostButton>
+              : '—',
           ])}
         />
       </Card>
@@ -1387,9 +1444,33 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
 }
 
 function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
+  const [materialId, setMaterialId] = useState(ctx.state.materials[0]?.id ?? '')
+  const [productionOrderId, setProductionOrderId] = useState(ctx.state.productionOrders[0]?.id ?? '')
+  const [expectedQty, setExpectedQty] = useState('')
+  const [actualQty, setActualQty] = useState('')
+  const [scaleId, setScaleId] = useState('MANUAL')
   return (
-    <Card title="قراءات الميزان" hint="تكامل مع أجهزة الوزن لضمان دقة الكميات المستخدمة في الإنتاج.">
-      <p className="text-sm text-[#788983]">جاري التطوير...</p>
+    <Card title="قراءات الميزان" hint="إدخال قراءة الوزن وربطها بالمادة وأمر الإنتاج. يمكن إضافة محول ميزان حقيقي لاحقاً دون تغيير سجل القراءة.">
+      {can(ctx.permissions, 'scale.manage') ? <FormDialog title="تسجيل قراءة ميزان" openLabel="قراءة جديدة">
+        {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+          event.preventDefault()
+          const result = await ctx.act('recordScaleReading', { materialId, productionOrderId, expectedQty: Number(expectedQty), actualQty: Number(actualQty), scaleId })
+          if (result.ok) { setExpectedQty(''); setActualQty(''); close() }
+        }}>
+          <Field label="المادة الخام"><SelectInput value={materialId} onChange={(event) => setMaterialId(event.target.value)}>{ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput></Field>
+          <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => setProductionOrderId(event.target.value)}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput></Field>
+          <Field label="الوزن المتوقع (كجم)"><TextInput type="number" min="0" step="0.001" value={expectedQty} onChange={(event) => setExpectedQty(event.target.value)} required /></Field>
+          <Field label="الوزن الفعلي (كجم)"><TextInput type="number" min="0" step="0.001" value={actualQty} onChange={(event) => setActualQty(event.target.value)} required /></Field>
+          <Field label="معرف الميزان"><TextInput value={scaleId} onChange={(event) => setScaleId(event.target.value)} required /></Field>
+          <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !materialId || !productionOrderId}>تسجيل</PrimaryButton></div>
+        </form>}
+      </FormDialog> : <p className="text-sm text-[#6b7280]">لا تملك صلاحية تسجيل قراءات الميزان.</p>}
+      <DataTable columns={['الوقت', 'المادة', 'أمر الإنتاج', 'المتوقع', 'الفعلي', 'الفارق', 'الميزان', 'المسجل']} rows={(ctx.state.scaleReadings ?? []).map((reading) => [
+        reading.timestamp.slice(0, 16).replace('T', ' '), materialName(ctx.state, reading.materialId),
+        ctx.state.productionOrders.find((item) => item.id === reading.productionOrderId)?.number ?? '—',
+        qtyFmt(reading.expectedQty), qtyFmt(reading.actualQty), qtyFmt(reading.variance), reading.scaleId,
+        ctx.state.users.find((user) => user.id === reading.operatorId)?.fullName ?? reading.operatorId,
+      ])} />
     </Card>
   )
 }
@@ -1430,13 +1511,14 @@ function Machines({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['الكود', 'الاسم', 'النوع', 'الموقع', 'ساعات التشغيل', 'الحالة']}
+          columns={['الكود', 'الاسم', 'النوع', 'الموقع', 'ساعات التشغيل', 'تكلفة الصيانة والقطع', 'الحالة']}
           rows={(ctx.state.machines ?? []).map((item) => [
             item.code,
             item.nameAr,
             item.type,
             item.location,
             item.operatingHours.toFixed(1),
+            moneyFmt(machineCostsByMachine(ctx.state).find((cost) => cost.machineId === item.id)?.totalCost ?? 0),
             item.active ? 'نشط' : 'موقوف',
           ])}
         />
@@ -1522,7 +1604,11 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
   const [endDate, setEndDate] = useState('')
   const [description, setDescription] = useState('')
   const [cost, setCost] = useState('')
-  const [performedBy, setPerformedBy] = useState('')
+  const [scheduleId, setScheduleId] = useState('')
+  const [operatingMinutes, setOperatingMinutes] = useState('')
+  const [sparePartId, setSparePartId] = useState('')
+  const [sparePartQuantity, setSparePartQuantity] = useState('')
+  const [notes, setNotes] = useState('')
   return (
     <div className="space-y-4">
       <Card
@@ -1533,19 +1619,30 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
               {(close) => (
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
                   event.preventDefault()
-                  const result = await ctx.act('createMaintenanceRecord', {
+                  const part = ctx.state.spareParts.find((item) => item.id === sparePartId)
+                  const sparePartsUsed = part && Number(sparePartQuantity) > 0
+                    ? [{ sparePartId: part.id, quantity: Number(sparePartQuantity), cost: Number(sparePartQuantity) * part.unitCost }]
+                    : []
+                  const result = await ctx.act('recordMaintenance', {
                     machineId,
+                    scheduleId: scheduleId || undefined,
                     type,
                     startDate,
                     endDate,
                     description,
                     cost: Number(cost),
-                    performedBy,
+                    operatingMinutes: operatingMinutes === '' ? undefined : Number(operatingMinutes),
+                    sparePartsUsed,
+                    notes,
                   })
                   if (result.ok) {
                     setDescription('')
                     setCost('')
-                    setPerformedBy('')
+                    setScheduleId('')
+                    setOperatingMinutes('')
+                    setSparePartId('')
+                    setSparePartQuantity('')
+                    setNotes('')
                     close()
                   }
                 }}>
@@ -1565,7 +1662,11 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
                   <Field label="تاريخ الانتهاء"><TextInput type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required /></Field>
                   <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
                   <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(e) => setCost(e.target.value)} required /></Field>
-                  <Field label="المنفذ"><TextInput value={performedBy} onChange={(e) => setPerformedBy(e.target.value)} required /></Field>
+                  <Field label="جدول الصيانة المرتبط"><SelectInput value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">بدون جدول</option>{(ctx.state.maintenanceSchedules ?? []).filter((item) => item.machineId === machineId).map((item) => <option key={item.id} value={item.id}>{item.description} — {item.nextDue.slice(0, 10)}</option>)}</SelectInput></Field>
+                  <Field label="دقائق التشغيل المسجلة"><TextInput type="number" min="0" step="1" value={operatingMinutes} onChange={(e) => setOperatingMinutes(e.target.value)} /></Field>
+                  <Field label="قطعة غيار (اختياري)"><SelectInput value={sparePartId} onChange={(e) => setSparePartId(e.target.value)}><option value="">بدون</option>{(ctx.state.spareParts ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr} — {qtyFmt(item.quantity)}</option>)}</SelectInput></Field>
+                  <Field label="كمية القطعة"><TextInput type="number" min="0" step="0.001" value={sparePartQuantity} onChange={(e) => setSparePartQuantity(e.target.value)} /></Field>
+                  <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
                   <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
                 </form>
               )}
@@ -1574,7 +1675,7 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['الآلة', 'النوع', 'تاريخ البدء', 'تاريخ الانتهاء', 'الوصف', 'التكلفة', 'المنفذ']}
+          columns={['الآلة', 'النوع', 'تاريخ البدء', 'تاريخ الانتهاء', 'الوصف', 'التكلفة', 'التوقف بالدقائق', 'المسؤول']}
           rows={(ctx.state.maintenanceRecords ?? []).map((item) => [
             (ctx.state.machines ?? []).find((m) => m.id === item.machineId)?.nameAr || '—',
             statusLabel(item.type),
@@ -1582,7 +1683,8 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
             item.endDate.slice(0, 10),
             item.description,
             moneyFmt(item.cost),
-            item.performedBy,
+            String(item.downtimeMinutes),
+            ctx.state.users.find((user) => user.id === item.performedBy)?.fullName ?? item.performedBy,
           ])}
         />
       </Card>
@@ -1859,6 +1961,14 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
 function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
   const [pointId, setPointId] = useState((ctx.state.distributionPoints ?? [])[0]?.id ?? '')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [openingStock, setOpeningStock] = useState<Record<string, string>>({})
+  const [sales, setSales] = useState<Record<string, string>>({})
+  const [returns, setReturns] = useState<Record<string, string>>({})
+  const [closingStock, setClosingStock] = useState<Record<string, string>>({})
+  const [cash, setCash] = useState('')
+  const [transfers, setTransfers] = useState('')
+  const expectedTakings = ctx.state.products.reduce((sum, item) => sum + ((Number(sales[item.id]) || 0) - (Number(returns[item.id]) || 0)) * item.salePrice, 0)
+  const expectedClosingByProduct = (productId: string) => (Number(openingStock[productId]) || 0) - (Number(sales[productId]) || 0) + (Number(returns[productId]) || 0)
   return (
     <div className="space-y-4">
       <Card
@@ -1869,8 +1979,13 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
               {(close) => (
                 <form className="grid gap-3" onSubmit={async (event) => {
                   event.preventDefault()
-                  const result = await ctx.act('createDistributionClosing', { pointId, date })
-                  if (result.ok) close()
+                  const quantities = (values: Record<string, string>) => Object.fromEntries(ctx.state.products.map((product) => [product.id, Number(values[product.id]) || 0]))
+                  const result = await ctx.act('closeDistributionDay', {
+                    pointId, date, openingStock: quantities(openingStock), sales: quantities(sales),
+                    returns: quantities(returns), closingStock: quantities(closingStock),
+                    cash: Number(cash), transfers: Number(transfers),
+                  })
+                  if (result.ok) { setOpeningStock({}); setSales({}); setReturns({}); setClosingStock({}); setCash(''); setTransfers(''); close() }
                 }}>
                   <Field label="نقطة التوزيع">
                     <SelectInput value={pointId} onChange={(e) => setPointId(e.target.value)}>
@@ -1878,6 +1993,22 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
                     </SelectInput>
                   </Field>
                   <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+                  <div className="md:col-span-2">
+                    <p className="mb-2 font-semibold">حركة كل منتج (الكمية)</p>
+                    <div className="space-y-3">
+                      {ctx.state.products.map((product) => <div key={product.id} className="grid gap-2 rounded-xl border border-[#e5e7eb] p-3 md:grid-cols-5">
+                        <strong className="self-center">{product.nameAr}</strong>
+                        <Field label="مخزون أول اليوم"><TextInput type="number" min="0" step="0.001" value={openingStock[product.id] ?? ''} onChange={(event) => setOpeningStock((current) => ({ ...current, [product.id]: event.target.value }))} /></Field>
+                        <Field label="مباع"><TextInput type="number" min="0" step="0.001" value={sales[product.id] ?? ''} onChange={(event) => setSales((current) => ({ ...current, [product.id]: event.target.value }))} /></Field>
+                        <Field label="مرتجع"><TextInput type="number" min="0" step="0.001" value={returns[product.id] ?? ''} onChange={(event) => setReturns((current) => ({ ...current, [product.id]: event.target.value }))} /></Field>
+                        <Field label="جرد آخر اليوم"><TextInput type="number" min="0" step="0.001" value={closingStock[product.id] ?? ''} onChange={(event) => setClosingStock((current) => ({ ...current, [product.id]: event.target.value }))} /></Field>
+                        <p className="text-xs text-[#6b7280] md:col-span-5">الرصيد المتوقع آخر اليوم: {qtyFmt(expectedClosingByProduct(product.id))}</p>
+                      </div>)}
+                    </div>
+                  </div>
+                  <Field label="نقد مستلم"><TextInput type="number" min="0" step="0.001" value={cash} onChange={(event) => setCash(event.target.value)} required /></Field>
+                  <Field label="تحويلات مستلمة"><TextInput type="number" min="0" step="0.001" value={transfers} onChange={(event) => setTransfers(event.target.value)} required /></Field>
+                  <p className="text-sm text-[#6b7280] md:col-span-2">المتحصل المتوقع: {moneyFmt(expectedTakings)} — الفرق: {moneyFmt(Number(cash || 0) + Number(transfers || 0) - expectedTakings)}</p>
                   <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
                 </form>
               )}
@@ -1886,13 +2017,14 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['نقطة التوزيع', 'التاريخ', 'المبيعات', 'المرتجعات', 'الصافي', 'الحالة']}
+          columns={['نقطة التوزيع', 'التاريخ', 'النقد', 'التحويلات', 'فرق التحصيل', 'فرق المخزون', 'الحالة']}
           rows={(ctx.state.distributionClosings ?? []).map((item) => [
             (ctx.state.distributionPoints ?? []).find((p) => p.id === item.pointId)?.nameAr || '—',
             item.date,
             moneyFmt(item.cash),
             moneyFmt(item.transfers),
             moneyFmt(item.variance),
+            qtyFmt(item.stockVariance ?? 0),
             statusLabel(item.status),
           ])}
         />
@@ -2095,4 +2227,3 @@ function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
     </Card>
   )
 }
-

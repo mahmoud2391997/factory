@@ -6,7 +6,7 @@ import { canSeeEntity } from '@/lib/erp-routes'
 import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
-import { factoryStatus, itemOnHand, materialStatement, muscatDay, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
+import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
 import type { VatTreatment } from '@/lib/erp/domain/types'
 
 import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
@@ -62,7 +62,15 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   const [km, setKm] = useState('')
   const [loadKg, setLoadKg] = useState('')
   const [tripFuel, setTripFuel] = useState('')
-  const driverId = ctx.state.users.find((user) => user.role === 'DRIVER')?.id ?? ctx.state.users[0]?.id ?? ''
+  const [serviceKind, setServiceKind] = useState<'PERIODIC' | 'TIRES' | 'OIL' | 'PARTS' | 'REPAIR'>('PERIODIC')
+  const [serviceDate, setServiceDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [serviceDescription, setServiceDescription] = useState('')
+  const [serviceCost, setServiceCost] = useState('')
+  const [serviceOdometer, setServiceOdometer] = useState('')
+  const [nextDueDate, setNextDueDate] = useState('')
+  const [nextDueKm, setNextDueKm] = useState('')
+  const [serviceSupplierId, setServiceSupplierId] = useState('')
+  const [driverId, setDriverId] = useState(ctx.state.employees[0]?.id ?? '')
   const selectedVehicle = ctx.state.vehicles.find((vehicle) => vehicle.id === vehicleId)
 
   if (mode === 'fleetFuel') return (
@@ -82,12 +90,13 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
     <Card title="رحلات التوزيع" hint="تُحسب التكلفة من الوقود، المسافة، وسائق الرحلة، ويُطلب سبب عند تجاوز استهلاك الوقود.">
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr}</option>)}</SelectInput></Field>
+        <Field label="السائق"><SelectInput value={driverId} onChange={(event) => setDriverId(event.target.value)}>{ctx.state.employees.filter((employee) => employee.active).map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput></Field>
         <Field label="الوجهة"><TextInput value={destination} onChange={(event) => setDestination(event.target.value)} /></Field>
         <Field label="الكيلومترات"><TextInput type="number" min="0.1" value={km} onChange={(event) => setKm(event.target.value)} /></Field>
         <Field label="حمولة كجم"><TextInput type="number" min="0" value={loadKg} onChange={(event) => setLoadKg(event.target.value)} /></Field>
         <Field label="وقود الرحلة"><TextInput type="number" min="0.001" value={tripFuel} onChange={(event) => setTripFuel(event.target.value)} /></Field>
       </div>
-      <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId || !destination} onClick={async () => { const result = await ctx.act('createTrip', { vehicleId, driverId, date: new Date().toISOString().slice(0, 10), destination, km: Number(km), loadKg: Number(loadKg), fuelLiters: Number(tripFuel) }); if (result.ok) { setDestination(''); setKm(''); setLoadKg(''); setTripFuel('') } }}>حفظ الرحلة</PrimaryButton>
+      <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId || !driverId || !destination} onClick={async () => { const result = await ctx.act('createTrip', { vehicleId, driverId, date: new Date().toISOString().slice(0, 10), destination, km: Number(km), loadKg: Number(loadKg), fuelLiters: Number(tripFuel) }); if (result.ok) { setDestination(''); setKm(''); setLoadKg(''); setTripFuel('') } }}>حفظ الرحلة</PrimaryButton>
       <DataTable columns={['التاريخ', 'المركبة', 'الوجهة', 'كم', 'الحمولة', 'التكلفة']} rows={ctx.state.trips.map((trip) => [trip.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)?.nameAr ?? '—', trip.destination, String(trip.km), String(trip.loadKg), moneyFmt(trip.cost)])} />
     </Card>
   )
@@ -100,7 +109,39 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         </FormDialog>
         <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
       </Card>
-      <Card title="خدمات الأسطول"><DataTable columns={['التاريخ', 'المركبة', 'الخدمة', 'التكلفة', 'العداد']} rows={ctx.state.vehicleServices.map((service) => [service.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === service.vehicleId)?.nameAr ?? '—', service.description, moneyFmt(service.cost), String(service.odometer)])} /></Card>
+      <Card
+        title="خدمات الأسطول"
+        extra={can(ctx.permissions, 'fleet.manage') ? (
+          <FormDialog title="تسجيل صيانة مركبة" openLabel="إضافة صيانة">
+            {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+              event.preventDefault()
+              const result = await ctx.act('addVehicleService', {
+                vehicleId, date: serviceDate, kind: serviceKind, description: serviceDescription,
+                cost: Number(serviceCost), odometer: Number(serviceOdometer),
+                nextDueDate: nextDueDate || undefined, nextDueKm: nextDueKm ? Number(nextDueKm) : undefined,
+                supplierId: serviceSupplierId || undefined,
+              })
+              if (result.ok) {
+                setServiceDescription(''); setServiceCost(''); setServiceOdometer('')
+                setNextDueDate(''); setNextDueKm(''); setServiceSupplierId(''); close()
+              }
+            }}>
+              <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.filter((vehicle) => vehicle.active).map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput></Field>
+              <Field label="نوع الخدمة"><SelectInput value={serviceKind} onChange={(event) => setServiceKind(event.target.value as typeof serviceKind)}><option value="PERIODIC">دورية</option><option value="TIRES">إطارات</option><option value="OIL">زيوت</option><option value="PARTS">قطع</option><option value="REPAIR">إصلاح</option></SelectInput></Field>
+              <Field label="التاريخ"><TextInput type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} required /></Field>
+              <Field label="الوصف"><TextInput value={serviceDescription} onChange={(event) => setServiceDescription(event.target.value)} required /></Field>
+              <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={serviceCost} onChange={(event) => setServiceCost(event.target.value)} required /></Field>
+              <Field label="قراءة العداد"><TextInput type="number" min="0" step="1" value={serviceOdometer} onChange={(event) => setServiceOdometer(event.target.value)} required /></Field>
+              <Field label="موعد الصيانة التالية"><TextInput type="date" value={nextDueDate} onChange={(event) => setNextDueDate(event.target.value)} /></Field>
+              <Field label="العداد عند الصيانة التالية"><TextInput type="number" min="0" step="1" value={nextDueKm} onChange={(event) => setNextDueKm(event.target.value)} /></Field>
+              <Field label="المورد"><SelectInput value={serviceSupplierId} onChange={(event) => setServiceSupplierId(event.target.value)}><option value="">بدون</option>{ctx.state.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.nameAr}</option>)}</SelectInput></Field>
+              <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !vehicleId}>حفظ</PrimaryButton></div>
+            </form>}
+          </FormDialog>
+        ) : null}
+      >
+        <DataTable columns={['التاريخ', 'المركبة', 'الخدمة', 'التكلفة', 'العداد', 'موعد الخدمة التالية']} rows={ctx.state.vehicleServices.map((service) => [service.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === service.vehicleId)?.nameAr ?? '—', service.description, moneyFmt(service.cost), String(service.odometer), service.nextDueDate ?? (service.nextDueKm ? `${service.nextDueKm} كم` : '—')])} />
+      </Card>
     </div>
   )
 }
@@ -266,7 +307,7 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
               {(close) => (
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
                   event.preventDefault()
-                  const result = await ctx.act('createUtilitiesReading', {
+                  const result = await ctx.act('recordUtilitiesReading', {
                     utility,
                     readingDate,
                     previousReading: Number(previousReading),
@@ -314,24 +355,72 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(item.costPerTon),
           ])}
         />
+        <h4 className="mb-2 mt-5 font-semibold">مقارنة الاستهلاك الشهري لكل طن</h4>
+        <DataTable columns={['الشهر', 'المرافق', 'الاستهلاك', 'طن الإنتاج', 'التكلفة/طن', 'مقارنة']} rows={utilitiesPerTon(ctx.state).map((item) => {
+          const previous = utilitiesPerTon(ctx.state).filter((row) => row.utility === item.utility && row.month < item.month).sort((a, b) => b.month.localeCompare(a.month))[0]
+          const previousReading = previous && ctx.state.utilitiesReadings.find((row) => row.id === previous.readingId)
+          const currentReading = ctx.state.utilitiesReadings.find((row) => row.id === item.readingId)
+          const rise = previousReading && currentReading ? (currentReading.consumption - previousReading.consumption) / Math.max(previousReading.consumption, 0.001) : 0
+          return [item.month, statusLabel(item.utility), qtyFmt(item.consumption), qtyFmt(item.productionTon), moneyFmt(item.costPerTon), rise > 0.2 ? <Badge key={item.readingId} tone="bad">ارتفاع {pctFmt(rise * 100)}</Badge> : previous ? 'ضمن النطاق' : 'لا توجد مقارنة']
+        })} />
       </Card>
     </div>
   )
 }
 
 function BankTransactions({ ctx }: { ctx: LiveCtx }) {
+  const [bankAccount, setBankAccount] = useState('')
+  const [transactionId, setTransactionId] = useState('')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [amount, setAmount] = useState('')
+  const [type, setType] = useState<'CREDIT' | 'DEBIT'>('CREDIT')
+  const [description, setDescription] = useState('')
+  const [reference, setReference] = useState('')
   return (
     <div className="space-y-4">
-      <Card title="معاملات البنك" hint="تكامل مع البنك لمطابقة المعاملات تلقائياً.">
+      <Card
+        title="معاملات البنك"
+        hint="يمكن استيراد المعاملة بعد تنزيل كشف البنك؛ تُطابق التحويلات المعروفة تلقائياً وتبقى غير المعروفة في طابور المراجعة."
+        extra={can(ctx.permissions, 'bank.manage') ? (
+          <FormDialog title="تسجيل معاملة بنكية" openLabel="إضافة معاملة">
+            {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+              event.preventDefault()
+              const result = await ctx.act('recordBankTransaction', { bankAccount, transactionId, date, amount: Number(amount), type, description, reference: reference || undefined })
+              if (result.ok) { setTransactionId(''); setAmount(''); setDescription(''); setReference(''); close() }
+            }}>
+              <Field label="الحساب البنكي"><TextInput value={bankAccount} onChange={(event) => setBankAccount(event.target.value)} required /></Field>
+              <Field label="رقم المعاملة"><TextInput value={transactionId} onChange={(event) => setTransactionId(event.target.value)} required /></Field>
+              <Field label="التاريخ"><TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></Field>
+              <Field label="المبلغ"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(event) => setAmount(event.target.value)} required /></Field>
+              <Field label="النوع"><SelectInput value={type} onChange={(event) => setType(event.target.value as typeof type)}><option value="CREDIT">وارد</option><option value="DEBIT">صادر</option></SelectInput></Field>
+              <Field label="الوصف"><TextInput value={description} onChange={(event) => setDescription(event.target.value)} required /></Field>
+              <Field label="المرجع"><TextInput value={reference} onChange={(event) => setReference(event.target.value)} /></Field>
+              <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>تسجيل</PrimaryButton></div>
+            </form>}
+          </FormDialog>
+        ) : null}
+      >
+        <h4 className="mb-2 font-semibold">المعاملات غير المطابقة — مراجعة المحاسب</h4>
         <DataTable
-          columns={['التاريخ', 'المعرف', 'المبلغ', 'النوع', 'الوصف', 'الحالة']}
+          columns={['التاريخ', 'المعرف', 'المبلغ', 'النوع', 'الوصف', 'الحالة', 'مطابقة يدوية']}
+          rows={unmatchedBankTransactions(ctx.state).map((item) => [
+            item.date.slice(0, 10), item.transactionId, moneyFmt(item.amount), statusLabel(item.type), item.description,
+            statusLabel(item.status),
+            can(ctx.permissions, 'bank.manage') ? <BankMatchAction key={item.id} ctx={ctx} transactionId={item.transactionId} /> : '—',
+          ])}
+        />
+      </Card>
+      <Card title="سجل التدقيق البنكي">
+        <DataTable
+          columns={['التاريخ', 'المعرف', 'الحساب', 'المبلغ', 'الحالة', 'تمت المطابقة بواسطة', 'وقت المطابقة']}
           rows={(ctx.state.bankTransactions ?? []).map((item) => [
             item.date.slice(0, 10),
             item.transactionId,
+            item.bankAccount,
             moneyFmt(item.amount),
-            statusLabel(item.type),
-            item.description,
             statusLabel(item.status),
+            item.matchedBy ?? '—',
+            item.matchedAt?.slice(0, 16).replace('T', ' ') ?? '—',
           ])}
         />
       </Card>
@@ -408,18 +497,81 @@ function Obligations({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['المستفيد', 'الوصف', 'النوع', 'المبلغ الإجمالي', 'الحالة']}
+          columns={['المستفيد', 'الوصف', 'النوع', 'المبلغ الإجمالي', 'الحالة', 'الإجراء']}
           rows={(ctx.state.obligations ?? []).map((item) => [
             item.beneficiary,
             item.description,
             statusLabel(item.kind),
             moneyFmt(item.total),
             statusLabel(item.status),
+            item.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'approvals.decide') ? (
+              <span key={item.id} className="flex gap-2">
+                <GhostButton type="button" disabled={ctx.pending} onClick={() => ctx.act('decideObligation', { id: item.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
+                <GhostButton type="button" disabled={ctx.pending} onClick={() => ctx.act('decideObligation', { id: item.id, decision: 'REJECTED' })}>إلغاء</GhostButton>
+              </span>
+            ) : '—',
           ])}
         />
       </Card>
+      {(ctx.state.obligations ?? []).map((obligation) => {
+        const lines = (ctx.state.obligationScheduleLines ?? []).filter((line) => line.obligationId === obligation.id).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+        if (lines.length === 0) return null
+        return <Card key={obligation.id} title={`جدول الأقساط — ${obligation.beneficiary}`} hint={obligation.description}>
+          <DataTable columns={['الاستحقاق', 'قيمة القسط', 'المدفوع', 'المتبقي', 'الحالة', 'الدفع']} rows={lines.map((line) => [
+            line.dueDate, moneyFmt(line.amount), moneyFmt(line.paidAmount), moneyFmt(Math.max(0, line.amount - line.paidAmount)), statusLabel(line.status),
+            obligation.status === 'ACTIVE' && can(ctx.permissions, 'obligations.pay') && line.status !== 'PAID'
+              ? <ObligationInstallmentPayment key={line.id} ctx={ctx} scheduleLineId={line.id} remaining={Math.max(0, line.amount - line.paidAmount)} />
+              : '—',
+          ])} />
+        </Card>
+      })}
+      <Card title="توقع الالتزامات — 12 شهراً">
+        <DataTable columns={['الشهر', 'عدد الأقساط', 'المبلغ المتوقع']} rows={obligationForecast(ctx.state, new Date().toISOString().slice(0, 7), 12).map((item) => [item.month, String(item.installments), moneyFmt(item.amount)])} />
+      </Card>
     </div>
   )
+}
+
+function ObligationInstallmentPayment({ ctx, scheduleLineId, remaining }: { ctx: LiveCtx; scheduleLineId: string; remaining: number }) {
+  const [amount, setAmount] = useState(String(remaining))
+  const [method, setMethod] = useState('تحويل بنكي')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [reference, setReference] = useState('')
+  return <FormDialog title="دفع قسط" openLabel="دفع">
+    {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+      event.preventDefault()
+      const result = await ctx.act('payObligationInstallment', { scheduleLineId, amount: Number(amount), method, date, reference: reference || undefined })
+      if (result.ok) close()
+    }}>
+      <p className="text-sm">المتبقي: {moneyFmt(remaining)}</p>
+      <Field label="مبلغ الدفعة"><TextInput type="number" min="0.001" max={remaining} step="0.001" value={amount} onChange={(event) => setAmount(event.target.value)} required /></Field>
+      <Field label="تاريخ الدفع"><TextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></Field>
+      <Field label="طريقة الدفع"><TextInput value={method} onChange={(event) => setMethod(event.target.value)} required /></Field>
+      <Field label="المرجع"><TextInput value={reference} onChange={(event) => setReference(event.target.value)} /></Field>
+      <PrimaryButton disabled={ctx.pending}>تسجيل الدفعة</PrimaryButton>
+    </form>}
+  </FormDialog>
+}
+
+function BankMatchAction({ ctx, transactionId }: { ctx: LiveCtx; transactionId: string }) {
+  const [type, setType] = useState<'INVOICE' | 'SUPPLIER' | 'EXPENSE'>('INVOICE')
+  const [targetId, setTargetId] = useState('')
+  const targets = type === 'INVOICE'
+    ? ctx.state.invoices.map((item) => ({ id: item.id, name: `${item.number} — ${partyName(ctx.state.customers, item.customerId)}` }))
+    : type === 'SUPPLIER'
+      ? ctx.state.suppliers.map((item) => ({ id: item.id, name: item.nameAr }))
+      : ctx.state.expenses.map((item) => ({ id: item.id, name: item.description }))
+  return <FormDialog title={`مطابقة ${transactionId}`} openLabel="مطابقة">
+    {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+      event.preventDefault()
+      const result = await ctx.act('matchBankTransaction', { transactionId, matchTo: { type, id: targetId } })
+      if (result.ok) close()
+    }}>
+      <Field label="نوع السجل"><SelectInput value={type} onChange={(event) => { setType(event.target.value as typeof type); setTargetId('') }}><option value="INVOICE">فاتورة عميل</option><option value="SUPPLIER">مورد</option><option value="EXPENSE">مصروف</option></SelectInput></Field>
+      <Field label="السجل"><SelectInput value={targetId} onChange={(event) => setTargetId(event.target.value)}><option value="">اختر</option>{targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</SelectInput></Field>
+      <PrimaryButton disabled={ctx.pending || !targetId}>مطابقة</PrimaryButton>
+    </form>}
+  </FormDialog>
 }
 
 function Employees({ ctx }: { ctx: LiveCtx }) {

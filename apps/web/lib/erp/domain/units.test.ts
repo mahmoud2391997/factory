@@ -86,7 +86,7 @@ test('packaging consumption honours an explicit per-ton rate', () => {
 
   state = must(state, clock, {
     action: 'createPackagingMaterial',
-    input: { code: 'INK-1', nameAr: 'حبر', category: 'INK', quantity: 50, unit: 'لتر', unitCost: 2, minStock: 5, expectedPerTon: 10 },
+    input: { code: 'INK-1', nameAr: 'حبر', category: 'INK', quantity: 150, unit: 'لتر', unitCost: 2, minStock: 5, expectedPerTon: 10 },
   })
   state = must(state, clock, {
     action: 'recordPackagingConsumption',
@@ -115,6 +115,26 @@ test('packaging without a definable rate expects what was issued', () => {
   })
   assert.equal(state.packagingConsumption[0]!.calculatedQty, 12)
   assert.equal(state.packagingConsumption[0]!.variance, 0)
+})
+
+test('packaging consumption cannot overdraw stock or charge a lot to another order', () => {
+  const clock = createClock('2026-09-29T04:00:00.000Z')
+  let state = producedState(clock)
+  state = must(state, clock, {
+    action: 'createPackagingMaterial',
+    input: { code: 'BAG-LIMIT', nameAr: 'أكياس محدودة', category: 'BAG', quantity: 10, unit: 'كيس', unitCost: 0.1, minStock: 1 },
+  })
+  const result = applyCommand(state, actor(state), {
+    action: 'recordPackagingConsumption',
+    input: {
+      packagingMaterialId: state.packagingMaterials[0]!.id,
+      productionOrderId: state.productionOrders[0]!.id,
+      lotNo: state.lots[0]!.lotNo,
+      quantity: 11,
+    },
+  }, clock)
+  assert.equal(result.ok, false)
+  assert.equal(state.packagingMaterials[0]!.quantity, 10)
 })
 
 test('distribution closing reconciles money against money and goods against goods', () => {
@@ -206,4 +226,47 @@ test('maintenance adds reported run hours, never downtime, to operating hours', 
     },
   }, clock)
   assert.equal(rejected.ok, false)
+})
+
+test('spare part usage requires a compatible machine and reason before deducting stock', () => {
+  const clock = createClock('2026-09-29T04:00:00.000Z')
+  let state = emptyState('spare-part-issue')
+  state = must(state, clock, { action: 'createMachine', input: { code: 'M-1', nameAr: 'مكبس', type: 'PRESS', location: 'الخط 1' } })
+  const machineId = state.machines[0]!.id
+  state = must(state, clock, { action: 'createSparePart', input: { code: 'SP-1', nameAr: 'سير', quantity: 2, unitCost: 5, minStock: 1, machineIds: [machineId] } })
+  const sparePartId = state.spareParts[0]!.id
+
+  const missingReason = applyCommand(state, actor(state), {
+    action: 'recordSparePartUsage',
+    input: { sparePartId, machineId, quantity: 1, reason: '  ' },
+  }, clock)
+  assert.equal(missingReason.ok, false)
+  assert.equal(state.spareParts[0]!.quantity, 2)
+
+  state = must(state, clock, { action: 'recordSparePartUsage', input: { sparePartId, machineId, quantity: 1, reason: 'استبدال سير' } })
+  assert.equal(state.spareParts[0]!.quantity, 1)
+  assert.equal(state.sparePartUsages[0]!.cost, 5)
+})
+
+test('maintenance validates spare inventory and derives its cost from current unit cost', () => {
+  const clock = createClock('2026-09-29T04:00:00.000Z')
+  let state = emptyState('maintenance-parts')
+  state = must(state, clock, { action: 'createMachine', input: { code: 'M-1', nameAr: 'مكبس', type: 'PRESS', location: 'الخط 1' } })
+  const machineId = state.machines[0]!.id
+  state = must(state, clock, { action: 'createSparePart', input: { code: 'SP-1', nameAr: 'فلتر', quantity: 1, unitCost: 7, minStock: 0 } })
+  const sparePartId = state.spareParts[0]!.id
+  const command: Command = {
+    action: 'recordMaintenance',
+    input: {
+      machineId, type: 'PREVENTIVE', startDate: '2026-09-29', endDate: '2026-09-29', description: 'استبدال الفلتر',
+      cost: 10, sparePartsUsed: [{ sparePartId, quantity: 2, cost: 0 }],
+    },
+  }
+  const rejected = applyCommand(state, actor(state), command, clock)
+  assert.equal(rejected.ok, false)
+  assert.equal(state.spareParts[0]!.quantity, 1)
+  state = must(state, clock, { ...command, input: { ...command.input, sparePartsUsed: [{ sparePartId, quantity: 1, cost: 0 }] } })
+  assert.equal(state.maintenanceRecords[0]!.cost, 17)
+  assert.equal(state.maintenanceRecords[0]!.sparePartsUsed[0]!.cost, 7)
+  assert.equal(state.spareParts[0]!.quantity, 0)
 })
