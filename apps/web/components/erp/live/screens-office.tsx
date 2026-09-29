@@ -1002,6 +1002,25 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card>
       </div>
 
+      <Card title="مركز المالك" hint="تنبيهات التشغيل والالتزامات والوثائق التي تحتاج متابعة اليوم.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric label="السيارات" value={String(ctx.state.vehicles.length)} hint="ملفات الأسطول" />
+          <Metric label="التزامات قادمة" value={String(ctx.state.obligationScheduleLines.filter((line) => line.status !== 'PAID').length)} tone={ctx.state.obligationScheduleLines.some((line) => line.status === 'OVERDUE') ? 'bad' : 'warn'} />
+          <Metric label="وثائق خلال 90 يوم" value={String(ctx.state.companyDocuments.filter((doc) => doc.expiryDate && Date.parse(doc.expiryDate) - Date.now() <= 90 * 86400000).length)} tone={ctx.state.companyDocuments.some((doc) => doc.expiryDate && Date.parse(doc.expiryDate) < Date.now()) ? 'bad' : 'warn'} />
+          <Metric label="صيانة مسجلة" value={String(ctx.state.maintenanceRecords.length)} hint={`${ctx.state.maintenanceSchedules.length} جدول دوري`} />
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <NameList
+            empty="لا توجد التزامات غير مدفوعة"
+            rows={ctx.state.obligationScheduleLines.filter((line) => line.status !== 'PAID').sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 5).map((line) => `استحقاق ${line.dueDate} — ${moneyFmt(line.amount - line.paidAmount)} — ${line.status === 'OVERDUE' ? 'متأخر' : 'قادم'}`)}
+          />
+          <NameList
+            empty="لا توجد وثائق قريبة الانتهاء"
+            rows={ctx.state.companyDocuments.filter((doc) => doc.expiryDate && Date.parse(doc.expiryDate) - Date.now() <= 90 * 86400000).sort((a, b) => (a.expiryDate ?? '').localeCompare(b.expiryDate ?? '')).slice(0, 5).map((doc) => `${doc.title} — ${doc.expiryDate}`)}
+          />
+        </div>
+      </Card>
+
       <Card title="الإنتاج" hint="الهدر، الانحراف عن الوصفة، وتوقفات المصنع في يوم التشغيل.">
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} من الكمية المصروفة`} />
