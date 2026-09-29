@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Truck,
+  CarFront,
   Users,
   Warehouse,
 } from 'lucide-react'
@@ -248,7 +249,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'supplier-templates',
         label: 'قوالب الرسائل',
         entityKey: 'supplierTemplate',
-        description: 'قوالب طلبات الأسعار والاستفسارات',
+        description: 'قوال�� طلبات الأسعار والاستفسارات',
         permission: ['suppliers.communicate'],
       },
       {
@@ -370,6 +371,17 @@ export const ERP_NAV: ErpMainTab[] = [
         entityKey: 'salesReports',
         description: 'تحليلات المبيعات',
       },
+    ],
+  },
+  {
+    id: 'fleet',
+    label: 'الأسطول',
+    icon: CarFront,
+    permission: ['fleet.read'],
+    subs: [
+      { id: 'vehicles', label: 'المركبات', entityKey: 'fleet', description: 'المركبات والوثائق والعدادات', permission: ['fleet.read'] },
+      { id: 'fleet-fuel', label: 'الوقود', entityKey: 'fleetFuel', description: 'سجل الوقود والاستهلاك', permission: ['fleet.read'] },
+      { id: 'fleet-trips', label: 'الرحلات', entityKey: 'fleetTrips', description: 'الرحلات والتكاليف والمسافات', permission: ['fleet.read'] },
     ],
   },
   {
@@ -499,7 +511,7 @@ export const ERP_NAV: ErpMainTab[] = [
       },
       {
         id: 'users',
-        label: 'المستخدمون والصلاحيات',
+        label: 'المستخ��مون والصلاحيات',
         entityKey: 'users',
         description: 'الأدوار وصلاحيات كل دور',
         permission: ['users.manage'],

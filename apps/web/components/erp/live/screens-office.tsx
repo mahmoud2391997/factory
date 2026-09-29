@@ -18,6 +18,7 @@ const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = (Object.entries(R
 )
 
 export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
+  if (entityKey === 'fleet' || entityKey === 'fleetFuel' || entityKey === 'fleetTrips') return <FleetScreens ctx={ctx} mode={entityKey} />
   if (entityKey === 'account') return <Accounts ctx={ctx} />
   if (entityKey === 'journalEntry') return <Journals ctx={ctx} />
   if (entityKey === 'expense') return <Expenses ctx={ctx} />
@@ -42,13 +43,67 @@ function Accounts({ ctx }: { ctx: LiveCtx }) {
   const tb = trialBalance(ctx.state)
   return (
     <Card title="دليل الحسابات" hint="الأرصدة تُحسب من القيود الناتجة عن العمليات، وليست إدخالاً يدوياً منفصلاً." extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=trial">تصدير Excel</a>}>
-      <DataTable
-        columns={['الرمز', 'الحساب', 'النوع', 'الرصيد']}
-        rows={tb.rows.map((row) => [row.code, row.nameAr, row.type, moneyFmt(row.balance)])}
-      />
+      <DataTable columns={['الرمز', 'الحساب', 'النوع', 'الرصيد']} rows={tb.rows.map((row) => [row.code, row.nameAr, row.type, moneyFmt(row.balance)])} />
     </Card>
   )
 }
+
+function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
+  const [vehicleId, setVehicleId] = useState(ctx.state.vehicles[0]?.id ?? '')
+  const [code, setCode] = useState('')
+  const [plateNo, setPlateNo] = useState('')
+  const [nameAr, setNameAr] = useState('')
+  const [type, setType] = useState('شاحنة')
+  const [liters, setLiters] = useState('')
+  const [fuelCost, setFuelCost] = useState('')
+  const [odometer, setOdometer] = useState('')
+  const [destination, setDestination] = useState('')
+  const [km, setKm] = useState('')
+  const [loadKg, setLoadKg] = useState('')
+  const [tripFuel, setTripFuel] = useState('')
+  const driverId = ctx.state.users.find((user) => user.role === 'DRIVER')?.id ?? ctx.state.users[0]?.id ?? ''
+  const selectedVehicle = ctx.state.vehicles.find((vehicle) => vehicle.id === vehicleId)
+
+  if (mode === 'fleetFuel') return (
+    <Card title="سجل الوقود" hint="كل تعبئة مرتبطة بالمركبة والعداد والسائق لتظهر كلفة الكيلومتر والانحراف.">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput></Field>
+        <Field label="اللترات"><TextInput type="number" min="0.001" step="0.001" value={liters} onChange={(event) => setLiters(event.target.value)} /></Field>
+        <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={fuelCost} onChange={(event) => setFuelCost(event.target.value)} /></Field>
+        <Field label="العداد"><TextInput type="number" min={selectedVehicle?.currentOdometer ?? 0} value={odometer} onChange={(event) => setOdometer(event.target.value)} /></Field>
+      </div>
+      <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId} onClick={async () => { const result = await ctx.act('addFuelLog', { vehicleId, date: new Date().toISOString().slice(0, 10), liters: Number(liters), cost: Number(fuelCost), odometer: Number(odometer), driverId }); if (result.ok) { setLiters(''); setFuelCost(''); setOdometer('') } }}>تسجيل التعبئة</PrimaryButton>
+      <DataTable columns={['التاريخ', 'المركبة', 'اللترات', 'التكلفة', 'العداد']} rows={ctx.state.fuelLogs.map((log) => [log.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === log.vehicleId)?.nameAr ?? '—', String(log.liters), moneyFmt(log.cost), String(log.odometer)])} />
+    </Card>
+  )
+
+  if (mode === 'fleetTrips') return (
+    <Card title="رحلات التوزيع" hint="تُحسب التكلفة من الوقود، المسافة، وسائق الرحلة، ويُطلب سبب عند تجاوز استهلاك الوقود.">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr}</option>)}</SelectInput></Field>
+        <Field label="الوجهة"><TextInput value={destination} onChange={(event) => setDestination(event.target.value)} /></Field>
+        <Field label="الكيلومترات"><TextInput type="number" min="0.1" value={km} onChange={(event) => setKm(event.target.value)} /></Field>
+        <Field label="حمولة كجم"><TextInput type="number" min="0" value={loadKg} onChange={(event) => setLoadKg(event.target.value)} /></Field>
+        <Field label="وقود الرحلة"><TextInput type="number" min="0.001" value={tripFuel} onChange={(event) => setTripFuel(event.target.value)} /></Field>
+      </div>
+      <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId || !destination} onClick={async () => { const result = await ctx.act('createTrip', { vehicleId, driverId, date: new Date().toISOString().slice(0, 10), destination, km: Number(km), loadKg: Number(loadKg), fuelLiters: Number(tripFuel) }); if (result.ok) { setDestination(''); setKm(''); setLoadKg(''); setTripFuel('') } }}>حفظ الرحلة</PrimaryButton>
+      <DataTable columns={['التاريخ', 'المركبة', 'الوجهة', 'كم', 'الحمولة', 'التكلفة']} rows={ctx.state.trips.map((trip) => [trip.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)?.nameAr ?? '—', trip.destination, String(trip.km), String(trip.loadKg), moneyFmt(trip.cost)])} />
+    </Card>
+  )
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card title="المركبات" hint="ملف المركبة والعدادات ومواعيد الوثائق. تربط الوثائق من شاشة وثائق الشركة.">
+        <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
+          {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><TextInput value={code} onChange={(event) => setCode(event.target.value)} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
+        </FormDialog>
+        <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
+      </Card>
+      <Card title="خدمات الأسطول"><DataTable columns={['التاريخ', 'المركبة', 'الخدمة', 'التكلفة', 'العداد']} rows={ctx.state.vehicleServices.map((service) => [service.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === service.vehicleId)?.nameAr ?? '—', service.description, moneyFmt(service.cost), String(service.odometer)])} /></Card>
+    </div>
+  )
+}
+
 
 function Journals({ ctx }: { ctx: LiveCtx }) {
   return (

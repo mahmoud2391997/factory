@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, Factory, FileText, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
+import { CarFront, ClipboardList, Factory, FileText, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
 
 import { canAccessSub, ERP_NAV } from '@/lib/erp-nav'
 
@@ -229,6 +229,18 @@ export const DESTINATIONS: Destination[] = [
           { href: '/accounting/margin', entityKey: 'factoryMargin', tab: true },
         ],
       },
+    ],
+  },
+  {
+    id: 'fleet',
+    label: 'الأسطول',
+    icon: CarFront,
+    groups: [
+      { id: 'fleet', label: 'الأسطول', leaves: [
+        { href: '/fleet/vehicles', entityKey: 'fleet', tab: true },
+        { href: '/fleet/fuel', entityKey: 'fleetFuel', tab: true },
+        { href: '/fleet/trips', entityKey: 'fleetTrips', tab: true },
+      ] },
     ],
   },
   {
