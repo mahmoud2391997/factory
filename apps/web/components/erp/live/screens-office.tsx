@@ -26,6 +26,7 @@ export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: Live
   if (entityKey === 'utilitiesReading' || entityKey === 'financialOps') return <Utilities ctx={ctx} />
   if (entityKey === 'bankTransaction') return <BankTransactions ctx={ctx} />
   if (entityKey === 'obligation') return <Obligations ctx={ctx} />
+  if (entityKey === 'documents') return <Documents ctx={ctx} />
   if (entityKey === 'employee') return <Employees ctx={ctx} />
   if (entityKey === 'attendance') return <Attendance ctx={ctx} />
   if (entityKey === 'overtime') return <Overtime ctx={ctx} />
@@ -94,7 +95,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   return (
     <div className="flex flex-col gap-4">
       <Card title="المركبات" hint="ملف المركبة والعدادات ومواعيد الوثائق. تربط الوثائق من شاشة وثائق الشركة.">
-        <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
+        <FormDialog title="مركبة جديدة" openLabel="إضافة ��ركبة">
           {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><TextInput value={code} onChange={(event) => setCode(event.target.value)} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
         </FormDialog>
         <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
@@ -104,6 +105,45 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   )
 }
 
+
+function Documents({ ctx }: { ctx: LiveCtx }) {
+  const [title, setTitle] = useState('')
+  const [kind, setKind] = useState<'LICENSE' | 'INSURANCE' | 'CONTRACT' | 'GOV_PERMIT' | 'CERTIFICATE' | 'OTHER'>('LICENSE')
+  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [expiryDate, setExpiryDate] = useState('')
+  const [notes, setNotes] = useState('')
+  const today = new Date().toISOString().slice(0, 10)
+  const sorted = [...ctx.state.companyDocuments].sort((a, b) => (a.expiryDate ?? '9999').localeCompare(b.expiryDate ?? '9999'))
+  const status = (expiry?: string) => {
+    if (!expiry) return 'بلا انتهاء'
+    if (expiry < today) return 'منتهية'
+    const days = Math.ceil((Date.parse(expiry) - Date.parse(today)) / 86400000)
+    return days <= 30 ? 'توشك على الانتهاء' : 'سارية'
+  }
+  return (
+    <div className="space-y-4">
+      <Card title="الوثائق والتصاريح" hint="قائمة موحدة للوثائق مرتبة حسب أقرب تاريخ انتهاء." extra={<a className="text-sm font-bold text-[#1d7f72]" href="/api/erp/export?kind=documents">تصدير Excel</a>}>
+        {can(ctx.permissions, 'documents.manage') ? (
+          <FormDialog title="وثيقة جديدة" openLabel="إضافة وثيقة">
+            {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+              event.preventDefault()
+              const result = await ctx.act('createCompanyDocument', { title, kind, issueDate, expiryDate: expiryDate || undefined, notes })
+              if (result.ok) { setTitle(''); setExpiryDate(''); setNotes(''); close() }
+            }}>
+              <Field label="العنوان"><TextInput value={title} onChange={(event) => setTitle(event.target.value)} required /></Field>
+              <Field label="النوع"><SelectInput value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}><option value="LICENSE">ترخيص</option><option value="INSURANCE">تأمين</option><option value="CONTRACT">عقد</option><option value="GOV_PERMIT">تصريح حكومي</option><option value="CERTIFICATE">شهادة</option><option value="OTHER">أخرى</option></SelectInput></Field>
+              <Field label="تاريخ الإصدار"><TextInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required /></Field>
+              <Field label="تاريخ الانتهاء"><TextInput type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>
+              <Field label="ملاحظات"><TextInput value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
+              <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
+            </form>}
+          </FormDialog>
+        ) : null}
+        <DataTable columns={['الوثيقة', 'النوع', 'الإصدار', 'الانتهاء', 'الحالة']} rows={sorted.map((document) => [document.title, document.kind, document.issueDate, document.expiryDate ?? '—', status(document.expiryDate)])} />
+      </Card>
+    </div>
+  )
+}
 
 function Journals({ ctx }: { ctx: LiveCtx }) {
   return (

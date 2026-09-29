@@ -76,6 +76,8 @@ export const DEMO_PERMISSIONS = [
   'reports.read',
   'audit.read',
   'notifications.read',
+  'documents.read',
+  'documents.manage',
 ] as const
 
 export function getDemoSessionUser() {

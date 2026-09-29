@@ -432,6 +432,13 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['utilities.read', 'bank.read', 'obligations.read'],
       },
       {
+        id: 'documents',
+        label: 'الوثائق والتصاريح',
+        entityKey: 'documents',
+        description: 'سجل الوثائق وتواريخ الانتهاء والتجديد',
+        permission: ['documents.read'],
+      },
+      {
         id: 'accounting-reports',
         label: 'تقارير المحاسبة',
         entityKey: 'accountingReports',
@@ -492,7 +499,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'material-trace',
         label: 'تتبع الخامة',
         entityKey: 'materialTrace',
-        description: 'دخول الخامة واستهلاكها والمتبقي والمنتج المباع والهدر وسبب الفرق',
+        description: 'دخول الخامة واستهلاكها وا��متبقي والمنتج المباع والهدر وسبب الفرق',
         permission: ['reports.read', 'inventory.read'],
       },
       {
