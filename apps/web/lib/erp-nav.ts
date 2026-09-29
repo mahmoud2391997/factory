@@ -378,6 +378,12 @@ export const ERP_NAV: ErpMainTab[] = [
         entityKey: 'salesReports',
         description: 'تحليلات المبيعات',
       },
+      {
+        id: 'profitability',
+        label: 'تحليل الربحية',
+        entityKey: 'profitability',
+        description: 'تكلفة الطن ومتوسط سعر البيع والهامش حسب المنتج أو العميل أو الشهر',
+      },
     ],
   },
   {

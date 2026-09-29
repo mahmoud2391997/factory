@@ -28,6 +28,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   createProductionOrder: true,
   completeProduction: true,
   decideProductionCost: true,
+  recalculateLotCosts: true,
   createInvoice: true,
   confirmInvoice: true,
   recordPayment: true,

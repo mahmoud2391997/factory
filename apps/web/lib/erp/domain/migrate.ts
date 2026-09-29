@@ -109,7 +109,13 @@ export function migrateErpState(state: ErpState): ErpState {
   }
   
   if (state.schemaVersion === SCHEMA_VERSION) return mergeRolePermissions(state)
-  if (state.schemaVersion != null && state.schemaVersion !== 1 && state.schemaVersion !== 2 && state.schemaVersion !== 3) {
+  if (
+    state.schemaVersion != null &&
+    state.schemaVersion !== 1 &&
+    state.schemaVersion !== 2 &&
+    state.schemaVersion !== 3 &&
+    state.schemaVersion !== 4
+  ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
 
@@ -224,6 +230,18 @@ export function migrateErpState(state: ErpState): ErpState {
     }
     
     state.schemaVersion = 4
+  }
+
+  // v4 -> v5 migration (real cost allocation: tag every cost line with its basis)
+  if (state.schemaVersion === 4) {
+    for (const lot of state.lots ?? []) {
+      for (const line of lot.costLines ?? []) {
+        if (line.basis) continue
+        // Raw material came from FIFO issue (actual). Everything else was a flat company rate.
+        line.basis = line.type === 'RAW_MATERIAL' ? 'ACTUAL' : 'ESTIMATED'
+      }
+    }
+    state.schemaVersion = 5
   }
 
   return mergeRolePermissions(state)

@@ -4,10 +4,24 @@ import { useState } from 'react'
 
 import { COST_LABEL, lotEconomics } from '@/lib/erp/domain/costing'
 import { filterLots, operatorLabel, traceLot } from '@/lib/erp/domain/reports'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import type { TranslationKey } from '@/lib/i18n/translations'
 
 import { Badge, Card, DataTable, Field, GhostButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
+
+const BASIS_KEY: Record<string, TranslationKey> = {
+  ACTUAL: 'basisActual',
+  ESTIMATED: 'basisEstimated',
+  MANUAL: 'basisManual',
+}
+
+function basisTone(basis?: string): 'good' | 'warn' | 'neutral' {
+  if (basis === 'ACTUAL') return 'good'
+  if (basis === 'ESTIMATED') return 'warn'
+  return 'neutral'
+}
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -21,8 +35,10 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 }
 
 export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) {
+  const { t } = useLanguage()
   const lots = ctx.state.lots ?? []
   const [lotNo, setLotNo] = useState(lots[0]?.lotNo ?? '')
+  const [closeMonth, setCloseMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [productId, setProductId] = useState('')
   const [fromDay, setFromDay] = useState('')
   const [toDay, setToDay] = useState('')
@@ -118,11 +134,15 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
           />
           <div className="mt-4">
             <DataTable
-              columns={['بند التكلفة', 'المبلغ', 'النسبة']}
+              columns={['بند التكلفة', 'المبلغ', 'النسبة', t('costBasis'), t('source')]}
               rows={trace.lot.costLines.map((line) => [
                 COST_LABEL[line.type],
                 moneyFmt(line.amount),
                 trace.lot.totalCost > 0 ? pctFmt((line.amount / trace.lot.totalCost) * 100) : pctFmt(0),
+                <Badge key={`${line.type}-basis`} tone={basisTone(line.basis)}>
+                  {line.basis ? t(BASIS_KEY[line.basis] ?? 'basisEstimated') : t('basisEstimated')}
+                </Badge>,
+                line.source ?? '—',
               ])}
             />
           </div>
@@ -177,6 +197,25 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
                 delivery.unallocatedNote ? `${delivery.at.slice(0, 16).replace('T', ' ')} — ${delivery.unallocatedNote}` : delivery.at.slice(0, 16).replace('T', ' '),
               ])}
             />
+          </div>
+        </Card>
+      ) : null}
+      {can(ctx.permissions, 'production.cost.recalculate') ? (
+        <Card
+          title={t('costRecalculation')}
+          hint="عند إغلاق الشهر تُستبدل البنود التقديرية ببنود فعلية من قراءات المرافق والرواتب والصيانة والتعبئة. البنود اليدوية لا تُمس، وكل تغيير يُسجَّل في التدقيق."
+        >
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label={t('month')}>
+              <TextInput type="month" value={closeMonth} onChange={(event) => setCloseMonth(event.target.value)} />
+            </Field>
+            <GhostButton
+              type="button"
+              disabled={ctx.pending}
+              onClick={() => ctx.act('recalculateLotCosts', { month: closeMonth })}
+            >
+              {t('recalculate')}
+            </GhostButton>
           </div>
         </Card>
       ) : null}

@@ -184,6 +184,7 @@ export const DESTINATIONS: Destination[] = [
         label: 'التقارير',
         leaves: [
           { href: '/sales/reports', entityKey: 'salesReports', tab: true },
+          { href: '/sales/profitability', entityKey: 'profitability', tab: true },
           { href: '/sales/today', entityKey: 'factorySalesToday', tab: true },
           { href: '/sales/month', entityKey: 'factorySalesMonth', tab: true },
           { href: '/sales/open-orders', entityKey: 'factoryOpenOrders', tab: true },

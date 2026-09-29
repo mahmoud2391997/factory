@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -42,6 +42,8 @@ export type Company = {
   fuelVarianceThresholdPct?: number
   /** Obligations above this amount (OMR) need approval. */
   obligationApprovalThreshold?: number
+  /** How approved production payroll is spread across the month. Defaults to per ton. */
+  laborAllocationBasis?: 'PER_TON' | 'PER_HOUR'
 }
 
 export type AppUser = {
@@ -417,6 +419,10 @@ export type ProductionOrder = {
   createdBy: string
   createdAt: string
   completedAt?: string
+  /** Production line / machine the order runs on. Optional on old orders; drives maintenance allocation. */
+  machineId?: string
+  /** Shift the order runs in. Optional on old orders. */
+  shift?: 'MORNING' | 'EVENING' | 'NIGHT'
 }
 
 export type SalesInvoice = {
@@ -567,7 +573,10 @@ export type CostLineType =
   | 'MAINTENANCE'
   | 'OVERHEAD'
 
-export type CostLine = { type: CostLineType; amount: number }
+/** ACTUAL = read from real records (utilities, payroll, maintenance, trips, packaging). ESTIMATED = fallback company rate. MANUAL = entered on the completion form. */
+export type CostBasis = 'ACTUAL' | 'ESTIMATED' | 'MANUAL'
+
+export type CostLine = { type: CostLineType; amount: number; basis?: CostBasis; source?: string }
 
 export type PendingCostLine = {
   id: string
@@ -1030,6 +1039,7 @@ export type Command =
   | { action: 'createProductionOrder'; input: { productId: string; recipeId: string; plannedQty: number } }
   | { action: 'completeProduction'; input: { productionOrderId: string; operatorId: string; actuals: Array<{ materialId: string; actualQty: number; wasteQty?: number }>; actualOutputQty: number; varianceReason?: string; costLines?: Array<{ type: 'ELECTRICITY' | 'GAS' | 'LABOR' | 'TRANSPORT' | 'MAINTENANCE' | 'OVERHEAD'; amount: number }> } }
   | { action: 'decideProductionCost'; input: { lotId: string; lineId: string; decision: 'APPROVED' | 'REJECTED' } }
+  | { action: 'recalculateLotCosts'; input: { month: string } }
   | { action: 'createInvoice'; input: { customerId: string; notes?: string; lines: Array<{ productId: string; qty: number; unitPrice?: number }> } }
   | { action: 'confirmInvoice'; input: { id: string } }
   | { action: 'recordPayment'; input: { invoiceId: string; amount: number; method?: string } }

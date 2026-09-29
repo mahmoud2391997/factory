@@ -19,6 +19,7 @@ export const PERMISSIONS = [
   'production.create',
   'production.complete',
   'production.cost.approve',
+  'production.cost.recalculate',
   'qc.read',
   'qc.manage',
   'qc.release',
@@ -174,5 +175,9 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
     GM: ['spareparts.read', 'spareparts.manage', 'packaging.read', 'packaging.manage', 'suppliers.communicate', 'suppliers.approve', 'scale.read', 'scale.manage', 'distribution.read', 'distribution.manage', 'delivery.track', 'utilities.read', 'utilities.manage', 'maintenance.read', 'maintenance.manage', 'bank.read', 'bank.manage', 'recipes.custom', 'pricing.custom'],
     ACCOUNTANT: ['spareparts.read', 'packaging.read', 'suppliers.communicate', 'suppliers.approve', 'distribution.read', 'utilities.read', 'bank.read', 'bank.manage', 'pricing.custom'],
     OPERATIONS: ['spareparts.read', 'spareparts.manage', 'packaging.read', 'packaging.manage', 'scale.read', 'scale.manage', 'distribution.read', 'distribution.manage', 'delivery.track', 'maintenance.read', 'maintenance.manage'],
+  },
+  6: {
+    // Month-close cost recalculation is a GM-only control.
+    GM: ['production.cost.recalculate'],
   },
 }

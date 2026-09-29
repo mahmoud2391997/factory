@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 
-import { materialPriceAnalysis, materialStatement, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
+import { materialPriceAnalysis, materialStatement, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
+import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
+import { useLanguage } from '@/lib/i18n/language-provider'
 
 import { Badge, Card, DataTable, Dialog, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import { QcLimitsEditor } from './screens-qc'
@@ -1470,6 +1472,7 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
 
 export function SalesScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
   if (entityKey === 'salesReports') return <ReportEntry ctx={ctx} section="sales" />
+  if (entityKey === 'profitability') return <ProfitabilityScreen ctx={ctx} />
   if (entityKey === 'customer') return <Customers ctx={ctx} />
   if (entityKey === 'salesInvoice') return <Invoices ctx={ctx} />
   if (entityKey === 'salesPayment') return <Payments ctx={ctx} />
@@ -1883,6 +1886,58 @@ function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
             ))}
           </div>
         ) : null}
+      </Card>
+    </div>
+  )
+}
+
+function ProfitabilityScreen({ ctx }: { ctx: LiveCtx }) {
+  const { t } = useLanguage()
+  const [groupBy, setGroupBy] = useState<ProfitabilityGroupBy>('PRODUCT')
+  const rows = profitabilityReport(ctx.state, groupBy)
+  const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0)
+  const totalMargin = rows.reduce((sum, row) => sum + row.marginValue, 0)
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-4 shadow-sm">
+          <div className="text-sm font-medium text-[#6b7280]">الإيراد</div>
+          <div className="mt-2 text-2xl font-semibold text-[#1f1f1f]">{moneyFmt(totalRevenue)}</div>
+        </div>
+        <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-4 shadow-sm">
+          <div className="text-sm font-medium text-[#6b7280]">{t('marginValue')}</div>
+          <div className={`mt-2 text-2xl font-semibold ${totalMargin < 0 ? 'text-[#dc2626]' : 'text-[#1f1f1f]'}`}>{moneyFmt(totalMargin)}</div>
+        </div>
+        <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-4 shadow-sm">
+          <div className="text-sm font-medium text-[#6b7280]">{t('marginPct')}</div>
+          <div className="mt-2 text-2xl font-semibold text-[#1f1f1f]">{totalRevenue > 0 ? pctFmt((totalMargin / totalRevenue) * 100) : '—'}</div>
+        </div>
+      </div>
+      <Card
+        title={t('profitability')}
+        hint="تكلفة الطن ومتوسط سعر البيع والهامش لكل منتج أو عميل أو شهر."
+      >
+        <div className="mb-3 max-w-xs">
+          <Field label="التجميع حسب">
+            <SelectInput value={groupBy} onChange={(event) => setGroupBy(event.target.value as ProfitabilityGroupBy)}>
+              <option value="PRODUCT">المنتج</option>
+              <option value="CUSTOMER">العميل</option>
+              <option value="MONTH">{t('month')}</option>
+            </SelectInput>
+          </Field>
+        </div>
+        <DataTable
+          columns={['البند', 'عدد الدفعات', 'الكمية (كجم)', t('costPerTon'), t('salePricePerTon'), t('marginValue'), t('marginPct')]}
+          rows={rows.map((row) => [
+            row.label,
+            groupBy === 'CUSTOMER' ? '—' : String(row.lots),
+            qtyFmt(row.outputKg),
+            moneyFmt(row.costPerTon),
+            row.avgSalePricePerTon != null ? moneyFmt(row.avgSalePricePerTon) : '—',
+            <span key={`${row.key}-mv`} className={row.marginValue < 0 ? 'font-bold text-[#dc2626]' : undefined}>{moneyFmt(row.marginValue)}</span>,
+            row.marginPct != null ? <span key={`${row.key}-mp`} className={row.marginPct < 0 ? 'font-bold text-[#dc2626]' : undefined}>{pctFmt(row.marginPct)}</span> : '—',
+          ])}
+        />
       </Card>
     </div>
   )

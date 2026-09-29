@@ -79,6 +79,7 @@ const SCREEN_MAP: Record<string, typeof FactoryScreens> = {
   distribution: SalesScreens,
   invoiceDelivery: SalesScreens,
   salesReports: SalesScreens,
+  profitability: SalesScreens,
   // Office
   account: OfficeScreens,
   journalEntry: OfficeScreens,

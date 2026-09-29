@@ -1,6 +1,6 @@
 import { applyArchive, planArchive } from './archive'
 import { money, qty, round3 } from './money'
-import { buildLotCostLines, COST_LABEL } from './costing'
+import { ALLOCATED_COST_TYPES, allocateCostType, buildLotCostLines, COST_LABEL, packagingCostLine, type CostContext } from './costing'
 import { lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
 import { PERMISSIONS, type Permission, type RoleKey } from './permissions'
 import type {
@@ -76,6 +76,11 @@ function allow(actor: Actor, permission: string): CommandResult | null {
 
 function yearOf(iso: string) {
   return iso.slice(0, 4)
+}
+
+const MUSCAT_OFFSET_MS = 4 * 60 * 60 * 1000
+function monthOf(iso: string) {
+  return new Date(Date.parse(iso) + MUSCAT_OFFSET_MS).toISOString().slice(0, 7)
 }
 
 function pct2(value: number) {
@@ -257,7 +262,7 @@ function autoMatchBankTransaction(state: ErpState, transaction: BankTransaction)
   return null
 }
 
-/** Calculate landed cost including transport. */
+/** Calculate landed cost including transport. Freight is spread over the tonnage carried in the receipt's month. */
 function calculateLandedCost(state: ErpState, materialId: string, batchNo: string): number {
   const balance = state.balances.find((b) => b.itemId === materialId && b.batchNo === batchNo && b.itemType === 'MATERIAL')
   if (!balance) return 0
@@ -266,17 +271,19 @@ function calculateLandedCost(state: ErpState, materialId: string, batchNo: strin
   const receipt = state.goodsReceipts.find((r) => r.lines.some((l) => l.materialId === materialId && l.batchNo === batchNo))
   if (!receipt) return materialCost
 
-  // Find transport cost from related trips
-  let transportCost = 0
-  for (const trip of state.trips) {
-    if (trip.cost > 0) {
-      // Simple allocation: distribute transport cost proportionally across goods received
-      // In a real system, this would be more sophisticated
-      transportCost += trip.cost * 0.1 // 10% allocation
-    }
-  }
+  const line = receipt.lines.find((l) => l.materialId === materialId && l.batchNo === batchNo)
+  const lineQty = line?.qty ?? 0
+  if (lineQty <= 0) return materialCost
 
-  return money(materialCost + transportCost)
+  // Inbound trips (no invoice) in the receipt's month, spread over the tonnage they carried.
+  const month = monthOf(receipt.at)
+  const trips = state.trips.filter((trip) => !trip.invoiceId && monthOf(trip.date) === month)
+  const tripCost = money(trips.reduce((sum, trip) => sum + trip.cost, 0))
+  const carriedTons = qty(trips.reduce((sum, trip) => sum + trip.loadKg / 1000, 0))
+  if (tripCost <= 0 || carriedTons <= 0) return materialCost
+
+  const allocatedTotal = money((tripCost / carriedTons) * (lineQty / 1000))
+  return money(materialCost + allocatedTotal / lineQty)
 }
 
 function nextNumber(state: ErpState, docType: string, at: string) {
@@ -735,6 +742,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createProductionOrder: 'production.create',
     completeProduction: 'production.complete',
     decideProductionCost: 'production.cost.approve',
+    recalculateLotCosts: 'production.cost.recalculate',
     createInvoice: 'sales.create',
     confirmInvoice: 'sales.confirm',
     recordPayment: 'sales.payments.manage',
@@ -826,6 +834,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return completeProduction(state, actor, command.input, clock)
     case 'decideProductionCost':
       return decideProductionCost(state, actor, command.input, clock)
+    case 'recalculateLotCosts':
+      return recalculateLotCosts(state, actor, command.input, clock)
     case 'createInvoice':
       return createInvoice(state, actor, command.input, clock)
     case 'confirmInvoice':
@@ -1493,7 +1503,12 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const threshold = state.company.costApprovalThreshold ?? 0
   const pendingManual = manual.filter((line) => money(line.amount) > threshold)
   const pendingTypes = new Set(pendingManual.map((line) => line.type))
-  const built = buildLotCostLines(state, product, actualOutputKg, rawCost, manual)
+  const built = buildLotCostLines(state, product, actualOutputKg, rawCost, manual, {
+    manufacturedAt: clock.now(),
+    inputKg,
+    machineId: order.machineId,
+    productionOrderId: order.id,
+  })
   const costLines = built.filter((line) => !pendingTypes.has(line.type as (typeof pendingManual)[number]['type']))
   const pendingCostLines = pendingManual
     .filter((line) => money(line.amount) > 0)
@@ -1651,15 +1666,109 @@ function decideProductionCost(
     audit(state, actor, clock, 'اعتماد تكلفة إنتاج', 'productionLot', lot.id, `${pending.type} ${pending.amount}`)
     return ok(state, 'تم اعتماد بند التكلفة')
   }
-  const tons = lot.actualOutputKg / 1000
-  const rate = money((state.company.costRates?.[pending.type] ?? 0) * tons)
-  if (rate > 0) {
-    lot.costLines.push({ type: pending.type, amount: rate })
+  const order = state.productionOrders.find((item) => item.id === lot.productionOrderId)
+  const allocated = allocateCostType(state, pending.type, lot.actualOutputKg, {
+    manufacturedAt: lot.manufacturedAt,
+    inputKg: lot.inputKg,
+    machineId: order?.machineId,
+    productionOrderId: lot.productionOrderId,
+  })
+  if (allocated && allocated.amount > 0) {
+    lot.costLines.push(allocated)
     syncLotValuation(state, lot)
-    postAbsorbedCost(state, clock, `تحميل ${COST_LABEL[pending.type]} بعد رفض البند اليدوي ${lot.lotNo}`, lot.id, rate)
+    postAbsorbedCost(state, clock, `تحميل ${COST_LABEL[pending.type]} بعد رفض البند اليدوي ${lot.lotNo}`, lot.id, allocated.amount)
   }
   audit(state, actor, clock, 'رفض تكلفة إنتاج', 'productionLot', lot.id, `${pending.type} ${pending.amount}`)
-  return ok(state, rate > 0 ? 'رُفض البند اليدوي وطُبّق سعر التحميل' : 'رُفض بند التكلفة')
+  return ok(state, allocated && allocated.amount > 0 ? 'رُفض البند اليدوي وطُبّق التحميل الفعلي' : 'رُفض بند التكلفة')
+}
+
+/** Post an absorbed-cost adjustment for a signed delta (positive adds cost, negative removes it). */
+function postCostAdjustment(state: ErpState, clock: Clock, memo: string, refId: string, delta: number) {
+  const amount = money(Math.abs(delta))
+  if (amount <= 0) return
+  if (delta > 0) {
+    postJournal(state, clock, memo, 'productionLot', refId, [
+      { accountCode: '1200', debit: amount, credit: 0 },
+      { accountCode: '2600', debit: 0, credit: amount },
+    ])
+    postJournal(state, clock, `إخراج ${memo}`, 'productionLot', refId, [
+      { accountCode: '1300', debit: amount, credit: 0 },
+      { accountCode: '1200', debit: 0, credit: amount },
+    ])
+    return
+  }
+  postJournal(state, clock, memo, 'productionLot', refId, [
+    { accountCode: '2600', debit: amount, credit: 0 },
+    { accountCode: '1200', debit: 0, credit: amount },
+  ])
+  postJournal(state, clock, `إخراج ${memo}`, 'productionLot', refId, [
+    { accountCode: '1200', debit: amount, credit: 0 },
+    { accountCode: '1300', debit: 0, credit: amount },
+  ])
+}
+
+/**
+ * Month-close recalculation. Replaces ESTIMATED lines with ACTUAL ones now that the month's
+ * utilities, payroll, maintenance and packaging records are complete. Manual lines are never touched.
+ */
+function recalculateLotCosts(
+  state: ErpState,
+  actor: Actor,
+  input: Extract<Command, { action: 'recalculateLotCosts' }>['input'],
+  clock: Clock,
+): CommandResult {
+  const month = input.month?.trim() ?? ''
+  if (!/^\d{4}-\d{2}$/.test(month)) return fail('صيغة الشهر غير صحيحة (YYYY-MM)')
+  const lots = (state.lots ?? []).filter((lot) => monthOf(lot.manufacturedAt) === month)
+  if (lots.length === 0) return fail('لا توجد دفعات إنتاج في هذا الشهر')
+  let changed = 0
+  for (const lot of lots) {
+    const order = state.productionOrders.find((item) => item.id === lot.productionOrderId)
+    const product = state.products.find((item) => item.id === lot.productId)
+    const context: CostContext = {
+      manufacturedAt: lot.manufacturedAt,
+      inputKg: lot.inputKg,
+      machineId: order?.machineId,
+      productionOrderId: lot.productionOrderId,
+      lotNo: lot.lotNo,
+      alreadyCounted: true,
+    }
+    const before = money(lot.costLines.reduce((sum, line) => sum + line.amount, 0))
+    const changes: string[] = []
+    for (const type of ALLOCATED_COST_TYPES) {
+      const index = lot.costLines.findIndex((line) => line.type === type)
+      const current = index >= 0 ? lot.costLines[index] : undefined
+      if (current?.basis === 'MANUAL') continue
+      const next = allocateCostType(state, type, lot.actualOutputKg, context)
+      if (!next || next.basis !== 'ACTUAL') continue
+      if (current && current.amount === next.amount && current.basis === 'ACTUAL') continue
+      if (index >= 0) lot.costLines[index] = next
+      else lot.costLines.push(next)
+      changes.push(`${COST_LABEL[type]} ${current?.amount ?? 0}→${next.amount}`)
+    }
+    const bagIndex = lot.costLines.findIndex((line) => line.type === 'BAGS')
+    const currentBag = bagIndex >= 0 ? lot.costLines[bagIndex] : undefined
+    if (currentBag?.basis !== 'MANUAL') {
+      const bagLine = packagingCostLine(state, product, lot.actualOutputKg, lot.lotNo)
+      if (bagLine && bagLine.basis === 'ACTUAL' && (!currentBag || currentBag.amount !== bagLine.amount)) {
+        if (bagIndex >= 0) lot.costLines[bagIndex] = bagLine
+        else lot.costLines.push(bagLine)
+        changes.push(`أكياس ${currentBag?.amount ?? 0}→${bagLine.amount}`)
+      }
+    }
+    const after = money(lot.costLines.reduce((sum, line) => sum + line.amount, 0))
+    const delta = money(after - before)
+    if (delta !== 0) {
+      syncLotValuation(state, lot)
+      postCostAdjustment(state, clock, `إعادة حساب تكلفة ${lot.lotNo}`, lot.id, delta)
+      changed += 1
+    }
+    if (changes.length > 0) {
+      audit(state, actor, clock, 'إعادة حساب تكلفة دفعة', 'productionLot', lot.id, `${lot.lotNo}: ${before} → ${after} (${changes.join('، ')})`)
+    }
+  }
+  if (changed === 0) return ok(state, `لا تغييرات: تكاليف شهر ${month} محدّثة بالفعل`)
+  return ok(state, `أُعيد حساب ${changed} دفعة لشهر ${month}`)
 }
 
 function createInvoice(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createInvoice' }>['input'], clock: Clock): CommandResult {
@@ -2343,11 +2452,12 @@ function createTrip(state: ErpState, actor: Actor, input: Extract<Command, { act
   
   const fuelCost = money(avgFuelCostPerLiter * input.fuelLiters)
   
-  // Allocate a small portion of service cost (1% of total service cost per trip)
+  // Allocate vehicle service cost by distance: this trip's share of the vehicle's total kilometres.
   const totalServiceCost = state.vehicleServices
     .filter((srv) => srv.vehicleId === input.vehicleId)
     .reduce((sum, srv) => sum + srv.cost, 0)
-  const allocatedServiceCost = money(totalServiceCost * 0.01)
+  const priorKm = state.trips.filter((trip) => trip.vehicleId === input.vehicleId).reduce((sum, trip) => sum + trip.km, 0)
+  const allocatedServiceCost = money(totalServiceCost * (input.km / (priorKm + input.km)))
   
   const tripCost = money(fuelCost + allocatedServiceCost + (input.driverCost || 0))
   

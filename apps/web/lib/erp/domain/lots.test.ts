@@ -247,13 +247,13 @@ test('v1 completed orders become legacy lots with raw-material cost only', () =>
     ],
   }
   const migrated = migrateErpState(v1 as unknown as ErpState)
-  assert.equal(migrated.schemaVersion, 4)
+  assert.equal(migrated.schemaVersion, 5)
   assert.equal(migrated.lots.length, 1)
   const lot = migrated.lots[0]!
   assert.equal(lot.lotNo, 'FG-OLD')
   assert.equal(lot.legacy, true)
   assert.equal(lot.legacyNote, LEGACY_LOT_NOTE)
-  assert.deepEqual(lot.costLines, [{ type: 'RAW_MATERIAL', amount: 80 }])
+  assert.deepEqual(lot.costLines, [{ type: 'RAW_MATERIAL', amount: 80, basis: 'ACTUAL' }])
   assert.equal(lot.deliveries[0]?.customerId, 'cus-old')
   assert.equal(lot.deliveries[0]?.qty, 100)
   assert.equal(lot.operatorId, null)

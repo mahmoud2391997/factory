@@ -67,6 +67,21 @@ export const translations = {
     recipes: 'الخلطات',
     nutrition: 'التغذية',
 
+    // Costing & profitability
+    profitability: 'تحليل الربحية',
+    costBasis: 'أساس التكلفة',
+    basisActual: 'فعلي',
+    basisEstimated: 'تقديري',
+    basisManual: 'يدوي',
+    costRecalculation: 'إعادة حساب تكلفة الشهر',
+    recalculate: 'إعادة الحساب',
+    marginValue: 'قيمة الهامش',
+    marginPct: 'نسبة الهامش',
+    costPerTon: 'تكلفة/طن',
+    salePricePerTon: 'سعر البيع/طن',
+    source: 'المصدر',
+    month: 'الشهر',
+
     // Shell
     welcome: 'مرحباً',
     notifications: 'الإشعارات',
@@ -138,6 +153,21 @@ export const translations = {
     recipes: 'Recipes',
     nutrition: 'Nutrition',
 
+    // Costing & profitability
+    profitability: 'Profitability',
+    costBasis: 'Cost basis',
+    basisActual: 'Actual',
+    basisEstimated: 'Estimated',
+    basisManual: 'Manual',
+    costRecalculation: 'Month-close cost recalculation',
+    recalculate: 'Recalculate',
+    marginValue: 'Margin value',
+    marginPct: 'Margin %',
+    costPerTon: 'Cost/ton',
+    salePricePerTon: 'Sale price/ton',
+    source: 'Source',
+    month: 'Month',
+
     // Shell
     welcome: 'Welcome',
     notifications: 'Notifications',
@@ -208,6 +238,21 @@ export const translations = {
     bank: 'बैंक',
     recipes: 'रेसिपी',
     nutrition: 'पोषण',
+
+    // Costing & profitability
+    profitability: 'लाभप्रदता',
+    costBasis: 'लागत आधार',
+    basisActual: 'वास्तविक',
+    basisEstimated: 'अनुमानित',
+    basisManual: 'मैनुअल',
+    costRecalculation: 'माह-समापन लागत पुनर्गणना',
+    recalculate: 'पुनर्गणना',
+    marginValue: 'मार्जिन मूल्य',
+    marginPct: 'मार्जिन %',
+    costPerTon: 'लागत/टन',
+    salePricePerTon: 'विक्रय मूल्य/टन',
+    source: 'स्रोत',
+    month: 'महीना',
 
     // Shell
     welcome: 'स्वागत है',

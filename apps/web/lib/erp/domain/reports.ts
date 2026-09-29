@@ -560,6 +560,78 @@ export function productionCostSummary(state: ReportState, fromDay?: string, toDa
   return { lots, grand, outputKg, costPerTon: outputKg > 0 ? money((grand / outputKg) * 1000) : 0, byType, byProduct }
 }
 
+export type ProfitabilityGroupBy = 'PRODUCT' | 'CUSTOMER' | 'MONTH'
+
+export type ProfitabilityRow = {
+  key: string
+  label: string
+  lots: number
+  outputKg: number
+  cost: number
+  costPerTon: number
+  soldQty: number
+  revenue: number
+  avgSalePricePerTon: number | null
+  marginValue: number
+  marginPct: number | null
+}
+
+/** Revenue booked on a lot delivery, read from the invoice line that names the lot. */
+function deliveryRevenue(state: ReportState, lot: NonNullable<ReportState['lots']>[number], delivery: { invoiceId?: string; withdrawalId?: string; qty: number }): number {
+  if (!delivery.invoiceId) return 0
+  const invoice = state.invoices.find((item) => item.id === delivery.invoiceId)
+  if (!invoice) return 0
+  const line = invoice.lines.find((item) => item.batchNo === lot.lotNo) ?? invoice.lines.find((item) => item.productId === lot.productId)
+  if (!line) return 0
+  return money(delivery.qty * line.unitPrice)
+}
+
+/** Profitability by product, customer or month: cost/ton, average sale price/ton, margin value and %. */
+export function profitabilityReport(state: ReportState, groupBy: ProfitabilityGroupBy = 'PRODUCT'): ProfitabilityRow[] {
+  const lots = state.lots ?? []
+  const rows = new Map<string, { label: string; lots: number; outputKg: number; cost: number; soldQty: number; revenue: number }>()
+  const ensure = (key: string, label: string) => {
+    if (!rows.has(key)) rows.set(key, { label, lots: 0, outputKg: 0, cost: 0, soldQty: 0, revenue: 0 })
+    return rows.get(key)!
+  }
+  if (groupBy === 'CUSTOMER') {
+    for (const lot of lots) {
+      for (const delivery of lot.deliveries) {
+        const customer = delivery.customerId ? state.customers.find((item) => item.id === delivery.customerId) : undefined
+        const key = customer?.id ?? 'INTERNAL'
+        const row = ensure(key, customer?.nameAr ?? 'سحب داخلي')
+        row.outputKg = qty(row.outputKg + delivery.qty)
+        row.soldQty = qty(row.soldQty + delivery.qty)
+        row.cost = money(row.cost + (lot.costPerTon * delivery.qty) / 1000)
+        row.revenue = money(row.revenue + deliveryRevenue(state, lot, delivery))
+      }
+    }
+  } else {
+    for (const lot of lots) {
+      const key = groupBy === 'PRODUCT' ? lot.productId : muscatDay(lot.manufacturedAt).slice(0, 7)
+      const label = groupBy === 'PRODUCT' ? (state.products.find((item) => item.id === lot.productId)?.nameAr ?? lot.productId) : key
+      const row = ensure(key, label)
+      row.lots += 1
+      row.outputKg = qty(row.outputKg + lot.actualOutputKg)
+      row.cost = money(row.cost + lot.totalCost)
+      for (const delivery of lot.deliveries) {
+        row.soldQty = qty(row.soldQty + delivery.qty)
+        row.revenue = money(row.revenue + deliveryRevenue(state, lot, delivery))
+      }
+    }
+  }
+  return [...rows.entries()]
+    .map(([key, row]) => {
+      const basisKg = row.outputKg > 0 ? row.outputKg : row.soldQty
+      const costPerTon = basisKg > 0 ? money((row.cost / basisKg) * 1000) : 0
+      const avgSalePricePerTon = row.soldQty > 0 ? money((row.revenue / row.soldQty) * 1000) : null
+      const marginValue = money(row.revenue - row.cost)
+      const marginPct = row.revenue > 0 ? money((marginValue / row.revenue) * 100) : null
+      return { key, label: row.label, lots: row.lots, outputKg: row.outputKg, cost: row.cost, costPerTon, soldQty: row.soldQty, revenue: row.revenue, avgSalePricePerTon, marginValue, marginPct }
+    })
+    .sort((a, b) => b.marginValue - a.marginValue)
+}
+
 export function supplierQuality(state: ReportState, supplierId: string) {
   const supplier = state.suppliers.find((item) => item.id === supplierId) ?? null
   const samples = (state.qualitySamples ?? []).filter((item) => item.supplierId === supplierId)

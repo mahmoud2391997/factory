@@ -166,6 +166,6 @@ test('legacy lots keep raw-material cost when allocation rates exist', () => {
   const lot = migrateErpState(v1 as unknown as ErpState).lots[0]!
   assert.equal(lot.legacy, true)
   assert.equal(lot.legacyNote, LEGACY_LOT_NOTE)
-  assert.deepEqual(lot.costLines, [{ type: 'RAW_MATERIAL', amount: 40 }])
+  assert.deepEqual(lot.costLines, [{ type: 'RAW_MATERIAL', amount: 40, basis: 'ACTUAL' }])
   assert.equal(lot.totalCost, 40)
 })
