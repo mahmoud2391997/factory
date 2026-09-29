@@ -103,6 +103,7 @@ export function migrateErpState(state: ErpState): ErpState {
   }
   state.lots ??= []
   state.qualitySamples ??= []
+  state.qualityHolds ??= []
   if (!state.accounts?.some((account) => account.code === '2600')) {
     state.accounts = state.accounts ?? []
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
@@ -115,7 +116,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 2 &&
     state.schemaVersion !== 3 &&
     state.schemaVersion !== 4 &&
-    state.schemaVersion !== 5
+    state.schemaVersion !== 5 &&
+    state.schemaVersion !== 6
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -254,6 +256,12 @@ export function migrateErpState(state: ErpState): ErpState {
       if (order.varianceLevel == null) order.varianceLevel = 'NORMAL'
     }
     state.schemaVersion = 6
+  }
+
+  // v6 -> v7: explicit manual holds and recalls for production/raw-material lots.
+  if (state.schemaVersion === 6) {
+    state.qualityHolds ??= []
+    state.schemaVersion = 7
   }
 
   return mergeRolePermissions(state)

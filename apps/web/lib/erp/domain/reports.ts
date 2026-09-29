@@ -993,3 +993,63 @@ export function utilitiesPerTon(state: ReportState) {
     costPerTon: reading.costPerTon,
   }))
 }
+
+export type RecallTarget = { lotNo?: string; materialId?: string; batchNo?: string }
+
+export function recallReport(state: ReportState, target: RecallTarget) {
+  const lotNo = target.lotNo?.trim()
+  const materialId = target.materialId?.trim()
+  const batchNo = target.batchNo?.trim()
+  if (Boolean(lotNo) === Boolean(materialId && batchNo)) throw new Error('حدد دفعة إنتاج أو دفعة خام واحدة')
+
+  const matchingLots = lotNo
+    ? state.lots.filter((lot) => lot.lotNo === lotNo)
+    : state.lots.filter((lot) => lot.materials.some((line) => line.materialId === materialId && line.sourceBatchNo === batchNo))
+  const deliveries = matchingLots.flatMap((lot) => lot.deliveries.map((delivery) => {
+    const invoice = delivery.invoiceId ? state.invoices.find((item) => item.id === delivery.invoiceId) : undefined
+    return {
+      lotNo: lot.lotNo,
+      product: state.products.find((item) => item.id === lot.productId)?.nameAr ?? lot.productId,
+      customerId: delivery.customerId,
+      customer: delivery.customerId ? state.customers.find((item) => item.id === delivery.customerId)?.nameAr ?? delivery.customerId : 'سحب داخلي',
+      quantityKg: delivery.qty,
+      invoiceNo: invoice?.number ?? null,
+      date: invoice?.issuedAt.slice(0, 10) ?? delivery.at.slice(0, 10),
+      withdrawalId: delivery.withdrawalId ?? null,
+    }
+  }))
+  const customerMap = new Map<string, { customerId: string; customer: string; quantityKg: number; invoiceNumbers: Set<string> }>()
+  for (const delivery of deliveries) {
+    if (!delivery.customerId) continue
+    const current = customerMap.get(delivery.customerId) ?? {
+      customerId: delivery.customerId,
+      customer: delivery.customer,
+      quantityKg: 0,
+      invoiceNumbers: new Set<string>(),
+    }
+    current.quantityKg = qty(current.quantityKg + delivery.quantityKg)
+    if (delivery.invoiceNo) current.invoiceNumbers.add(delivery.invoiceNo)
+    customerMap.set(delivery.customerId, current)
+  }
+  const rawBatch = materialId && batchNo
+    ? matchingLots.flatMap((lot) => lot.materials.filter((line) => line.materialId === materialId && line.sourceBatchNo === batchNo))
+    : []
+  const supplierIds = [...new Set(rawBatch.map((line) => line.supplierId).filter((id): id is string => Boolean(id)))]
+  return {
+    target: lotNo ? { type: 'LOT' as const, lotNo } : { type: 'RAW_BATCH' as const, materialId: materialId!, batchNo: batchNo! },
+    materialName: materialId ? state.materials.find((item) => item.id === materialId)?.nameAr ?? materialId : null,
+    suppliers: supplierIds.map((id) => state.suppliers.find((item) => item.id === id)?.nameAr ?? id),
+    lots: matchingLots.map((lot) => ({ lotNo: lot.lotNo, product: state.products.find((item) => item.id === lot.productId)?.nameAr ?? lot.productId, manufacturedAt: lot.manufacturedAt.slice(0, 10), quantityKg: lot.actualOutputKg })),
+    deliveries,
+    affectedCustomers: [...customerMap.values()].map((item) => ({
+      customerId: item.customerId,
+      customer: item.customer,
+      quantityKg: qty(item.quantityKg),
+      invoiceNumbers: [...item.invoiceNumbers],
+    })),
+  }
+}
+
+export function canViewRecallReport(permissions: readonly string[]) {
+  return permissions.includes('reports.read') || permissions.includes('qc.read')
+}

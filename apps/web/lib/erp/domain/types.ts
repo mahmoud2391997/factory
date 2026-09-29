@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -937,6 +937,21 @@ export type QualitySample = {
   result: 'PENDING' | 'PASSED' | 'FAILED' | 'HOLD'
 }
 
+export type QualityHold = {
+  id: string
+  targetType: 'LOT' | 'RAW_BATCH'
+  lotNo?: string
+  materialId?: string
+  batchNo: string
+  status: 'HELD' | 'RELEASED' | 'RECALLED'
+  reason: string
+  createdBy: string
+  createdAt: string
+  resolvedBy?: string
+  resolvedAt?: string
+  resolutionReason?: string
+}
+
 export type ErpState = {
   schemaVersion: number
   /** Last applied default-permission introduction. Missing means 0. */
@@ -962,6 +977,7 @@ export type ErpState = {
   productionOrders: ProductionOrder[]
   lots: ProductionLot[]
   qualitySamples: QualitySample[]
+  qualityHolds: QualityHold[]
   invoices: SalesInvoice[]
   payments: SalesPayment[]
   withdrawals: Withdrawal[]
@@ -1077,6 +1093,11 @@ export type Command =
   | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
   | { action: 'updateQualityResult'; input: { sampleId: string; result: 'PASSED' | 'FAILED' | 'HOLD'; reason: string } }
   | { action: 'setQcLimits'; input: { itemType: 'MATERIAL' | 'PRODUCT'; itemId: string; limits: { minMoisture?: number; maxMoisture?: number; minProtein?: number; maxProtein?: number; minAsh?: number; maxAsh?: number; minEnergy?: number; maxEnergy?: number; minFat?: number; maxFat?: number; minFiber?: number; maxFiber?: number; minCalcium?: number; maxCalcium?: number; minPhosphorus?: number; maxPhosphorus?: number } } }
+  | { action: 'holdLot'; input: { lotNo: string; reason: string } }
+  | { action: 'releaseLot'; input: { lotNo: string; reason: string } }
+  | { action: 'recallLot'; input: { lotNo: string; reason: string } }
+  | { action: 'holdRawBatch'; input: { materialId: string; batchNo: string; reason: string } }
+  | { action: 'releaseRawBatch'; input: { materialId: string; batchNo: string; reason: string } }
   | { action: 'createSparePart'; input: { code: string; nameAr: string; description?: string; quantity: number; unitCost: number; minStock: number; supplierId?: string; machineIds?: string[] } }
   | { action: 'recordSparePartUsage'; input: { sparePartId: string; machineId: string; quantity: number; reason: string; maintenanceId?: string } }
   | { action: 'createPackagingMaterial'; input: { code: string; nameAr: string; category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'; quantity: number; unit: string; unitCost: number; minStock: number; supplierId?: string; expectedPerTon?: number } }

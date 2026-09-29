@@ -47,6 +47,7 @@ import type {
   CompanyDocument,
   Recipe,
   QualitySample,
+  QualityHold,
   ProductionOrder,
 } from './types'
 
@@ -764,6 +765,11 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createQualitySample: 'qc.manage',
     updateQualityResult: 'qc.manage',
     setQcLimits: 'qc.limits',
+    holdLot: 'qc.manage',
+    releaseLot: 'qc.release',
+    recallLot: 'qc.release',
+    holdRawBatch: 'qc.manage',
+    releaseRawBatch: 'qc.release',
     createVehicle: 'fleet.manage',
     updateVehicle: 'fleet.manage',
     addFuelLog: 'fleet.manage',
@@ -878,6 +884,16 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return updateQualityResult(state, actor, command.input, clock)
     case 'setQcLimits':
       return setQcLimits(state, actor, command.input, clock)
+    case 'holdLot':
+      return holdLot(state, actor, command.input, clock)
+    case 'releaseLot':
+      return releaseLot(state, actor, command.input, clock)
+    case 'recallLot':
+      return recallLot(state, actor, command.input, clock)
+    case 'holdRawBatch':
+      return holdRawBatch(state, actor, command.input, clock)
+    case 'releaseRawBatch':
+      return releaseRawBatch(state, actor, command.input, clock)
     case 'createVehicle':
       return createVehicle(state, actor, command.input, clock)
     case 'updateVehicle':
@@ -2420,6 +2436,101 @@ function setQcLimits(state: ErpState, actor: Actor, input: Extract<Command, { ac
   }
   audit(state, actor, clock, 'تحديث حدود الجودة', input.itemType === 'MATERIAL' ? 'material' : 'product', input.itemId, 'حدود الرطوبة والبروتين والرماد')
   return ok(state, 'تم حفظ حدود الجودة')
+}
+
+function latestQualityHold(state: ErpState, targetType: QualityHold['targetType'], lotNo?: string, materialId?: string, batchNo?: string) {
+  return (state.qualityHolds ?? []).filter((hold) =>
+    hold.targetType === targetType &&
+    (targetType === 'LOT' ? hold.lotNo === lotNo : hold.materialId === materialId && hold.batchNo === batchNo),
+  ).at(-1)
+}
+
+function createQualityHold(
+  state: ErpState,
+  actor: Actor,
+  clock: Clock,
+  input: { targetType: QualityHold['targetType']; lotNo?: string; materialId?: string; batchNo: string; status: QualityHold['status']; reason: string },
+) {
+  const hold: QualityHold = {
+    id: clock.id('qhold'),
+    targetType: input.targetType,
+    lotNo: input.lotNo,
+    materialId: input.materialId,
+    batchNo: input.batchNo,
+    status: input.status,
+    reason: input.reason.trim(),
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.qualityHolds ??= []
+  state.qualityHolds.push(hold)
+  return hold
+}
+
+function holdLot(state: ErpState, actor: Actor, input: Extract<Command, { action: 'holdLot' }>['input'], clock: Clock): CommandResult {
+  const lot = state.lots.find((item) => item.lotNo === input.lotNo.trim())
+  if (!lot) return fail('دفعة الإنتاج غير موجودة')
+  if (!input.reason.trim()) return fail('سبب الحجر مطلوب')
+  const previous = latestQualityHold(state, 'LOT', lot.lotNo)
+  if (previous?.status === 'HELD' || previous?.status === 'RECALLED') return fail('الدفعة محجورة أو مستدعاة بالفعل')
+  const hold = createQualityHold(state, actor, clock, { targetType: 'LOT', lotNo: lot.lotNo, batchNo: lot.lotNo, status: 'HELD', reason: input.reason })
+  audit(state, actor, clock, 'حجر دفعة إنتاج', 'qualityHold', hold.id, `${lot.lotNo}: ${hold.reason}`)
+  return ok(state, 'تم حجر دفعة الإنتاج')
+}
+
+function releaseLot(state: ErpState, actor: Actor, input: Extract<Command, { action: 'releaseLot' }>['input'], clock: Clock): CommandResult {
+  const lot = state.lots.find((item) => item.lotNo === input.lotNo.trim())
+  if (!lot) return fail('دفعة الإنتاج غير موجودة')
+  if (!input.reason.trim()) return fail('سبب رفع الحجر مطلوب')
+  const hold = latestQualityHold(state, 'LOT', lot.lotNo)
+  if (!hold || hold.status !== 'HELD') return fail('لا يوجد حجر فعال يمكن رفعه')
+  hold.status = 'RELEASED'
+  hold.resolvedBy = actor.id
+  hold.resolvedAt = clock.now()
+  hold.resolutionReason = input.reason.trim()
+  audit(state, actor, clock, 'رفع حجر دفعة إنتاج', 'qualityHold', hold.id, `${lot.lotNo}: ${input.reason.trim()}`)
+  return ok(state, 'تم رفع حجر دفعة الإنتاج')
+}
+
+function recallLot(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recallLot' }>['input'], clock: Clock): CommandResult {
+  const lot = state.lots.find((item) => item.lotNo === input.lotNo.trim())
+  if (!lot) return fail('دفعة الإنتاج غير موجودة')
+  if (!input.reason.trim()) return fail('سبب الاستدعاء مطلوب')
+  const previous = latestQualityHold(state, 'LOT', lot.lotNo)
+  if (previous?.status === 'RECALLED') return fail('الدفعة مستدعاة بالفعل')
+  const hold = createQualityHold(state, actor, clock, { targetType: 'LOT', lotNo: lot.lotNo, batchNo: lot.lotNo, status: 'RECALLED', reason: input.reason })
+  audit(state, actor, clock, 'استدعاء دفعة إنتاج', 'qualityHold', hold.id, `${lot.lotNo}: ${hold.reason}`)
+  return ok(state, 'تم استدعاء الدفعة')
+}
+
+function holdRawBatch(state: ErpState, actor: Actor, input: Extract<Command, { action: 'holdRawBatch' }>['input'], clock: Clock): CommandResult {
+  const material = state.materials.find((item) => item.id === input.materialId)
+  const batchNo = input.batchNo.trim()
+  if (!material || !batchNo) return fail('المادة ودفعة المورد مطلوبتان')
+  if (!input.reason.trim()) return fail('سبب الحجر مطلوب')
+  const exists = state.balances.some((balance) => balance.itemType === 'MATERIAL' && balance.itemId === material.id && balance.batchNo === batchNo)
+    || state.lots.some((lot) => lot.materials.some((line) => line.materialId === material.id && line.sourceBatchNo === batchNo))
+  if (!exists) return fail('دفعة الخام غير موجودة')
+  const previous = latestQualityHold(state, 'RAW_BATCH', undefined, material.id, batchNo)
+  if (previous?.status === 'HELD' || previous?.status === 'RECALLED') return fail('دفعة الخام محجورة بالفعل')
+  const hold = createQualityHold(state, actor, clock, { targetType: 'RAW_BATCH', materialId: material.id, batchNo, status: 'HELD', reason: input.reason })
+  audit(state, actor, clock, 'حجر دفعة خام', 'qualityHold', hold.id, `${material.nameAr} ${batchNo}: ${hold.reason}`)
+  return ok(state, 'تم حجر دفعة الخام')
+}
+
+function releaseRawBatch(state: ErpState, actor: Actor, input: Extract<Command, { action: 'releaseRawBatch' }>['input'], clock: Clock): CommandResult {
+  const material = state.materials.find((item) => item.id === input.materialId)
+  const batchNo = input.batchNo.trim()
+  if (!material || !batchNo) return fail('المادة ودفعة المورد مطلوبتان')
+  if (!input.reason.trim()) return fail('سبب رفع الحجر مطلوب')
+  const hold = latestQualityHold(state, 'RAW_BATCH', undefined, material.id, batchNo)
+  if (!hold || hold.status !== 'HELD') return fail('لا يوجد حجر فعال يمكن رفعه')
+  hold.status = 'RELEASED'
+  hold.resolvedBy = actor.id
+  hold.resolvedAt = clock.now()
+  hold.resolutionReason = input.reason.trim()
+  audit(state, actor, clock, 'رفع حجر دفعة خام', 'qualityHold', hold.id, `${material.nameAr} ${batchNo}: ${input.reason.trim()}`)
+  return ok(state, 'تم رفع حجر دفعة الخام')
 }
 
 function createVehicle(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createVehicle' }>['input'], clock: Clock): CommandResult {

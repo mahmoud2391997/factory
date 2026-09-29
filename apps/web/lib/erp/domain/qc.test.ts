@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { actorFromUser, applyCommand } from './engine'
-import { suggestQcResult } from './qc'
+import { lotQcBlock, rawBatchQcBlock, suggestQcResult } from './qc'
 import { supplierQuality, trialBalance } from './reports'
 import { createClock, emptyState } from './seed'
 import type { Actor, Command, ErpState } from './types'
@@ -132,6 +132,7 @@ test('held raw material cannot be consumed and a held lot cannot be sold or with
     action: 'createPurchaseOrder',
     input: { supplierId: supplier.id, lines: [{ materialId: material.id, qty: 400, unitCost: 0.04 }] },
   })
+
   const poId = state.purchaseOrders[0]!.id
   state = must(state, clock, { action: 'decidePurchaseOrder', input: { id: poId, decision: 'APPROVED' } })
   state = must(state, clock, {
@@ -210,4 +211,56 @@ test('held raw material cannot be consumed and a held lot cannot be sold or with
   const summary = supplierQuality(state, supplier.id)
   assert.ok(summary.samples >= 1)
   assert.equal(summary.supplier?.id, supplier.id)
+})
+
+test('manual holds, release reasons, and recalls are permission-checked and audited', () => {
+  const clock = createClock('2026-10-01T04:00:00.000Z')
+  let state = emptyState('manual-holds')
+  state = must(state, clock, { action: 'createMaterial', input: { code: 'RM-HOLD', nameAr: 'ذرة', category: 'حبوب', minQty: 0, vatTreatment: 'ZERO' } })
+  const material = state.materials[0]!
+  state.lots.push({
+    id: 'lot-hold',
+    lotNo: 'LOT-HOLD-001',
+    productionOrderId: 'po-hold',
+    productId: 'product-hold',
+    operatorId: null,
+    manufacturedAt: clock.now(),
+    inputKg: 100,
+    expectedOutputKg: 99,
+    actualOutputKg: 99,
+    wasteKg: 1,
+    varianceKg: 0,
+    variancePct: 0,
+    materials: [{ materialId: material.id, sourceBatchNo: 'RAW-HOLD-001', supplierId: null, qty: 100, unitCost: 0.05 }],
+    costLines: [{ type: 'RAW_MATERIAL', amount: 5 }],
+    totalCost: 5,
+    costPerTon: 50.505,
+    deliveries: [],
+  })
+
+  state = must(state, clock, { action: 'holdRawBatch', input: { materialId: material.id, batchNo: 'RAW-HOLD-001', reason: 'فحص إضافي' } })
+  assert.match(rawBatchQcBlock(state, material.id, 'RAW-HOLD-001') ?? '', /محجورة/)
+  const unauthorizedRelease = applyCommand(state, who(state, 'user-ops'), {
+    action: 'releaseRawBatch',
+    input: { materialId: material.id, batchNo: 'RAW-HOLD-001', reason: 'مراجعة' },
+  }, clock)
+  assert.equal(unauthorizedRelease.ok, false)
+  if (!unauthorizedRelease.ok) assert.match(unauthorizedRelease.error, /صلاحية/)
+
+  const missingReason = applyCommand(state, who(state, 'user-gm'), {
+    action: 'releaseRawBatch',
+    input: { materialId: material.id, batchNo: 'RAW-HOLD-001', reason: '  ' },
+  }, clock)
+  assert.equal(missingReason.ok, false)
+  state = must(state, clock, { action: 'releaseRawBatch', input: { materialId: material.id, batchNo: 'RAW-HOLD-001', reason: 'نتيجة المختبر سليمة' } })
+  assert.equal(rawBatchQcBlock(state, material.id, 'RAW-HOLD-001'), null)
+
+  state = must(state, clock, { action: 'holdLot', input: { lotNo: 'LOT-HOLD-001', reason: 'تحقيق شكوى عميل' } })
+  assert.match(lotQcBlock(state, 'LOT-HOLD-001') ?? '', /محجورة/)
+  state = must(state, clock, { action: 'releaseLot', input: { lotNo: 'LOT-HOLD-001', reason: 'التحقيق لم يثبت المشكلة' } })
+  assert.equal(lotQcBlock(state, 'LOT-HOLD-001'), null)
+  state = must(state, clock, { action: 'recallLot', input: { lotNo: 'LOT-HOLD-001', reason: 'تأكد عدم مطابقة المنتج' } })
+  assert.match(lotQcBlock(state, 'LOT-HOLD-001') ?? '', /مستدعاة/)
+  assert.ok(state.auditLogs.some((entry) => entry.action === 'استدعاء دفعة إنتاج'))
+  assert.equal(state.qualityHolds.length, 3)
 })

@@ -3,11 +3,11 @@
 import { useState } from 'react'
 
 import { COST_LABEL, lotEconomics } from '@/lib/erp/domain/costing'
-import { filterLots, operatorLabel, traceLot } from '@/lib/erp/domain/reports'
+import { filterLots, operatorLabel, recallReport, traceLot } from '@/lib/erp/domain/reports'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import type { TranslationKey } from '@/lib/i18n/translations'
 
-import { Badge, Card, DataTable, Field, GhostButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
 
@@ -44,7 +44,12 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
   const [toDay, setToDay] = useState('')
   const [qcStatus, setQcStatus] = useState('')
   const [marginSign, setMarginSign] = useState<'all' | 'negative' | 'positive'>('all')
+  const [searchMaterialId, setSearchMaterialId] = useState(ctx.state.materials[0]?.id ?? '')
+  const [searchBatchNo, setSearchBatchNo] = useState('')
   const filtered = filterLots(ctx.state, { productId, fromDay, toDay, qcStatus, marginSign })
+  const batchRecall = searchMaterialId && searchBatchNo.trim()
+    ? recallReport(ctx.state, { materialId: searchMaterialId, batchNo: searchBatchNo })
+    : null
   const exportHref = `/api/erp/export?${new URLSearchParams({
     kind: 'lots',
     ...(productId ? { productId } : {}),
@@ -55,6 +60,9 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
   }).toString()}`
   const selected = lotNo || lots[0]?.lotNo || ''
   const trace = selected ? traceLot(ctx.state, selected) : null
+  const latestLotHold = trace
+    ? (ctx.state.qualityHolds ?? []).filter((hold) => hold.targetType === 'LOT' && hold.lotNo === trace.lot.lotNo).at(-1)
+    : undefined
   const waste = lots.reduce((sum, lot) => sum + lot.wasteKg, 0)
   return (
     <div className="space-y-4">
@@ -111,6 +119,23 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
           })}
         />
       </Card>
+      {detail ? (
+        <Card title="تتبع أمامي لدفعة الخام" hint="ابحث برقم دفعة المورد لمعرفة دفعات الإنتاج والعملاء والفواتير المتأثرة.">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="المادة الخام"><SelectInput value={searchMaterialId} onChange={(event) => setSearchMaterialId(event.target.value)}>{ctx.state.materials.map((material) => <option key={material.id} value={material.id}>{material.nameAr}</option>)}</SelectInput></Field>
+            <Field label="رقم دفعة المورد"><TextInput value={searchBatchNo} onChange={(event) => setSearchBatchNo(event.target.value)} /></Field>
+          </div>
+          {batchRecall ? <>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold">{batchRecall.lots.length} دفعة إنتاج، {batchRecall.affectedCustomers.length} عميل متأثر</p>
+              <a className="text-sm font-semibold text-[#0d9488]" href={`/print/recall?${new URLSearchParams({ materialId: searchMaterialId, batchNo: searchBatchNo.trim() }).toString()}`} target="_blank" rel="noreferrer">طباعة تقرير التتبع</a>
+            </div>
+            <DataTable columns={['دفعة الإنتاج', 'المنتج', 'العميل', 'الكمية كجم', 'الفاتورة', 'التاريخ']} rows={batchRecall.deliveries.map((delivery) => [
+              delivery.lotNo, delivery.product, delivery.customer, qtyFmt(delivery.quantityKg), delivery.invoiceNo ?? '—', delivery.date,
+            ])} />
+          </> : <p className="mt-3 text-sm text-[#6b7280]">أدخل رقم دفعة مورد لعرض التتبع الأمامي.</p>}
+        </Card>
+      ) : null}
       {trace ? (
         <Card
           title={`تتبع ${trace.lot.lotNo}`}
@@ -128,9 +153,24 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
             </div>
             {trace.lot.legacyNote ? <div className="sm:col-span-2">تصنيف: {trace.lot.legacyNote}</div> : null}
           </div>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {latestLotHold?.status === 'HELD' && can(ctx.permissions, 'qc.release') ? <QualityHoldAction ctx={ctx} lotNo={trace.lot.lotNo} release /> : null}
+            {latestLotHold?.status !== 'HELD' && latestLotHold?.status !== 'RECALLED' && can(ctx.permissions, 'qc.manage') ? <QualityHoldAction ctx={ctx} lotNo={trace.lot.lotNo} /> : null}
+            {latestLotHold?.status !== 'RECALLED' && can(ctx.permissions, 'qc.release') ? <QualityHoldAction ctx={ctx} lotNo={trace.lot.lotNo} recall /> : null}
+            <a className="rounded-md border border-[#e5e7eb] px-3 py-2 text-sm font-medium" href={`/print/recall?${new URLSearchParams({ lotNo: trace.lot.lotNo }).toString()}`} target="_blank" rel="noreferrer">تقرير الاستدعاء</a>
+          </div>
+          {(ctx.state.qualityHolds ?? []).filter((hold) => hold.targetType === 'LOT' && hold.lotNo === trace.lot.lotNo).map((hold) => (
+            <p key={hold.id} className="mb-2 text-sm text-[#6b7280]">
+              {qualityHoldStatusLabel(hold.status)} — {hold.reason} — {ctx.state.users.find((user) => user.id === hold.createdBy)?.fullName ?? hold.createdBy}
+              {hold.resolutionReason ? ` — سبب الإنهاء: ${hold.resolutionReason}` : ''}
+            </p>
+          ))}
           <DataTable
-            columns={['الخامة', 'دفعة الخام', 'المورد', 'الكمية', 'تكلفة الوحدة']}
-            rows={trace.rawBatches.map((line) => [line.materialName, line.sourceBatchNo, line.supplierName ?? '—', qtyFmt(line.qty), moneyFmt(line.unitCost)])}
+            columns={['الخامة', 'دفعة الخام', 'المورد', 'الكمية', 'تكلفة الوحدة', 'الحجر']}
+            rows={trace.rawBatches.map((line) => [
+              line.materialName, line.sourceBatchNo, line.supplierName ?? '—', qtyFmt(line.qty), moneyFmt(line.unitCost),
+              <RawBatchHoldAction key={`${line.materialId}-${line.sourceBatchNo}`} ctx={ctx} materialId={line.materialId} batchNo={line.sourceBatchNo} />,
+            ])}
           />
           <div className="mt-4">
             <DataTable
@@ -221,4 +261,51 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
       ) : null}
     </div>
   )
+}
+
+type HoldAction = 'holdLot' | 'releaseLot' | 'recallLot' | 'holdRawBatch' | 'releaseRawBatch'
+
+function HoldActionDialog({
+  ctx,
+  action,
+  target,
+}: {
+  ctx: LiveCtx
+  action: HoldAction
+  target: { lotNo?: string; materialId?: string; batchNo?: string }
+}) {
+  const [reason, setReason] = useState('')
+  const label = action.startsWith('hold') ? 'حجر' : action.startsWith('release') ? 'رفع الحجر' : 'استدعاء'
+  return <FormDialog title={`${label} ${target.lotNo ? 'دفعة الإنتاج' : 'دفعة الخام'}`} openLabel={label}>
+    {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+      event.preventDefault()
+      const result = await ctx.act(action, { ...target, reason })
+      if (result.ok) { setReason(''); close() }
+    }}>
+      <Field label={`سبب ${label}`}><TextInput value={reason} onChange={(event) => setReason(event.target.value)} required minLength={2} /></Field>
+      <PrimaryButton disabled={ctx.pending || reason.trim().length < 2}>{label}</PrimaryButton>
+    </form>}
+  </FormDialog>
+}
+
+function QualityHoldAction({ ctx, lotNo, release = false, recall = false }: { ctx: LiveCtx; lotNo: string; release?: boolean; recall?: boolean }) {
+  const action: HoldAction = release ? 'releaseLot' : recall ? 'recallLot' : 'holdLot'
+  return <HoldActionDialog ctx={ctx} action={action} target={{ lotNo }} />
+}
+
+function qualityHoldStatusLabel(status: 'HELD' | 'RELEASED' | 'RECALLED') {
+  if (status === 'HELD') return 'محجورة'
+  if (status === 'RECALLED') return 'مستدعاة'
+  return 'تم رفع الحجر'
+}
+
+function RawBatchHoldAction({ ctx, materialId, batchNo }: { ctx: LiveCtx; materialId: string; batchNo: string }) {
+  const latest = (ctx.state.qualityHolds ?? []).filter(
+    (hold) => hold.targetType === 'RAW_BATCH' && hold.materialId === materialId && hold.batchNo === batchNo,
+  ).at(-1)
+  if (latest?.status === 'RECALLED') return <Badge tone="bad">مستدعاة</Badge>
+  const release = latest?.status === 'HELD'
+  const allowed = can(ctx.permissions, release ? 'qc.release' : 'qc.manage')
+  if (!allowed) return latest?.status === 'HELD' ? <Badge tone="bad">محجورة</Badge> : '—'
+  return <HoldActionDialog ctx={ctx} action={release ? 'releaseRawBatch' : 'holdRawBatch'} target={{ materialId, batchNo }} />
 }

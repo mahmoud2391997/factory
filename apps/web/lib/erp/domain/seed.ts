@@ -114,6 +114,7 @@ export function emptyState(passwordHash: string): ErpState {
     productionOrders: [],
     lots: [],
     qualitySamples: [],
+    qualityHolds: [],
     invoices: [],
     payments: [],
     withdrawals: [],

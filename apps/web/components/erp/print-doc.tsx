@@ -5,30 +5,44 @@ import { useParams } from 'next/navigation'
 
 import { barcodeSvg } from '@/lib/erp/domain/barcode'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
-import { traceLot } from '@/lib/erp/domain/reports'
+import { recallReport, traceLot } from '@/lib/erp/domain/reports'
+import type { Company } from '@/lib/erp/domain/types'
 import type { PublicState } from '@/components/erp/live/ctx'
 import { materialName, moneyFmt, productName, qtyFmt, statusLabel } from '@/components/erp/live/format'
 
-export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' }) {
+export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' | 'recall' }) {
   const params = useParams<{ id?: string; lotNo?: string }>()
   const [state, setState] = useState<PublicState | null>(null)
+  const [recallData, setRecallData] = useState<{ company: Company; report: ReturnType<typeof recallReport> } | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const response = await fetch('/api/erp', { credentials: 'include' })
+      const endpoint = kind === 'recall' ? `/api/erp/recall${window.location.search}` : '/api/erp'
+      const response = await fetch(endpoint, { credentials: 'include' })
       const json = await response.json()
       if (cancelled) return
       if (!json.success) setError(json.message || 'تعذر التحميل')
+      else if (kind === 'recall') setRecallData(json.data)
       else setState(json.data.state)
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [kind])
 
   if (error) return <main className="p-8">{error}</main>
+  if (kind === 'recall') {
+    if (!recallData) return <main className="p-8">جاري التحميل...</main>
+    return (
+      <main className="print-sheet">
+        <style>{`.print-sheet { max-width: 900px; margin: 0 auto; padding: 24px; color: #14211c; background: white; } .print-sheet table { width: 100%; border-collapse: collapse; } .print-sheet th, .print-sheet td { border-bottom: 1px solid #ddd; padding: 8px; text-align: right; font-size: 13px; } .noprint { margin-bottom: 16px; } @media print { .noprint { display: none; } .print-sheet { padding: 0; } }`}</style>
+        <div className="noprint"><button type="button" onClick={() => window.print()} style={{ background: '#123c35', color: 'white', border: 0, borderRadius: 8, padding: '8px 14px' }}>طباعة</button></div>
+        <RecallReportDocument company={recallData.company} report={recallData.report} />
+      </main>
+    )
+  }
   if (!state) return <main className="p-8">جاري التحميل...</main>
 
   return (
@@ -53,8 +67,7 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' }
   )
 }
 
-function Letterhead({ state }: { state: PublicState }) {
-  const company = state.company
+function Letterhead({ company }: { company: Company }) {
   return (
     <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
       <div>
@@ -76,7 +89,7 @@ function Invoice({ state, id }: { state: PublicState; id: string }) {
   const customer = state.customers.find((item) => item.id === invoice.customerId)
   return (
     <article>
-      <Letterhead state={state} />
+      <Letterhead company={state.company} />
       <h1 style={{ fontSize: 26, margin: '8px 0' }}>فاتورة ضريبية</h1>
       <p>رقم الفاتورة: {invoice.number} — التاريخ: {invoice.issuedAt.slice(0, 10)} — الحالة: {statusLabel(invoice.status)}</p>
       <h2 style={{ fontSize: 16 }}>العميل</h2>
@@ -128,7 +141,7 @@ function PurchaseOrder({ state, id }: { state: PublicState; id: string }) {
   const supplier = state.suppliers.find((item) => item.id === order.supplierId)
   return (
     <article>
-      <Letterhead state={state} />
+      <Letterhead company={state.company} />
       <h1>أمر شراء</h1>
       <p>{order.number} — {statusLabel(order.status)} — {order.createdAt.slice(0, 10)}</p>
       <p>المورد: {supplier?.nameAr} — الرقم الضريبي: {supplier?.vatNumber || '—'}</p>
@@ -165,7 +178,7 @@ function LotCertificate({ state, lotNo }: { state: PublicState; lotNo: string })
   if (!trace) return <p>دفعة الإنتاج غير موجودة</p>
   return (
     <article>
-      <Letterhead state={state} />
+      <Letterhead company={state.company} />
       <h1 style={{ fontSize: 26, margin: '8px 0' }}>شهادة تتبع دفعة إنتاج</h1>
       <p>
         رقم الدفعة: {trace.lot.lotNo} — المنتج: {trace.product?.nameAr ?? '—'} — المشغّل: {trace.operatorName}
@@ -253,6 +266,37 @@ function Labels({ state }: { state: PublicState }) {
           </div>
         ))}
       </div>
+    </article>
+  )
+}
+
+function RecallReportDocument({ company, report }: { company: Company; report: ReturnType<typeof recallReport> }) {
+  const target = report.target.type === 'LOT'
+    ? `دفعة إنتاج: ${report.target.lotNo}`
+    : `دفعة خام: ${report.materialName ?? report.target.materialId} — ${report.target.batchNo}`
+  return (
+    <article>
+      <Letterhead company={company} />
+      <h1 style={{ fontSize: 26, margin: '8px 0' }}>تقرير تتبع واستدعاء</h1>
+      <p>{target}</p>
+      {report.suppliers.length ? <p>الموردون المرتبطون: {report.suppliers.join('، ')}</p> : null}
+      <h2 style={{ fontSize: 16 }}>دفعات الإنتاج المتأثرة</h2>
+      <table>
+        <thead><tr><th>رقم الدفعة</th><th>المنتج</th><th>التصنيع</th><th>الناتج (كجم)</th></tr></thead>
+        <tbody>{report.lots.map((lot) => <tr key={lot.lotNo}><td>{lot.lotNo}</td><td>{lot.product}</td><td>{lot.manufacturedAt}</td><td>{qtyFmt(lot.quantityKg)}</td></tr>)}</tbody>
+      </table>
+      <h2 style={{ fontSize: 16 }}>العملاء المتأثرون</h2>
+      <table>
+        <thead><tr><th>العميل</th><th>الكمية (كجم)</th><th>الفواتير</th></tr></thead>
+        <tbody>{report.affectedCustomers.map((customer) => <tr key={customer.customerId}><td>{customer.customer}</td><td>{qtyFmt(customer.quantityKg)}</td><td>{customer.invoiceNumbers.join('، ') || '—'}</td></tr>)}</tbody>
+      </table>
+      <h2 style={{ fontSize: 16 }}>تفاصيل التسليم</h2>
+      <table>
+        <thead><tr><th>الدفعة</th><th>المنتج</th><th>العميل</th><th>الكمية (كجم)</th><th>الفاتورة/السحب</th><th>التاريخ</th></tr></thead>
+        <tbody>{report.deliveries.map((delivery, index) => <tr key={`${delivery.invoiceNo ?? delivery.withdrawalId ?? index}`}>
+          <td>{delivery.lotNo}</td><td>{delivery.product}</td><td>{delivery.customer}</td><td>{qtyFmt(delivery.quantityKg)}</td><td>{delivery.invoiceNo ?? delivery.withdrawalId ?? '—'}</td><td>{delivery.date}</td>
+        </tr>)}</tbody>
+      </table>
     </article>
   )
 }

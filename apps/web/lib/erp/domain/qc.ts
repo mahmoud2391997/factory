@@ -38,6 +38,13 @@ export function latestSample(samples: QualitySample[], match: (sample: QualitySa
 }
 
 export function rawBatchQcBlock(state: ErpState, materialId: string, batchNo: string): string | null {
+  const holds = (state.qualityHolds ?? []).filter(
+    (item) => item.targetType === 'RAW_BATCH' && item.materialId === materialId && item.batchNo === batchNo,
+  )
+  const hold = holds.at(-1)
+  if (hold?.status === 'HELD' || hold?.status === 'RECALLED') {
+    return `دفعة ${batchNo} محجورة: ${hold.reason}`
+  }
   const sample = latestSample(
     state.qualitySamples ?? [],
     (item) => item.type === 'RAW_MATERIAL' && item.materialId === materialId && item.batchNo === batchNo,
@@ -53,6 +60,13 @@ export function rawBatchQcBlock(state: ErpState, materialId: string, batchNo: st
 }
 
 export function lotQcBlock(state: ErpState, lotNo: string): string | null {
+  const holds = (state.qualityHolds ?? []).filter((item) => item.targetType === 'LOT' && item.lotNo === lotNo)
+  const hold = holds.at(-1)
+  if (hold?.status === 'HELD' || hold?.status === 'RECALLED') {
+    return hold.status === 'RECALLED'
+      ? `دفعة الإنتاج ${lotNo} مستدعاة: ${hold.reason}`
+      : `دفعة الإنتاج ${lotNo} محجورة: ${hold.reason}`
+  }
   const sample = latestSample(state.qualitySamples ?? [], (item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lotNo)
   const lot = (state.lots ?? []).find((item) => item.lotNo === lotNo)
   if (!sample && !lot) return null
