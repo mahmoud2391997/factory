@@ -4,10 +4,9 @@ import { z } from 'zod'
 
 import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
 import { getSessionUserById } from '@/server/auth/session'
-import { isDemoMode } from '@/server/demo'
+import { getDemoSecrets, getDemoSessionUser, isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
 import { loginThrottleMessage, recordLoginFailure, recordLoginSuccess } from '@/server/auth/login-throttle'
-import { loadState } from '@/server/erp/store'
 
 function clientIp(req: NextRequest) {
   const forwarded = req.headers.get('x-forwarded-for')
@@ -45,6 +44,22 @@ export async function POST(req: NextRequest) {
     const email = parsed.data.email.toLowerCase().trim()
     const password = parsed.data.password
     const ip = clientIp(req)
+
+    if (isDemoMode()) {
+      const demo = getDemoSecrets()
+      if (email === 'admin@factory.local' && password === demo.password) {
+        recordLoginSuccess(email, ip)
+        const accessToken = await issueAccessToken({ sub: 'demo-admin-user', ver: 1 })
+        const refreshToken = await issueRefreshToken({ sub: 'demo-admin-user', ver: 1 })
+        const res = NextResponse.json({
+          success: true,
+          data: { user: getDemoSessionUser(), demoMode: true, storage: 'demo' },
+          message: 'تم تسجيل الدخول',
+        })
+        setAuthCookies(res, { accessToken, refreshToken })
+        return res
+      }
+    }
     const locked = loginThrottleMessage(email, ip)
     if (locked) {
       return NextResponse.json({ success: false, message: locked, code: 'LOGIN_LOCKED' }, { status: 429 })
@@ -54,7 +69,7 @@ export async function POST(req: NextRequest) {
     // cold-start races / seed failures (those previously surfaced as AUTH_INTERNAL_ERROR).
     let storage: 'postgres' | 'file' | undefined
     try {
-      const loaded = await loadState()
+      const loaded = await (await import('@/server/erp/store')).loadState()
       storage = loaded.storage
       const erpUser = loaded.state.users.find((item) => item.email.toLowerCase() === email && item.active)
       if (erpUser && (await bcrypt.compare(password, erpUser.passwordHash))) {
