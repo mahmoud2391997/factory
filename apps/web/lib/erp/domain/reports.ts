@@ -185,7 +185,23 @@ type FactorySnapshot = Pick<
   ErpState,
   'materials' | 'customers' | 'balances' | 'ledger' | 'productionOrders' | 'invoices' | 'stoppages'
 > &
-  Partial<Pick<ErpState, 'lots' | 'qualitySamples' | 'payments' | 'products' | 'suppliers'>>
+  Partial<
+    Pick<
+      ErpState,
+      | 'lots'
+      | 'qualitySamples'
+      | 'payments'
+      | 'products'
+      | 'suppliers'
+      | 'vehicles'
+      | 'obligations'
+      | 'obligationScheduleLines'
+      | 'companyDocuments'
+      | 'maintenanceSchedules'
+      | 'maintenanceRecords'
+      | 'utilitiesReadings'
+    >
+  >
 
 /** Factory day for the general manager: production, sales, margin, stock, and run quality. */
 export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOString()) {
