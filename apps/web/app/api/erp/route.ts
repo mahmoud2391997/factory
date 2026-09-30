@@ -91,7 +91,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
 }
 
 /** Handled by the store rather than applyCommand, so not part of the Command union. */
-const STORE_ACTIONS = ['resetDemo']
+const STORE_ACTIONS: string[] = []
 const INTERNAL_ACTIONS = new Set(['addCompanyDocumentAttachment', 'addQualitySampleAttachment'])
 
 const ALLOWED_ACTIONS = new Set<string>([

@@ -45,12 +45,9 @@ export async function GET() {
         databaseReachable,
         bootstrapped: demoMode ? true : bootstrapped ?? false,
         databaseError,
-        demoCredentials: demoMode
-          ? { email: 'admin@factory.local', password: 'Admin123!' }
-          : null,
       },
       message: demoMode
-        ? 'وضع تجريبي نشط (بدون MONGODB_URI) — يمكن الدخول بالحساب الافتراضي'
+        ? 'وضع تجريبي نشط (بدون MONGODB_URI)'
         : ready
           ? 'OK'
           : !databaseConfigured

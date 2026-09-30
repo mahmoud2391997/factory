@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
 import { getSessionUserById } from '@/server/auth/session'
-import { getDemoSecrets, getDemoSessionUser, isDemoMode } from '@/server/demo'
+import { isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
 import { loginThrottleMessage, recordLoginFailure, recordLoginSuccess } from '@/server/auth/login-throttle'
 
@@ -45,22 +45,6 @@ export async function POST(req: NextRequest) {
     const password = parsed.data.password
     const ip = clientIp(req)
 
-    if (isDemoMode()) {
-      const demo = getDemoSecrets()
-      const demoEmails = new Set(['admin@factory.local'])
-      if (demoEmails.has(email) && password === demo.password) {
-        recordLoginSuccess(email, ip)
-        const accessToken = await issueAccessToken({ sub: 'demo-admin-user', ver: 1 })
-        const refreshToken = await issueRefreshToken({ sub: 'demo-admin-user', ver: 1 })
-        const res = NextResponse.json({
-          success: true,
-          data: { user: getDemoSessionUser(), demoMode: true, storage: 'demo' },
-          message: 'تم تسجيل الدخول',
-        })
-        setAuthCookies(res, { accessToken, refreshToken })
-        return res
-      }
-    }
     const locked = loginThrottleMessage(email, ip)
     if (locked) {
       return NextResponse.json({ success: false, message: locked, code: 'LOGIN_LOCKED' }, { status: 429 })
@@ -99,18 +83,6 @@ export async function POST(req: NextRequest) {
         const mapped = toApiError(error)
         return NextResponse.json(mapped.body, { status: mapped.status })
       }
-    }
-
-    if (isDemoMode()) {
-      recordLoginFailure(email, ip)
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'بيانات الدخول غير صحيحة. الحسابات التجريبية: gm / accounts / ops @factory.local وكلمة المرور Admin123!',
-          code: 'DEMO_INVALID_CREDENTIALS',
-        },
-        { status: 401 },
-      )
     }
 
     recordLoginFailure(email, ip)

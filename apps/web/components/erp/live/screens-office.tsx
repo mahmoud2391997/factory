@@ -541,7 +541,7 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(item.costPerTon),
           ])}
         />
-        <h4 className="mb-2 mt-5 font-semibold">مقارنة ال��ستهلاك الشهري لكل طن</h4>
+        <h4 className="mb-2 mt-5 font-semibold">مقارنة ��ل��ستهلاك الشهري لكل طن</h4>
         <DataTable columns={['الشهر', 'المرافق', 'الاستهلاك', 'طن الإنتاج', 'التكلفة/طن', 'مقارنة']} rows={utilitiesPerTon(ctx.state).map((item) => {
           const previous = utilitiesPerTon(ctx.state).filter((row) => row.utility === item.utility && row.month < item.month).sort((a, b) => b.month.localeCompare(a.month))[0]
           const previousReading = previous && ctx.state.utilitiesReadings.find((row) => row.id === previous.readingId)
@@ -1110,7 +1110,6 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         <div className="flex flex-wrap gap-2">
           <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'settings.update')}>حفظ</PrimaryButton>
           {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('archiveHistory', { olderThanDays: 90 })}>أرشفة السجلات الأقدم من 90 يوماً</GhostButton> : null}
-          {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('resetDemo', {})}>إعادة البيانات التجريبية</GhostButton> : null}
           {can(ctx.permissions, 'settings.read') ? <a className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3 text-sm font-semibold" href="/api/erp/backup">تنزيل نسخة احتياطية</a> : null}
         </div>
       </form>
@@ -1191,7 +1190,6 @@ function Users({ ctx }: { ctx: LiveCtx }) {
         title="المستخدمون"
         extra={
           <div className="flex flex-wrap items-center gap-2">
-          {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('resetDemo', {})}>إعادة البيانات التجريبية</GhostButton> : null}
           <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة ال��رور">
             {(close) => (
               <form className="grid gap-3" onSubmit={async (event) => {
@@ -1404,7 +1402,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
               rows={alerts.obligations.map((item) => `استحقاق ${item.dueDate} — ${item.beneficiary} — ${moneyFmt(item.outstanding)} — ${(item.daysLeft ?? 0) < 0 ? `متأخر ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
             /> : null}
             {access.documents ? <NameList
-              empty="لا توجد وثائق قريبة الانتهاء"
+              empty="لا ��وجد وثائق قريبة الانتهاء"
               rows={alerts.documents.map((item) => `${item.title} — ${item.dueDate} — ${(item.daysLeft ?? 0) < 0 ? `منتهية منذ ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
             /> : null}
             {access.fleet ? <NameList
