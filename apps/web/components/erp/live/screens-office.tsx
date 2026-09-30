@@ -137,7 +137,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         {can(ctx.permissions, 'fleet.manage') ? <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
           {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><TextInput value={code} onChange={(event) => setCode(event.target.value)} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
         </FormDialog> : null}
-        <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
+        <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحال��']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
       </Card>
       <Card
         title="خدمات الأسطول"
@@ -793,13 +793,13 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
           </FormDialog>
         }
       >
-        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب', 'إجراء']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—', can(ctx.permissions, 'employees.manage') ? <FormDialog key={`${employee.id}-edit`} title="تحديث الموظف" openLabel="تعديل"><EmployeeEditor ctx={ctx} employee={employee} /></FormDialog> : '—'])} />
+        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب', 'إجراء']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—', can(ctx.permissions, 'employees.manage') ? <FormDialog key={`${employee.id}-edit`} title="تحديث الموظف" openLabel="تعديل">{(close) => <EmployeeEditor ctx={ctx} employee={employee} onSaved={close} />}</FormDialog> : '—'])} />
       </Card>
     </div>
   )
 }
 
-function EmployeeEditor({ ctx, employee }: { ctx: LiveCtx; employee: (typeof ctx.state.employees)[number] }) {
+function EmployeeEditor({ ctx, employee, onSaved }: { ctx: LiveCtx; employee: (typeof ctx.state.employees)[number]; onSaved?: () => void }) {
   const [form, setForm] = useState({
     nameAr: employee.nameAr,
     department: employee.department,
@@ -812,7 +812,7 @@ function EmployeeEditor({ ctx, employee }: { ctx: LiveCtx; employee: (typeof ctx
   })
   return <form className="grid gap-3" onSubmit={async (event) => {
     event.preventDefault()
-    await ctx.act('updateEmployee', {
+    const result = await ctx.act('updateEmployee', {
       id: employee.id,
       nameAr: form.nameAr,
       department: form.department,
@@ -823,6 +823,7 @@ function EmployeeEditor({ ctx, employee }: { ctx: LiveCtx; employee: (typeof ctx
       residenceExpiryDate: form.residenceExpiryDate || undefined,
       contractExpiryDate: form.contractExpiryDate || undefined,
     })
+    if (result.ok) onSaved?.()
   }}>
     <Field label="الاسم"><TextInput value={form.nameAr} onChange={(event) => setForm({ ...form, nameAr: event.target.value })} required /></Field>
     <Field label="القسم"><TextInput value={form.department} onChange={(event) => setForm({ ...form, department: event.target.value })} /></Field>
@@ -1216,7 +1217,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
       >
         <DataTable columns={['الاسم', 'البريد', 'الدور', 'الحالة']} rows={ctx.state.users.map((user) => [user.fullName, user.email, ROLE_OPTIONS.find((item) => item.value === user.role)?.label ?? user.role, user.active ? 'نشط' : 'موقوف'])} />
       </Card>
-      <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُسحب حق إدارة المستخدمين من المدير العام.">
+      <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُ��حب حق إدارة المستخدمين من المدير العام.">
         <form className="space-y-3" onSubmit={async (event) => {
           event.preventDefault()
           const result = await ctx.act('setRolePermissions', { role, permissions: selected })
