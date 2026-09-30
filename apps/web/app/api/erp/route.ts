@@ -44,6 +44,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   markNotificationRead: true,
   scanBarcode: true,
   setRolePermissions: true,
+  createUser: true,
   setUserPassword: true,
   archiveHistory: true,
   createQualitySample: true,

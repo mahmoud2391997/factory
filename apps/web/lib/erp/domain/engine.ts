@@ -669,6 +669,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     markNotificationRead: 'notifications.read',
     scanBarcode: 'barcode.scan',
     setRolePermissions: 'users.manage',
+    createUser: 'users.manage',
     setUserPassword: 'users.manage',
     archiveHistory: 'settings.update',
     createQualitySample: 'qc.manage',
@@ -787,6 +788,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return scanBarcode(state, actor, command.input, clock)
     case 'setRolePermissions':
       return setRolePermissions(state, actor, command.input, clock)
+    case 'createUser':
+      return createUser(state, actor, command.input, clock)
     case 'setUserPassword':
       return setUserPassword(state, actor, command.input, clock)
     case 'archiveHistory':
@@ -1155,7 +1158,7 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
   po.status = input.decision
   po.decidedBy = actor.id
   po.decidedAt = clock.now()
-  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد أمر شراء' : 'رفض أمر شراء', 'purchaseOrder', po.id, po.number)
+  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد أمر ��راء' : 'رفض أمر شراء', 'purchaseOrder', po.id, po.number)
   return ok(state, input.decision === 'APPROVED' ? `تم اعتماد ${po.number}` : `تم رفض ${po.number}`)
 }
 
@@ -2225,7 +2228,18 @@ function scanBarcode(state: ErpState, actor: Actor, input: Extract<Command, { ac
   })
 }
 
-function setRolePermissions(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setRolePermissions' }>['input'], clock: Clock): CommandResult {
+  function createUser(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createUser' }>['input'], clock: Clock): CommandResult {
+    const fullName = input.fullName.trim()
+    const email = input.email.trim().toLowerCase()
+    if (!fullName || !email || !email.includes('@')) return fail('الاسم والبريد الإلكتروني مطلوبان')
+    if (state.users.some((user) => user.email.toLowerCase() === email)) return fail('البريد الإلكتروني مستخدم بالفعل')
+    const user = { id: `user-${Date.now()}`, fullName, email, role: input.role, passwordHash: input.passwordHash, active: true, mustChangePassword: true, tokenVersion: 1 }
+    state.users.unshift(user)
+    audit(state, actor, clock, 'إضافة مستخدم', 'user', user.id, `${fullName} — ${email}`)
+    return ok(state, 'تمت إضافة المستخدم')
+  }
+
+  function setRolePermissions(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setRolePermissions' }>['input'], clock: Clock): CommandResult {
   const allowed = new Set<string>(PERMISSIONS)
   const next = input.permissions.filter((item): item is Permission => allowed.has(item))
   if (input.role === 'GM' && !next.includes('users.manage')) return fail('لا يمكن سحب إدارة المستخدمين من المدير العام')
