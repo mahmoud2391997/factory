@@ -1015,7 +1015,7 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'التسجيل يحتاج صلاحية qc.manage.': { en: 'Recording requires the qc.manage permission.', hi: 'रिकॉर्डिंग के लिए qc.manage अनुमति आवश्यक है।' },
   'اتجاه جودة المورد شهرياً': { en: 'Monthly supplier quality trend', hi: 'मासिक आपूर्तिकर्ता गुणवत्ता प्रवृत्ति' },
   'أدخل رقم دفعة مورد لعرض التتبع الأمامي.': { en: 'Enter a supplier batch number to view forward traceability.', hi: 'आगे की ट्रेसेबिलिटी देखने के लिए आपूर्तिकर्ता दफ़ा संख्या दर्ज करें।' },
-  'البنود المعلقة لا تدخل في تكلفة الطن ولا في الهامش حتى الاعتماد.': { en: 'Pending items are not included in the per-ton cost or margin until approved.', hi: 'स्वीकृति तक लंबित मदें प्रति टन लागत या मार्जिन में शामिल नहीं की जाती हैं।' },
+  'البنود المعلقة لا تدخل في تكلفة الطن ولا في الهامش حتى الاعتماد.': { en: 'Pending items are not included in the per-ton cost or margin until approved.', hi: 'स्वीकृति तक लंबित मदें प्रति टन लागत या मार्जिन में शा���िल नहीं की जाती हैं।' },
   'أقسام الصفحة': { en: 'Page sections', hi: 'पृष्ठ के भाग' },
   'تفاصيل الصفحة': { en: 'Page details', hi: 'पृष्ठ का विवरण' },
   'اختر التقرير المطلوب': { en: 'Choose the required report', hi: 'आवश्यक रिपोर्ट चुनें' },
@@ -1104,7 +1104,7 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'الفرق بين المتوقع في الوصفة والمصروف فعلياً': { en: 'The difference between the recipe\'s expected amount and what was actually issued', hi: 'रेसिपी में अपेक्षित मात्रा और वास्तव में जारी की गई मात्रा के बीच का अंतर' },
   'الفعلي مقارنة بالمخطط': { en: 'Actual compared to planned', hi: 'योजना की तुलना में वास्तविक' },
   'القسم': { en: 'Department', hi: 'विभाग' },
-  'الكمية التي خرجت فعلياً من خط الإنتاج': { en: 'The quantity that actually came out of the production line', hi: 'उत्पादन लाइन से वास्तव में निकली मात्रा' },
+  'الكمية التي خرجت فعلياً من خط الإنتاج': { en: 'The quantity that actually came out of the production line', hi: 'उत्पादन लाइन ��े वास्तव में निकली मात्रा' },
   'الكمية الحالية': { en: 'Current quantity', hi: 'वर्तमान मात्रा' },
   'الكمية الفعلية': { en: 'Actual quantity', hi: 'वास्तविक मात्रा' },
   'الكمية المخططة': { en: 'Planned quantity', hi: 'नियोजित मात्रा' },
@@ -1264,6 +1264,10 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'وحدة القياس': { en: 'Unit of measure', hi: 'माप की इकाई' },
   'وصفات الإنتاج والعميل': { en: 'Production and customer recipes', hi: 'उत्पादन और ग्राहक रेसिपी' },
   'فواتير لم تُحصَّل بالكامل': { en: 'Invoices not fully collected', hi: 'पूरी तरह से वसूल नहीं की गई चालान' },
+  'الأربعاء، 12 سبتمبر 2026': { en: 'Wednesday, 12 September 2026', hi: 'बुधवार, 12 सितंबर 2026' },
+  'الخميس، 3 مارس 2026': { en: 'Thursday, 3 March 2026', hi: 'गुरुवार, 3 मार्च 2026' },
+  '1.250 ر.ع. لكل طن': { en: '1.250 OMR per ton', hi: '1.250 ओमानी रियाल प्रति टन' },
+  '50 كجم': { en: '50 kg', hi: '50 किग्रा' },
 }
 
 export function translateUiText(lang: Language, source: string): string {
@@ -1273,9 +1277,6 @@ export function translateUiText(lang: Language, source: string): string {
   const commonKey = ARABIC_KEYS.get(source)
   if (commonKey) return translations[lang][commonKey]
   return source
-    .replace(UI_TOKEN_PATTERN, (_match, prefix: string, token: string) => `${prefix}${ALL_TOKEN_TRANSLATIONS[token]?.[lang] ?? token}`)
-    .replace(/،/g, ',')
-    .replace(/؛/g, ';')
 }
 
 /** Maps sidebar destination ids to translation keys. */
