@@ -43,5 +43,8 @@ function localizeNode(node: ReactNode, language: ReturnType<typeof useLanguage>[
 
 export function LocalizedContent({ children }: { children: ReactNode }) {
   const { language } = useLanguage()
+  // Arabic is the source language: translateUiText is a no-op for it, so skip
+  // the full tree clone/traversal entirely to avoid unnecessary render cost.
+  if (language === 'ar') return <>{children}</>
   return localizeNode(children, language)
 }

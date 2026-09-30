@@ -9,6 +9,9 @@ import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { dashboardAccess, dashboardAlerts } from '@/lib/erp/domain/dashboard'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
 import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
 
 import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
@@ -1221,18 +1224,20 @@ function Metric({
 }) {
   const toneClass = tone === 'good' ? 'text-[#0a825d]' : tone === 'warn' ? 'text-[#d97706]' : tone === 'bad' ? 'text-[#dc2626]' : 'text-[#1f1f1f]'
   const barClass = tone === 'good' ? 'bg-[#10b981]' : tone === 'warn' ? 'bg-[#f59e0b]' : tone === 'bad' ? 'bg-[#ef4444]' : 'bg-[#0d9488]'
+  const { language } = useLanguage()
   return (
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
-      <div className="text-sm font-medium text-[#6b7280]">{label}</div>
-      <div className={`mt-2 text-3xl font-bold leading-none tracking-tight ${toneClass}`}>{value}</div>
-      {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
+      <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
+      <div className={`mt-2 text-3xl font-bold leading-none tracking-tight ${toneClass}`}>{translateUiText(language, value)}</div>
+      {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
     </div>
   )
 }
 
 function NameList({ rows, empty }: { rows: string[]; empty: string }) {
-  if (rows.length === 0) return <p className="text-sm text-[#788983]">{empty}</p>
+  const { language } = useLanguage()
+  if (rows.length === 0) return <p className="text-sm text-[#788983]">{translateUiText(language, empty)}</p>
   return (
     <ul className="space-y-1.5 text-sm text-[#30453d]">
       {rows.map((row) => (
@@ -1267,6 +1272,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
       : 0
   const dateLabel = dayFmt(status.day)
   return (
+    <LocalizedContent>
     <div className="space-y-5">
       <div>
         <h2 className="text-3xl font-bold">وضع المصنع اليوم</h2>
@@ -1504,5 +1510,6 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </Card> : null}
       </div> : null}
     </div>
+    </LocalizedContent>
   )
 }

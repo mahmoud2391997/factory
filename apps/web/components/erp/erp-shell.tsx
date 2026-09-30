@@ -470,7 +470,7 @@ export function ErpShell() {
             ) : null}
             <button
               type="button"
-              aria-label={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}
+              aria-label={uiLabel(dark ? 'الوضع الفاتح' : 'الوضع الداكن')}
               className="rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
               onClick={() => setDark((value) => !value)}
             >
@@ -516,7 +516,7 @@ export function ErpShell() {
                   pathname === '/settings/audit' ? 'text-[#1f1f1f] underline' : 'text-[#0d9488]'
                 }`}
               >
-                سجل العمليات
+                {uiLabel('سجل العمليات')}
               </Link>
             </div>
           ) : null}

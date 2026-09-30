@@ -6,6 +6,7 @@ import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { factoryStatus, muscatDay, productionCostSummary, stockRows, varianceReport } from '@/lib/erp/domain/reports'
 import type { VarianceGroupBy } from '@/lib/erp/domain/reports'
 import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
 
 import { Card, DataTable, Field, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
@@ -35,18 +36,20 @@ const FACTORY_KEYS = new Set([
 ])
 
 function DayNote({ day, shifted }: { day: string; shifted: boolean }) {
-  return <p className="text-sm text-[#788983]">{shifted ? `آخر يوم تشغيل: ${dayFmt(day)}` : dayFmt(day)}</p>
+  const { language } = useLanguage()
+  return <p className="text-sm text-[#788983]">{translateUiText(language, shifted ? `آخر يوم تشغيل: ${dayFmt(day)}` : dayFmt(day))}</p>
 }
 
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'bad' | 'good' }) {
+  const { language } = useLanguage()
   const toneClass = tone === 'bad' ? 'text-[#dc2626]' : tone === 'good' ? 'text-[#0a825d]' : 'text-[#1f1f1f]'
   const barClass = tone === 'bad' ? 'bg-[#ef4444]' : tone === 'good' ? 'bg-[#10b981]' : 'bg-[#0d9488]'
   return (
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
-      <div className="text-sm font-medium text-[#6b7280]">{label}</div>
-      <div className={`mt-2 text-3xl font-semibold leading-none tracking-tight ${toneClass}`}>{value}</div>
-      {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
+      <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
+      <div className={`mt-2 text-3xl font-semibold leading-none tracking-tight ${toneClass}`}>{translateUiText(language, value)}</div>
+      {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
     </div>
   )
 }

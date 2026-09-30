@@ -6,6 +6,7 @@ import { COST_LABEL, lotEconomics } from '@/lib/erp/domain/costing'
 import { filterLots, operatorLabel, recallReport, traceLot } from '@/lib/erp/domain/reports'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import type { TranslationKey } from '@/lib/i18n/translations'
+import { translateUiText } from '@/lib/i18n/translations'
 
 import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
@@ -24,12 +25,13 @@ function basisTone(basis?: string): 'good' | 'warn' | 'neutral' {
 }
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  const { language } = useLanguage()
   return (
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#0d9488]" />
-      <div className="text-sm font-medium text-[#6b7280]">{label}</div>
-      <div className="mt-2 text-2xl font-semibold leading-none text-[#1f1f1f]">{value}</div>
-      {hint ? <div className="mt-2 text-sm text-[#53655e]">{hint}</div> : null}
+      <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
+      <div className="mt-2 text-2xl font-semibold leading-none text-[#1f1f1f]">{translateUiText(language, value)}</div>
+      {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
     </div>
   )
 }

@@ -262,7 +262,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'supplier-templates',
         label: 'قوالب الرسائل',
         entityKey: 'supplierTemplate',
-        description: 'قوال�� طلبات الأسعار والاستفسارات',
+        description: 'قوالب طلبات الأسعار والاستفسارات',
         permission: ['suppliers.communicate'],
       },
       {
@@ -539,7 +539,7 @@ export const ERP_NAV: ErpMainTab[] = [
         id: 'material-trace',
         label: 'تتبع الخامة',
         entityKey: 'materialTrace',
-        description: 'دخول الخامة واستهلاكها وا��متبقي والمنتج المباع والهدر وسبب الفرق',
+        description: 'دخول الخامة واستهلاكها والمتبقي والمنتج المباع والهدر وسبب الفرق',
         permission: ['reports.read', 'inventory.read'],
       },
       {
@@ -558,7 +558,7 @@ export const ERP_NAV: ErpMainTab[] = [
       },
       {
         id: 'users',
-        label: 'المستخ��مون والصلاحيات',
+        label: 'المستخدمون والصلاحيات',
         entityKey: 'users',
         description: 'الأدوار وصلاحيات كل دور',
         permission: ['users.manage'],

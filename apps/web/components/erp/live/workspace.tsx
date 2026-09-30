@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
 import { useLanguage } from '@/lib/i18n/language-provider'
+import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { translateUiText } from '@/lib/i18n/translations'
 
 import type { LiveCtx } from './ctx'
@@ -123,7 +124,11 @@ export function LiveWorkspace({
 }) {
   const { language } = useLanguage()
   const ActiveScreen = entityKey === 'dashboard' ? DashboardScreen : (SCREEN_MAP[entityKey] ?? OfficeScreens)
-  const body = <ActiveScreen entityKey={entityKey} ctx={ctx} />
+  const body = (
+    <LocalizedContent>
+      <ActiveScreen entityKey={entityKey} ctx={ctx} />
+    </LocalizedContent>
+  )
 
   return (
     <div className="space-y-4">
@@ -154,7 +159,7 @@ export function LiveWorkspace({
           {description ? <p className="mt-2 text-[#6b7280]">{description}</p> : null}
         </div>
       ) : null}
-      {body ?? <div className="rounded-2xl bg-white p-6 text-sm text-[#53655e]">هذه الشاشة غير مربوطة بعد.</div>}
+      {body ?? <div className="rounded-2xl bg-white p-6 text-sm text-[#53655e]">{translateUiText(language, 'هذه الشاشة غير مربوطة بعد.')}</div>}
     </div>
   )
 }
