@@ -45,6 +45,57 @@ export const DESTINATIONS: Destination[] = [
     ],
   },
   {
+    id: 'production',
+    label: 'الإنتاج',
+    icon: Factory,
+    groups: [
+      {
+        id: 'manufacturing',
+        label: 'التصنيع',
+        leaves: [
+          { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
+          { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
+          { href: '/inventory/manufacturing/scale', entityKey: 'scaleReading', tab: true },
+          { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
+        ],
+      },
+      {
+        id: 'products',
+        label: 'المنتجات',
+        leaves: [{ href: '/inventory/products', entityKey: 'product', tab: true }],
+      },
+      {
+        id: 'quality',
+        label: 'الجودة',
+        leaves: [
+          { href: '/inventory/manufacturing/quality', entityKey: 'qualitySample', tab: true },
+          { href: '/inventory/manufacturing/supplier-quality', entityKey: 'supplierQuality', tab: true },
+        ],
+      },
+      {
+        id: 'maintenance',
+        label: 'الصيانة',
+        leaves: [
+          { href: '/inventory/manufacturing/maintenance', entityKey: 'maintenance', tab: true },
+        ],
+      },
+      {
+        id: 'production-reports',
+        label: 'التقارير',
+        leaves: [
+          { href: '/inventory/manufacturing/reports', entityKey: 'productionReports', tab: true },
+          { href: '/inventory/manufacturing/planned', entityKey: 'factoryPlanned', tab: true },
+          { href: '/inventory/manufacturing/actual', entityKey: 'factoryActual', tab: true },
+          { href: '/inventory/manufacturing/execution', entityKey: 'factoryExecution', tab: true },
+          { href: '/inventory/manufacturing/waste', entityKey: 'factoryWaste', tab: true },
+          { href: '/inventory/manufacturing/deviation', entityKey: 'factoryDeviation', tab: true },
+          { href: '/inventory/manufacturing/variance', entityKey: 'varianceReport', tab: true },
+          { href: '/inventory/manufacturing/stoppages', entityKey: 'factoryStoppages', tab: true },
+        ],
+      },
+    ],
+  },
+  {
     id: 'inventory',
     label: 'المخزون',
     icon: Warehouse,
@@ -74,11 +125,6 @@ export const DESTINATIONS: Destination[] = [
         ],
       },
       {
-        id: 'products',
-        label: 'المنتجات',
-        leaves: [{ href: '/inventory/products', entityKey: 'product', tab: true }],
-      },
-      {
         id: 'stock-reports',
         label: 'التقارير',
         leaves: [
@@ -91,52 +137,6 @@ export const DESTINATIONS: Destination[] = [
           { href: '/inventory/raw-materials/stagnant', entityKey: 'factoryStagnant', tab: true },
           { href: '/inventory/raw-materials/reserved', entityKey: 'factoryReserved', tab: true },
           { href: '/inventory/raw-materials/price-analysis', entityKey: 'materialPriceAnalysis', tab: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'production',
-    label: 'الإنتاج',
-    icon: Factory,
-    groups: [
-      {
-        id: 'manufacturing',
-        label: 'التصنيع',
-        leaves: [
-          { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
-          { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
-          { href: '/inventory/manufacturing/scale', entityKey: 'scaleReading', tab: true },
-          { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
-        ],
-      },
-      {
-        id: 'quality',
-        label: 'الجودة',
-        leaves: [
-          { href: '/inventory/manufacturing/quality', entityKey: 'qualitySample', tab: true },
-          { href: '/inventory/manufacturing/supplier-quality', entityKey: 'supplierQuality', tab: true },
-        ],
-      },
-      {
-        id: 'maintenance',
-        label: 'الصيانة',
-        leaves: [
-          { href: '/inventory/manufacturing/maintenance', entityKey: 'maintenance', tab: true },
-        ],
-      },
-      {
-        id: 'production-reports',
-        label: 'التقارير',
-        leaves: [
-          { href: '/inventory/manufacturing/reports', entityKey: 'productionReports', tab: true },
-          { href: '/inventory/manufacturing/planned', entityKey: 'factoryPlanned', tab: true },
-          { href: '/inventory/manufacturing/actual', entityKey: 'factoryActual', tab: true },
-          { href: '/inventory/manufacturing/execution', entityKey: 'factoryExecution', tab: true },
-          { href: '/inventory/manufacturing/waste', entityKey: 'factoryWaste', tab: true },
-          { href: '/inventory/manufacturing/deviation', entityKey: 'factoryDeviation', tab: true },
-          { href: '/inventory/manufacturing/variance', entityKey: 'varianceReport', tab: true },
-          { href: '/inventory/manufacturing/stoppages', entityKey: 'factoryStoppages', tab: true },
         ],
       },
     ],
