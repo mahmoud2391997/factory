@@ -1185,12 +1185,26 @@ function Users({ ctx }: { ctx: LiveCtx }) {
   const [selected, setSelected] = useState<string[]>(ctx.state.rolePermissions.OPERATIONS)
   const [userId, setUserId] = useState(ctx.state.users[0]?.id ?? '')
   const [password, setPassword] = useState('')
+  const [newUser, setNewUser] = useState({ fullName: '', email: '', role: 'OPERATIONS' as RoleKey, password: '' })
   return (
-    <div className="space-y-4">
-      <Card
-        title="المستخدمون"
-        extra={
-          <div className="flex flex-wrap items-center gap-2">
+  <div className="space-y-4">
+  <Card
+  title="المستخدمون"
+  extra={
+  <div className="flex flex-wrap items-center gap-2">
+  {can(ctx.permissions, 'users.manage') ? <FormDialog title="إضافة مستخدم" openLabel="إضافة مستخدم">
+  {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+    event.preventDefault()
+    const result = await ctx.act('createUser', { fullName: newUser.fullName, email: newUser.email, role: newUser.role, password: newUser.password })
+    if (result.ok) { setNewUser({ fullName: '', email: '', role: 'OPERATIONS', password: '' }); close() }
+  }}>
+    <Field label="الاسم الكامل"><TextInput value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} required /></Field>
+    <Field label="البريد الإلكتروني"><TextInput type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required /></Field>
+    <Field label="الدور"><SelectInput value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value as RoleKey })}>{ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</SelectInput></Field>
+    <Field label="كلمة المرور"><TextInput type="password" minLength={8} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} required /></Field>
+    <PrimaryButton disabled={ctx.pending}>إضافة المستخدم</PrimaryButton>
+  </form>}
+  </FormDialog> : null}
           {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('resetDemo', {})}>إعادة البيانات التجريبية</GhostButton> : null}
           <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة ال��رور">
             {(close) => (
@@ -1404,7 +1418,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
               rows={alerts.obligations.map((item) => `استحقاق ${item.dueDate} — ${item.beneficiary} — ${moneyFmt(item.outstanding)} — ${(item.daysLeft ?? 0) < 0 ? `متأخر ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
             /> : null}
             {access.documents ? <NameList
-              empty="لا توجد وثائق قريبة الانتهاء"
+              empty="لا ��وجد وثائق قريبة الانتهاء"
               rows={alerts.documents.map((item) => `${item.title} — ${item.dueDate} — ${(item.daysLeft ?? 0) < 0 ? `منتهية منذ ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
             /> : null}
             {access.fleet ? <NameList

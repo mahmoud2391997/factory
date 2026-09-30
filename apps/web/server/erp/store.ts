@@ -13,6 +13,7 @@ import { actorFromUser, applyCommand, publicState } from '@/lib/erp/domain/engin
 import { migrateErpState } from '@/lib/erp/domain/migrate'
 import { buildSeedState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
+import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { resetLoginThrottle } from '@/server/auth/login-throttle'
 import { BCRYPT_ROUNDS } from '@/server/auth/password'
 import { ensureDatabaseUrlEnv } from '@/server/db-url'
@@ -327,13 +328,14 @@ export async function runCommand(
   const idempotencyKey = options?.idempotencyKey?.trim() ?? ''
   return enqueue(async () => {
     let prepared = { action, input } as Command
-    if (action === 'setUserPassword') {
+    if (action === 'createUser') {
       const password = String(input.password ?? '')
       if (password.length < 8) return { ok: false as const, error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' }
-      prepared = {
-        action: 'setUserPassword',
-        input: { userId: String(input.userId ?? ''), passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) },
-      }
+      prepared = { action: 'createUser', input: { fullName: String(input.fullName ?? ''), email: String(input.email ?? ''), role: String(input.role) as RoleKey, passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) } }
+    } else if (action === 'setUserPassword') {
+      const password = String(input.password ?? '')
+      if (password.length < 8) return { ok: false as const, error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' }
+      prepared = { action: 'setUserPassword', input: { userId: String(input.userId ?? ''), passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) } }
     }
 
     return commitWithRetry(async () => {

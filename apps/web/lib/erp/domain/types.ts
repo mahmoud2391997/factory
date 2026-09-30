@@ -1121,6 +1121,7 @@ export type Command =
   | { action: 'markNotificationRead'; input: { id: string } }
   | { action: 'scanBarcode'; input: { code: string } }
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }
+  | { action: 'createUser'; input: { fullName: string; email: string; role: RoleKey; passwordHash: string } }
   | { action: 'setUserPassword'; input: { userId: string; passwordHash: string } }
   | { action: 'archiveHistory'; input: { olderThanDays: number; nowIso?: string } }
   | { action: 'createQualitySample'; input: { type: 'RAW_MATERIAL' | 'FINISHED_PRODUCT' | 'IN_PROCESS'; materialId?: string; batchNo?: string; supplierId?: string; lotNo?: string; productionOrderId?: string; moisturePct?: number; proteinPct?: number; ashPct?: number; energy?: number; fatPct?: number; fiberPct?: number; calciumPct?: number; phosphorusPct?: number; labName?: string; testMethod?: string; notes?: string; result?: 'PASSED' | 'FAILED' | 'HOLD'; reason?: string } }
