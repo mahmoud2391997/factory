@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { actorFromUser, applyCommand } from './engine'
+import { actorFromUser, applyCommand, publicState } from './engine'
 import { money } from './money'
 import { factoryStatus, muscatDay, traceCustomer, traceLot, trialBalance } from './reports'
 import { buildSeedState, createClock } from './seed'
@@ -57,17 +57,49 @@ test('seeded mill: quality, lot, invoice, traces, journals, and dashboard agree'
   })
   state = must(state, clock, { action: 'createProductionOrder', input: { productId: product.id, recipeId: state.recipes[0]!.id, plannedQty: 1000 } })
   const order = state.productionOrders.find((item) => item.productId === product.id)!
+  state.scaleReadings.unshift({
+    id: 'legacy-scale-reading',
+    materialId: material.id,
+    productionOrderId: order.id,
+    expectedQty: 1000,
+    actualQty: 990,
+    variance: -10,
+    timestamp: '2025-01-01T00:00:00.000Z',
+    operatorId: 'user-production',
+    scaleId: 'MANUAL',
+  })
+  state = must(state, clock, {
+    action: 'recordScaleReading',
+    input: { eventId: 'hopper-1-000042', materialId: material.id, productionOrderId: order.id, actualQty: 995, scaleId: 'hopper-1' },
+  }, 'user-production')
+  assert.equal(state.scaleReadings[0]?.expectedQty, 1000)
+  assert.equal(publicState(state, []).scaleReadings.length, 0)
+  assert.equal(publicState(state, state.rolePermissions.PRODUCTION).scaleReadings.length, 2)
+  state = must(state, clock, {
+    action: 'recordScaleReading',
+    input: { eventId: 'hopper-1-000042', materialId: material.id, productionOrderId: order.id, actualQty: 995, scaleId: 'hopper-1' },
+  }, 'user-production')
+  assert.equal(state.scaleReadings.length, 2)
+  const productionActor = actorFromUser(state, 'user-production')
+  assert.ok(productionActor)
+  const reusedEvent = applyCommand(state, productionActor, {
+    action: 'recordScaleReading',
+    input: { eventId: 'hopper-1-000042', materialId: material.id, productionOrderId: order.id, actualQty: 990, scaleId: 'hopper-1' },
+  }, clock)
+  assert.equal(reusedEvent.ok, false)
   state = must(state, clock, {
     action: 'completeProduction',
     input: {
       productionOrderId: order.id,
       operatorId: operator.id,
-      actualOutputQty: 1000,
+      actualOutputQty: 995,
       actuals: [{ materialId: material.id, actualQty: 1000 }],
       costLines: [{ type: 'GAS', amount: 8 }],
     },
   })
   let lot = state.lots.find((item) => item.productId === product.id)!
+  assert.equal(state.productionOrders.find((item) => item.id === order.id)?.expected[0]?.actualQty, 995)
+  assert.equal(lot.materials[0]?.qty, 995)
   assert.equal(lot.operatorId, operator.id)
   assert.equal(lot.pendingCostLines?.[0]?.amount, 8)
   assert.equal(lot.costLines.some((line) => line.type === 'GAS'), false)

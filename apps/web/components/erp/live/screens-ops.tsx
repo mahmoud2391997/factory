@@ -1344,9 +1344,22 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
       }}>
         {order.expected.map((line) => (
           <div key={line.materialId} className="grid items-center gap-2 md:grid-cols-4">
-            <div className="text-sm font-semibold">{materialName(ctx.state, line.materialId)}</div>
+            <div className="text-sm font-semibold">
+              {materialName(ctx.state, line.materialId)}
+              {ctx.state.scaleReadings.find((reading) => reading.usedForProduction && reading.productionOrderId === order.id && reading.materialId === line.materialId)
+                ? <span className="block text-xs text-[#1d7f72]">من آخر قراءة ميزان تلقائياً</span>
+                : null}
+            </div>
             <div className="text-sm text-[#788983]">متوقع {qtyFmt(line.expectedQty)}</div>
-            <TextInput type="number" min="0" step="0.001" placeholder="الفعلي" value={actuals[line.materialId]?.actualQty ?? String(line.expectedQty)} onChange={(e) => setActuals((current) => ({ ...current, [line.materialId]: { actualQty: e.target.value, wasteQty: current[line.materialId]?.wasteQty ?? '0' } }))} />
+            <TextInput
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="الفعلي"
+              disabled={ctx.state.scaleReadings.some((reading) => reading.usedForProduction && reading.productionOrderId === order.id && reading.materialId === line.materialId)}
+              value={actuals[line.materialId]?.actualQty ?? String(ctx.state.scaleReadings.find((reading) => reading.usedForProduction && reading.productionOrderId === order.id && reading.materialId === line.materialId)?.actualQty ?? line.expectedQty)}
+              onChange={(e) => setActuals((current) => ({ ...current, [line.materialId]: { actualQty: e.target.value, wasteQty: current[line.materialId]?.wasteQty ?? '0' } }))}
+            />
             <TextInput type="number" min="0" step="0.001" placeholder="الهدر" value={actuals[line.materialId]?.wasteQty ?? '0'} onChange={(e) => setActuals((current) => ({ ...current, [line.materialId]: { actualQty: current[line.materialId]?.actualQty ?? String(line.expectedQty), wasteQty: e.target.value } }))} />
           </div>
         ))}
@@ -1463,25 +1476,27 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
 }
 
 function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
-  const [materialId, setMaterialId] = useState(ctx.state.materials[0]?.id ?? '')
-  const [productionOrderId, setProductionOrderId] = useState(ctx.state.productionOrders[0]?.id ?? '')
-  const [expectedQty, setExpectedQty] = useState('')
+  const firstOpenOrder = ctx.state.productionOrders.find((item) => item.status === 'RELEASED')
+  const [materialId, setMaterialId] = useState(firstOpenOrder?.expected[0]?.materialId ?? '')
+  const [productionOrderId, setProductionOrderId] = useState(firstOpenOrder?.id ?? '')
   const [actualQty, setActualQty] = useState('')
   const [scaleId, setScaleId] = useState('MANUAL')
+  const productionOrder = ctx.state.productionOrders.find((item) => item.id === productionOrderId)
+  const expected = productionOrder?.expected.find((item) => item.materialId === materialId)
   return (
-    <Card title="قراءات الميزان" hint="إدخال قراءة الوزن وربطها بالمادة وأمر الإنتاج. يمكن إضافة محول ميزان حقيقي لاحقاً دون تغيير سجل القراءة.">
+    <Card title="قراءات الميزان" hint="تُحسب الكمية المتوقعة من وصفة أمر الإنتاج. قراءة الميزان الأخيرة لكل مادة تُستخدم تلقائياً عند إكمال الأمر.">
       {can(ctx.permissions, 'scale.manage') ? <FormDialog title="تسجيل قراءة ميزان" openLabel="قراءة جديدة">
         {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
           event.preventDefault()
-          const result = await ctx.act('recordScaleReading', { materialId, productionOrderId, expectedQty: Number(expectedQty), actualQty: Number(actualQty), scaleId })
-          if (result.ok) { setExpectedQty(''); setActualQty(''); close() }
+          const result = await ctx.act('recordScaleReading', { materialId, productionOrderId, actualQty: Number(actualQty), scaleId })
+          if (result.ok) { setActualQty(''); close() }
         }}>
-          <Field label="المادة الخام"><SelectInput value={materialId} onChange={(event) => setMaterialId(event.target.value)}>{ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput></Field>
-          <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => setProductionOrderId(event.target.value)}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput></Field>
-          <Field label="الوزن المتوقع (كجم)"><TextInput type="number" min="0" step="0.001" value={expectedQty} onChange={(event) => setExpectedQty(event.target.value)} required /></Field>
+          <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { const id = event.target.value; setProductionOrderId(id); setMaterialId(ctx.state.productionOrders.find((order) => order.id === id)?.expected[0]?.materialId ?? '') }}>{ctx.state.productionOrders.filter((item) => item.status === 'RELEASED').map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput></Field>
+          <Field label="المادة الخام"><SelectInput value={materialId} onChange={(event) => setMaterialId(event.target.value)}>{(productionOrder?.expected ?? []).map((line) => <option key={line.materialId} value={line.materialId}>{materialName(ctx.state, line.materialId)}</option>)}</SelectInput></Field>
+          <Field label="الوزن المتوقع من الوصفة (كجم)"><TextInput value={expected ? qtyFmt(expected.expectedQty) : ''} readOnly /></Field>
           <Field label="الوزن الفعلي (كجم)"><TextInput type="number" min="0" step="0.001" value={actualQty} onChange={(event) => setActualQty(event.target.value)} required /></Field>
           <Field label="معرف الميزان"><TextInput value={scaleId} onChange={(event) => setScaleId(event.target.value)} required /></Field>
-          <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !materialId || !productionOrderId}>تسجيل</PrimaryButton></div>
+          <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !materialId || !productionOrderId || !expected}>تسجيل</PrimaryButton></div>
         </form>}
       </FormDialog> : <p className="text-sm text-[#6b7280]">لا تملك صلاحية تسجيل قراءات الميزان.</p>}
       <DataTable columns={['الوقت', 'المادة', 'أمر الإنتاج', 'المتوقع', 'الفعلي', 'الفارق', 'الميزان', 'المسجل']} rows={(ctx.state.scaleReadings ?? []).map((reading) => [

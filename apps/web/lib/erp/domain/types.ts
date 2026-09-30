@@ -740,6 +740,8 @@ export type ScaleReading = {
   timestamp: string
   operatorId: string
   scaleId: string
+  eventId?: string
+  usedForProduction?: boolean
 }
 
 /** Distribution point. */
@@ -1137,7 +1139,7 @@ export type Command =
   | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
   | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
   | { action: 'approveSupplierCommunication'; input: { id: string } }
-  | { action: 'recordScaleReading'; input: { materialId: string; productionOrderId: string; expectedQty: number; actualQty: number; scaleId: string } }
+  | { action: 'recordScaleReading'; input: { materialId: string; productionOrderId: string; actualQty: number; scaleId: string; eventId?: string } }
   | { action: 'createDistributionPoint'; input: { code: string; nameAr: string; location: string; managerId: string; phone: string } }
   | { action: 'closeDistributionDay'; input: { pointId: string; date: string; openingStock: Record<string, number>; sales: Record<string, number>; returns: Record<string, number>; closingStock: Record<string, number>; cash: number; transfers: number } }
   | { action: 'advanceInvoiceDelivery'; input: { invoiceId: string; step: DeliveryStep; notes?: string; deliveryProof?: { recipientName: string; recipientPhone?: string; location?: { lat: number; lng: number } } } }

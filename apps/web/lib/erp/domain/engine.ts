@@ -1473,7 +1473,10 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   let wasteKg = 0
   for (const expected of order.expected) {
     const actual = input.actuals.find((item) => item.materialId === expected.materialId)
-    const actualQty = qty(actual?.actualQty ?? expected.expectedQty)
+    const scaleReading = state.scaleReadings.find((reading) =>
+      reading.usedForProduction && reading.productionOrderId === order.id && reading.materialId === expected.materialId,
+    )
+    const actualQty = qty(scaleReading?.actualQty ?? actual?.actualQty ?? expected.expectedQty)
     const waste = qty(actual?.wasteQty ?? 0)
     if (actualQty < 0 || waste < 0) return fail('الكميات الفعلية غير صحيحة')
     if (waste - actualQty > 0.001) return fail('الهدر لا يمكن أن يتجاوز الكمية المصروفة')
@@ -1511,7 +1514,10 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const lotMaterials: ProductionLot['materials'] = []
   for (const expected of order.expected) {
     const actual = input.actuals.find((item) => item.materialId === expected.materialId)
-    const actualQty = qty(actual?.actualQty ?? expected.expectedQty)
+    const scaleReading = state.scaleReadings.find((reading) =>
+      reading.usedForProduction && reading.productionOrderId === order.id && reading.materialId === expected.materialId,
+    )
+    const actualQty = qty(scaleReading?.actualQty ?? actual?.actualQty ?? expected.expectedQty)
     const waste = qty(actual?.wasteQty ?? 0)
     const material = findMaterial(state, expected.materialId)!
     if (actualQty > 0) {
@@ -3487,6 +3493,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   const seeAudit = permissions.includes('audit.read')
   const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
   const seeQuality = canAny(permissions, ['qc.read', 'qc.manage', 'qc.release'])
+  const seeScale = canAny(permissions, ['scale.read', 'scale.manage'])
   const seeFleet = canAny(permissions, ['fleet.read', 'fleet.manage'])
   const seeVehicleServices = canAny(permissions, ['fleet.read', 'fleet.manage', 'fleet.service.manage'])
   const isDriver = permissions.includes('fleet.read') && !permissions.includes('fleet.manage')
@@ -3515,6 +3522,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     attendance: seeAttendance ? state.attendance : [],
     qualitySamples: seeQuality ? state.qualitySamples : [],
     qualityHolds: seeQuality ? state.qualityHolds : [],
+    scaleReadings: seeScale ? state.scaleReadings : [],
     companyDocuments: canAny(permissions, ['documents.read', 'documents.manage']) ? state.companyDocuments : [],
     vehicles: seeVehicleServices ? state.vehicles : [],
     vehicleServices: seeVehicleServices ? state.vehicleServices : [],
@@ -3701,22 +3709,39 @@ function approveSupplierCommunication(state: ErpState, actor: Actor, input: Extr
 }
 
 function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordScaleReading' }>['input'], clock: Clock): CommandResult {
+  const existing = input.eventId
+    ? state.scaleReadings.find((reading) => reading.scaleId === input.scaleId && reading.eventId === input.eventId)
+    : undefined
+  if (existing) {
+    const sameReading = existing.materialId === input.materialId
+      && existing.productionOrderId === input.productionOrderId
+      && existing.actualQty === qty(input.actualQty)
+    return sameReading ? ok(state, 'تم تسجيل قراءة الميزان مسبقاً') : fail('معرف الحدث مستخدم لقراءة أخرى')
+  }
   const material = state.materials.find((item) => item.id === input.materialId)
   if (!material) return fail('المادة الخام غير موجودة')
   const productionOrder = state.productionOrders.find((item) => item.id === input.productionOrderId)
   if (!productionOrder) return fail('أمر الإنتاج غير موجود')
+  if (productionOrder.status !== 'RELEASED') return fail('أمر الإنتاج مكتمل بالفعل')
+  const expected = productionOrder.expected.find((item) => item.materialId === input.materialId)
+  if (!expected) return fail('المادة ليست ضمن وصفة أمر الإنتاج')
+  if (typeof input.scaleId !== 'string' || !input.scaleId.trim()) return fail('معرف الميزان مطلوب')
+  if (input.eventId !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(input.eventId)) return fail('معرف حدث الميزان غير صحيح')
+  if (!Number.isFinite(input.actualQty) || input.actualQty < 0) return fail('وزن الميزان غير صحيح')
 
-  const variance = qty(input.actualQty - input.expectedQty)
+  const variance = qty(input.actualQty - expected.expectedQty)
   const reading: ScaleReading = {
     id: clock.id('sr'),
     materialId: input.materialId,
     productionOrderId: input.productionOrderId,
-    expectedQty: qty(input.expectedQty),
+    expectedQty: qty(expected.expectedQty),
     actualQty: qty(input.actualQty),
     variance,
     timestamp: clock.now(),
     operatorId: actor.id,
     scaleId: input.scaleId,
+    eventId: input.eventId,
+    usedForProduction: true,
   }
 
   state.scaleReadings.unshift(reading)
