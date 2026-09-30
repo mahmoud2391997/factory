@@ -348,6 +348,7 @@ const UNIT_TRANSLATIONS: Record<string, Record<'en' | 'hi', string>> = {
 // exact match in UI_TEXT_TRANSLATIONS. Not grammatically perfect, but greatly
 // improves coverage of screens that build strings at runtime.
 const WORD_TRANSLATIONS: Record<string, Record<'en' | 'hi', string>> = {
+  'إجمالي': { en: 'total', hi: 'कुल' },
   'عينات': { en: 'samples', hi: 'नमूने' },
   'العينات': { en: 'Samples', hi: 'नमूने' },
   'نُتج': { en: 'was produced', hi: 'उत्पादित हुआ' },
@@ -991,6 +992,8 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'أعلى فوسفور %': { en: 'Maximum phosphorus %', hi: 'अधिकतम फॉस्फोरस %' },
   'حفظ الحدود': { en: 'Save limits', hi: 'सीमाएँ सहेजें' },
   'مواد خام': { en: 'Raw materials', hi: 'कच्चा माल' },
+  'إجمالي التكلفة': { en: 'Total cost', hi: 'कुल लागत' },
+  'تشمل الخام والأكياس وبنود التحميل. الدفعات القديمة تبقى بتكلفة الخام فقط.': { en: 'Includes raw materials, bags, and loading items. Older batches remain at raw-material cost only.', hi: 'कच्चा माल, बैग और लोडिंग मदें शामिल हैं। पुराने बैच केवल कच्चे माल की लागत पर बने रहते हैं।' },
   'مرفق قديم': { en: 'Legacy attachment', hi: 'पुराना संलग्नक' },
   'مقارنة الاستهلاك الشهري لكل طن': { en: 'Monthly consumption per ton comparison', hi: 'प्रति टन मासिक खपत तुलना' },
   'المعاملات غير المطابقة — مراجعة المحاسب': { en: 'Unmatched transactions — accountant review', hi: 'बेमेल लेनदेन — लेखाकार समीक्षा' },

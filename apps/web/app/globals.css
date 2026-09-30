@@ -395,6 +395,53 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   background-color: #16362e;
 }
 
+/* Additional coverage for the neutral/status palette used by shared
+   list/card primitives (bits.tsx, Metric, DataTable) so the main
+   content area stays readable in dark mode, not just the sidebar. */
+.dark .erp-content [class*='text-[#1f1f1f]'] {
+  color: var(--erp-fg);
+}
+
+.dark .erp-content [class*='text-[#6b7280]'] {
+  color: var(--erp-muted);
+}
+
+.dark .erp-content [class*='border-[#e5e7eb]'],
+.dark .erp-content [class*='border-[#f3f4f6]'],
+.dark .erp-content [class*='border-[#e1e8e4]'] {
+  border-color: var(--erp-border);
+}
+
+.dark .erp-content [class*='bg-[#f3f4f6]'],
+.dark .erp-content [class*='bg-[#f9fafb]'],
+.dark .erp-content [class*='bg-[#f1f5f4]'] {
+  background-color: #232629;
+}
+
+.dark .erp-content [class*='text-[#0a825d]'] {
+  color: var(--erp-good);
+}
+
+.dark .erp-content [class*='text-[#d97706]'] {
+  color: var(--erp-warn);
+}
+
+.dark .erp-content [class*='text-[#dc2626]'] {
+  color: var(--erp-bad);
+}
+
+.dark .erp-content [class*='bg-[#e5ede6]'] {
+  background-color: #16362e;
+}
+
+.dark .erp-content [class*='bg-[#fef3c7]'] {
+  background-color: #3a311c;
+}
+
+.dark .erp-content [class*='bg-[#fee2e2]'] {
+  background-color: #3a2420;
+}
+
 /* GitHub-inspired reference treatment: crisp borders, neutral canvas, blue links, compact surfaces. */
 :root {
   --erp-bg: #f6f8fa;
