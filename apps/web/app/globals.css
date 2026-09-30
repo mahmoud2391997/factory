@@ -488,6 +488,51 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   }
 }
 
+.erp-app[dir='ltr'] .text-right {
+  text-align: left;
+}
+
+.erp-app[dir='ltr'] [class~='mr-auto'] {
+  margin-right: 0 !important;
+  margin-left: auto !important;
+}
+
+.erp-app[dir='ltr'] .erp-nav-item-active::before {
+  right: auto;
+  left: -1px;
+  border-radius: 0 999px 999px 0;
+}
+
+.erp-app[dir='ltr'] .erp-sidebar-nav > div > div[class*='border-r'],
+.erp-app[dir='ltr'] .erp-sidebar-nav > div > div[class*='border-r'] > div {
+  border-right-width: 0;
+  border-left-width: 1px;
+  border-left-color: #d7e4e2;
+}
+
+@media (min-width: 768px) {
+  .erp-app[dir='ltr'] .erp-sidebar {
+    left: 15px;
+    right: auto;
+  }
+
+  .erp-app[dir='ltr'] .erp-content {
+    margin-right: 0 !important;
+    margin-left: 19.5rem;
+  }
+
+  .erp-app[dir='ltr'].erp-app-compact .erp-content {
+    margin-left: 6.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .erp-app[dir='ltr'] .erp-sidebar {
+    left: 0;
+    right: auto;
+  }
+}
+
 .dark {
   --erp-bg: #0d1117;
   --erp-fg: #e6edf3;

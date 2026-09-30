@@ -2,6 +2,10 @@
 
 import { isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
+
 const PAGE_SIZE = 8
 
 function cellText(cell: ReactNode): string {
@@ -23,16 +27,17 @@ export function Card({
   extra?: ReactNode
   children: ReactNode
 }) {
+  const { language } = useLanguage()
   return (
     <section className="flex flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-medium">{title}</h3>
-          {hint ? <p className="mt-1 text-sm text-[#6b7280]">{hint}</p> : null}
+          <h3 className="text-lg font-medium">{translateUiText(language, title)}</h3>
+          {hint ? <p className="mt-1 text-sm text-[#6b7280]">{translateUiText(language, hint)}</p> : null}
         </div>
         {extra}
       </div>
-      {children}
+      <LocalizedContent>{children}</LocalizedContent>
     </section>
   )
 }
@@ -54,6 +59,7 @@ export function ExportLinks({ href }: { href: string }) {
 }
 
 export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
+  const { language } = useLanguage()
   const [sort, setSort] = useState<{ index: number; dir: 'asc' | 'desc' } | null>(null)
   const [page, setPage] = useState(0)
   const sorted = [...rows]
@@ -68,17 +74,18 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-right text-sm">
+        <table className="w-full min-w-[640px] text-start text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] text-[#1f1f1f]">
               {columns.map((column, index) => {
                 const active = sort?.index === index
+                const label = translateUiText(language, column)
                 return (
                   <th key={column} className="px-2 py-2 font-semibold" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
-                      aria-label={`فرز ${column}`}
+                      aria-label={`${translateUiText(language, 'فرز')} ${label}`}
                       onClick={() => {
                         setPage(0)
                         setSort((current) =>
@@ -86,7 +93,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
                         )
                       }}
                     >
-                      {column}
+                      {label}
                       <span aria-hidden className="text-xs text-[#6b7280]">{active ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}</span>
                     </button>
                   </th>
@@ -98,7 +105,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
             {visible.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="py-10 text-center">
-                  <p className="text-base font-medium text-[#1f1f1f]">لا توجد سجلات</p>
+                  <p className="text-base font-medium text-[#1f1f1f]">{translateUiText(language, 'لا توجد سجلات')}</p>
                 </td>
               </tr>
             ) : (
@@ -106,7 +113,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
                 <tr key={`${safePage}-${index}`} className="border-b border-[#f3f4f6] last:border-0">
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex} className="px-2 py-3 align-top">
-                      {cell}
+                      <LocalizedContent>{cell}</LocalizedContent>
                     </td>
                   ))}
                 </tr>
@@ -123,7 +130,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
             disabled={safePage === 0}
             onClick={() => setPage(safePage - 1)}
           >
-            السابق
+            {translateUiText(language, 'السابق')}
           </button>
           <span>
             {safePage + 1} / {pageCount}
@@ -134,7 +141,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
             disabled={safePage >= pageCount - 1}
             onClick={() => setPage(safePage + 1)}
           >
-            التالي
+            {translateUiText(language, 'التالي')}
           </button>
         </div>
       ) : null}
@@ -143,10 +150,11 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
+  const { language } = useLanguage()
   return (
     <label className="block space-y-1.5 text-sm">
-      <span className="font-medium text-[#1f1f1f]">{label}</span>
-      {children}
+      <span className="font-medium text-[#1f1f1f]">{translateUiText(language, label)}</span>
+      <LocalizedContent>{children}</LocalizedContent>
     </label>
   )
 }
@@ -155,11 +163,12 @@ const controlClass =
   'h-10 w-full rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#1f1f1f]'
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={controlClass} />
+  const { language } = useLanguage()
+  return <input {...props} placeholder={props.placeholder ? translateUiText(language, props.placeholder) : undefined} className={controlClass} />
 }
 
 export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={controlClass} />
+  return <select {...props} className={controlClass}><LocalizedContent>{props.children}</LocalizedContent></select>
 }
 
 export function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -168,7 +177,7 @@ export function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes
       {...props}
       className="inline-flex h-9 items-center justify-center rounded-md bg-[#1f1f1f] px-4 text-sm font-medium text-white hover:bg-[#1f1f1f]/90 disabled:opacity-60"
     >
-      {children}
+      <LocalizedContent>{children}</LocalizedContent>
     </button>
   )
 }
@@ -179,7 +188,7 @@ export function GhostButton({ children, ...props }: React.ButtonHTMLAttributes<H
       {...props}
       className="inline-flex h-9 items-center justify-center rounded-md border border-[#e5e7eb] bg-white px-3 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-[#f9fafb] disabled:opacity-60"
     >
-      {children}
+      <LocalizedContent>{children}</LocalizedContent>
     </button>
   )
 }
@@ -197,6 +206,7 @@ export function Dialog({
   wide?: boolean
   children: ReactNode
 }) {
+  const { language } = useLanguage()
   const titleId = useId()
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -227,15 +237,15 @@ export function Dialog({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h3 id={titleId} className="text-lg font-medium text-[#1f1f1f]">
-              {title}
+              {translateUiText(language, title)}
             </h3>
-            {hint ? <p className="mt-1 text-sm text-[#6b7280]">{hint}</p> : null}
+            {hint ? <p className="mt-1 text-sm text-[#6b7280]">{translateUiText(language, hint)}</p> : null}
           </div>
           <button type="button" className="rounded-md px-2 py-1 text-sm text-[#6b7280] hover:bg-[#f3f4f6]" onClick={() => onCloseRef.current()}>
-            إغلاق
+            {translateUiText(language, 'إغلاق')}
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto pe-1">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto pe-1"><LocalizedContent>{children}</LocalizedContent></div>
       </div>
     </div>
   )
@@ -279,7 +289,7 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
         : tone === 'bad'
           ? 'bg-[#fee2e2] text-[#dc2626]'
           : 'bg-[#f3f4f6] text-[#6b7280]'
-  return <span className={`inline-flex rounded-md px-2 py-1 text-[13px] font-normal ${toneClass}`}>{children}</span>
+  return <span className={`inline-flex rounded-md px-2 py-1 text-[13px] font-normal ${toneClass}`}><LocalizedContent>{children}</LocalizedContent></span>
 }
 
 export function toneForStatus(status: string): 'neutral' | 'good' | 'warn' | 'bad' {

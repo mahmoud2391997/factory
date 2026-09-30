@@ -3,6 +3,9 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
+
 import type { LiveCtx } from './ctx'
 
 const FactoryScreens = dynamic(() => import('./screens-factory').then((m) => m.FactoryScreens))
@@ -118,12 +121,13 @@ export function LiveWorkspace({
   crumbs: Array<{ href: string; label: string }>
   ctx: LiveCtx
 }) {
+  const { language } = useLanguage()
   const ActiveScreen = entityKey === 'dashboard' ? DashboardScreen : (SCREEN_MAP[entityKey] ?? OfficeScreens)
   const body = <ActiveScreen entityKey={entityKey} ctx={ctx} />
 
   return (
     <div className="space-y-4">
-      <nav aria-label="مسار الصفحة" className="text-sm text-[#7c8c86]">
+      <nav aria-label={translateUiText(language, 'مسار الصفحة')} className="text-sm text-[#7c8c86]">
         <ol className="flex flex-wrap items-center gap-2">
           {crumbs.map((crumb, index) => {
             const last = index === crumbs.length - 1

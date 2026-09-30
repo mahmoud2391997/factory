@@ -21,9 +21,9 @@ import {
   visibleDestinations,
 } from '@/lib/erp-routes'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
-import { destinationLabel, getSupportedLanguages } from '@/lib/i18n/translations'
+import { destinationLabel, getSupportedLanguages, translateUiText } from '@/lib/i18n/translations'
 import type { Language } from '@/lib/i18n/translations'
-import { useLanguage } from '@/lib/i18n/language-provider'
+import { directionFor, useLanguage } from '@/lib/i18n/language-provider'
 import { useErp } from '@/lib/use-erp'
 
 const COMPACT_KEY = 'erp-sidebar-compact'
@@ -42,6 +42,7 @@ export function ErpShell() {
   const { user, loading: authLoading, logout, refresh } = useAuth()
   const erp = useErp(Boolean(user))
   const { language, setLanguage, t } = useLanguage()
+  const uiLabel = (value: string) => translateUiText(language, value)
   const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
   const permissions = erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? []
 
@@ -164,25 +165,28 @@ export function ErpShell() {
 
   if (authLoading || !user) {
     return (
-      <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
+      <main dir={directionFor(language)} className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
         <div className="flex items-center gap-3 text-sm text-[#6b7280]">
           <Loader2 className="animate-spin" size={18} />
-          جاري التحقق من الجلسة...
+          {uiLabel('جاري التحقق من الجلسة...')}
         </div>
       </main>
     )
   }
 
-  const primaryRole = user.roles[0]?.nameAr ?? 'مستخدم'
+  const primaryRole = uiLabel(user.roles[0]?.nameAr ?? 'مستخدم')
   const firstName = user.fullName.trim().split(/\s+/)[0] ?? user.fullName
   const notices = erp.state?.notifications.filter((item) => item.roles.includes(roleKey)) ?? []
   const unread = notices.filter((item) => !item.read).length
   const showNotices = canSeeEntity(permissions, 'notification')
   const showAudit = canSeeEntity(permissions, 'auditLog')
   const allowed = resolved ? canSeeEntity(permissions, resolved.leaf.entityKey) : false
-  const meta = resolved ? leafMeta(resolved.leaf.entityKey) : null
+  const rawMeta = resolved ? leafMeta(resolved.leaf.entityKey) : null
+  const meta = rawMeta ? { label: uiLabel(rawMeta.label), description: uiLabel(rawMeta.description) } : null
   const tabs = resolved && allowed ? pageTabs(resolved, permissions) : null
-  const crumbs = resolved && allowed ? breadcrumbs(resolved, permissions) : []
+  const crumbs = resolved && allowed
+    ? breadcrumbs(resolved, permissions).map((crumb) => ({ ...crumb, label: uiLabel(crumb.label) }))
+    : []
 
   const liveCtx: LiveCtx | null = erp.state
     ? {
@@ -199,15 +203,15 @@ export function ErpShell() {
     : null
 
   return (
-    <main dir="rtl" className="erp-app min-h-screen bg-[#f9fafb] text-[#1f1f1f] md:p-[15px]">
+    <main dir={directionFor(language)} className={`erp-app min-h-screen bg-[#f9fafb] text-[#1f1f1f] md:p-[15px] ${iconOnly ? 'erp-app-compact' : ''}`}>
       {mobileOpen ? (
-        <button type="button" aria-label="إغلاق" className="fixed inset-0 z-30 bg-[#1f1f1f]/40 md:hidden" onClick={() => setMobileOpen(false)} />
+        <button type="button" aria-label={uiLabel('إغلاق')} className="fixed inset-0 z-30 bg-[#1f1f1f]/40 md:hidden" onClick={() => setMobileOpen(false)} />
       ) : null}
       <aside
         className={`erp-sidebar fixed z-40 flex w-72 flex-col overflow-hidden bg-[#f9fafb] text-[#1f1f1f] transition-[width,transform] duration-300 md:inset-y-[15px] md:right-[15px] md:translate-x-0 ${iconOnly ? 'md:w-20' : ''} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-xl' : 'inset-y-0 right-0 translate-x-full'}`}
       >
         <div className={`flex h-16 items-center gap-2 border-b border-[#e5e7eb] ${iconOnly ? 'justify-center px-2' : 'px-4'}`}>
-          <Link href="/" aria-label="الرئيسية" className="erp-mark grid size-8 shrink-0 place-items-center rounded-lg bg-[#1f1f1f] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+          <Link href="/" aria-label={uiLabel('الرئيسية')} className="erp-mark grid size-8 shrink-0 place-items-center rounded-lg bg-[#1f1f1f] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
             <Factory size={16} aria-hidden strokeWidth={2.4} />
           </Link>
           <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
@@ -215,15 +219,15 @@ export function ErpShell() {
           </div>
           <button
             type="button"
-            aria-label={compact ? 'توسيع الشريط' : 'طي الشريط'}
-            title={compact ? 'توسيع الشريط' : 'طي الشريط'}
+            aria-label={uiLabel(compact ? 'توسيع الشريط' : 'طي الشريط')}
+            title={uiLabel(compact ? 'توسيع الشريط' : 'طي الشريط')}
             className={`${iconOnly ? 'hidden' : 'hidden md:grid'} shrink-0 rounded-[10px] p-1.5 text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]`}
             onClick={() => setCompact((value) => !value)}
           >
             {compact ? <PanelRightOpen size={18} aria-hidden /> : <PanelRightClose size={18} aria-hidden />}
           </button>
           <button
-            aria-label="إغلاق"
+            aria-label={uiLabel('إغلاق')}
             className="mr-auto rounded-lg p-1.5 text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:hidden"
             onClick={() => setMobileOpen(false)}
           >
@@ -231,15 +235,15 @@ export function ErpShell() {
           </button>
         </div>
 
-        <nav className="erp-sidebar-nav flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label="أقسام النظام">
+        <nav className="erp-sidebar-nav flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label={uiLabel('أقسام النظام')}>
           {!iconOnly ? (
             <div className="mb-3 flex items-center justify-between gap-2 px-3">
-              <div className="text-[11px] font-semibold tracking-[0.12em] text-[#9ca3af]">مساحة العمل</div>
+              <div className="text-[11px] font-semibold tracking-[0.12em] text-[#9ca3af]">{uiLabel('مساحة العمل')}</div>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  aria-label="طي الكل"
-                  title="طي الكل"
+                  aria-label={uiLabel('طي الكل')}
+                  title={uiLabel('طي الكل')}
                   className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                   onClick={() => setAllNavExpanded(false)}
                 >
@@ -247,8 +251,8 @@ export function ErpShell() {
                 </button>
                 <button
                   type="button"
-                  aria-label="فتح الكل"
-                  title="فتح الكل"
+                  aria-label={uiLabel('فتح الكل')}
+                  title={uiLabel('فتح الكل')}
                   className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                   onClick={() => setAllNavExpanded(true)}
                 >
@@ -280,7 +284,7 @@ export function ErpShell() {
                     <span className={iconOnly ? 'sr-only' : 'truncate'}>{destLabel(destination)}</span>
                   </Link>
                   {!iconOnly && nodes.length > 0 ? (
-                    <button type="button" aria-label={`${destinationOpen(destination.id) ? 'طي' : 'فتح'} ${destination.label}`} aria-expanded={destinationOpen(destination.id)} title={`${destinationOpen(destination.id) ? 'طي' : 'فتح'} ${destination.label}`} onClick={() => toggleDestination(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+                    <button type="button" aria-label={`${uiLabel(destinationOpen(destination.id) ? 'طي' : 'فتح')} ${destLabel(destination)}`} aria-expanded={destinationOpen(destination.id)} title={`${uiLabel(destinationOpen(destination.id) ? 'طي' : 'فتح')} ${destLabel(destination)}`} onClick={() => toggleDestination(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
                       <ChevronDown size={17} aria-hidden className={`transition-transform duration-300 ${destinationOpen(destination.id) ? 'rotate-180' : ''}`} />
                     </button>
                   ) : null}
@@ -298,15 +302,15 @@ export function ErpShell() {
                             <Link
                               href={node.href}
                               aria-current={nodeCurrent ? 'page' : undefined}
-                              title={node.label}
+                              title={uiLabel(node.label)}
                               className={`flex h-10 min-w-0 flex-1 items-center rounded-lg px-3 text-right text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
                                 nodeCurrent ? 'bg-neutral-200/70 text-[#171717]' : childCurrent ? 'bg-white text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
                               }`}
                             >
-                              <span className="truncate">{node.label}</span>
+                              <span className="truncate">{uiLabel(node.label)}</span>
                             </Link>
                             {node.children.length > 0 ? (
-                              <button type="button" aria-label={`${groupOpen(destination.id, node.id) ? 'طي' : 'فتح'} ${node.label}`} aria-expanded={groupOpen(destination.id, node.id)} title={`${groupOpen(destination.id, node.id) ? 'طي' : 'فتح'} ${node.label}`} onClick={() => toggleGroup(destination.id, node.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#737373] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+                              <button type="button" aria-label={`${uiLabel(groupOpen(destination.id, node.id) ? 'طي' : 'فتح')} ${uiLabel(node.label)}`} aria-expanded={groupOpen(destination.id, node.id)} title={`${uiLabel(groupOpen(destination.id, node.id) ? 'طي' : 'فتح')} ${uiLabel(node.label)}`} onClick={() => toggleGroup(destination.id, node.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#737373] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
                                 <ChevronDown size={15} aria-hidden className={`transition-transform duration-300 ${groupOpen(destination.id, node.id) ? 'rotate-180' : ''}`} />
                               </button>
                             ) : null}
@@ -322,12 +326,12 @@ export function ErpShell() {
                                     key={child.id}
                                     href={child.href}
                                     aria-current={current ? 'page' : undefined}
-                                    title={child.label}
+                                    title={uiLabel(child.label)}
                                     className={`flex h-10 w-full items-center rounded-lg px-3 text-right text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
                                       current ? 'bg-neutral-200/70 font-medium text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
                                     }`}
                                   >
-                                    <span className="truncate">{child.label}</span>
+                                    <span className="truncate">{uiLabel(child.label)}</span>
                                   </Link>
                                 )
                               })}
@@ -351,8 +355,8 @@ export function ErpShell() {
           {iconOnly ? (
             <button
               type="button"
-              aria-label="توسيع الشريط"
-              title="توسيع الشريط"
+              aria-label={uiLabel('توسيع الشريط')}
+              title={uiLabel('توسيع الشريط')}
               className="mb-3 hidden w-full place-items-center rounded-lg border border-[#d1d5db] bg-white p-2 text-[#525252] shadow-sm hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:grid"
               onClick={() => setCompact(false)}
             >
@@ -361,12 +365,12 @@ export function ErpShell() {
           ) : (
             <button
               type="button"
-              aria-label="طي الشريط"
+              aria-label={uiLabel('طي الشريط')}
               className="mb-3 hidden w-full items-center justify-center gap-2 rounded-lg border border-[#d1d5db] bg-white px-3 py-2 text-sm font-medium text-[#525252] shadow-sm hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:flex"
               onClick={() => setCompact(true)}
             >
               <PanelRightClose size={18} aria-hidden />
-              طي الشريط
+              {uiLabel('طي الشريط')}
             </button>
           )}
           <div className={` ${iconOnly ? 'flex flex-col items-center gap-2 p-2' : 'flex items-center gap-3 px-1 py-2'}`}>
@@ -380,7 +384,7 @@ export function ErpShell() {
             </div>
             <button
               type="button"
-              aria-label="تسجيل الخروج"
+              aria-label={uiLabel('تسجيل الخروج')}
               disabled={loggingOut}
               onClick={async () => {
                 setLoggingOut(true)
@@ -398,7 +402,7 @@ export function ErpShell() {
       <div className={`erp-content min-h-screen overflow-auto bg-white md:min-h-[calc(100vh-30px)] md:rounded-[15px] md:border md:border-[#e5e7eb] ${iconOnly ? 'md:mr-[6.5rem]' : 'md:mr-[19.5rem]'}`}>
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-[#e5e7eb] bg-white px-5 md:px-8">
           <button
-            aria-label="فتح القائمة"
+            aria-label={uiLabel('فتح القائمة')}
             className="rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] md:hidden"
             onClick={() => setMobileOpen(true)}
           >
@@ -406,14 +410,14 @@ export function ErpShell() {
           </button>
           <div className="hidden text-right sm:block">
             <div className="text-[13px] text-[#6b7280]">{primaryRole} · {user.email}</div>
-            <h1 className="text-2xl font-semibold leading-tight">مرحباً، {firstName}</h1>
+            <h1 className="text-2xl font-semibold leading-tight">{uiLabel('مرحباً،')} {firstName}</h1>
           </div>
           <div className="mr-auto flex items-center gap-2">
             {showAudit ? (
               <Link
                 href="/settings/audit"
-                aria-label="سجل العمليات"
-                title="سجل العمليات"
+                aria-label={uiLabel('سجل العمليات')}
+                title={uiLabel('سجل العمليات')}
                 aria-current={pathname === '/settings/audit' ? 'page' : undefined}
                 className="rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
               >
@@ -424,7 +428,7 @@ export function ErpShell() {
               <div className="relative" ref={noticesRef}>
                 <button
                   type="button"
-                  aria-label="إشعارات"
+                  aria-label={uiLabel('إشعارات')}
                   aria-expanded={noticesOpen}
                   className="relative rounded-lg border border-[#e5e7eb] bg-white p-2.5 text-[#525252] hover:bg-neutral-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                   onClick={() => setNoticesOpen((open) => !open)}
@@ -438,27 +442,27 @@ export function ErpShell() {
                 </button>
                 {noticesOpen ? (
                   <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(22rem,80vw)] rounded-xl border border-[#e5e7eb] bg-white p-3 text-[#1f1f1f] shadow-sm">
-                    <div className="mb-2 text-sm font-bold">الإشعارات</div>
+                    <div className="mb-2 text-sm font-bold">{uiLabel('الإشعارات')}</div>
                     <div className="max-h-80 space-y-2 overflow-y-auto">
-                      {notices.length === 0 ? <p className="text-sm text-[#6b7280]">لا توجد إشعارات</p> : null}
+                      {notices.length === 0 ? <p className="text-sm text-[#6b7280]">{uiLabel('لا توجد إشعارات')}</p> : null}
                       {notices.slice(0, 8).map((item) => (
                         <div key={item.id} className="rounded-lg border border-[#e5e7eb] p-3">
-                          <div className="font-medium">{item.title}</div>
-                          <div className="text-sm text-[#6b7280]">{item.body}</div>
+                          <div className="font-medium">{uiLabel(item.title)}</div>
+                          <div className="text-sm text-[#6b7280]">{uiLabel(item.body)}</div>
                           {!item.read && liveCtx ? (
                             <button
                               type="button"
                               className="mt-2 text-sm font-medium text-[#0d9488] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                               onClick={() => liveCtx.act('markNotificationRead', { id: item.id })}
                             >
-                              تمت القراءة
+                              {uiLabel('تمت القراءة')}
                             </button>
                           ) : null}
                         </div>
                       ))}
                     </div>
                     <Link href="/notifications" className="mt-3 inline-flex text-sm font-medium text-[#0d9488] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
-                      الإشعارات
+                      {uiLabel('الإشعارات')}
                     </Link>
                   </div>
                 ) : null}
@@ -488,15 +492,15 @@ export function ErpShell() {
             </label>
             {erp.storage ? (
               <span className="hidden rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1 text-xs font-medium text-[#6b7280] sm:inline">
-                {erp.storage === 'postgres' ? 'تخزين سحابي' : 'نسخة محلية'}
-                {process.env.NEXT_PUBLIC_APP_ENV === 'staging' ? ' — تجريبي' : ''}
+                {uiLabel(erp.storage === 'postgres' ? 'تخزين سحابي' : 'نسخة محلية')}
+                {process.env.NEXT_PUBLIC_APP_ENV === 'staging' ? ` — ${uiLabel('تجريبي')}` : ''}
               </span>
             ) : null}
           </div>
         </header>
 
         <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
-          {erp.error ? <div className="mb-4 rounded-lg border border-[#fecaca] bg-[#fee2e2] px-4 py-3 text-sm font-medium text-[#dc2626]">{erp.error}</div> : null}
+          {erp.error ? <div className="mb-4 rounded-lg border border-[#fecaca] bg-[#fee2e2] px-4 py-3 text-sm font-medium text-[#dc2626]">{uiLabel(erp.error)}</div> : null}
           {tabs ? (
             <>
               <PageTabs label="أقسام الصفحة" tabs={tabs.primary} activeId={tabs.activePrimary} />
@@ -518,7 +522,7 @@ export function ErpShell() {
           ) : null}
           {erp.loading || !liveCtx ? (
             <div aria-busy="true" aria-live="polite" className="space-y-4">
-              <span className="sr-only">جاري تحميل عمليات المصنع...</span>
+              <span className="sr-only">{uiLabel('جاري تحميل عمليات المصنع...')}</span>
               <div className="h-8 w-56 animate-pulse rounded-lg bg-[#f3f4f6]" />
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {['a', 'b', 'c'].map((key) => (
@@ -530,7 +534,7 @@ export function ErpShell() {
           ) : resolved && allowed && meta ? (
             <LiveWorkspace entityKey={resolved.leaf.entityKey} title={meta.label} description={meta.description} crumbs={crumbs} ctx={liveCtx} />
           ) : (
-            <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#6b7280]">{resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.'}</div>
+            <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#6b7280]">{uiLabel(resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.')}</div>
           )}
         </div>
       </div>
@@ -538,7 +542,7 @@ export function ErpShell() {
       {toast ? (
         <div role="status" className="fixed bottom-5 left-5 z-50 rounded-lg bg-[#1f1f1f] px-4 py-3 text-xs font-medium text-white shadow-sm">
           {toast}
-          <button type="button" aria-label="إغلاق" className="mr-3 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>
+          <button type="button" aria-label={uiLabel('إغلاق')} className="mr-3 text-white/80 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>
             ×
           </button>
         </div>

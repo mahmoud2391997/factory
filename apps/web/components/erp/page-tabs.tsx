@@ -2,6 +2,9 @@
 
 import Link from 'next/link'
 
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
+
 export type PageTab = {
   id: string
   href: string
@@ -9,10 +12,11 @@ export type PageTab = {
 }
 
 export function PageTabs({ label, tabs, activeId }: { label: string; tabs: PageTab[]; activeId: string }) {
+  const { language } = useLanguage()
   if (tabs.length < 2) return null
   return (
     <div className="mb-6 overflow-x-auto pb-2">
-      <div role="tablist" aria-label={label} className="inline-flex w-max items-center gap-1.5 rounded-xl bg-[#f0f2f1] p-1.5">
+      <div role="tablist" aria-label={translateUiText(language, label)} className="inline-flex w-max items-center gap-1.5 rounded-xl bg-[#f0f2f1] p-1.5">
         {tabs.map((tab) => {
           const active = tab.id === activeId
           return (
@@ -27,7 +31,7 @@ export function PageTabs({ label, tabs, activeId }: { label: string; tabs: PageT
                   : 'text-[#6b7280] hover:bg-[#e1e6e4] hover:text-[#123c35]'
               }`}
             >
-              {tab.label}
+              {translateUiText(language, tab.label)}
             </Link>
           )
         })}
