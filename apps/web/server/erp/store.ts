@@ -4,7 +4,6 @@ import os from 'node:os'
 import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
-import type { Prisma } from '@prisma/client'
 
 import { getDemoSecrets, isDemoMode } from '@/server/demo'
 
@@ -18,14 +17,13 @@ import { resetLoginThrottle } from '@/server/auth/login-throttle'
 import { BCRYPT_ROUNDS } from '@/server/auth/password'
 import { ensureDatabaseUrlEnv } from '@/server/db-url'
 
-let prismaPromise: Promise<typeof import('@/server/db').prisma> | null = null
-
-async function getPrisma() {
-  prismaPromise ??= import('@/server/db').then(({ prisma }) => prisma)
-  return prismaPromise
+async function getErpDocuments() {
+  const { getDb, COLLECTIONS } = await import('@/server/db')
+  const db = await getDb()
+  return db.collection<import('@/server/db').ErpDocumentRow>(COLLECTIONS.erpDocuments)
 }
 
-import { writeFileArchive, writeRelationalArchive } from './archive-store'
+import { writeDatabaseArchive, writeFileArchive } from './archive-store'
 import { deliverPendingEmails } from './mailer'
 
 const DOC_ID = 'main'
@@ -36,7 +34,7 @@ function randomRequiredPassword() {
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
-export type StorageKind = 'postgres' | 'file'
+export type StorageKind = 'mongodb' | 'file'
 
 /** In-memory fallback for serverless hosts where the app directory is read-only. */
 let memoryState: ErpState | null = null
@@ -231,35 +229,40 @@ function assertStorageConfigured() {
   }
 }
 
-  async function readPostgres(): Promise<ErpState | null> {
-    const prisma = await getPrisma()
-    const row = await prisma.erpDocument.findUnique({ where: { id: DOC_ID } })
+async function readDatabase(): Promise<ErpState | null> {
+  const documents = await getErpDocuments()
+  const row = await documents.findOne({ _id: DOC_ID })
   if (!row) return null
   return asState(row.payload)
 }
 
-  async function writePostgres(state: ErpState, expectedRevision: number) {
-    const prisma = await getPrisma()
-    const updated = await prisma.erpDocument.updateMany({
-    where: { id: DOC_ID, version: expectedRevision },
-    data: { version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
-  })
-  if (updated.count > 0) return
-  const existing = await prisma.erpDocument.findUnique({ where: { id: DOC_ID } })
-  if (!existing) {
-    await prisma.erpDocument.create({
-      data: { id: DOC_ID, version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
-    })
-    return
+function isDuplicateKeyError(error: unknown) {
+  return Boolean(error && typeof error === 'object' && 'code' in error && (error as { code: unknown }).code === 11000)
+}
+
+async function writeDatabase(state: ErpState, expectedRevision: number) {
+  const documents = await getErpDocuments()
+  const payload = JSON.parse(JSON.stringify(state)) as unknown
+  const updated = await documents.updateOne(
+    { _id: DOC_ID, version: expectedRevision },
+    { $set: { version: state.revision, payload, updatedAt: new Date() } },
+  )
+  if (updated.matchedCount > 0) return
+  const existing = await documents.findOne({ _id: DOC_ID }, { projection: { _id: 1 } })
+  if (existing) throw new Error(REVISION_CONFLICT)
+  try {
+    await documents.insertOne({ _id: DOC_ID, version: state.revision, payload, updatedAt: new Date() })
+  } catch (error) {
+    if (isDuplicateKeyError(error)) throw new Error(REVISION_CONFLICT)
+    throw error
   }
-  throw new Error(REVISION_CONFLICT)
 }
 
 async function persist(state: ErpState, storage: StorageKind) {
   const expected = state.revision
   state.revision = expected + 1
-  if (storage === 'postgres') {
-    await writePostgres(state, expected)
+  if (storage === 'mongodb') {
+    await writeDatabase(state, expected)
     await writeLocalCopy(state).catch((error) => console.error('[erp/backup]', error))
     return
   }
@@ -268,9 +271,9 @@ async function persist(state: ErpState, storage: StorageKind) {
 
 export async function loadState(): Promise<{ state: ErpState; storage: StorageKind }> {
   if (await databaseEnabled()) {
-    const state = await readPostgres()
+    const state = await readDatabase()
     if (!state) throw new Error('ERP_NOT_BOOTSTRAPPED')
-    return { state, storage: 'postgres' }
+    return { state, storage: 'mongodb' }
   }
 
   if (!isDemoMode()) throw new Error('SERVICE_NOT_CONFIGURED')
@@ -376,7 +379,7 @@ export async function runCommand(
           const plan = planArchive(loaded.state, olderThanDays, nowIso)
           const rows = plan.ledger.length + plan.journals.length + plan.auditLogs.length
           if (rows > 0) {
-            if (loaded.storage === 'postgres') await writeRelationalArchive(loaded.state, plan)
+            if (loaded.storage === 'mongodb') await writeDatabaseArchive(plan)
             else await writeFileArchive(path.join(dataDir(), 'archive'), plan)
           }
         }

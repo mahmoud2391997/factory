@@ -53,29 +53,21 @@ export function toApiError(error: unknown) {
   }
 
   if (
-    message.includes('DATABASE_URL') ||
-    message.includes("Can't reach database") ||
-    message.includes('P1001') ||
-    message.includes('P1012') ||
+    message.includes('MONGODB_URI') ||
+    message.includes('Server selection timed out') ||
+    message.includes('MongoNetworkError') ||
+    message.includes('MongoServerSelectionError') ||
+    message.includes('bad auth') ||
+    message.includes('Authentication failed') ||
+    message.includes('ENOTFOUND') ||
     message.includes('ECONNREFUSED')
   ) {
     return {
       status: 503,
       body: {
         success: false as const,
-        message: 'تعذر الاتصال بقاعدة البيانات. تحقق من DATABASE_URL / POSTGRES_URL وأن Postgres متاح.',
+        message: 'تعذر الاتصال بقاعدة البيانات. تحقق من MONGODB_URI وأن MongoDB Atlas يسمح بالاتصال (Network Access).',
         code: 'DATABASE_UNAVAILABLE',
-      },
-    }
-  }
-
-  if (message.includes('P2021') || message.includes('does not exist') || message.includes('P2010')) {
-    return {
-      status: 503,
-      body: {
-        success: false as const,
-        message: 'جداول النظام غير موجودة بعد. شغّل ترحيل قاعدة البيانات ثم نفّذ /api/setup/bootstrap.',
-        code: 'SCHEMA_MISSING',
       },
     }
   }
@@ -89,7 +81,7 @@ export function toApiError(error: unknown) {
       status: 503,
       body: {
         success: false as const,
-        message: 'بيانات المصنع المحفوظة غير متوافقة مع هذا الإصدار. أعد تهيئة الوثيقة التشغيلية أو امسح صف ErpDocument ثم أعد الدخول.',
+        message: 'بيانات المصنع المحفوظة غير متوافقة مع هذا الإصدار. أعد تهيئة الوثيقة التشغيلية أو احذف الوثيقة main من مجموعة erp_documents ثم أعد الدخول.',
         code: 'ERP_STATE_INVALID',
       },
     }
@@ -100,13 +92,13 @@ export function toApiError(error: unknown) {
       status: 503,
       body: {
         success: false as const,
-        message: 'النظام غير مهيأ بعد. شغّل ترحيلات قاعدة البيانات ثم نفّذ /api/setup/bootstrap مرة واحدة باستخدام SETUP_TOKEN.',
+        message: 'النظام غير مهيأ بعد. نفّذ /api/setup/bootstrap مرة واحدة باستخدام SETUP_TOKEN.',
         code: 'ERP_NOT_BOOTSTRAPPED',
       },
     }
   }
 
-  if (message.includes('P2002') || message.includes('Unique constraint')) {
+  if (message.includes('E11000') || message.includes('duplicate key')) {
     return {
       status: 503,
       body: {

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { resolveDatabaseUrl } from '@/server/db-url'
+
 export const DEMO_USER_ID = 'demo-admin-user'
 export const DEMO_EMAIL = 'admin@factory.local'
 export const DEMO_FULL_NAME = 'مدير تجريبي'
@@ -28,15 +30,7 @@ export function isDemoMode() {
   if (configuredMode === 'demo') return true
   if (configuredMode === 'production' || configuredMode === 'prod') return false
 
-  const hasDatabaseUrl = Boolean(
-    process.env.DATABASE_URL?.trim() ||
-      process.env.POSTGRES_PRISMA_URL?.trim() ||
-      process.env.PRISMA_DATABASE_URL?.trim() ||
-      process.env.POSTGRES_URL?.trim() ||
-      process.env.POSTGRES_URL_NON_POOLING?.trim() ||
-      process.env.DATABASE_URL_UNPOOLED?.trim(),
-  )
-  if (hasDatabaseUrl) return false
+  if (resolveDatabaseUrl()) return false
   if (process.env.NODE_ENV === 'production') return false
   return true
 }

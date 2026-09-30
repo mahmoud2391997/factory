@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { requirePermission } from '@/server/auth/require-auth'
 import { getDemoWarehouses, isDemoMode } from '@/server/demo'
-import { prisma } from '@/server/db'
+import { COLLECTIONS, getDb, type WarehouseLocationRow, type WarehouseRow } from '@/server/db'
 
 export const runtime = 'nodejs'
 
@@ -18,21 +18,25 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const warehouses = await prisma.warehouse.findMany({
-    where: { isActive: true },
-    orderBy: { key: 'asc' },
-    select: {
-      id: true,
-      key: true,
-      nameAr: true,
-      isActive: true,
-      locations: {
-        where: { isActive: true },
-        orderBy: { code: 'asc' },
-        select: { id: true, code: true, nameAr: true },
-      },
-    },
-  })
+  const db = await getDb()
+  const [warehouseRows, locationRows] = await Promise.all([
+    db.collection<WarehouseRow>(COLLECTIONS.warehouses).find({ isActive: true }).sort({ key: 1 }).toArray(),
+    db
+      .collection<WarehouseLocationRow>(COLLECTIONS.warehouseLocations)
+      .find({ isActive: true })
+      .sort({ code: 1 })
+      .toArray(),
+  ])
+
+  const warehouses = warehouseRows.map((warehouse) => ({
+    id: warehouse._id,
+    key: warehouse.key,
+    nameAr: warehouse.nameAr,
+    isActive: warehouse.isActive,
+    locations: locationRows
+      .filter((location) => location.warehouseId === warehouse._id)
+      .map((location) => ({ id: location._id, code: location.code, nameAr: location.nameAr })),
+  }))
 
   return NextResponse.json({
     success: true,

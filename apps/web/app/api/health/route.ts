@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { isDemoMode } from '@/server/demo'
+import { resolveDatabaseEnvKey } from '@/server/db-url'
 import { getDatabaseUrl, getJwtSecretRaw } from '@/server/env'
 
 export const runtime = 'nodejs'
@@ -9,11 +10,7 @@ export async function GET() {
   const demoMode = isDemoMode()
   const databaseConfigured = Boolean(getDatabaseUrl())
   const jwtConfigured = Boolean(getJwtSecretRaw())
-  const databaseEnvKey = process.env.DATABASE_URL
-    ? 'DATABASE_URL'
-    : process.env.POSTGRES_URL
-      ? 'POSTGRES_URL'
-      : null
+  const databaseEnvKey = resolveDatabaseEnvKey()
 
   let databaseReachable = false
   let bootstrapped: boolean | null = null
@@ -21,10 +18,13 @@ export async function GET() {
 
   if (databaseConfigured) {
     try {
-      const { prisma } = await import('@/server/db')
-      await prisma.$queryRaw`SELECT 1`
+      const { getDb, COLLECTIONS } = await import('@/server/db')
+      const db = await getDb()
+      await db.command({ ping: 1 })
       databaseReachable = true
-      const doc = await prisma.erpDocument.findUnique({ where: { id: 'main' }, select: { id: true } })
+      const doc = await db
+        .collection<{ _id: string }>(COLLECTIONS.erpDocuments)
+        .findOne({ _id: 'main' }, { projection: { _id: 1 } })
       bootstrapped = Boolean(doc)
     } catch (error) {
       databaseError = error instanceof Error ? error.message.slice(0, 180) : 'database_error'
@@ -50,15 +50,15 @@ export async function GET() {
           : null,
       },
       message: demoMode
-        ? 'وضع تجريبي نشط (بدون DATABASE_URL) — يمكن الدخول بالحساب الافتراضي'
+        ? 'وضع تجريبي نشط (بدون MONGODB_URI) — يمكن الدخول بالحساب الافتراضي'
         : ready
           ? 'OK'
           : !databaseConfigured
-            ? 'DATABASE_URL / POSTGRES_URL غير مضبوط'
+            ? 'MONGODB_URI غير مضبوط'
             : !jwtConfigured
               ? 'JWT_SECRET غير مضبوط'
               : !databaseReachable
-                ? 'قاعدة البيانات غير متاحة أو الجداول غير مُرحَّلة'
+                ? 'قاعدة بيانات MongoDB غير متاحة'
                 : 'غير جاهز',
     },
     { status: ready ? 200 : 503 },

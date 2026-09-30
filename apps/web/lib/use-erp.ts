@@ -6,7 +6,7 @@ import type { ActResult, PublicState } from '@/components/erp/live/ctx'
 
 type Load = {
   state: PublicState
-  storage: 'postgres' | 'file'
+  storage: 'mongodb' | 'file'
 }
 
 export function useErp(enabled: boolean = true) {
