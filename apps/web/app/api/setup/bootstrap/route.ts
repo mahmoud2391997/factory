@@ -1,11 +1,18 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 import { emptyState } from '@/lib/erp/domain/seed'
-import { prisma } from '@/server/db'
+import {
+  COLLECTIONS,
+  getDb,
+  getMongoClient,
+  type ErpDocumentRow,
+  type WarehouseLocationRow,
+  type WarehouseRow,
+} from '@/server/db'
 
 export const runtime = 'nodejs'
 
@@ -50,7 +57,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const existingMarker = await prisma.systemInit.findUnique({ where: { id: 'primary' } })
+  const db = await getDb()
+  const systemInit = db.collection<{ _id: string; createdAt: Date }>(COLLECTIONS.systemInit)
+  const existingMarker = await systemInit.findOne({ _id: 'primary' })
   if (existingMarker) {
     return NextResponse.json({ success: false, message: 'تمت تهيئة النظام مسبقًا' }, { status: 410 })
   }
@@ -58,58 +67,62 @@ export async function POST(req: NextRequest) {
   const email = parsed.data.email.toLowerCase().trim()
   const passwordHash = await bcrypt.hash(parsed.data.password, 12)
 
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.systemInit.create({ data: { id: 'primary' } })
+  const warehousesCol = db.collection<WarehouseRow>(COLLECTIONS.warehouses)
+  const locationsCol = db.collection<WarehouseLocationRow>(COLLECTIONS.warehouseLocations)
+  await Promise.all([
+    warehousesCol.createIndex({ key: 1 }, { unique: true }),
+    locationsCol.createIndex({ warehouseId: 1, code: 1 }, { unique: true }),
+  ])
 
-    const settings = await tx.companySettings.create({
-      data: {
-        currencyCode: 'OMR',
-        productionVarianceThresholdPct: '2.50',
-        taxRatePct: '5.00',
-        taxInclusivePricing: false,
-      },
-      select: { id: true },
-    })
+  const client = await getMongoClient()
+  const session = client.startSession()
+  try {
+    const result = await session.withTransaction(async () => {
+      const now = new Date()
+      await systemInit.insertOne({ _id: 'primary', createdAt: now }, { session })
 
-    const whRaw = await tx.warehouse.upsert({
-      where: { key: 'WH_RAW' },
-      update: { isActive: true, nameAr: 'مستودع المواد الخام' },
-      create: { key: 'WH_RAW', nameAr: 'مستودع المواد الخام' },
-      select: { id: true, key: true, nameAr: true },
-    })
-    const whMfg = await tx.warehouse.upsert({
-      where: { key: 'WH_MFG' },
-      update: { isActive: true, nameAr: 'مستودع التصنيع' },
-      create: { key: 'WH_MFG', nameAr: 'مستودع التصنيع' },
-      select: { id: true, key: true, nameAr: true },
-    })
-    const whFg = await tx.warehouse.upsert({
-      where: { key: 'WH_FG' },
-      update: { isActive: true, nameAr: 'مستودع المنتجات النهائية' },
-      create: { key: 'WH_FG', nameAr: 'مستودع المنتجات النهائية' },
-      select: { id: true, key: true, nameAr: true },
-    })
+      const settingsId = randomUUID()
+      await db.collection<{ _id: string } & Record<string, unknown>>(COLLECTIONS.companySettings).insertOne(
+        {
+          _id: settingsId,
+          currencyCode: 'OMR',
+          productionVarianceThresholdPct: '2.50',
+          taxRatePct: '5.00',
+          taxInclusivePricing: false,
+          createdAt: now,
+          updatedAt: now,
+        },
+        { session },
+      )
 
-    await tx.warehouseLocation.upsert({
-      where: { warehouseId_code: { warehouseId: whRaw.id, code: 'A1' } },
-      update: { isActive: true, nameAr: 'منطقة A1' },
-      create: { warehouseId: whRaw.id, code: 'A1', nameAr: 'منطقة A1' },
-      select: { id: true },
-    })
-    await tx.warehouseLocation.upsert({
-      where: { warehouseId_code: { warehouseId: whMfg.id, code: 'M1' } },
-      update: { isActive: true, nameAr: 'منطقة M1' },
-      create: { warehouseId: whMfg.id, code: 'M1', nameAr: 'منطقة M1' },
-      select: { id: true },
-    })
-    await tx.warehouseLocation.upsert({
-      where: { warehouseId_code: { warehouseId: whFg.id, code: 'F1' } },
-      update: { isActive: true, nameAr: 'منطقة F1' },
-      create: { warehouseId: whFg.id, code: 'F1', nameAr: 'منطقة F1' },
-      select: { id: true },
-    })
+      const seeds = [
+        { key: 'WH_RAW', nameAr: 'مستودع المواد الخام', code: 'A1' },
+        { key: 'WH_MFG', nameAr: 'مستودع التصنيع', code: 'M1' },
+        { key: 'WH_FG', nameAr: 'مستودع المنتجات النهائية', code: 'F1' },
+      ]
+      const warehouses: Array<{ key: string; nameAr: string }> = []
+      for (const seed of seeds) {
+        const warehouse = await warehousesCol.findOneAndUpdate(
+          { key: seed.key },
+          {
+            $set: { isActive: true, nameAr: seed.nameAr, updatedAt: now },
+            $setOnInsert: { _id: randomUUID(), key: seed.key, createdAt: now },
+          },
+          { upsert: true, returnDocument: 'after', session },
+        )
+        if (!warehouse) throw new Error(`Failed to seed warehouse ${seed.key}`)
+        await locationsCol.updateOne(
+          { warehouseId: warehouse._id, code: seed.code },
+          {
+            $set: { isActive: true, nameAr: `منطقة ${seed.code}`, updatedAt: now },
+            $setOnInsert: { _id: randomUUID(), warehouseId: warehouse._id, code: seed.code, createdAt: now },
+          },
+          { upsert: true, session },
+        )
+        warehouses.push({ key: warehouse.key, nameAr: warehouse.nameAr })
+      }
 
-    const state = emptyState(passwordHash)
+      const state = emptyState(passwordHash)
     state.users = [
       {
         id: 'user-admin',
@@ -125,17 +138,30 @@ export async function POST(req: NextRequest) {
     state.company.notifyEmail = email
     state.revision = 1
 
-    await tx.erpDocument.create({
-      data: { id: DOC_ID, version: state.revision, payload: state as unknown as Prisma.InputJsonValue },
-      select: { id: true },
+      await db.collection<ErpDocumentRow>(COLLECTIONS.erpDocuments).insertOne(
+        {
+          _id: DOC_ID,
+          version: state.revision,
+          payload: JSON.parse(JSON.stringify(state)) as unknown,
+          updatedAt: now,
+        },
+        { session },
+      )
+
+      return {
+        settingsId,
+        user: { email, fullName: parsed.data.fullName.trim() },
+        warehouses,
+      }
     })
 
-    return {
-      settingsId: settings.id,
-      user: { email, fullName: parsed.data.fullName.trim() },
-      warehouses: [whRaw, whMfg, whFg].map((w) => ({ key: w.key, nameAr: w.nameAr })),
+    return NextResponse.json({ success: true, data: result, message: 'تمت تهيئة النظام بنجاح. سجّل الدخول ثم غيّر كلمة المرور.' })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: unknown }).code === 11000) {
+      return NextResponse.json({ success: false, message: 'تمت تهيئة النظام مسبقًا' }, { status: 410 })
     }
-  })
-
-  return NextResponse.json({ success: true, data: result, message: 'تمت تهيئة النظام بنجاح. سجّل الدخول ثم غيّر كلمة المرور.' })
+    throw error
+  } finally {
+    await session.endSession()
+  }
 }

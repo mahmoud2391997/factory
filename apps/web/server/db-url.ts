@@ -1,25 +1,23 @@
-/** Local copy of DB URL resolution (avoids fragile subpath import during Edge/Turbopack). */
-export function resolveDatabaseUrl(): string | null {
-  const candidates = [
-    process.env.DATABASE_URL,
-    process.env.POSTGRES_PRISMA_URL,
-    process.env.PRISMA_DATABASE_URL,
-    process.env.POSTGRES_URL,
-    process.env.POSTGRES_URL_NON_POOLING,
-    process.env.DATABASE_URL_UNPOOLED,
-  ]
+const DATABASE_ENV_KEYS = ['MONGODB_URI', 'MONGODB_URL', 'MONGO_URL', 'DATABASE_URL'] as const
 
-  for (const candidate of candidates) {
-    const value = candidate?.trim()
-    if (value) return value
+function isMongoUrl(value: string) {
+  return value.startsWith('mongodb://') || value.startsWith('mongodb+srv://')
+}
+
+export function resolveDatabaseEnvKey(): (typeof DATABASE_ENV_KEYS)[number] | null {
+  for (const key of DATABASE_ENV_KEYS) {
+    const value = process.env[key]?.trim()
+    if (value && isMongoUrl(value)) return key
   }
   return null
 }
 
+export function resolveDatabaseUrl(): string | null {
+  const key = resolveDatabaseEnvKey()
+  return key ? process.env[key]!.trim() : null
+}
+
+/** Kept for existing callers; MongoDB needs no env mutation. */
 export function ensureDatabaseUrlEnv(): string | null {
-  const resolved = resolveDatabaseUrl()
-  if (resolved && !process.env.DATABASE_URL?.trim()) {
-    process.env.DATABASE_URL = resolved
-  }
-  return resolved
+  return resolveDatabaseUrl()
 }
