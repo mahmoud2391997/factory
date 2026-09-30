@@ -541,7 +541,7 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(item.costPerTon),
           ])}
         />
-        <h4 className="mb-2 mt-5 font-semibold">مقارنة الاستهلاك الشهري لكل طن</h4>
+        <h4 className="mb-2 mt-5 font-semibold">مقارنة ال��ستهلاك الشهري لكل طن</h4>
         <DataTable columns={['الشهر', 'المرافق', 'الاستهلاك', 'طن الإنتاج', 'التكلفة/طن', 'مقارنة']} rows={utilitiesPerTon(ctx.state).map((item) => {
           const previous = utilitiesPerTon(ctx.state).filter((row) => row.utility === item.utility && row.month < item.month).sort((a, b) => b.month.localeCompare(a.month))[0]
           const previousReading = previous && ctx.state.utilitiesReadings.find((row) => row.id === previous.readingId)
@@ -793,10 +793,47 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
           </FormDialog>
         }
       >
-        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—'])} />
+        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب', 'إجراء']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—', can(ctx.permissions, 'employees.manage') ? <FormDialog key={`${employee.id}-edit`} title="تحديث الموظف" openLabel="تعديل"><EmployeeEditor ctx={ctx} employee={employee} /></FormDialog> : '—'])} />
       </Card>
     </div>
   )
+}
+
+function EmployeeEditor({ ctx, employee }: { ctx: LiveCtx; employee: (typeof ctx.state.employees)[number] }) {
+  const [form, setForm] = useState({
+    nameAr: employee.nameAr,
+    department: employee.department,
+    jobTitle: employee.jobTitle,
+    basicSalary: String(employee.basicSalary ?? 0),
+    active: employee.active,
+    idExpiryDate: employee.idExpiryDate ?? '',
+    residenceExpiryDate: employee.residenceExpiryDate ?? '',
+    contractExpiryDate: employee.contractExpiryDate ?? '',
+  })
+  return <form className="grid gap-3" onSubmit={async (event) => {
+    event.preventDefault()
+    await ctx.act('updateEmployee', {
+      id: employee.id,
+      nameAr: form.nameAr,
+      department: form.department,
+      jobTitle: form.jobTitle,
+      basicSalary: Number(form.basicSalary),
+      active: form.active,
+      idExpiryDate: form.idExpiryDate || undefined,
+      residenceExpiryDate: form.residenceExpiryDate || undefined,
+      contractExpiryDate: form.contractExpiryDate || undefined,
+    })
+  }}>
+    <Field label="الاسم"><TextInput value={form.nameAr} onChange={(event) => setForm({ ...form, nameAr: event.target.value })} required /></Field>
+    <Field label="القسم"><TextInput value={form.department} onChange={(event) => setForm({ ...form, department: event.target.value })} /></Field>
+    <Field label="المسمى"><TextInput value={form.jobTitle} onChange={(event) => setForm({ ...form, jobTitle: event.target.value })} /></Field>
+    <Field label="الراتب الأساسي"><TextInput type="number" min="0" step="0.001" value={form.basicSalary} onChange={(event) => setForm({ ...form, basicSalary: event.target.value })} required /></Field>
+    <Field label="انتهاء البطاقة"><TextInput type="date" value={form.idExpiryDate} onChange={(event) => setForm({ ...form, idExpiryDate: event.target.value })} /></Field>
+    <Field label="انتهاء الإقامة"><TextInput type="date" value={form.residenceExpiryDate} onChange={(event) => setForm({ ...form, residenceExpiryDate: event.target.value })} /></Field>
+    <Field label="انتهاء العقد"><TextInput type="date" value={form.contractExpiryDate} onChange={(event) => setForm({ ...form, contractExpiryDate: event.target.value })} /></Field>
+    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> موظف نشط</label>
+    <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'employees.manage')}>حفظ التحديث</PrimaryButton>
+  </form>
 }
 
 function Attendance({ ctx }: { ctx: LiveCtx }) {
@@ -951,7 +988,7 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
       <div className="flex justify-end">
         <ExportLinks href="/api/erp/export?kind=pnl" />
       </div>
-      <Card title="ميزان المراجعة" hint={tb.balanced ? 'المدين يساوي الدائن.' : 'الميزان غير متوازن — راجع القيود.'} extra={<button type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => window.print()}>طباعة</button>}>
+      <Card title="ميزان ا��مراجعة" hint={tb.balanced ? 'المدين يساوي الدائن.' : 'الميزان غير متوازن — راجع القيود.'} extra={<button type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => window.print()}>طباعة</button>}>
         <DataTable columns={['الحساب', 'مدين', 'دائن']} rows={tb.rows.filter((row) => row.debit || row.credit).map((row) => [row.nameAr, moneyFmt(row.debit), moneyFmt(row.credit)])} />
       </Card>
       <Card title="تتبع الدفعة" hint="من الدفعة إلى خامات الموردين ثم إلى العملاء.">
@@ -1154,7 +1191,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
         extra={
           <div className="flex flex-wrap items-center gap-2">
           {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('resetDemo', {})}>إعادة البيانات التجريبية</GhostButton> : null}
-          <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة المرور">
+          <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة ال��رور">
             {(close) => (
               <form className="grid gap-3" onSubmit={async (event) => {
                 event.preventDefault()

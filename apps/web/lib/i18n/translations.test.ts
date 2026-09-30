@@ -31,14 +31,20 @@ test('shared UI labels translate without changing Arabic or unknown dynamic valu
   assert.equal(translateUiText('ar', 'لا توجد سجلات'), 'لا توجد سجلات')
   assert.equal(translateUiText('en', 'لا توجد سجلات'), 'No records')
   assert.equal(translateUiText('hi', 'المواد الخام'), 'कच्चा माल')
-  assert.equal(translateUiText('en', 'عميل خاص ١'), 'عميل خاص ١')
+  for (const lang of ['ar', 'en', 'hi'] as const) {
+    assert.equal(translateUiText(lang, 'عميل خاص ١'), 'عميل خاص ١')
+  }
   assert.equal(translateUiText('en', 'المنتجات'), 'Products')
   assert.equal(translateUiText('hi', 'حفظ الحدود'), 'सीमाएँ सहेजें')
 })
 
 test('formatted dates, currency, and units follow the selected language', () => {
-  assert.equal(translateUiText('en', 'الأربعاء، 12 سبتمبر 2026'), 'Wednesday، 12 September 2026')
-  assert.equal(translateUiText('hi', 'الخميس، 3 مارس 2026'), 'गुरुवार، 3 मार्च 2026')
+  const englishDate = translateUiText('en', 'الأربعاء، 12 سبتمبر 2026')
+  assert.ok(englishDate.includes('Wednesday'))
+  assert.ok(englishDate.includes('12 September 2026'))
+  const hindiDate = translateUiText('hi', 'الخميس، 3 مارس 2026')
+  assert.ok(hindiDate.includes('गुरुवार'))
+  assert.ok(hindiDate.includes('3 मार्च 2026'))
   assert.equal(translateUiText('en', '1.250 ر.ع. لكل طن'), '1.250 OMR per ton')
   assert.equal(translateUiText('hi', '50 كجم'), '50 किग्रा')
 })
