@@ -130,7 +130,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'inventory.adjust',
     'inventory.ledger.read',
     'purchasing.read',
-    'purchasing.po.create',
+  'purchasing.request.create',
+  'purchasing.request.approve',
+  'purchasing.quotation.manage',
+  'purchasing.po.create',
+
     'purchasing.gr.create',
     'production.read',
     'production.create',
@@ -210,9 +214,15 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 8
+export const PERMISSIONS_VERSION = 9
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
+  9: {
+    GM: ['purchasing.request.create', 'purchasing.request.approve', 'purchasing.quotation.manage'],
+    ACCOUNTANT: ['purchasing.request.create', 'purchasing.quotation.manage'],
+    OPERATIONS: ['purchasing.request.create', 'purchasing.request.approve', 'purchasing.quotation.manage'],
+    STOREKEEPER: ['purchasing.request.create'],
+  },
   1: {
     GM: ['qc.read', 'qc.manage', 'qc.release', 'qc.limits'],
     ACCOUNTANT: ['qc.read'],

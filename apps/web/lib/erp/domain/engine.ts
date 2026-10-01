@@ -645,6 +645,10 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     setVarianceThresholds: 'production.variance.thresholds',
     updateCompany: 'settings.update',
     fundBank: 'settings.update',
+    createPurchaseRequest: 'purchasing.request.create',
+    addSupplierQuotation: 'purchasing.quotation.manage',
+    selectSupplierQuotation: 'purchasing.quotation.manage',
+    decidePurchaseRequest: 'purchasing.request.approve',
     createPurchaseOrder: 'purchasing.po.create',
     decidePurchaseOrder: 'purchasing.po.approve',
     receiveGoods: 'purchasing.gr.create',
@@ -740,6 +744,14 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return updateCompany(state, actor, command.input, clock)
     case 'fundBank':
       return fundBank(state, actor, command.input, clock)
+    case 'createPurchaseRequest':
+      return createPurchaseRequest(state, actor, command.input, clock)
+    case 'addSupplierQuotation':
+      return addSupplierQuotation(state, actor, command.input, clock)
+    case 'selectSupplierQuotation':
+      return selectSupplierQuotation(state, actor, command.input, clock)
+    case 'decidePurchaseRequest':
+      return decidePurchaseRequest(state, actor, command.input, clock)
     case 'createPurchaseOrder':
       return createPurchaseOrder(state, actor, command.input, clock)
     case 'decidePurchaseOrder':
@@ -1165,7 +1177,7 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
 function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { action: 'receiveGoods' }>['input'], clock: Clock): CommandResult {
   const po = state.purchaseOrders.find((item) => item.id === input.purchaseOrderId)
   if (!po) return fail('أمر الشراء غير موجود')
-  if (po.status !== 'APPROVED' && po.status !== 'PARTIALLY_RECEIVED') return fail('الاستلام متاح بعد اعتماد أمر الشراء فقط')
+  if (po.status !== 'APPROVED' && po.status !== 'PARTIALLY_RECEIVED') return fail('الاستلام متاح بعد اعتماد أمر ال��راء فقط')
   if (input.lines.length === 0) return fail('أدخل الكميات المستلمة')
   const receiptLines = []
   let net = 0
@@ -2084,7 +2096,7 @@ function recordAttendance(state: ErpState, actor: Actor, input: Extract<Command,
     source: input.source ?? 'MANUAL',
   }
   state.attendance.unshift(row)
-  audit(state, actor, clock, 'تسجيل حضور', 'attendance', row.id, input.date)
+  audit(state, actor, clock, 'تسجيل حضو��', 'attendance', row.id, input.date)
   return ok(state, 'تم تسجيل الحضور')
 }
 
