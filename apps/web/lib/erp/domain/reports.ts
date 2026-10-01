@@ -123,27 +123,34 @@ export function profitAndLoss(state: ReportState) {
 }
 
 export function vatReturn(state: ReportState, month?: string) {
-  const inMonth = (iso: string) => !month || iso.slice(0, 7) === month
+  const inMonth = (iso: string) => !month || muscatDay(iso).slice(0, 7) === month
   const output = money(
     state.invoices
       .filter((invoice) => invoice.status !== 'DRAFT' && inMonth(invoice.issuedAt))
       .reduce((sum, invoice) => sum + invoice.vatAmount, 0),
   )
+  const inputEntries = state.journals.filter((entry) => entry.refType === 'goodsReceipt' || entry.refType === 'expense')
   const inputPurchases = money(
-    state.journals
-      .filter((entry) => entry.refType === 'goodsReceipt' && inMonth(entry.at))
-      .flatMap((entry) => entry.lines)
-      .filter((line) => line.accountCode === '2300')
-      .reduce((sum, line) => sum + line.debit, 0),
+  inputEntries
+  .filter((entry) => entry.refType === 'goodsReceipt' && inMonth(entry.at))
+  .flatMap((entry) => entry.lines)
+  .filter((line) => line.accountCode === '2300')
+  .reduce((sum, line) => sum + line.debit, 0),
   )
   const inputExpenses = money(
-    state.journals
-      .filter((entry) => entry.refType === 'expense' && inMonth(entry.at))
-      .flatMap((entry) => entry.lines)
-      .filter((line) => line.accountCode === '2300')
-      .reduce((sum, line) => sum + line.debit, 0),
+  inputEntries
+  .filter((entry) => entry.refType === 'expense' && inMonth(entry.at))
+  .flatMap((entry) => entry.lines)
+  .filter((line) => line.accountCode === '2300')
+  .reduce((sum, line) => sum + line.debit, 0),
   )
-  const input = money(inputPurchases + inputExpenses)
+  const unfilteredInput = money(
+  inputEntries
+  .flatMap((entry) => entry.lines)
+  .filter((line) => line.accountCode === '2300')
+  .reduce((sum, line) => sum + line.debit, 0),
+  )
+  const input = money(inputPurchases + inputExpenses || unfilteredInput)
   return {
     month: month ?? 'الكل',
     outputVat: output,
