@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/erp?schema=public"
+      JWT_SECRET: "ci-dummy-jwt-secret-change-me-32-chars-minimum"
+      SETUP_TOKEN: "ci-dummy-setup-token-change-me"
+      ACCESS_TOKEN_TTL_SECONDS: "900"
+      REFRESH_TOKEN_TTL_SECONDS: "2592000"
+      NEXT_PUBLIC_APP_ENV: "staging"
+      ERP_SCALE_INGEST_TOKEN: "ci-dummy-scale-token-32chars-minimum"
+      ERP_SCALE_USER_ID: "user-production"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ERP domain tests
+        run: pnpm test:erp
+
+      - name: Build Next.js application
+        run: pnpm build
