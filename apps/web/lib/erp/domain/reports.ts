@@ -1,3 +1,4 @@
+import { erpNowIso } from './clock'
 import { approvedTripTransportCost, COST_LABEL } from './costing'
 import { almostEqual, money, qty } from './money'
 import type { ErpState, ItemType, SalesInvoice, WarehouseKey } from './types'
@@ -211,7 +212,7 @@ type FactorySnapshot = Pick<
   >
 
 /** Factory day for the general manager: production, sales, margin, stock, and run quality. */
-export function factoryStatus(state: FactorySnapshot, nowIso = new Date().toISOString()) {
+export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
   const requested = muscatDay(nowIso)
   const activity = new Set<string>()
   for (const order of state.productionOrders) {

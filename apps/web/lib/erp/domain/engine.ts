@@ -1,4 +1,5 @@
 import { applyArchive, planArchive } from './archive'
+import { erpNowIso } from './clock'
 import { money, qty, round3 } from './money'
 import { ALLOCATED_COST_TYPES, allocateCostType, approvedTripTransportCost, buildLotCostLines, COST_LABEL, packagingCostLine, transportCostBreakdown, type CostContext } from './costing'
 import { inProcessQcBlock, latestSample, lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
@@ -66,10 +67,10 @@ const INVENTORY_ACCOUNT: Record<ItemType, string> = {
 export function defaultClock(): Clock {
   let n = 0
   return {
-    now: () => new Date().toISOString(),
+    now: () => erpNowIso(),
     id: (prefix) => {
       n += 1
-      return `${prefix}-${Date.now().toString(36)}-${n.toString(36)}`
+      return `${prefix}-${Date.parse(erpNowIso()).toString(36)}-${n.toString(36)}`
     },
   }
 }
