@@ -67,6 +67,8 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   recordPackagingConsumption: true,
   recordPackagingCount: true,
   decidePackagingCount: true,
+  createLeaveRequest: true,
+  decideLeaveRequest: true,
   createSupplierTemplate: true,
   sendSupplierCommunication: true,
   approveSupplierCommunication: true,

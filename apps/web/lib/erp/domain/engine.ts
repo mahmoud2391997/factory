@@ -31,6 +31,8 @@ import type {
   PackagingMaterial,
   PackagingConsumption,
   PackagingCount,
+  LeaveRequest,
+  LeaveType,
   SupplierTemplate,
   SupplierCommunication,
   ScaleReading,
@@ -747,6 +749,8 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     recordPackagingConsumption: 'packaging.manage',
     recordPackagingCount: 'packaging.manage',
     decidePackagingCount: 'approvals.decide',
+    createLeaveRequest: 'employees.manage',
+    decideLeaveRequest: 'approvals.decide',
     createSupplierTemplate: 'suppliers.communicate',
     sendSupplierCommunication: 'suppliers.communicate',
     approveSupplierCommunication: 'suppliers.approve',
@@ -909,6 +913,10 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return recordPackagingCount(state, actor, command.input, clock)
     case 'decidePackagingCount':
       return decidePackagingCount(state, actor, command.input, clock)
+    case 'createLeaveRequest':
+      return createLeaveRequest(state, actor, command.input, clock)
+    case 'decideLeaveRequest':
+      return decideLeaveRequest(state, actor, command.input, clock)
     case 'createSupplierTemplate':
       return createSupplierTemplate(state, actor, command.input, clock)
     case 'sendSupplierCommunication':
@@ -2359,7 +2367,10 @@ function createPayroll(state: ErpState, actor: Actor, input: Extract<Command, { 
     const hourly = employee.basicSalary / 30 / 8
     const overtimeAmount = money(overtimeHours * hourly * 1.25)
     const allowances = money(line.allowances ?? 0)
-    const deductions = money(line.deductions ?? 0)
+    // Approved UNPAID leave days in the month are deducted from the pay.
+    const unpaidDays = approvedLeaveDaysInMonth(state, employee.id, input.month, 'UNPAID')
+    const unpaidDeduction = money((employee.basicSalary / 30) * unpaidDays)
+    const deductions = money((line.deductions ?? 0) + unpaidDeduction)
     const gross = money(employee.basicSalary + overtimeAmount + allowances)
     const net = money(gross - deductions)
     if (net < 0) return fail(`صافي راتب ${employee.nameAr} سالب`)
@@ -2425,6 +2436,87 @@ function payPayroll(state: ErpState, actor: Actor, input: Extract<Command, { act
   payroll.status = 'PAID'
   audit(state, actor, clock, 'صرف رواتب', 'payroll', payroll.id, payroll.number)
   return ok(state, `تم صرف رواتب ${payroll.month}`)
+}
+
+/** Approved leave days of a type whose [from, to] overlaps a month, prorated to the month. */
+function approvedLeaveDaysInMonth(state: ErpState, employeeId: string, month: string, type: LeaveType): number {
+  const [year, monthNum] = month.split('-').map(Number)
+  const monthStart = `${month}-01`
+  const monthEnd = new Date(Date.UTC(year!, monthNum!, 0)).toISOString().slice(0, 10)
+  let days = 0
+  for (const request of state.leaveRequests) {
+    if (request.employeeId !== employeeId || request.status !== 'APPROVED' || request.type !== type) continue
+    const from = request.from < monthStart ? monthStart : request.from
+    const to = request.to > monthEnd ? monthEnd : request.to
+    if (from > to) continue
+    days += Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
+  }
+  return days
+}
+
+/** Remaining annual leave balance for an employee in a year: entitlement − approved annual days. */
+export function annualLeaveBalance(state: ErpState, employeeId: string, year: string): number {
+  const entitlement = state.company.annualLeaveEntitlementDays ?? 30
+  const used = state.leaveRequests
+    .filter((request) => request.employeeId === employeeId && request.status === 'APPROVED' && request.type === 'ANNUAL' && request.from.startsWith(year))
+    .reduce((sum, request) => sum + request.days, 0)
+  return money(entitlement - used)
+}
+
+/** True when the employee has approved leave covering the given day. Used so leave days are never read as absences. */
+export function isOnApprovedLeave(state: ErpState, employeeId: string, date: string): boolean {
+  return state.leaveRequests.some(
+    (request) => request.employeeId === employeeId && request.status === 'APPROVED' && request.from <= date && request.to >= date,
+  )
+}
+
+function createLeaveRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createLeaveRequest' }>['input'], clock: Clock): CommandResult {
+  const employee = state.employees.find((item) => item.id === input.employeeId && item.active)
+  if (!employee) return fail('الموظف غير موجود')
+  if (!isDay(input.from) || !isDay(input.to)) return fail('تواريخ الإجازة غير صحيحة')
+  if (input.to < input.from) return fail('تاريخ النهاية يجب أن يكون بعد تاريخ البداية')
+  if (!Number.isFinite(input.days) || input.days <= 0) return fail('عدد الأيام غير صحيح')
+  if (!input.reason.trim()) return fail('سبب الإجازة مطلوب')
+  const year = input.from.slice(0, 4)
+  // Annual (and other paid) leave draws down the balance; UNPAID and SICK do not.
+  if (input.type !== 'UNPAID' && input.type !== 'SICK') {
+    const balance = annualLeaveBalance(state, input.employeeId, year)
+    if (input.days - balance > 0.001) {
+      return fail(`أيام الإجازة المتبقية ${balance} يوم فقط في ${year}`)
+    }
+  }
+  const overlapping = state.leaveRequests.some(
+    (request) => request.employeeId === input.employeeId && request.status === 'APPROVED' && request.from <= input.to && request.to >= input.from,
+  )
+  if (overlapping) return fail('توجد إجازة معتمدة تتداخل مع هذه الفترة')
+  const request: LeaveRequest = {
+    id: clock.id('lv'),
+    employeeId: input.employeeId,
+    type: input.type,
+    from: input.from,
+    to: input.to,
+    days: qty(input.days),
+    reason: input.reason.trim(),
+    status: 'PENDING_APPROVAL',
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.leaveRequests.unshift(request)
+  notify(state, clock, 'APPROVAL', `إجازة ${employee.nameAr}`, `${input.days} يوم — ${input.reason.trim()}`, ['GM'], `appr:lv:${request.id}`)
+  audit(state, actor, clock, 'طلب إجازة', 'leaveRequest', request.id, employee.nameAr)
+  return ok(state, `تم إرسال طلب إجازة ${employee.nameAr} للاعتماد`)
+}
+
+function decideLeaveRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decideLeaveRequest' }>['input'], clock: Clock): CommandResult {
+  const request = state.leaveRequests.find((item) => item.id === input.id)
+  if (!request) return fail('طلب الإجازة غير موجود')
+  if (request.status !== 'PENDING_APPROVAL') return fail('تمت معالجة الطلب')
+  request.status = input.decision
+  request.decidedBy = actor.id
+  request.decidedAt = clock.now()
+  const employee = state.employees.find((item) => item.id === request.employeeId)
+  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد إجازة' : 'رفض إجازة', 'leaveRequest', request.id, employee?.nameAr ?? '')
+  return ok(state, input.decision === 'APPROVED' ? 'تم اعتماد الإجازة' : 'تم رفض الإجازة')
 }
 
 function markNotificationRead(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markNotificationRead' }>['input'], clock: Clock): CommandResult {

@@ -769,6 +769,23 @@ export type PackagingCount = {
   decidedBy?: string
 }
 
+export type LeaveType = 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY' | 'OTHER'
+
+export type LeaveRequest = {
+  id: string
+  employeeId: string
+  type: LeaveType
+  from: string
+  to: string
+  days: number
+  reason: string
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  decidedBy?: string
+  decidedAt?: string
+  createdBy: string
+  createdAt: string
+}
+
 /** Supplier communication template. */
 export type SupplierTemplate = {
   id: string
@@ -1123,6 +1140,8 @@ export type ErpState = {
   packagingConsumption: PackagingConsumption[]
   /** Phase 4: Packaging physical counts. */
   packagingCounts: PackagingCount[]
+  /** Employee leave requests. */
+  leaveRequests: LeaveRequest[]
   /** Phase 4: Supplier communication. */
   supplierTemplates: SupplierTemplate[]
   supplierCommunications: SupplierCommunication[]
@@ -1216,6 +1235,8 @@ export type Command =
   | { action: 'recordPackagingConsumption'; input: { packagingMaterialId: string; productionOrderId: string; lotNo: string; quantity: number } }
   | { action: 'recordPackagingCount'; input: { packagingMaterialId: string; date: string; countedQty: number; notes?: string } }
   | { action: 'decidePackagingCount'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
+  | { action: 'createLeaveRequest'; input: { employeeId: string; type: LeaveType; from: string; to: string; days: number; reason: string } }
+  | { action: 'decideLeaveRequest'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
   | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
   | { action: 'approveSupplierCommunication'; input: { id: string } }
