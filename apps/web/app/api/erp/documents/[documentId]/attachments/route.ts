@@ -38,13 +38,33 @@ export async function POST(request: NextRequest, context: { params: Promise<{ do
       return NextResponse.json({ success: false, message: inspected.error }, { status })
     }
 
+    let fileName = inspected.fileName
+    const customNameRaw = form.get('fileName')
+    if (typeof customNameRaw === 'string' && customNameRaw.trim()) {
+      const customName = customNameRaw
+        .replaceAll('\\', '/')
+        .split('/')
+        .pop()!
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .trim()
+        .slice(0, 160)
+      if (customName) {
+        const extension = customName.split('.').pop()?.toLocaleLowerCase()
+        const matchesExtension =
+          (inspected.mediaType === 'application/pdf' && extension === 'pdf') ||
+          (inspected.mediaType === 'image/png' && extension === 'png') ||
+          (inspected.mediaType === 'image/jpeg' && (extension === 'jpg' || extension === 'jpeg'))
+        fileName = matchesExtension ? customName : inspected.fileName
+      }
+    }
+
     const id = randomUUID()
     await writePrivateAttachment(id, bytes)
     try {
       const result = await runCommand(user.id, 'addCompanyDocumentAttachment', {
         documentId,
         id,
-        fileName: inspected.fileName,
+        fileName,
         mediaType: inspected.mediaType,
         sizeBytes: bytes.byteLength,
       })

@@ -221,9 +221,6 @@ export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
   for (const invoice of state.invoices) {
     if (invoice.status !== 'DRAFT') activity.add(muscatDay(invoice.issuedAt))
   }
-  for (const payment of state.payments ?? []) {
-    activity.add(muscatDay(payment.at))
-  }
   const days = [...activity].sort().reverse()
   const eligible = days.filter((day) => day <= requested)
   const day = eligible[0] ?? days[0] ?? requested
