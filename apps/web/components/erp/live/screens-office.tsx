@@ -989,7 +989,7 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
       <div className="flex justify-end">
         <ExportLinks href="/api/erp/export?kind=pnl" />
       </div>
-      <Card title="ميزان ا��مراجعة" hint={tb.balanced ? 'المدين يساوي الدائن.' : 'الميزان غير متوازن — راجع القيود.'} extra={<button type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => window.print()}>طباعة</button>}>
+      <Card title="ميزان المراجعة" hint={tb.balanced ? 'المدين يساوي الدائن.' : 'الميزان غير متوازن — راجع القيود.'} extra={<GhostButton type="button" onClick={() => window.print()}>طباعة</GhostButton>}>
         <DataTable columns={['الحساب', 'مدين', 'دائن']} rows={tb.rows.filter((row) => row.debit || row.credit).map((row) => [row.nameAr, moneyFmt(row.debit), moneyFmt(row.credit)])} />
       </Card>
       <Card title="تتبع الدفعة" hint="من الدفعة إلى خامات الموردين ثم إلى العملاء.">
@@ -1327,7 +1327,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
       <div>
         <h2 className="text-3xl font-bold">وضع المصنع اليوم</h2>
         <p className="mt-2 text-[#788983]">
-          {status.shifted ? `لا يوجد تشغيل بتاريخ اليوم. الأرقام لآخر يوم تشغيل: ${dateLabel}` : dateLabel}
+          {status.shifted ? <>{'لا يوجد تشغيل بتاريخ اليوم. الأرقام لآخر يوم تشغيل: '}{dateLabel}</> : dateLabel}
           {' · '}
           {ctx.state.company.nameAr}
         </p>
