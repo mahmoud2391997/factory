@@ -58,6 +58,8 @@ export function emptyState(passwordHash: string): ErpState {
       notifyEmail: 'gm@factory.local',
       fuelVarianceThresholdPct: 15,
       obligationApprovalThreshold: 1000,
+  purchaseOperationsApprovalThreshold: 100,
+  purchaseApprovalThreshold: 1000,
     },
     rolePermissions: {
       GM: [...DEFAULT_ROLE_PERMISSIONS.GM],
@@ -115,8 +117,11 @@ export function emptyState(passwordHash: string): ErpState {
     recipes: [],
     balances: [],
     ledger: [],
-    purchaseOrders: [],
-    goodsReceipts: [],
+  purchaseRequests: [],
+  supplierQuotations: [],
+  purchaseOrders: [],
+  goodsReceipts: [],
+
     transfers: [],
     adjustments: [],
     productionOrders: [],

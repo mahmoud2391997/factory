@@ -121,7 +121,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 6 &&
     state.schemaVersion !== 7 &&
     state.schemaVersion !== 8 &&
-    state.schemaVersion !== 9
+    state.schemaVersion !== 9 &&
+    state.schemaVersion !== 10
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -288,6 +289,15 @@ export function migrateErpState(state: ErpState): ErpState {
   if (state.schemaVersion === 9) {
     for (const sample of state.qualitySamples ?? []) sample.attachments ??= []
     state.schemaVersion = 10
+  }
+
+  // v10 -> v11: purchase requests, quotations, and approval thresholds.
+  if (state.schemaVersion === 10) {
+    state.purchaseRequests ??= []
+    state.supplierQuotations ??= []
+    state.company.purchaseOperationsApprovalThreshold ??= 100
+    state.company.purchaseApprovalThreshold ??= 1000
+    state.schemaVersion = 11
   }
 
   return mergeRolePermissions(state)

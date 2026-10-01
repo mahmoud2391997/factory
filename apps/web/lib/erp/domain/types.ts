@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -61,6 +61,10 @@ export type Company = {
   fuelVarianceThresholdPct?: number
   /** Obligations above this amount (OMR) need approval. */
   obligationApprovalThreshold?: number
+  /** Purchase requests above this amount require GM approval. */
+  purchaseApprovalThreshold?: number
+  /** Purchase requests at or below this amount may be approved by operations. */
+  purchaseOperationsApprovalThreshold?: number
   /** How approved production payroll is spread across the month. Defaults to per ton. */
   laborAllocationBasis?: 'PER_TON' | 'PER_HOUR'
   /**
@@ -376,6 +380,34 @@ export type LedgerEntry = {
   notes: string
 }
 
+export type PurchasePurpose = 'RAW_MATERIAL' | 'PACKAGING' | 'SPARE_PART' | 'SERVICE' | 'OTHER'
+
+export type PurchaseRequest = {
+  id: string
+  number: string
+  purpose: PurchasePurpose
+  requestedBy: string
+  requestedAt: string
+  status: 'PENDING_QUOTATIONS' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
+  notes: string
+  lines: Array<{ materialId: string; qty: number; lastUnitCost?: number; lastSupplierId?: string }>
+  approvalTier: 'OPERATIONS' | 'GM'
+  decidedBy?: string
+  decidedAt?: string
+  decisionReason?: string
+}
+
+export type SupplierQuotation = {
+  id: string
+  requestId: string
+  supplierId: string
+  quotedAt: string
+  validUntil?: string
+  lines: Array<{ materialId: string; qty: number; unitCost: number }>
+  total: number
+  notes: string
+}
+
 export type PurchaseOrder = {
   id: string
   number: string
@@ -387,12 +419,15 @@ export type PurchaseOrder = {
   createdAt: string
   decidedBy?: string
   decidedAt?: string
+  purchaseRequestId?: string
+  purpose?: PurchasePurpose
 }
 
 export type GoodsReceipt = {
   id: string
   number: string
   purchaseOrderId: string
+  purchaseRequestId?: string
   at: string
   createdBy: string
   lines: Array<{ materialId: string; qty: number; unitCost: number; batchNo: string; expiryDate: string | null }>
@@ -1002,6 +1037,8 @@ export type ErpState = {
   recipes: Recipe[]
   balances: Balance[]
   ledger: LedgerEntry[]
+  purchaseRequests: PurchaseRequest[]
+  supplierQuotations: SupplierQuotation[]
   purchaseOrders: PurchaseOrder[]
   goodsReceipts: GoodsReceipt[]
   transfers: StockTransfer[]
@@ -1097,7 +1134,11 @@ export type Command =
   | { action: 'setVarianceThresholds'; input: { productId?: string; recipeId?: string; warningPct?: number | null; criticalPct?: number | null } }
   | { action: 'updateCompany'; input: Partial<Company> }
   | { action: 'fundBank'; input: { amount: number; memo?: string } }
-  | { action: 'createPurchaseOrder'; input: { supplierId: string; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
+  | { action: 'createPurchaseRequest'; input: { purpose: PurchasePurpose; notes?: string; lines: Array<{ materialId: string; qty: number }> } }
+  | { action: 'addSupplierQuotation'; input: { requestId: string; supplierId: string; validUntil?: string; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
+  | { action: 'selectSupplierQuotation'; input: { requestId: string; quotationId: string; reason?: string } }
+  | { action: 'decidePurchaseRequest'; input: { id: string; decision: 'APPROVED' | 'REJECTED'; reason?: string } }
+  | { action: 'createPurchaseOrder'; input: { supplierId: string; purchaseRequestId?: string; purpose?: PurchasePurpose; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
   | { action: 'decidePurchaseOrder'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'receiveGoods'; input: { purchaseOrderId: string; lines: Array<{ materialId: string; qty: number; batchNo: string; expiryDate?: string | null; unitCost?: number }> } }
   | { action: 'transferStock'; input: { from: WarehouseKey; to: WarehouseKey; notes?: string; lines: Array<{ itemType: ItemType; itemId: string; batchNo: string; qty: number }> } }
