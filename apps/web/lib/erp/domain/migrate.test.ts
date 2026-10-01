@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { migrateErpState } from './migrate'
 import { PERMISSIONS_INTRODUCED, PERMISSIONS_VERSION, type Permission, type RoleKey } from './permissions'
 import { emptyState } from './seed'
-import { SCHEMA_VERSION } from './types'
+import { SCHEMA_VERSION, type SupplierQuotation } from './types'
 
 test('each supported schema version upgrades to the current schema and then becomes a no-op', () => {
   for (let version = 1; version <= SCHEMA_VERSION; version += 1) {
@@ -104,4 +104,25 @@ test('permissions introduced after v2 are merged and later admin removals stay r
   const snapshot = JSON.stringify(migrated)
   assert.equal(JSON.stringify(migrateErpState(migrated)), snapshot)
   assert.equal(migrated.rolePermissions.GM.includes('production.cost.approve'), false)
+})
+
+test('v11 documents receive packaging counts and backfilled quotation delivery cost', () => {
+  const state = emptyState('migration-v11-packaging')
+  state.schemaVersion = 11
+  Reflect.deleteProperty(state, 'packagingCounts')
+  // Legacy v11 quotation before deliveryCost existed; the migration backfills it.
+  const legacyQuote = {
+    id: 'legacy-quote',
+    requestId: 'prq-1',
+    supplierId: 'sup-1',
+    quotedAt: '2026-01-01T00:00:00.000Z',
+    lines: [{ materialId: 'mat-1', qty: 10, unitCost: 1 }],
+    total: 10,
+    notes: '',
+  }
+  state.supplierQuotations.push(legacyQuote as unknown as SupplierQuotation)
+  const migrated = migrateErpState(state)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
+  assert.deepEqual(migrated.packagingCounts, [])
+  assert.equal(migrated.supplierQuotations[0]!.deliveryCost, 0)
 })

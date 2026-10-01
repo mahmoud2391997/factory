@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
+import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingCountReport, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, PurchasePurpose, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
@@ -790,8 +790,83 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
+  const [materialId, setMaterialId] = useState(ctx.state.packagingMaterials[0]?.id ?? '')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [countedQty, setCountedQty] = useState('')
+  const [notes, setNotes] = useState('')
+  const selected = ctx.state.packagingMaterials.find((item) => item.id === materialId)
+  const report = packagingCountReport(ctx.state)
+  return (
+    <div className="space-y-4">
+      <Card
+        title="الجرد الفعلي لمواد التعبئة"
+        hint="جرد الكمية الفعلية ومقارنتها بالرصيد الدفتري؛ الاعتماد يسوّي المخزون ويسجّل قيمة الهدر."
+        extra={
+          can(ctx.permissions, 'packaging.manage') ? (
+            <FormDialog title="جرد مادة تعبئة" openLabel="تسجيل جرد">
+              {(close) => (
+                <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('recordPackagingCount', { packagingMaterialId: materialId, date, countedQty: Number(countedQty), notes: notes || undefined })
+                  if (result.ok) { setCountedQty(''); setNotes(''); close() }
+                }}>
+                  <Field label="مادة التعبئة">
+                    <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
+                      {ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+                    </SelectInput>
+                  </Field>
+                  <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+                  <Field label="الكمية المجرودة"><TextInput type="number" min="0" step="1" value={countedQty} onChange={(e) => setCountedQty(e.target.value)} required /></Field>
+                  <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+                  {selected ? <p className="text-sm text-[#6b7280] md:col-span-2">الرصيد الدفتري الحالي: {qtyFmt(selected.quantity)} {selected.unit}</p> : null}
+                  <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !materialId}>إرسال للاعتماد</PrimaryButton></div>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['المادة', 'التاريخ', 'المجرود', 'المتوقع', 'الفارق', 'قيمة الهدر', 'الحالة', '']}
+          rows={ctx.state.packagingCounts.map((count) => [
+            ctx.state.packagingMaterials.find((item) => item.id === count.packagingMaterialId)?.nameAr ?? '—',
+            count.date,
+            qtyFmt(count.countedQty),
+            qtyFmt(count.expectedQty),
+            qtyFmt(count.varianceQty),
+            moneyFmt(Math.abs(count.varianceValue)),
+            <Badge key={count.id} tone={toneForStatus(count.status)}>{statusLabel(count.status)}</Badge>,
+            count.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'approvals.decide') ? (
+              <span key={`${count.id}-act`} className="flex gap-2">
+                <GhostButton type="button" onClick={() => ctx.act('decidePackagingCount', { id: count.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
+                <GhostButton type="button" onClick={() => ctx.act('decidePackagingCount', { id: count.id, decision: 'REJECTED' })}>رفض</GhostButton>
+              </span>
+            ) : null,
+          ])}
+        />
+      </Card>
+      <Card title="تقرير الجرد الفعلي">
+        <DataTable
+          columns={['المادة', 'الكمية الداخلة', 'الصادر', 'الرصيد المتوقع', 'آخر جرد', 'الفارق', 'قيمة الهدر', 'تكلفة الاستخدام']}
+          rows={report.map((row) => [
+            row.nameAr,
+            qtyFmt(row.quantityIn),
+            qtyFmt(row.quantityIssued),
+            qtyFmt(row.expectedBalance),
+            row.lastCountedBalance == null ? '—' : qtyFmt(row.lastCountedBalance),
+            row.varianceQty == null ? '—' : qtyFmt(row.varianceQty),
+            moneyFmt(row.wasteValue),
+            moneyFmt(row.costOfUse),
+          ])}
+        />
+      </Card>
+    </div>
+  )
+}
+
 function InventoryExtensions({ ctx }: { ctx: LiveCtx }) {
-  const [activeTab, setActiveTab] = useState<'spareParts' | 'packaging'>('spareParts')
+  const [activeTab, setActiveTab] = useState<'spareParts' | 'packaging' | 'counts'>('spareParts')
   return (
     <div className="space-y-4">
       <div className="flex gap-2 border-b border-[#e5e7eb] pb-2">
@@ -809,8 +884,15 @@ function InventoryExtensions({ ctx }: { ctx: LiveCtx }) {
         >
           مواد التعبئة
         </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${activeTab === 'counts' ? 'text-[#1d7f72] border-b-2 border-[#1d7f72]' : 'text-[#6b7280]'}`}
+          onClick={() => setActiveTab('counts')}
+        >
+          الجرد الفعلي
+        </button>
       </div>
-      {activeTab === 'spareParts' ? <SpareParts ctx={ctx} /> : <PackagingMaterials ctx={ctx} />}
+      {activeTab === 'spareParts' ? <SpareParts ctx={ctx} /> : activeTab === 'packaging' ? <PackagingMaterials ctx={ctx} /> : <PackagingCounts ctx={ctx} />}
     </div>
   )
 }

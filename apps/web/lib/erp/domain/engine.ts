@@ -30,6 +30,7 @@ import type {
   SparePartUsage,
   PackagingMaterial,
   PackagingConsumption,
+  PackagingCount,
   SupplierTemplate,
   SupplierCommunication,
   ScaleReading,
@@ -744,6 +745,8 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     recordSparePartUsage: 'spareparts.manage',
     createPackagingMaterial: 'packaging.manage',
     recordPackagingConsumption: 'packaging.manage',
+    recordPackagingCount: 'packaging.manage',
+    decidePackagingCount: 'approvals.decide',
     createSupplierTemplate: 'suppliers.communicate',
     sendSupplierCommunication: 'suppliers.communicate',
     approveSupplierCommunication: 'suppliers.approve',
@@ -902,6 +905,10 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return createPackagingMaterial(state, actor, command.input, clock)
     case 'recordPackagingConsumption':
       return recordPackagingConsumption(state, actor, command.input, clock)
+    case 'recordPackagingCount':
+      return recordPackagingCount(state, actor, command.input, clock)
+    case 'decidePackagingCount':
+      return decidePackagingCount(state, actor, command.input, clock)
     case 'createSupplierTemplate':
       return createSupplierTemplate(state, actor, command.input, clock)
     case 'sendSupplierCommunication':
@@ -3887,6 +3894,100 @@ function recordPackagingConsumption(state: ErpState, actor: Actor, input: Extrac
   state.packagingConsumption.unshift(consumption)
   audit(state, actor, clock, 'استهلاك مواد تعبئة', 'packagingConsumption', consumption.id, `${packaging.nameAr}: ${input.quantity}`)
   return ok(state, 'تم تسجيل استهلاك مواد التعبئة')
+}
+
+function recordPackagingCount(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordPackagingCount' }>['input'], clock: Clock): CommandResult {
+  const packaging = state.packagingMaterials.find((item) => item.id === input.packagingMaterialId)
+  if (!packaging) return fail('مادة التعبئة غير موجودة')
+  if (!packaging.active) return fail('مادة التعبئة غير نشطة')
+  if (!isDay(input.date)) return fail('تاريخ الجرد غير صحيح')
+  if (!Number.isFinite(input.countedQty) || input.countedQty < 0) return fail('الكمية المجرودة غير صحيحة')
+  const expectedQty = qty(packaging.quantity)
+  const countedQty = qty(input.countedQty)
+  const varianceQty = qty(countedQty - expectedQty)
+  const varianceValue = money(varianceQty * packaging.unitCost)
+  const count: PackagingCount = {
+    id: clock.id('pcnt'),
+    packagingMaterialId: input.packagingMaterialId,
+    date: input.date,
+    countedQty,
+    expectedQty,
+    varianceQty,
+    varianceValue,
+    countedBy: actor.id,
+    notes: input.notes?.trim() ?? '',
+    status: 'PENDING_APPROVAL',
+    createdAt: clock.now(),
+  }
+  state.packagingCounts.unshift(count)
+  notify(state, clock, 'APPROVAL', `اعتماد جرد تعبئة ${packaging.nameAr}`, `الفارق ${varianceQty} بقيمة ${varianceValue} ر.ع.`, ['GM'], `appr:pcnt:${count.id}`)
+  audit(state, actor, clock, 'جرد مادة تعبئة', 'packagingCount', count.id, `${packaging.nameAr}: مجرود ${countedQty} / متوقع ${expectedQty}`)
+  return ok(state, `تم إرسال جرد ${packaging.nameAr} للاعتماد`)
+}
+
+function decidePackagingCount(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decidePackagingCount' }>['input'], clock: Clock): CommandResult {
+  const count = state.packagingCounts.find((item) => item.id === input.id)
+  if (!count) return fail('الجرد غير موجود')
+  if (count.status !== 'PENDING_APPROVAL') return fail('تمت معالجة الجرد')
+  const packaging = state.packagingMaterials.find((item) => item.id === count.packagingMaterialId)
+  if (!packaging) return fail('مادة التعبئة غير موجودة')
+  if (input.decision === 'REJECTED') {
+    count.status = 'REJECTED'
+    count.decidedBy = actor.id
+    audit(state, actor, clock, 'رفض جرد تعبئة', 'packagingCount', count.id, packaging.nameAr)
+    return ok(state, 'تم رفض الجرد')
+  }
+
+  // Approved: post the variance through the existing ledger/adjustment path so the
+  // count is auditable, then record the waste value. The packaging material is
+  // brought into the inventory ledger at its counted quantity.
+  const balanceRow = state.balances.find(
+    (row) => row.itemType === 'MATERIAL' && row.itemId === packaging.id && row.batchNo === 'COUNT',
+  )
+  const currentLedgerQty = qty(balanceRow?.qty ?? 0)
+  const targetQty = qty(count.countedQty)
+  const delta = qty(targetQty - currentLedgerQty)
+  if (Math.abs(delta) > 0.0001) {
+    const posted = upsertBalance(state, clock, {
+      warehouse: 'WH_RAW',
+      itemType: 'MATERIAL',
+      itemId: packaging.id,
+      batchNo: 'COUNT',
+      qtyDelta: delta,
+      unitCost: packaging.unitCost,
+    })
+    if ('error' in posted && posted.error) return fail(posted.error)
+    if (!posted.row || posted.prev == null || posted.next == null) return fail('تعذر تحديث الرصيد')
+    addLedger(state, clock, actor, {
+      type: 'ADJUSTMENT',
+      warehouse: 'WH_RAW',
+      itemType: 'MATERIAL',
+      itemId: packaging.id,
+      batchNo: 'COUNT',
+      qty: delta,
+      unitCost: packaging.unitCost,
+      prevQty: posted.prev,
+      newQty: posted.next,
+      refType: 'packagingCount',
+      refId: count.id,
+      notes: count.notes,
+    })
+  }
+  packaging.quantity = targetQty
+
+  // Record the waste value (shortage × unit cost) through the journal.
+  const wasteValue = money(Math.abs(count.varianceQty) * packaging.unitCost)
+  if (wasteValue > 0) {
+    postJournal(state, clock, `هدر جرد تعبئة ${packaging.nameAr}`, 'packagingCount', count.id, [
+      { accountCode: '6300', debit: wasteValue, credit: 0 },
+      { accountCode: '1100', debit: 0, credit: wasteValue },
+    ])
+  }
+
+  count.status = 'APPROVED'
+  count.decidedBy = actor.id
+  audit(state, actor, clock, 'اعتماد جرد تعبئة', 'packagingCount', count.id, `${packaging.nameAr}: فارق ${count.varianceQty} بقيمة ${count.varianceValue}`)
+  return ok(state, `تم اعتماد جرد ${packaging.nameAr}`)
 }
 
 function createSupplierTemplate(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createSupplierTemplate' }>['input'], clock: Clock): CommandResult {

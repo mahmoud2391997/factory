@@ -1049,6 +1049,70 @@ export function utilitiesPerTon(state: ReportState) {
   }))
 }
 
+export type PackagingCountRow = {
+  packagingMaterialId: string
+  nameAr: string
+  quantityIn: number
+  quantityIssued: number
+  expectedBalance: number
+  lastCountedBalance: number | null
+  lastCountDate: string | null
+  varianceQty: number | null
+  wasteValue: number
+  costOfUse: number
+  monthly: Array<{ month: string; issuedQty: number; outputTons: number; perTon: number | null }>
+}
+
+/** Per packaging material: in/out, expected vs counted balance, waste, cost, and per-ton consumption by month. */
+export function packagingCountReport(state: ReportState): PackagingCountRow[] {
+  return state.packagingMaterials.map((material) => {
+    const consumption = state.packagingConsumption.filter((item) => item.packagingMaterialId === material.id)
+    const quantityIssued = qty(consumption.reduce((sum, item) => sum + item.quantity, 0))
+    const costOfUse = money(consumption.reduce((sum, item) => sum + item.cost, 0))
+    const counts = state.packagingCounts
+      .filter((item) => item.packagingMaterialId === material.id && item.status === 'APPROVED')
+      .sort((a, b) => b.date.localeCompare(a.date))
+    const lastCount = counts[0] ?? null
+
+    const monthlyMap = new Map<string, { issuedQty: number; outputTons: number }>()
+    for (const item of consumption) {
+      const month = muscatDay(item.date).slice(0, 7)
+      const bucket = monthlyMap.get(month) ?? { issuedQty: 0, outputTons: 0 }
+      bucket.issuedQty = qty(bucket.issuedQty + item.quantity)
+      monthlyMap.set(month, bucket)
+    }
+    // Output tons per month, derived from the lots linked to each consumption record.
+    const outputByMonth = new Map<string, number>()
+    for (const item of consumption) {
+      const lot = (state.lots ?? []).find((lot) => lot.lotNo === item.lotNo)
+      if (!lot) continue
+      const month = muscatDay(item.date).slice(0, 7)
+      outputByMonth.set(month, qty((outputByMonth.get(month) ?? 0) + lot.actualOutputKg / 1000))
+    }
+    const monthly = [...monthlyMap.keys()].sort().map((month) => {
+      const issuedQty = monthlyMap.get(month)!.issuedQty
+      const outputTons = outputByMonth.get(month) ?? 0
+      return { month, issuedQty, outputTons, perTon: outputTons > 0 ? qty(issuedQty / outputTons) : null }
+    })
+
+    return {
+      packagingMaterialId: material.id,
+      nameAr: material.nameAr,
+      quantityIn: qty(material.quantity + quantityIssued),
+      quantityIssued,
+      expectedBalance: qty(material.quantity),
+      lastCountedBalance: lastCount ? lastCount.countedQty : null,
+      lastCountDate: lastCount ? lastCount.date : null,
+      varianceQty: lastCount ? lastCount.varianceQty : null,
+      wasteValue: money(state.packagingCounts
+        .filter((item) => item.packagingMaterialId === material.id && item.status === 'APPROVED')
+        .reduce((sum, item) => sum + Math.abs(item.varianceValue), 0)),
+      costOfUse,
+      monthly,
+    }
+  })
+}
+
 export type RecallTarget = { lotNo?: string; materialId?: string; batchNo?: string }
 
 export function recallReport(state: ReportState, target: RecallTarget) {

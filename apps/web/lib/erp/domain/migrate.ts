@@ -122,7 +122,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 7 &&
     state.schemaVersion !== 8 &&
     state.schemaVersion !== 9 &&
-    state.schemaVersion !== 10
+    state.schemaVersion !== 10 &&
+    state.schemaVersion !== 11
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -298,6 +299,15 @@ export function migrateErpState(state: ErpState): ErpState {
     state.company.purchaseOperationsApprovalThreshold ??= 100
     state.company.purchaseApprovalThreshold ??= 1000
     state.schemaVersion = 11
+  }
+
+  // v11 -> v12: packaging physical counts, and backfill quotation delivery cost.
+  if (state.schemaVersion === 11) {
+    state.packagingCounts ??= []
+    for (const quote of state.supplierQuotations ?? []) {
+      if (quote.deliveryCost == null) quote.deliveryCost = 0
+    }
+    state.schemaVersion = 12
   }
 
   return mergeRolePermissions(state)

@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -753,6 +753,22 @@ export type PackagingConsumption = {
   variance: number
 }
 
+/** Physical count of a packaging material, reconciled against the expected balance. */
+export type PackagingCount = {
+  id: string
+  packagingMaterialId: string
+  date: string
+  countedQty: number
+  expectedQty: number
+  varianceQty: number
+  varianceValue: number
+  countedBy: string
+  notes: string
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  createdAt: string
+  decidedBy?: string
+}
+
 /** Supplier communication template. */
 export type SupplierTemplate = {
   id: string
@@ -1105,6 +1121,8 @@ export type ErpState = {
   /** Phase 4: Packaging materials. */
   packagingMaterials: PackagingMaterial[]
   packagingConsumption: PackagingConsumption[]
+  /** Phase 4: Packaging physical counts. */
+  packagingCounts: PackagingCount[]
   /** Phase 4: Supplier communication. */
   supplierTemplates: SupplierTemplate[]
   supplierCommunications: SupplierCommunication[]
@@ -1196,6 +1214,8 @@ export type Command =
   | { action: 'recordSparePartUsage'; input: { sparePartId: string; machineId: string; quantity: number; reason: string; maintenanceId?: string } }
   | { action: 'createPackagingMaterial'; input: { code: string; nameAr: string; category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'; quantity: number; unit: string; unitCost: number; minStock: number; supplierId?: string; expectedPerTon?: number } }
   | { action: 'recordPackagingConsumption'; input: { packagingMaterialId: string; productionOrderId: string; lotNo: string; quantity: number } }
+  | { action: 'recordPackagingCount'; input: { packagingMaterialId: string; date: string; countedQty: number; notes?: string } }
+  | { action: 'decidePackagingCount'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
   | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
   | { action: 'approveSupplierCommunication'; input: { id: string } }
