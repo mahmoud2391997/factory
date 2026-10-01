@@ -55,6 +55,7 @@ function Metric({ label, value, hint, tone }: { label: string; value: string; hi
 }
 
 export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const status = useMemo(() => factoryStatus(ctx.state, new Date().toISOString()), [ctx.state])
   if (!FACTORY_KEYS.has(entityKey)) return null
 
@@ -75,7 +76,7 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="المخطط اليوم" value={tonsFmt(status.production.plannedKg)} />
           <Metric label="الفعلي" value={tonsFmt(status.production.actualKg)} />
-          <Metric label="نسبة التنفيذ" value={pctFmt(status.production.executionPct)} hint={`${tonsFmt(status.production.actualKg)} من ${tonsFmt(status.production.plannedKg)}`} />
+          <Metric label="نسبة التنفيذ" value={pctFmt(status.production.executionPct)} hint={`${tonsFmt(status.production.actualKg)} ${language === 'ar' ? 'من' : language === 'hi' ? 'में से' : 'of'} ${tonsFmt(status.production.plannedKg)}`} />
         </div>
         <Card title="أوامر اليوم">
           <DataTable
@@ -104,10 +105,10 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
       <div className="space-y-4">
         {note}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Metric label="مبيعات اليوم" value={moneyFmt(status.sales.today)} hint={status.sales.todayCount ? `${status.sales.todayCount} فاتورة` : 'لا توجد فواتير'} />
-          <Metric label="مبيعات الشهر" value={moneyFmt(status.sales.month)} hint={`${status.sales.monthCount} فاتورة`} />
+          <Metric label="مبيعات اليوم" value={moneyFmt(status.sales.today)} hint={status.sales.todayCount ? `${status.sales.todayCount} ${translateUiText(language, 'فاتورة')}` : translateUiText(language, 'لا توجد فواتير')} />
+          <Metric label="مبيعات الشهر" value={moneyFmt(status.sales.month)} hint={`${status.sales.monthCount} ${translateUiText(language, 'فاتورة')}`} />
         </div>
-        <Card title={entityKey === 'factorySalesToday' ? 'فواتير اليوم' : 'فواتير الشهر'} hint={`الإجمالي الظاهر في البطاقة: ${moneyFmt(total)} قبل الضريبة`}>
+        <Card title={entityKey === 'factorySalesToday' ? 'فواتير اليوم' : 'فواتير الشهر'} hint={`${translateUiText(language, 'الإجمالي الظاهر في البطاقة:')} ${moneyFmt(total)} ${translateUiText(language, 'قبل الضريبة')}`}>
           <DataTable
             columns={['الفاتورة', 'العميل', 'التاريخ', 'الصافي', 'الإجمالي', 'الحالة']}
             rows={rows.map((invoice) => [

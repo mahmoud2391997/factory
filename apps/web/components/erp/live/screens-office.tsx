@@ -137,7 +137,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         {can(ctx.permissions, 'fleet.manage') ? <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
           {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><TextInput value={code} onChange={(event) => setCode(event.target.value)} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
         </FormDialog> : null}
-        <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحال��']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
+        <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
       </Card>
       <Card
         title="خدمات الأسطول"
@@ -310,6 +310,7 @@ function documentEntityName(ctx: LiveCtx, document: CompanyDocument) {
 }
 
 function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDocument }) {
+  const { language } = useLanguage()
   const [issueDate, setIssueDate] = useState(document.issueDate)
   const [expiryDate, setExpiryDate] = useState(document.expiryDate ?? '')
   const [cost, setCost] = useState(document.cost === undefined ? '' : String(document.cost))
@@ -318,7 +319,7 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
   const [uploading, setUploading] = useState(false)
 
   return <>
-    <FormDialog title={`تجديد ${document.title}`} openLabel="تجديد">
+    <FormDialog title={`${translateUiText(language, 'تجديد')} ${document.title}`} openLabel="تجديد">
       {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
         event.preventDefault()
         const result = await ctx.act('renewCompanyDocument', {
@@ -340,7 +341,7 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
         <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ التجديد</PrimaryButton></div>
       </form>}
     </FormDialog>
-    <FormDialog title={`إرفاق ملف — ${document.title}`} openLabel="رفع ملف">
+    <FormDialog title={`${translateUiText(language, 'إرفاق ملف')} — ${document.title}`} openLabel="رفع ملف">
       {(close) => <form className="grid gap-3" onSubmit={async (event) => {
         event.preventDefault()
         const form = event.currentTarget
@@ -541,7 +542,7 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(item.costPerTon),
           ])}
         />
-        <h4 className="mb-2 mt-5 font-semibold">مقارنة ال��ستهلاك الشهري لكل طن</h4>
+        <h4 className="mb-2 mt-5 font-semibold">مقارنة الاستهلاك الشهري لكل طن</h4>
         <DataTable columns={['الشهر', 'المرافق', 'الاستهلاك', 'طن الإنتاج', 'التكلفة/طن', 'مقارنة']} rows={utilitiesPerTon(ctx.state).map((item) => {
           const previous = utilitiesPerTon(ctx.state).filter((row) => row.utility === item.utility && row.month < item.month).sort((a, b) => b.month.localeCompare(a.month))[0]
           const previousReading = previous && ctx.state.utilitiesReadings.find((row) => row.id === previous.readingId)
@@ -615,6 +616,7 @@ function BankTransactions({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Obligations({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const [beneficiary, setBeneficiary] = useState('')
   const [description, setDescription] = useState('')
   const [kind, setKind] = useState<'LOAN' | 'INSTALLMENT' | 'RENT' | 'OTHER'>('LOAN')
@@ -702,7 +704,7 @@ function Obligations({ ctx }: { ctx: LiveCtx }) {
       {(ctx.state.obligations ?? []).map((obligation) => {
         const lines = (ctx.state.obligationScheduleLines ?? []).filter((line) => line.obligationId === obligation.id).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
         if (lines.length === 0) return null
-        return <Card key={obligation.id} title={`جدول الأقساط — ${obligation.beneficiary}`} hint={obligation.description}>
+        return <Card key={obligation.id} title={`${translateUiText(language, 'جدول الأقساط')} — ${obligation.beneficiary}`} hint={obligation.description}>
           <DataTable columns={['الاستحقاق', 'قيمة القسط', 'المدفوع', 'المتبقي', 'الحالة', 'الدفع']} rows={lines.map((line) => [
             line.dueDate, moneyFmt(line.amount), moneyFmt(line.paidAmount), moneyFmt(Math.max(0, line.amount - line.paidAmount)), statusLabel(line.status),
             obligation.status === 'ACTIVE' && can(ctx.permissions, 'obligations.pay') && line.status !== 'PAID'
@@ -740,6 +742,7 @@ function ObligationInstallmentPayment({ ctx, scheduleLineId, remaining }: { ctx:
 }
 
 function BankMatchAction({ ctx, transactionId }: { ctx: LiveCtx; transactionId: string }) {
+  const { language } = useLanguage()
   const [type, setType] = useState<'INVOICE' | 'SUPPLIER' | 'EXPENSE'>('INVOICE')
   const [targetId, setTargetId] = useState('')
   const targets = type === 'INVOICE'
@@ -747,7 +750,7 @@ function BankMatchAction({ ctx, transactionId }: { ctx: LiveCtx; transactionId: 
     : type === 'SUPPLIER'
       ? ctx.state.suppliers.map((item) => ({ id: item.id, name: item.nameAr }))
       : ctx.state.expenses.map((item) => ({ id: item.id, name: item.description }))
-  return <FormDialog title={`مطابقة ${transactionId}`} openLabel="مطابقة">
+  return <FormDialog title={`${translateUiText(language, 'مطابقة')} ${transactionId}`} openLabel="مطابقة">
     {(close) => <form className="grid gap-3" onSubmit={async (event) => {
       event.preventDefault()
       const result = await ctx.act('matchBankTransaction', { transactionId, matchTo: { type, id: targetId } })
@@ -1204,7 +1207,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
     <PrimaryButton disabled={ctx.pending}>إضافة المستخدم</PrimaryButton>
   </form>}
   </FormDialog> : null}
-          <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة ال��رور">
+          <FormDialog title="تحديث كلمة المرور" openLabel="تحديث كلمة المرور">
             {(close) => (
               <form className="grid gap-3" onSubmit={async (event) => {
                 event.preventDefault()
@@ -1229,7 +1232,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
       >
         <DataTable columns={['الاسم', 'البريد', 'الدور', 'الحالة']} rows={ctx.state.users.map((user) => [user.fullName, user.email, ROLE_OPTIONS.find((item) => item.value === user.role)?.label ?? user.role, user.active ? 'نشط' : 'موقوف'])} />
       </Card>
-      <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُ��حب حق إدارة المستخدمين من المدير العام.">
+      <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُسحب حق إدارة المستخدمين من المدير العام.">
         <form className="space-y-3" onSubmit={async (event) => {
           event.preventDefault()
           const result = await ctx.act('setRolePermissions', { role, permissions: selected })
@@ -1298,6 +1301,7 @@ function NameList({ rows, empty }: { rows: string[]; empty: string }) {
 }
 
 export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const status = useMemo(() => factoryStatus(ctx.state, new Date().toISOString()), [ctx.state])
   const access = dashboardAccess(ctx.permissions)
   const alerts = useMemo(() => dashboardAlerts(ctx.state, new Date().toISOString()), [ctx.state])
@@ -1403,9 +1407,9 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
       </div> : null}
 
       {access.fleet || access.obligations || access.documents || access.maintenance ? (
-        <Card title="مركز المالك" hint={`تنبيهات متابعة حسب صلاحياتك — ${dayFmt(alerts.today)}.`}>
+        <Card title="مركز المالك" hint={`${translateUiText(language, 'تنبيهات متابعة حسب صلاحياتك')} — ${dayFmt(alerts.today)}.`}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {access.fleet ? <Metric label="السيارات النشطة" value={String(ctx.state.vehicles.filter((vehicle) => vehicle.active).length)} hint={`${alerts.vehicleServices.length} موعد صيانة قريب`} tone={alerts.vehicleServices.some((item) => item.overdue) ? 'bad' : undefined} /> : null}
+            {access.fleet ? <Metric label="السيارات النشطة" value={String(ctx.state.vehicles.filter((vehicle) => vehicle.active).length)} hint={`${alerts.vehicleServices.length} ${translateUiText(language, 'موعد صيانة قريب')}`} tone={alerts.vehicleServices.some((item) => item.overdue) ? 'bad' : undefined} /> : null}
             {access.obligations ? <Metric label="أقساط خلال 90 يوم" value={String(alerts.obligations.length)} tone={alerts.obligations.some((item) => (item.daysLeft ?? 0) < 0) ? 'bad' : alerts.obligations.length ? 'warn' : 'good'} /> : null}
             {access.documents ? <Metric label="وثائق خلال 90 يوم" value={String(alerts.documents.length)} tone={alerts.documents.some((item) => item.daysLeft != null && item.daysLeft < 0) ? 'bad' : alerts.documents.length ? 'warn' : 'good'} /> : null}
             {access.maintenance ? <Metric label="صيانة ماكينات مستحقة" value={String(alerts.machineMaintenance.length)} tone={alerts.machineMaintenance.some((item) => item.overdue) ? 'bad' : alerts.machineMaintenance.length ? 'warn' : 'good'} /> : null}
@@ -1416,7 +1420,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
               rows={alerts.obligations.map((item) => `استحقاق ${item.dueDate} — ${item.beneficiary} — ${moneyFmt(item.outstanding)} — ${(item.daysLeft ?? 0) < 0 ? `متأخر ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
             /> : null}
             {access.documents ? <NameList
-              empty="لا ��وجد وثائق قريبة الانتهاء"
+              empty="لا توجد وثائق قريبة الانتهاء"
               rows={alerts.documents.map((item) => `${item.title} — ${item.dueDate} — ${(item.daysLeft ?? 0) < 0 ? `منتهية منذ ${Math.abs(item.daysLeft ?? 0)} يوم` : `بعد ${item.daysLeft ?? 0} يوم`}`)}
             /> : null}
             {access.fleet ? <NameList
@@ -1433,7 +1437,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
 
       {access.production ? <Card title="الإنتاج" hint="الهدر، الانحراف عن الوصفة، وتوقفات المصنع في يوم التشغيل.">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Metric label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} من الكمية المصروفة`} />
+          <Metric label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} ${translateUiText(language, 'من الكمية المصروفة')}`} />
           <Metric
             label="الانحراف عن الوصفة"
             value={status.operations.deviations[0] ? pctFmt(status.operations.deviations[0].diffPct) : pctFmt(0)}

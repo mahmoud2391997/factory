@@ -8,6 +8,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 
 type HealthData = {
   status: string
+  demoMode: boolean
   databaseConfigured: boolean
   databaseEnvKey: string | null
   jwtConfigured: boolean
@@ -103,7 +104,7 @@ export default function LoginPage() {
   }
 
   const setupBlocked = health
-    ? !health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable || !health.bootstrapped
+    ? !health.demoMode && (!health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable || !health.bootstrapped)
     : false
 
   return (
