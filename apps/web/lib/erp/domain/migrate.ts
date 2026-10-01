@@ -105,6 +105,7 @@ export function migrateErpState(state: ErpState): ErpState {
   state.qualitySamples ??= []
   state.qualityHolds ??= []
   state.tripCostAllocations ??= []
+  state.leaveRequests ??= []
   if (!state.accounts?.some((account) => account.code === '2600')) {
     state.accounts = state.accounts ?? []
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
