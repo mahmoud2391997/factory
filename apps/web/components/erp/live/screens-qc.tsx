@@ -6,7 +6,7 @@ import { supplierQuality } from '@/lib/erp/domain/reports'
 import { calculateLotNutrition, compareNutrition } from '@/lib/erp/domain/nutrition'
 import type { QcResult, QualitySample } from '@/lib/erp/domain/types'
 
-import { Card, DataTable, Field, GhostButton, PrimaryButton, SelectInput, TextInput } from './bits'
+import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, pctFmt, qtyFmt, statusLabel } from './format'
 
@@ -324,7 +324,13 @@ function qualitySampleTypeLabel(type: QualitySample['type']) {
 
 function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: QualitySample }) {
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [validationError, setValidationError] = useState('')
+  const sampleRef = sample.type === 'FINISHED_PRODUCT'
+    ? sample.lotNo
+    : sample.type === 'IN_PROCESS'
+      ? sample.productionOrderId
+      : `${sample.batchNo ?? ''}`
   return (
     <div className="flex flex-col gap-1">
       {(sample.attachments ?? []).map((attachment) => (
@@ -333,34 +339,59 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
         </a>
       ))}
       {can(ctx.permissions, 'qc.manage') ? (
-        <form onSubmit={async (event) => {
-          event.preventDefault()
-          const form = event.currentTarget
-          const file = new FormData(form).get('file')
-          if (!(file instanceof File)) return
-          setUploading(true)
-          setError('')
-          try {
-            const response = await fetch(`/api/erp/quality-samples/${sample.id}/attachments`, { method: 'POST', body: new FormData(form) })
-            const payload = await response.json() as { success?: boolean; message?: string }
-            if (!response.ok || !payload.success) {
-              setError(payload.message || 'تعذر رفع التقرير')
+        <FormDialog title={`إرفاق ملف — عينة المختبر ${sampleRef}`} openLabel="رفع ملف">
+          {(close) => <form className="grid gap-3" onSubmit={async (event) => {
+            event.preventDefault()
+            const form = event.currentTarget
+            const formData = new FormData(form)
+            const file = formData.get('file')
+            setValidationError('')
+            setUploadError('')
+            if (!(file instanceof File) || file.size === 0) {
+              setValidationError('الملف مطلوب')
               return
             }
-            await ctx.refreshUser()
-            form.reset()
-          } catch {
-            setError('تعذر الاتصال بالخادم لرفع التقرير')
-          } finally {
-            setUploading(false)
-          }
-        }}>
-          <label className="cursor-pointer text-xs font-semibold text-[#1d7f72]">
-            {uploading ? 'جارٍ الرفع…' : 'إرفاق تقرير'}
-            <input className="sr-only" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" disabled={uploading} onChange={(event) => event.currentTarget.form?.requestSubmit()} />
-          </label>
-          {error ? <span role="alert" className="text-xs text-red-700">{error}</span> : null}
-        </form>
+            if (file.size > 10 * 1024 * 1024) {
+              setValidationError('حجم الملف يتجاوز 10 ميجابايت')
+              return
+            }
+            const ext = file.name.split('.').pop()?.toLocaleLowerCase()
+            const okType =
+              file.type === 'application/pdf' ||
+              file.type === 'image/png' ||
+              file.type === 'image/jpeg' ||
+              ext === 'pdf' ||
+              ext === 'png' ||
+              ext === 'jpg' ||
+              ext === 'jpeg'
+            if (!okType) {
+              setValidationError('نوع الملف غير مدعوم')
+              return
+            }
+            setUploading(true)
+            try {
+              const response = await fetch(`/api/erp/quality-samples/${sample.id}/attachments`, { method: 'POST', body: formData })
+              const payload = await response.json() as { success?: boolean; message?: string }
+              if (!response.ok || !payload.success) {
+                setUploadError(payload.message || 'تعذر رفع الملف')
+                return
+              }
+              await ctx.refreshUser()
+              form.reset()
+              close()
+            } catch {
+              setUploadError('تعذر الاتصال بالخادم لرفع الملف')
+            } finally {
+              setUploading(false)
+            }
+          }}>
+            <Field label="إرفاق ملف"><TextInput name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" /></Field>
+            <p className="text-xs text-[#7c8c86]">PDF أو صورة PNG/JPEG — حتى 10 ميغابايت</p>
+            {validationError ? <p role="alert" className="text-sm text-red-700">{validationError}</p> : null}
+            {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
+            <PrimaryButton disabled={uploading}>{uploading ? 'جارٍ الرفع…' : 'رفع المرفق'}</PrimaryButton>
+          </form>}
+        </FormDialog>
       ) : null}
     </div>
   )
