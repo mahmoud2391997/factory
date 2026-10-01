@@ -317,6 +317,8 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
   const [notes, setNotes] = useState(document.notes ?? '')
   const [uploadError, setUploadError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [fileName, setFileName] = useState('')
+  const [validationError, setValidationError] = useState('')
 
   return <>
     <FormDialog title={`${translateUiText(language, 'تجديد')} ${document.title}`} openLabel="تجديد">
@@ -345,12 +347,24 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
       {(close) => <form className="grid gap-3" onSubmit={async (event) => {
         event.preventDefault()
         const form = event.currentTarget
-        const file = new FormData(form).get('file')
-        if (!(file instanceof File)) return
-        setUploading(true)
+        const formData = new FormData(form)
+        const file = formData.get('file')
+        setValidationError('')
         setUploadError('')
+        if (!(file instanceof File) || file.size === 0) {
+          setValidationError('الملف مطلوب')
+          return
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          setValidationError('حجم الملف يتجاوز 10 ميجابايت')
+          return
+        }
+        if (fileName.trim()) {
+          formData.set('fileName', fileName.trim())
+        }
+        setUploading(true)
         try {
-          const response = await fetch(`/api/erp/documents/${document.id}/attachments`, { method: 'POST', body: new FormData(form) })
+          const response = await fetch(`/api/erp/documents/${document.id}/attachments`, { method: 'POST', body: formData })
           const payload = await response.json() as { success?: boolean; message?: string }
           if (!response.ok || !payload.success) {
             setUploadError(payload.message || 'تعذر رفع الملف')
@@ -358,6 +372,7 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
           }
           await ctx.refreshUser()
           form.reset()
+          setFileName('')
           close()
         } catch {
           setUploadError('تعذر الاتصال بالخادم لرفع الملف')
@@ -365,7 +380,10 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
           setUploading(false)
         }
       }}>
-        <Field label="PDF أو صورة PNG/JPEG — حتى 10 ميغابايت"><TextInput name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" required /></Field>
+        <Field label="إرفاق ملف"><TextInput name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(event) => { const f = event.target.files?.[0]; if (f) setFileName(f.name) }} /></Field>
+        <Field label="اسم الملف"><TextInput value={fileName} onChange={(event) => setFileName(event.target.value)} placeholder="اختياري — الاسم الظاهر في القائمة" /></Field>
+        <p className="text-xs text-[#7c8c86]">PDF أو صورة PNG/JPEG — حتى 10 ميغابايت</p>
+        {validationError ? <p role="alert" className="text-sm text-red-700">{validationError}</p> : null}
         {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
         <PrimaryButton disabled={uploading}>{uploading ? 'جارٍ الرفع…' : 'رفع المرفق'}</PrimaryButton>
       </form>}
