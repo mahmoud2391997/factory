@@ -7,7 +7,7 @@
 | الأصناف والجهات | `createMaterial`, `createProduct`, `createSupplier`, `createCustomer`, `createEmployee`, `updateEmployee` | المخزون `material` / `product`، المشتريات `supplier`، المبيعات `customer`، والموظفون `employee` |
 | الوصفات والتسعير | `createRecipe`, `createCustomerRecipe`, `setCustomerPricing`, `setAlternativeBagWeights`, `setVarianceThresholds` | الإنتاج `recipe` / `customerRecipe`؛ محرر حدود الانحراف في شاشة المنتج/الوصفة |
 | إعدادات الشركة والحساب | `updateCompany`, `fundBank` | الإعدادات، والمالية/عمليات البنك |
-| الشراء والاستلام | `createPurchaseOrder`, `decidePurchaseOrder`, `receiveGoods` | أوامر الشراء `purchaseOrder` والاستلام `goodsReceipt`؛ قرار الشراء داخل سجل الطلب |
+| الشراء والاستلام | `createPurchaseRequest`, `addSupplierQuotation`, `selectSupplierQuotation`, `decidePurchaseRequest`, `convertRequestToPurchaseOrder`, `createPurchaseOrder`, `decidePurchaseOrder`, `receiveGoods` | طلبات الشراء `purchaseRequest` مع مقارنة عروض الموردين، أوامر الشراء `purchaseOrder` والاستلام `goodsReceipt`؛ قرار الشراء داخل سجل الطلب، والاستلام يرتبط بطلب الشراء عبر أمر الشراء |
 | المخزون | `transferStock`, `requestAdjustment`, `decideAdjustment`, `scanBarcode` | التحويل `stockTransfer`، التسوية `stockAdjustment`، ومحطة المسح `barcode` |
 | الإنتاج والتكاليف | `createProductionOrder`, `completeProduction`, `decideProductionCost`, `recalculateLotCosts` | أمر الإنتاج `productionOrder`، اعتماد تكلفة الدفعة من عرض الدفعة، وإعادة الحساب من المالية/إقفال الشهر |
 | المبيعات والتحصيل والسحب | `createInvoice`, `confirmInvoice`, `recordPayment`, `createWithdrawal` | الفواتير `salesInvoice`، التحصيل `salesPayment`، والسحب `withdrawal`؛ التأكيد والتحصيل ضمن سجل الفاتورة |

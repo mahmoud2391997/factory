@@ -169,6 +169,7 @@ export const DESTINATIONS: Destination[] = [
         leaves: [
           { href: '/sales/parties', entityKey: 'customer', tab: true },
           { href: '/sales/parties/suppliers', entityKey: 'supplier', tab: true },
+          { href: '/sales/parties/requests', entityKey: 'purchaseRequest', tab: true },
           { href: '/sales/parties/orders', entityKey: 'purchaseOrder', tab: true },
           { href: '/sales/parties/receipts', entityKey: 'goodsReceipt', tab: true },
         ],

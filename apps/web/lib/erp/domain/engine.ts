@@ -49,6 +49,9 @@ import type {
   QualityHold,
   TripCostAllocation,
   ProductionOrder,
+  PurchaseRequest,
+  SupplierQuotation,
+  PurchaseOrder,
 } from './types'
 
 const INVENTORY_ACCOUNT: Record<ItemType, string> = {
@@ -104,6 +107,17 @@ function supplierForBatch(state: ErpState, materialId: string, batchNo: string) 
   )
   if (!receipt) return null
   return state.purchaseOrders.find((item) => item.id === receipt.purchaseOrderId)?.supplierId ?? null
+}
+
+/** Latest purchase price and supplier for a material, derived from goods receipts. */
+function lastPurchaseInfo(state: ErpState, materialId: string): { unitCost: number; supplierId: string | null } {
+  const latest = state.goodsReceipts
+    .filter((receipt) => receipt.lines.some((line) => line.materialId === materialId))
+    .sort((a, b) => b.at.localeCompare(a.at))[0]
+  if (!latest) return { unitCost: 0, supplierId: null }
+  const line = latest.lines.find((entry) => entry.materialId === materialId)
+  const po = state.purchaseOrders.find((order) => order.id === latest.purchaseOrderId)
+  return { unitCost: line?.unitCost ?? 0, supplierId: po?.supplierId ?? null }
 }
 
 function invoiceUnitPrice(state: ErpState, lot: ProductionLot, invoiceId: string) {
@@ -649,6 +663,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     addSupplierQuotation: 'purchasing.quotation.manage',
     selectSupplierQuotation: 'purchasing.quotation.manage',
     decidePurchaseRequest: 'purchasing.request.approve',
+    convertRequestToPurchaseOrder: 'purchasing.po.create',
     createPurchaseOrder: 'purchasing.po.create',
     decidePurchaseOrder: 'purchasing.po.approve',
     receiveGoods: 'purchasing.gr.create',
@@ -752,6 +767,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return selectSupplierQuotation(state, actor, command.input, clock)
     case 'decidePurchaseRequest':
       return decidePurchaseRequest(state, actor, command.input, clock)
+    case 'convertRequestToPurchaseOrder':
+      return convertRequestToPurchaseOrder(state, actor, command.input, clock)
     case 'createPurchaseOrder':
       return createPurchaseOrder(state, actor, command.input, clock)
     case 'decidePurchaseOrder':
@@ -1174,6 +1191,138 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
   return ok(state, input.decision === 'APPROVED' ? `تم اعتماد ${po.number}` : `تم رفض ${po.number}`)
 }
 
+function createPurchaseRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createPurchaseRequest' }>['input'], clock: Clock): CommandResult {
+  if (input.lines.length === 0) return fail('أضف بنود الطلب')
+  const lines = []
+  let estimatedTotal = 0
+  for (const line of input.lines) {
+    if (!findMaterial(state, line.materialId)) return fail('إحدى المواد غير موجودة')
+    if (line.qty <= 0) return fail('كمية البند يجب أن تكون أكبر من صفر')
+    const last = lastPurchaseInfo(state, line.materialId)
+    lines.push({ materialId: line.materialId, qty: qty(line.qty), lastUnitCost: last.unitCost, lastSupplierId: last.supplierId ?? undefined })
+    estimatedTotal = money(estimatedTotal + qty(line.qty) * last.unitCost)
+  }
+  const operationsThreshold = state.company.purchaseOperationsApprovalThreshold ?? 100
+  const at = clock.now()
+  const request: PurchaseRequest = {
+    id: clock.id('prq'),
+    number: nextNumber(state, 'PR', at),
+    purpose: input.purpose,
+    requestedBy: actor.id,
+    requestedAt: at,
+    status: 'DRAFT',
+    notes: input.notes?.trim() ?? '',
+    lines,
+    approvalTier: estimatedTotal <= operationsThreshold ? 'OPERATIONS' : 'GM',
+  }
+  state.purchaseRequests.unshift(request)
+  audit(state, actor, clock, 'إنشاء طلب شراء', 'purchaseRequest', request.id, request.number)
+  return ok(state, `تم إنشاء ${request.number}`, { id: request.id, number: request.number })
+}
+
+function addSupplierQuotation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'addSupplierQuotation' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.requestId)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'DRAFT' && request.status !== 'QUOTING') return fail('لا يمكن إضافة عروض في هذه المرحلة')
+  if (!state.suppliers.some((item) => item.id === input.supplierId)) return fail('المورد غير موجود')
+  if (input.lines.length === 0) return fail('أضف بنود العرض')
+  const lines = []
+  let total = 0
+  for (const line of input.lines) {
+    const requestLine = request.lines.find((item) => item.materialId === line.materialId)
+    if (!requestLine) return fail('البند ليس ضمن طلب الشراء')
+    if (line.qty <= 0 || line.unitCost < 0) return fail('كمية أو سعر البند غير صحيح')
+    lines.push({ materialId: line.materialId, qty: qty(line.qty), unitCost: money(line.unitCost) })
+    total = money(total + qty(line.qty) * money(line.unitCost))
+  }
+  const deliveryCost = money(input.deliveryCost ?? 0)
+  if (deliveryCost < 0) return fail('تكلفة التوصيل غير صحيحة')
+  total = money(total + deliveryCost)
+  const quotation: SupplierQuotation = {
+    id: clock.id('quo'),
+    requestId: request.id,
+    supplierId: input.supplierId,
+    quotedAt: clock.now(),
+    validUntil: input.validUntil,
+    lines,
+    deliveryCost,
+    total,
+    notes: input.notes?.trim() ?? '',
+    attachmentId: input.attachmentId?.trim() || undefined,
+  }
+  state.supplierQuotations.unshift(quotation)
+  request.status = 'QUOTING'
+  audit(state, actor, clock, 'إضافة عرض مورد', 'supplierQuotation', quotation.id, `${request.number} — ${total} ر.ع.`)
+  return ok(state, `تم حفظ عرض المورد على ${request.number}`, { id: quotation.id })
+}
+
+function selectSupplierQuotation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'selectSupplierQuotation' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.requestId)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'DRAFT' && request.status !== 'QUOTING') return fail('لا يمكن اختيار مورد في هذه المرحلة')
+  const quotation = state.supplierQuotations.find((item) => item.id === input.quotationId && item.requestId === request.id)
+  if (!quotation) return fail('العرض غير موجود أو لا يتبع الطلب')
+  const quotes = state.supplierQuotations.filter((item) => item.requestId === request.id)
+  const lowest = quotes.reduce((min, item) => (item.total < min.total ? item : min), quotes[0]!)
+  if (quotation.id !== lowest.id && !input.reason?.trim()) {
+    return fail('العرض المختار ليس الأقل سعراً — سبب الاختيار مطلوب')
+  }
+  request.selectedQuotationId = quotation.id
+  request.status = 'SELECTED'
+  audit(state, actor, clock, 'اختيار مورد', 'purchaseRequest', request.id, `${request.number} — عرض ${quotation.id}${input.reason?.trim() ? `: ${input.reason.trim()}` : ''}`)
+  return ok(state, `تم اختيار المورد على ${request.number}`)
+}
+
+function decidePurchaseRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decidePurchaseRequest' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.id)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'SELECTED' && request.status !== 'PENDING_APPROVAL') return fail('لا يمكن البت في الطلب في هذه المرحلة')
+  if (request.approvalTier === 'GM' && actor.role !== 'GM') {
+    return fail('يتطلب اعتماد هذا الطلب صلاحية المدير العام')
+  }
+  request.status = input.decision
+  request.decidedBy = actor.id
+  request.decidedAt = clock.now()
+  request.decisionReason = input.reason?.trim() || undefined
+  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد طلب شراء' : 'رفض طلب شراء', 'purchaseRequest', request.id, request.number)
+  if (input.decision === 'APPROVED') {
+    notify(state, clock, 'APPROVAL', `طلب شراء معتمد: ${request.number}`, 'يمكن تحويله إلى أمر شراء.', ['GM', 'OPERATIONS'], `appr:prq:${request.id}`)
+  }
+  return ok(state, input.decision === 'APPROVED' ? `تم اعتماد ${request.number}` : `تم رفض ${request.number}`)
+}
+
+function convertRequestToPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Command, { action: 'convertRequestToPurchaseOrder' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.id)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'APPROVED') return fail('لا يمكن تحويل الطلب قبل اعتماده')
+  const quotation = state.supplierQuotations.find((item) => item.id === request.selectedQuotationId && item.requestId === request.id)
+  if (!quotation) return fail('العرض المختار غير موجود')
+  const lines = quotation.lines.map((line) => ({
+    materialId: line.materialId,
+    qty: line.qty,
+    unitCost: line.unitCost,
+    receivedQty: 0,
+  }))
+  const at = clock.now()
+  const po: PurchaseOrder = {
+    id: clock.id('po'),
+    number: nextNumber(state, 'PO', at),
+    supplierId: quotation.supplierId,
+    status: 'PENDING_APPROVAL',
+    notes: input.notes?.trim() ?? '',
+    lines,
+    createdBy: actor.id,
+    createdAt: at,
+    purchaseRequestId: request.id,
+    purpose: request.purpose,
+  }
+  state.purchaseOrders.unshift(po)
+  request.status = 'CONVERTED'
+  notify(state, clock, 'APPROVAL', `اعتماد أمر شراء ${po.number}`, 'أمر شراء بانتظار اعتماد المدير العام.', ['GM'], `appr:po:${po.id}`)
+  audit(state, actor, clock, 'تحويل طلب شراء إلى أمر شراء', 'purchaseOrder', po.id, `${request.number} → ${po.number}`)
+  return ok(state, `تم إنشاء ${po.number} من ${request.number}`, { id: po.id, number: po.number })
+}
+
 function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { action: 'receiveGoods' }>['input'], clock: Clock): CommandResult {
   const po = state.purchaseOrders.find((item) => item.id === input.purchaseOrderId)
   if (!po) return fail('أمر الشراء غير موجود')
@@ -1234,6 +1383,7 @@ function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { a
     id: receiptId,
     number: nextNumber(state, 'GR', at),
     purchaseOrderId: po.id,
+    purchaseRequestId: po.purchaseRequestId,
     at,
     createdBy: actor.id,
     lines: receiptLines,

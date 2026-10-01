@@ -520,5 +520,46 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
     input: { productId: broiler, recipeId: broilerRecipe.id, plannedQty: 1000 },
   })
 
+  // Purchasing chain: request → quotes → supplier choice → approval → PO.
+  const salt = idOf('RM-SALT')
+  state = step(state, clock, {
+    action: 'createPurchaseRequest',
+    input: { purpose: 'MATERIAL', notes: 'تعويض مخزون الملح', lines: [{ materialId: salt, qty: 500 }] },
+  })
+  const saltRequest = state.purchaseRequests[0]!
+  const zafar = state.suppliers.find((item) => item.nameAr.includes('ظفار'))!
+  state = step(state, clock, {
+    action: 'addSupplierQuotation',
+    input: {
+      requestId: saltRequest.id,
+      supplierId: mills.id,
+      deliveryCost: 5,
+      lines: [{ materialId: salt, qty: 500, unitCost: 0.031 }],
+    },
+  })
+  state = step(state, clock, {
+    action: 'addSupplierQuotation',
+    input: {
+      requestId: saltRequest.id,
+      supplierId: zafar.id,
+      deliveryCost: 2,
+      lines: [{ materialId: salt, qty: 500, unitCost: 0.029 }],
+    },
+  })
+  const saltQuotes = state.supplierQuotations.filter((item) => item.requestId === saltRequest.id)
+  const cheapest = saltQuotes.reduce((min, item) => (item.total < min.total ? item : min), saltQuotes[0]!)
+  state = step(state, clock, {
+    action: 'selectSupplierQuotation',
+    input: { requestId: saltRequest.id, quotationId: cheapest.id },
+  })
+  state = step(state, clock, {
+    action: 'decidePurchaseRequest',
+    input: { id: saltRequest.id, decision: 'APPROVED' },
+  })
+  state = step(state, clock, {
+    action: 'convertRequestToPurchaseOrder',
+    input: { id: saltRequest.id },
+  })
+
   return state
 }
