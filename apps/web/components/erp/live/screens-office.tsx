@@ -8,6 +8,7 @@ import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { dashboardAccess, dashboardAlerts } from '@/lib/erp/domain/dashboard'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
+import { annualLeaveBalance } from '@/lib/erp/domain/engine'
 import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
@@ -786,6 +787,23 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
   const [department, setDepartment] = useState('الإنتاج')
   const [jobTitle, setJobTitle] = useState('')
   const [basicSalary, setBasicSalary] = useState('')
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(ctx.state.employees[0]?.id ?? '')
+  const selected = ctx.state.employees.find((item) => item.id === selectedEmployeeId) ?? ctx.state.employees[0]
+  const currentYear = muscatDay(new Date().toISOString()).slice(0, 4)
+  const entitlement = ctx.state.company.annualLeaveEntitlementDays ?? 30
+  const balance = selected ? annualLeaveBalance(ctx.state, selected.id, currentYear) : 0
+  const leaveRows = selected ? (ctx.state.leaveRequests ?? []).filter((item) => item.employeeId === selected.id) : []
+  const [leaveType, setLeaveType] = useState<'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY' | 'OTHER'>('ANNUAL')
+  const [leaveFrom, setLeaveFrom] = useState(() => muscatDay(new Date().toISOString()))
+  const [leaveTo, setLeaveTo] = useState(() => muscatDay(new Date().toISOString()))
+  const [leaveDays, setLeaveDays] = useState('1')
+  const [leaveReason, setLeaveReason] = useState('')
+
+  function autoDays(from: string, to: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return '1'
+    const delta = Math.floor((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
+    return String(Math.max(1, delta))
+  }
   return (
     <div className="space-y-4">
       <Card
@@ -815,6 +833,78 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب', 'إجراء']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—', can(ctx.permissions, 'employees.manage') ? <FormDialog key={`${employee.id}-edit`} title="تحديث الموظف" openLabel="تعديل">{(close) => <EmployeeEditor ctx={ctx} employee={employee} onSaved={close} />}</FormDialog> : '—'])} />
+      </Card>
+
+      <Card title="الإجازات" hint={`رصيد السنوي = ${entitlement} − المعتمد في السنة. الإجازة غير المدفوعة تخصم من المسير عند الإنشاء.`}>
+        {selected ? (
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="الموظف">
+                <SelectInput value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
+                  {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}
+                </SelectInput>
+              </Field>
+              <div className="rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm">
+                <div className="font-semibold">{selected.nameAr}</div>
+                <div className="text-[#6b7280]">رصيد {currentYear}: {balance} يوم</div>
+              </div>
+            </div>
+
+            {can(ctx.permissions, 'employees.manage') ? (
+              <FormDialog title="طلب إجازة" openLabel="طلب إجازة" wide>
+                {(close) => (
+                  <form className="space-y-3" onSubmit={async (event) => {
+                    event.preventDefault()
+                    const result = await ctx.act('createLeaveRequest', {
+                      employeeId: selectedEmployeeId,
+                      type: leaveType,
+                      from: leaveFrom,
+                      to: leaveTo,
+                      days: Number(leaveDays),
+                      reason: leaveReason,
+                    })
+                    if (result.ok) {
+                      setLeaveReason('')
+                      close()
+                    }
+                  }}>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Field label="النوع">
+                        <SelectInput value={leaveType} onChange={(e) => setLeaveType(e.target.value as typeof leaveType)}>
+                          <option value="ANNUAL">سنوية</option>
+                          <option value="SICK">مرضية</option>
+                          <option value="UNPAID">غير مدفوعة</option>
+                          <option value="EMERGENCY">طارئة</option>
+                          <option value="OTHER">أخرى</option>
+                        </SelectInput>
+                      </Field>
+                      <Field label="عدد الأيام"><TextInput type="number" min="1" step="1" value={leaveDays} onChange={(e) => setLeaveDays(e.target.value)} required /></Field>
+                      <Field label="من">
+                        <TextInput type="date" value={leaveFrom} onChange={(e) => { setLeaveFrom(e.target.value); setLeaveDays(autoDays(e.target.value, leaveTo)) }} required />
+                      </Field>
+                      <Field label="إلى">
+                        <TextInput type="date" value={leaveTo} onChange={(e) => { setLeaveTo(e.target.value); setLeaveDays(autoDays(leaveFrom, e.target.value)) }} required />
+                      </Field>
+                    </div>
+                    <Field label="السبب"><TextInput value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} required minLength={2} /></Field>
+                    <PrimaryButton disabled={ctx.pending || !selectedEmployeeId}>إرسال للاعتماد</PrimaryButton>
+                  </form>
+                )}
+              </FormDialog>
+            ) : null}
+
+            <DataTable
+              columns={['النوع', 'الفترة', 'الأيام', 'الحالة', 'المعتمد']}
+              rows={leaveRows.map((row) => [
+                statusLabel(row.type),
+                `${row.from} → ${row.to}`,
+                String(row.days),
+                statusLabel(row.status),
+                row.decidedBy ? (ctx.state.users.find((u) => u.id === row.decidedBy)?.fullName ?? row.decidedBy) : '—',
+              ])}
+            />
+          </div>
+        ) : <p className="text-sm text-[#788983]">لا يوجد موظفون.</p>}
       </Card>
     </div>
   )
@@ -1166,6 +1256,7 @@ function Approvals({ ctx }: { ctx: LiveCtx }) {
   const expenses = ctx.state.expenses.filter((expense) => expense.status === 'PENDING_APPROVAL')
   const payrolls = ctx.state.payrolls.filter((payroll) => payroll.status === 'PENDING_APPROVAL')
   const adjustments = ctx.state.adjustments.filter((adjustment) => adjustment.status === 'PENDING_APPROVAL')
+  const leaves = (ctx.state.leaveRequests ?? []).filter((request) => request.status === 'PENDING_APPROVAL')
   return (
     <div className="space-y-4">
       <Card title="تكلفة إنتاج">
@@ -1199,6 +1290,22 @@ function Approvals({ ctx }: { ctx: LiveCtx }) {
             <GhostButton type="button" onClick={() => ctx.act('decideExpense', { id: expense.id, decision: 'POSTED' })}>ترحيل</GhostButton>
           </div>
         ))}
+      </Card>
+      <Card title="إجازات">
+        {leaves.length === 0 ? <p className="text-sm text-[#788983]">لا يوجد</p> : leaves.map((request) => {
+          const employee = ctx.state.employees.find((item) => item.id === request.employeeId)
+          return (
+            <div key={request.id} className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#f3f6f5] py-2">
+              <div>{employee?.nameAr ?? request.employeeId} — {statusLabel(request.type)} — {request.from} → {request.to} ({request.days} يوم)</div>
+              {can(ctx.permissions, 'approvals.decide') ? (
+                <span className="flex gap-2">
+                  <GhostButton type="button" onClick={() => ctx.act('decideLeaveRequest', { id: request.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
+                  <GhostButton type="button" onClick={() => ctx.act('decideLeaveRequest', { id: request.id, decision: 'REJECTED' })}>رفض</GhostButton>
+                </span>
+              ) : <Badge tone="warn">بانتظار اعتماد المدير</Badge>}
+            </div>
+          )
+        })}
       </Card>
       <Card title="رواتب">
         {payrolls.length === 0 ? <p className="text-sm text-[#788983]">لا يوجد</p> : payrolls.map((payroll) => (
