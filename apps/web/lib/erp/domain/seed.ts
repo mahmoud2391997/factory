@@ -265,6 +265,14 @@ export function buildSeedState(passwordHash = 'seed-hash', now?: Date | string):
     state = step(state, clock, { action: 'createEmployee', input: { nameAr, department, jobTitle, basicSalary } })
   }
 
+  // Employee leave management: a pending leave request to show in approvals + balance.
+  const leaveEmployee = state.employees[0]!
+  const leaveFrom = muscatDay(clock.now())
+  state = step(state, clock, {
+    action: 'createLeaveRequest',
+    input: { employeeId: leaveEmployee.id, type: 'ANNUAL', from: leaveFrom, to: addDays(leaveFrom, 2), days: 3, reason: 'إجازة مخططة' },
+  })
+
   const idOf = (code: string) => {
     const material = state.materials.find((item) => item.code === code)
     const product = state.products.find((item) => item.code === code)
