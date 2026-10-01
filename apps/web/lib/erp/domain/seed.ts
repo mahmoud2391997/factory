@@ -1,3 +1,4 @@
+import { erpNow } from './clock'
 import { applyCommand } from './engine'
 import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS_VERSION } from './permissions'
 import type { Actor, Clock, Command, ErpState } from './types'
@@ -16,8 +17,8 @@ function addDays(day: string, days: number) {
 }
 
 /** Start the story so today's production and sales land on the current Muscat day. */
-export function seedClockStart(now = new Date()) {
-  const day = muscatDay(now.toISOString())
+export function seedClockStart(now?: Date | string) {
+  const day = muscatDay(erpNow(now).toISOString())
   const noonMuscat = Date.parse(`${day}T08:00:00.000Z`)
   return new Date(noonMuscat - CONFIRM_INVOICE_ADVANCES * 6 * 60 * 60 * 1000).toISOString()
 }
@@ -154,6 +155,7 @@ export function emptyState(passwordHash: string): ErpState {
     packagingMaterials: [],
     packagingConsumption: [],
     packagingCounts: [],
+    leaveRequests: [],
     supplierTemplates: [],
     supplierCommunications: [],
     scaleReadings: [],
@@ -181,7 +183,7 @@ function step(state: ErpState, clock: Clock & { advance: (hours?: number) => voi
   return result.state
 }
 
-export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): ErpState {
+export function buildSeedState(passwordHash = 'seed-hash', now?: Date | string): ErpState {
   const clock = createClock(seedClockStart(now))
   let state = emptyState(passwordHash)
   const actorNote = systemActor(state)
