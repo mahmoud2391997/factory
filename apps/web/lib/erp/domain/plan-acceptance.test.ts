@@ -60,7 +60,7 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
 
   state = must(state, ops(), clock, {
     action: 'createPurchaseOrder',
-    input: { supplierId: supplier.id, lines: [{ materialId: corn.id, qty: 1000, unitCost: 0.1 }] },
+    input: { supplierId: supplier.id, lines: [{ materialId: corn.id, qty: 1000, unitCost: 0.2 }] },
   })
   const poId = state.purchaseOrders[0]!.id
   assert.equal(state.purchaseOrders[0]!.status, 'PENDING_APPROVAL')
@@ -101,9 +101,9 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
       (entry) =>
         entry.refType === 'goodsReceipt' &&
         entry.refId === receipt.id &&
-        entry.lines.some((line) => line.accountCode === '1100' && line.debit === 100) &&
-        entry.lines.some((line) => line.accountCode === '2100' && line.credit === 105) &&
-        entry.lines.some((line) => line.accountCode === '2300' && line.debit === 5),
+        entry.lines.some((line) => line.accountCode === '1100' && line.debit === 200) &&
+        entry.lines.some((line) => line.accountCode === '2100' && line.credit === 210) &&
+        entry.lines.some((line) => line.accountCode === '2300' && line.debit === 10),
     ),
   )
 
@@ -296,7 +296,7 @@ test('days 5–13: supplier to sale on one balanced mill path', () => {
   assert.equal(tb.balanced, true)
   const vat = vatReturn(state, muscatDay(invoice.issuedAt).slice(0, 7))
   assert.equal(vat.outputVat, 1)
-  assert.equal(vat.inputVat, 5)
+  assert.equal(vat.inputVat, 10)
   assert.equal(inventoryIntegrity(state).ok, true, inventoryIntegrity(state).issues.join(' | '))
 
   const traced = state.lots.find((lot) => lot.productionOrderId === order.id)!

@@ -30,6 +30,9 @@ import type {
   SparePartUsage,
   PackagingMaterial,
   PackagingConsumption,
+  PackagingCount,
+  LeaveRequest,
+  LeaveType,
   SupplierTemplate,
   SupplierCommunication,
   ScaleReading,
@@ -49,6 +52,10 @@ import type {
   QualityHold,
   TripCostAllocation,
   ProductionOrder,
+  PurchaseRequest,
+  SupplierQuotation,
+  PurchaseOrder,
+  PurchasePurpose,
 } from './types'
 
 const INVENTORY_ACCOUNT: Record<ItemType, string> = {
@@ -104,6 +111,43 @@ function supplierForBatch(state: ErpState, materialId: string, batchNo: string) 
   )
   if (!receipt) return null
   return state.purchaseOrders.find((item) => item.id === receipt.purchaseOrderId)?.supplierId ?? null
+}
+
+/** Latest purchase price and supplier for a material, derived from goods receipts. */
+function lastPurchaseInfo(state: ErpState, materialId: string): { unitCost: number; supplierId: string | null } {
+  const latest = state.goodsReceipts
+    .filter((receipt) => receipt.lines.some((line) => line.materialId === materialId))
+    .sort((a, b) => b.at.localeCompare(a.at))[0]
+  if (!latest) return { unitCost: 0, supplierId: null }
+  const line = latest.lines.find((entry) => entry.materialId === materialId)
+  const po = state.purchaseOrders.find((order) => order.id === latest.purchaseOrderId)
+  return { unitCost: line?.unitCost ?? 0, supplierId: po?.supplierId ?? null }
+}
+
+/**
+ * Value-based approval tier for a purchase order total. Tiers are evaluated lowest
+ * `upTo` first; a total within a tier may be approved by that tier's role, anything
+ * above the highest tier needs the GM. Default: up to 100 OMR an OPERATIONS
+ * approval suffices.
+ */
+function poApprovalRoleFor(state: ErpState, total: number): 'OPERATIONS' | 'GM' {
+  const tiers = state.company.poApprovalTiers ?? [{ upTo: 100, requiredRole: 'OPERATIONS' }]
+  const sorted = [...tiers].filter((tier) => Number.isFinite(tier.upTo)).sort((a, b) => a.upTo - b.upTo)
+  for (const tier of sorted) {
+    if (total <= tier.upTo + 0.0001) return tier.requiredRole
+  }
+  return 'GM'
+}
+
+/** True when the actor's role meets the required approval role (GM outranks OPERATIONS). */
+function roleMeetsTier(actor: Actor, requiredRole: 'OPERATIONS' | 'GM'): boolean {
+  if (requiredRole === 'GM') return actor.role === 'GM'
+  return actor.role === 'GM' || actor.role === 'OPERATIONS'
+}
+
+/** Maintenance and spare-part purchases must never move before they are approved. */
+function purposeNeedsApproval(purpose: PurchasePurpose | undefined): boolean {
+  return purpose === 'MAINTENANCE' || purpose === 'SPARE_PART'
 }
 
 function invoiceUnitPrice(state: ErpState, lot: ProductionLot, invoiceId: string) {
@@ -649,6 +693,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     addSupplierQuotation: 'purchasing.quotation.manage',
     selectSupplierQuotation: 'purchasing.quotation.manage',
     decidePurchaseRequest: 'purchasing.request.approve',
+    convertRequestToPurchaseOrder: 'purchasing.po.create',
     createPurchaseOrder: 'purchasing.po.create',
     decidePurchaseOrder: 'purchasing.po.approve',
     receiveGoods: 'purchasing.gr.create',
@@ -702,6 +747,10 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     recordSparePartUsage: 'spareparts.manage',
     createPackagingMaterial: 'packaging.manage',
     recordPackagingConsumption: 'packaging.manage',
+    recordPackagingCount: 'packaging.manage',
+    decidePackagingCount: 'approvals.decide',
+    createLeaveRequest: 'employees.manage',
+    decideLeaveRequest: 'approvals.decide',
     createSupplierTemplate: 'suppliers.communicate',
     sendSupplierCommunication: 'suppliers.communicate',
     approveSupplierCommunication: 'suppliers.approve',
@@ -752,6 +801,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return selectSupplierQuotation(state, actor, command.input, clock)
     case 'decidePurchaseRequest':
       return decidePurchaseRequest(state, actor, command.input, clock)
+    case 'convertRequestToPurchaseOrder':
+      return convertRequestToPurchaseOrder(state, actor, command.input, clock)
     case 'createPurchaseOrder':
       return createPurchaseOrder(state, actor, command.input, clock)
     case 'decidePurchaseOrder':
@@ -858,6 +909,14 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return createPackagingMaterial(state, actor, command.input, clock)
     case 'recordPackagingConsumption':
       return recordPackagingConsumption(state, actor, command.input, clock)
+    case 'recordPackagingCount':
+      return recordPackagingCount(state, actor, command.input, clock)
+    case 'decidePackagingCount':
+      return decidePackagingCount(state, actor, command.input, clock)
+    case 'createLeaveRequest':
+      return createLeaveRequest(state, actor, command.input, clock)
+    case 'decideLeaveRequest':
+      return decideLeaveRequest(state, actor, command.input, clock)
     case 'createSupplierTemplate':
       return createSupplierTemplate(state, actor, command.input, clock)
     case 'sendSupplierCommunication':
@@ -1107,6 +1166,21 @@ function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { 
       if (message) return fail(message)
     }
   }
+  if (input.utilityVarianceThresholdPct !== undefined) {
+    const message = bounded(input.utilityVarianceThresholdPct, 0, 100, 'حد انحراف المرافق يجب أن يكون بين 0 و 100')
+    if (message) return fail(message)
+  }
+  if (input.annualLeaveEntitlementDays !== undefined) {
+    const message = bounded(input.annualLeaveEntitlementDays, 0, 365, 'رصيد الإجازات السنوية يجب أن يكون بين 0 و 365')
+    if (message) return fail(message)
+  }
+  if (input.poApprovalTiers !== undefined) {
+    if (!Array.isArray(input.poApprovalTiers)) return fail('حدود اعتماد أوامر الشراء غير صحيحة')
+    for (const tier of input.poApprovalTiers) {
+      if (!Number.isFinite(tier?.upTo) || tier.upTo < 0) return fail('حد الاعتماد يجب أن يكون صفراً أو أكثر')
+      if (tier.requiredRole !== 'OPERATIONS' && tier.requiredRole !== 'GM') return fail('دور الاعتماد غير صحيح')
+    }
+  }
   state.company = {
     ...state.company,
     ...input,
@@ -1147,7 +1221,7 @@ function createPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
     })
   }
   const at = clock.now()
-  const po = {
+  const po: PurchaseOrder = {
     id: clock.id('po'),
     number: nextNumber(state, 'PO', at),
     supplierId: input.supplierId,
@@ -1156,6 +1230,8 @@ function createPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
     lines,
     createdBy: actor.id,
     createdAt: at,
+    ...(input.purchaseRequestId ? { purchaseRequestId: input.purchaseRequestId } : {}),
+    ...(input.purpose ? { purpose: input.purpose } : {}),
   }
   state.purchaseOrders.unshift(po)
   notify(state, clock, 'APPROVAL', `اعتماد أمر شراء ${po.number}`, 'أمر شراء بانتظار اعتماد المدير العام.', ['GM'], `appr:po:${po.id}`)
@@ -1167,6 +1243,11 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
   const po = state.purchaseOrders.find((item) => item.id === input.id)
   if (!po) return fail('أمر الشراء غير موجود')
   if (po.status !== 'PENDING_APPROVAL') return fail('لا يمكن اعتماد أمر الشراء في هذه الحالة')
+  const total = money(po.lines.reduce((sum, line) => sum + line.qty * line.unitCost, 0))
+  const requiredRole = poApprovalRoleFor(state, total)
+  if (!roleMeetsTier(actor, requiredRole)) {
+    return fail(`يتطلب اعتماد أمر الشراء هذا (${total} ر.ع.) صلاحية المدير العام`)
+  }
   po.status = input.decision
   po.decidedBy = actor.id
   po.decidedAt = clock.now()
@@ -1174,10 +1255,150 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
   return ok(state, input.decision === 'APPROVED' ? `تم اعتماد ${po.number}` : `تم رفض ${po.number}`)
 }
 
+function createPurchaseRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createPurchaseRequest' }>['input'], clock: Clock): CommandResult {
+  if (input.lines.length === 0) return fail('أضف بنود الطلب')
+  const lines = []
+  let estimatedTotal = 0
+  for (const line of input.lines) {
+    if (!findMaterial(state, line.materialId)) return fail('إحدى المواد غير موجودة')
+    if (line.qty <= 0) return fail('كمية البند يجب أن تكون أكبر من صفر')
+    const last = lastPurchaseInfo(state, line.materialId)
+    lines.push({ materialId: line.materialId, qty: qty(line.qty), lastUnitCost: last.unitCost, lastSupplierId: last.supplierId ?? undefined })
+    estimatedTotal = money(estimatedTotal + qty(line.qty) * last.unitCost)
+  }
+  const operationsThreshold = state.company.purchaseOperationsApprovalThreshold ?? 100
+  const at = clock.now()
+  const request: PurchaseRequest = {
+    id: clock.id('prq'),
+    number: nextNumber(state, 'PR', at),
+    purpose: input.purpose,
+    requestedBy: actor.id,
+    requestedAt: at,
+    status: 'DRAFT',
+    notes: input.notes?.trim() ?? '',
+    lines,
+    approvalTier: estimatedTotal <= operationsThreshold ? 'OPERATIONS' : 'GM',
+  }
+  state.purchaseRequests.unshift(request)
+  audit(state, actor, clock, 'إنشاء طلب شراء', 'purchaseRequest', request.id, request.number)
+  return ok(state, `تم إنشاء ${request.number}`, { id: request.id, number: request.number })
+}
+
+function addSupplierQuotation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'addSupplierQuotation' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.requestId)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'DRAFT' && request.status !== 'QUOTING') return fail('لا يمكن إضافة عروض في هذه المرحلة')
+  if (!state.suppliers.some((item) => item.id === input.supplierId)) return fail('المورد غير موجود')
+  if (input.lines.length === 0) return fail('أضف بنود العرض')
+  const lines = []
+  let total = 0
+  for (const line of input.lines) {
+    const requestLine = request.lines.find((item) => item.materialId === line.materialId)
+    if (!requestLine) return fail('البند ليس ضمن طلب الشراء')
+    if (line.qty <= 0 || line.unitCost < 0) return fail('كمية أو سعر البند غير صحيح')
+    lines.push({ materialId: line.materialId, qty: qty(line.qty), unitCost: money(line.unitCost) })
+    total = money(total + qty(line.qty) * money(line.unitCost))
+  }
+  const deliveryCost = money(input.deliveryCost ?? 0)
+  if (deliveryCost < 0) return fail('تكلفة التوصيل غير صحيحة')
+  total = money(total + deliveryCost)
+  const quotation: SupplierQuotation = {
+    id: clock.id('quo'),
+    requestId: request.id,
+    supplierId: input.supplierId,
+    quotedAt: clock.now(),
+    validUntil: input.validUntil,
+    lines,
+    deliveryCost,
+    total,
+    notes: input.notes?.trim() ?? '',
+    attachmentId: input.attachmentId?.trim() || undefined,
+  }
+  state.supplierQuotations.unshift(quotation)
+  request.status = 'QUOTING'
+  audit(state, actor, clock, 'إضافة عرض مورد', 'supplierQuotation', quotation.id, `${request.number} — ${total} ر.ع.`)
+  return ok(state, `تم حفظ عرض المورد على ${request.number}`, { id: quotation.id })
+}
+
+function selectSupplierQuotation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'selectSupplierQuotation' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.requestId)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'DRAFT' && request.status !== 'QUOTING') return fail('لا يمكن اختيار مورد في هذه المرحلة')
+  const quotation = state.supplierQuotations.find((item) => item.id === input.quotationId && item.requestId === request.id)
+  if (!quotation) return fail('العرض غير موجود أو لا يتبع الطلب')
+  const quotes = state.supplierQuotations.filter((item) => item.requestId === request.id)
+  const lowest = quotes.reduce((min, item) => (item.total < min.total ? item : min), quotes[0]!)
+  if (quotation.id !== lowest.id && !input.reason?.trim()) {
+    return fail('العرض المختار ليس الأقل سعراً — سبب الاختيار مطلوب')
+  }
+  request.selectedQuotationId = quotation.id
+  request.status = 'SELECTED'
+  audit(state, actor, clock, 'اختيار مورد', 'purchaseRequest', request.id, `${request.number} — عرض ${quotation.id}${input.reason?.trim() ? `: ${input.reason.trim()}` : ''}`)
+  return ok(state, `تم اختيار المورد على ${request.number}`)
+}
+
+function decidePurchaseRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decidePurchaseRequest' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.id)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'SELECTED' && request.status !== 'PENDING_APPROVAL') return fail('لا يمكن البت في الطلب في هذه المرحلة')
+  if (request.approvalTier === 'GM' && actor.role !== 'GM') {
+    return fail('يتطلب اعتماد هذا الطلب صلاحية المدير العام')
+  }
+  request.status = input.decision
+  request.decidedBy = actor.id
+  request.decidedAt = clock.now()
+  request.decisionReason = input.reason?.trim() || undefined
+  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد طلب شراء' : 'رفض طلب شراء', 'purchaseRequest', request.id, request.number)
+  if (input.decision === 'APPROVED') {
+    notify(state, clock, 'APPROVAL', `طلب شراء معتمد: ${request.number}`, 'يمكن تحويله إلى أمر شراء.', ['GM', 'OPERATIONS'], `appr:prq:${request.id}`)
+  }
+  return ok(state, input.decision === 'APPROVED' ? `تم اعتماد ${request.number}` : `تم رفض ${request.number}`)
+}
+
+function convertRequestToPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Command, { action: 'convertRequestToPurchaseOrder' }>['input'], clock: Clock): CommandResult {
+  const request = state.purchaseRequests.find((item) => item.id === input.id)
+  if (!request) return fail('طلب الشراء غير موجود')
+  if (request.status !== 'APPROVED') {
+    return fail(purposeNeedsApproval(request.purpose)
+      ? 'لا يمكن تحويل طلب الصيانة أو قطع الغيار إلى أمر شراء قبل اعتماده'
+      : 'لا يمكن تحويل الطلب قبل اعتماده')
+  }
+  const quotation = state.supplierQuotations.find((item) => item.id === request.selectedQuotationId && item.requestId === request.id)
+  if (!quotation) return fail('العرض المختار غير موجود')
+  const lines = quotation.lines.map((line) => ({
+    materialId: line.materialId,
+    qty: line.qty,
+    unitCost: line.unitCost,
+    receivedQty: 0,
+  }))
+  const at = clock.now()
+  const po: PurchaseOrder = {
+    id: clock.id('po'),
+    number: nextNumber(state, 'PO', at),
+    supplierId: quotation.supplierId,
+    status: 'PENDING_APPROVAL',
+    notes: input.notes?.trim() ?? '',
+    lines,
+    createdBy: actor.id,
+    createdAt: at,
+    purchaseRequestId: request.id,
+    purpose: request.purpose,
+  }
+  state.purchaseOrders.unshift(po)
+  request.status = 'CONVERTED'
+  notify(state, clock, 'APPROVAL', `اعتماد أمر شراء ${po.number}`, 'أمر شراء بانتظار اعتماد المدير العام.', ['GM'], `appr:po:${po.id}`)
+  audit(state, actor, clock, 'تحويل طلب شراء إلى أمر شراء', 'purchaseOrder', po.id, `${request.number} → ${po.number}`)
+  return ok(state, `تم إنشاء ${po.number} من ${request.number}`, { id: po.id, number: po.number })
+}
+
 function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { action: 'receiveGoods' }>['input'], clock: Clock): CommandResult {
   const po = state.purchaseOrders.find((item) => item.id === input.purchaseOrderId)
   if (!po) return fail('أمر الشراء غير موجود')
-  if (po.status !== 'APPROVED' && po.status !== 'PARTIALLY_RECEIVED') return fail('الاستلام متاح بعد اعتماد أمر ال��راء فقط')
+  if (po.status !== 'APPROVED' && po.status !== 'PARTIALLY_RECEIVED') {
+    return fail(purposeNeedsApproval(po.purpose)
+      ? 'لا يمكن استلام مشتريات الصيانة أو قطع الغيار قبل اعتماد أمر الشراء'
+      : 'الاستلام متاح بعد اعتماد أمر الشراء فقط')
+  }
   if (input.lines.length === 0) return fail('أدخل الكميات المستلمة')
   const receiptLines = []
   let net = 0
@@ -1234,6 +1455,7 @@ function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { a
     id: receiptId,
     number: nextNumber(state, 'GR', at),
     purchaseOrderId: po.id,
+    purchaseRequestId: po.purchaseRequestId,
     at,
     createdBy: actor.id,
     lines: receiptLines,
@@ -2145,7 +2367,10 @@ function createPayroll(state: ErpState, actor: Actor, input: Extract<Command, { 
     const hourly = employee.basicSalary / 30 / 8
     const overtimeAmount = money(overtimeHours * hourly * 1.25)
     const allowances = money(line.allowances ?? 0)
-    const deductions = money(line.deductions ?? 0)
+    // Approved UNPAID leave days in the month are deducted from the pay.
+    const unpaidDays = approvedLeaveDaysInMonth(state, employee.id, input.month, 'UNPAID')
+    const unpaidDeduction = money((employee.basicSalary / 30) * unpaidDays)
+    const deductions = money((line.deductions ?? 0) + unpaidDeduction)
     const gross = money(employee.basicSalary + overtimeAmount + allowances)
     const net = money(gross - deductions)
     if (net < 0) return fail(`صافي راتب ${employee.nameAr} سالب`)
@@ -2211,6 +2436,87 @@ function payPayroll(state: ErpState, actor: Actor, input: Extract<Command, { act
   payroll.status = 'PAID'
   audit(state, actor, clock, 'صرف رواتب', 'payroll', payroll.id, payroll.number)
   return ok(state, `تم صرف رواتب ${payroll.month}`)
+}
+
+/** Approved leave days of a type whose [from, to] overlaps a month, prorated to the month. */
+function approvedLeaveDaysInMonth(state: ErpState, employeeId: string, month: string, type: LeaveType): number {
+  const [year, monthNum] = month.split('-').map(Number)
+  const monthStart = `${month}-01`
+  const monthEnd = new Date(Date.UTC(year!, monthNum!, 0)).toISOString().slice(0, 10)
+  let days = 0
+  for (const request of state.leaveRequests) {
+    if (request.employeeId !== employeeId || request.status !== 'APPROVED' || request.type !== type) continue
+    const from = request.from < monthStart ? monthStart : request.from
+    const to = request.to > monthEnd ? monthEnd : request.to
+    if (from > to) continue
+    days += Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
+  }
+  return days
+}
+
+/** Remaining annual leave balance for an employee in a year: entitlement − approved annual days. */
+export function annualLeaveBalance(state: ErpState, employeeId: string, year: string): number {
+  const entitlement = state.company.annualLeaveEntitlementDays ?? 30
+  const used = state.leaveRequests
+    .filter((request) => request.employeeId === employeeId && request.status === 'APPROVED' && request.type === 'ANNUAL' && request.from.startsWith(year))
+    .reduce((sum, request) => sum + request.days, 0)
+  return money(entitlement - used)
+}
+
+/** True when the employee has approved leave covering the given day. Used so leave days are never read as absences. */
+export function isOnApprovedLeave(state: ErpState, employeeId: string, date: string): boolean {
+  return state.leaveRequests.some(
+    (request) => request.employeeId === employeeId && request.status === 'APPROVED' && request.from <= date && request.to >= date,
+  )
+}
+
+function createLeaveRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createLeaveRequest' }>['input'], clock: Clock): CommandResult {
+  const employee = state.employees.find((item) => item.id === input.employeeId && item.active)
+  if (!employee) return fail('الموظف غير موجود')
+  if (!isDay(input.from) || !isDay(input.to)) return fail('تواريخ الإجازة غير صحيحة')
+  if (input.to < input.from) return fail('تاريخ النهاية يجب أن يكون بعد تاريخ البداية')
+  if (!Number.isFinite(input.days) || input.days <= 0) return fail('عدد الأيام غير صحيح')
+  if (!input.reason.trim()) return fail('سبب الإجازة مطلوب')
+  const year = input.from.slice(0, 4)
+  // Annual (and other paid) leave draws down the balance; UNPAID and SICK do not.
+  if (input.type !== 'UNPAID' && input.type !== 'SICK') {
+    const balance = annualLeaveBalance(state, input.employeeId, year)
+    if (input.days - balance > 0.001) {
+      return fail(`أيام الإجازة المتبقية ${balance} يوم فقط في ${year}`)
+    }
+  }
+  const overlapping = state.leaveRequests.some(
+    (request) => request.employeeId === input.employeeId && request.status === 'APPROVED' && request.from <= input.to && request.to >= input.from,
+  )
+  if (overlapping) return fail('توجد إجازة معتمدة تتداخل مع هذه الفترة')
+  const request: LeaveRequest = {
+    id: clock.id('lv'),
+    employeeId: input.employeeId,
+    type: input.type,
+    from: input.from,
+    to: input.to,
+    days: qty(input.days),
+    reason: input.reason.trim(),
+    status: 'PENDING_APPROVAL',
+    createdBy: actor.id,
+    createdAt: clock.now(),
+  }
+  state.leaveRequests.unshift(request)
+  notify(state, clock, 'APPROVAL', `إجازة ${employee.nameAr}`, `${input.days} يوم — ${input.reason.trim()}`, ['GM'], `appr:lv:${request.id}`)
+  audit(state, actor, clock, 'طلب إجازة', 'leaveRequest', request.id, employee.nameAr)
+  return ok(state, `تم إرسال طلب إجازة ${employee.nameAr} للاعتماد`)
+}
+
+function decideLeaveRequest(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decideLeaveRequest' }>['input'], clock: Clock): CommandResult {
+  const request = state.leaveRequests.find((item) => item.id === input.id)
+  if (!request) return fail('طلب الإجازة غير موجود')
+  if (request.status !== 'PENDING_APPROVAL') return fail('تمت معالجة الطلب')
+  request.status = input.decision
+  request.decidedBy = actor.id
+  request.decidedAt = clock.now()
+  const employee = state.employees.find((item) => item.id === request.employeeId)
+  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد إجازة' : 'رفض إجازة', 'leaveRequest', request.id, employee?.nameAr ?? '')
+  return ok(state, input.decision === 'APPROVED' ? 'تم اعتماد الإجازة' : 'تم رفض الإجازة')
 }
 
 function markNotificationRead(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markNotificationRead' }>['input'], clock: Clock): CommandResult {
@@ -3680,6 +3986,100 @@ function recordPackagingConsumption(state: ErpState, actor: Actor, input: Extrac
   state.packagingConsumption.unshift(consumption)
   audit(state, actor, clock, 'استهلاك مواد تعبئة', 'packagingConsumption', consumption.id, `${packaging.nameAr}: ${input.quantity}`)
   return ok(state, 'تم تسجيل استهلاك مواد التعبئة')
+}
+
+function recordPackagingCount(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordPackagingCount' }>['input'], clock: Clock): CommandResult {
+  const packaging = state.packagingMaterials.find((item) => item.id === input.packagingMaterialId)
+  if (!packaging) return fail('مادة التعبئة غير موجودة')
+  if (!packaging.active) return fail('مادة التعبئة غير نشطة')
+  if (!isDay(input.date)) return fail('تاريخ الجرد غير صحيح')
+  if (!Number.isFinite(input.countedQty) || input.countedQty < 0) return fail('الكمية المجرودة غير صحيحة')
+  const expectedQty = qty(packaging.quantity)
+  const countedQty = qty(input.countedQty)
+  const varianceQty = qty(countedQty - expectedQty)
+  const varianceValue = money(varianceQty * packaging.unitCost)
+  const count: PackagingCount = {
+    id: clock.id('pcnt'),
+    packagingMaterialId: input.packagingMaterialId,
+    date: input.date,
+    countedQty,
+    expectedQty,
+    varianceQty,
+    varianceValue,
+    countedBy: actor.id,
+    notes: input.notes?.trim() ?? '',
+    status: 'PENDING_APPROVAL',
+    createdAt: clock.now(),
+  }
+  state.packagingCounts.unshift(count)
+  notify(state, clock, 'APPROVAL', `اعتماد جرد تعبئة ${packaging.nameAr}`, `الفارق ${varianceQty} بقيمة ${varianceValue} ر.ع.`, ['GM'], `appr:pcnt:${count.id}`)
+  audit(state, actor, clock, 'جرد مادة تعبئة', 'packagingCount', count.id, `${packaging.nameAr}: مجرود ${countedQty} / متوقع ${expectedQty}`)
+  return ok(state, `تم إرسال جرد ${packaging.nameAr} للاعتماد`)
+}
+
+function decidePackagingCount(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decidePackagingCount' }>['input'], clock: Clock): CommandResult {
+  const count = state.packagingCounts.find((item) => item.id === input.id)
+  if (!count) return fail('الجرد غير موجود')
+  if (count.status !== 'PENDING_APPROVAL') return fail('تمت معالجة الجرد')
+  const packaging = state.packagingMaterials.find((item) => item.id === count.packagingMaterialId)
+  if (!packaging) return fail('مادة التعبئة غير موجودة')
+  if (input.decision === 'REJECTED') {
+    count.status = 'REJECTED'
+    count.decidedBy = actor.id
+    audit(state, actor, clock, 'رفض جرد تعبئة', 'packagingCount', count.id, packaging.nameAr)
+    return ok(state, 'تم رفض الجرد')
+  }
+
+  // Approved: post the variance through the existing ledger/adjustment path so the
+  // count is auditable, then record the waste value. The packaging material is
+  // brought into the inventory ledger at its counted quantity.
+  const balanceRow = state.balances.find(
+    (row) => row.itemType === 'MATERIAL' && row.itemId === packaging.id && row.batchNo === 'COUNT',
+  )
+  const currentLedgerQty = qty(balanceRow?.qty ?? 0)
+  const targetQty = qty(count.countedQty)
+  const delta = qty(targetQty - currentLedgerQty)
+  if (Math.abs(delta) > 0.0001) {
+    const posted = upsertBalance(state, clock, {
+      warehouse: 'WH_RAW',
+      itemType: 'MATERIAL',
+      itemId: packaging.id,
+      batchNo: 'COUNT',
+      qtyDelta: delta,
+      unitCost: packaging.unitCost,
+    })
+    if ('error' in posted && posted.error) return fail(posted.error)
+    if (!posted.row || posted.prev == null || posted.next == null) return fail('تعذر تحديث الرصيد')
+    addLedger(state, clock, actor, {
+      type: 'ADJUSTMENT',
+      warehouse: 'WH_RAW',
+      itemType: 'MATERIAL',
+      itemId: packaging.id,
+      batchNo: 'COUNT',
+      qty: delta,
+      unitCost: packaging.unitCost,
+      prevQty: posted.prev,
+      newQty: posted.next,
+      refType: 'packagingCount',
+      refId: count.id,
+      notes: count.notes,
+    })
+  }
+  packaging.quantity = targetQty
+
+  // Record the waste value (shortage × unit cost) through the journal.
+  const wasteValue = money(Math.abs(count.varianceQty) * packaging.unitCost)
+  if (wasteValue > 0) {
+    postJournal(state, clock, `هدر جرد تعبئة ${packaging.nameAr}`, 'packagingCount', count.id, [
+      { accountCode: '6300', debit: wasteValue, credit: 0 },
+      { accountCode: '1100', debit: 0, credit: wasteValue },
+    ])
+  }
+
+  count.status = 'APPROVED'
+  count.decidedBy = actor.id
+  audit(state, actor, clock, 'اعتماد جرد تعبئة', 'packagingCount', count.id, `${packaging.nameAr}: فارق ${count.varianceQty} بقيمة ${count.varianceValue}`)
+  return ok(state, `تم اعتماد جرد ${packaging.nameAr}`)
 }
 
 function createSupplierTemplate(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createSupplierTemplate' }>['input'], clock: Clock): CommandResult {

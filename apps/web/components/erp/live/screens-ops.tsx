@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 
-import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
+import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingCountReport, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
-import type { ItemType, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
+import type { ItemType, PurchasePurpose, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
 
 import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
@@ -790,8 +790,83 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
+  const [materialId, setMaterialId] = useState(ctx.state.packagingMaterials[0]?.id ?? '')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [countedQty, setCountedQty] = useState('')
+  const [notes, setNotes] = useState('')
+  const selected = ctx.state.packagingMaterials.find((item) => item.id === materialId)
+  const report = packagingCountReport(ctx.state)
+  return (
+    <div className="space-y-4">
+      <Card
+        title="الجرد الفعلي لمواد التعبئة"
+        hint="جرد الكمية الفعلية ومقارنتها بالرصيد الدفتري؛ الاعتماد يسوّي المخزون ويسجّل قيمة الهدر."
+        extra={
+          can(ctx.permissions, 'packaging.manage') ? (
+            <FormDialog title="جرد مادة تعبئة" openLabel="تسجيل جرد">
+              {(close) => (
+                <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('recordPackagingCount', { packagingMaterialId: materialId, date, countedQty: Number(countedQty), notes: notes || undefined })
+                  if (result.ok) { setCountedQty(''); setNotes(''); close() }
+                }}>
+                  <Field label="مادة التعبئة">
+                    <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
+                      {ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+                    </SelectInput>
+                  </Field>
+                  <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+                  <Field label="الكمية المجرودة"><TextInput type="number" min="0" step="1" value={countedQty} onChange={(e) => setCountedQty(e.target.value)} required /></Field>
+                  <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+                  {selected ? <p className="text-sm text-[#6b7280] md:col-span-2">الرصيد الدفتري الحالي: {qtyFmt(selected.quantity)} {selected.unit}</p> : null}
+                  <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !materialId}>إرسال للاعتماد</PrimaryButton></div>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['المادة', 'التاريخ', 'المجرود', 'المتوقع', 'الفارق', 'قيمة الهدر', 'الحالة', '']}
+          rows={ctx.state.packagingCounts.map((count) => [
+            ctx.state.packagingMaterials.find((item) => item.id === count.packagingMaterialId)?.nameAr ?? '—',
+            count.date,
+            qtyFmt(count.countedQty),
+            qtyFmt(count.expectedQty),
+            qtyFmt(count.varianceQty),
+            moneyFmt(Math.abs(count.varianceValue)),
+            <Badge key={count.id} tone={toneForStatus(count.status)}>{statusLabel(count.status)}</Badge>,
+            count.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'approvals.decide') ? (
+              <span key={`${count.id}-act`} className="flex gap-2">
+                <GhostButton type="button" onClick={() => ctx.act('decidePackagingCount', { id: count.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
+                <GhostButton type="button" onClick={() => ctx.act('decidePackagingCount', { id: count.id, decision: 'REJECTED' })}>رفض</GhostButton>
+              </span>
+            ) : null,
+          ])}
+        />
+      </Card>
+      <Card title="تقرير الجرد الفعلي">
+        <DataTable
+          columns={['المادة', 'الكمية الداخلة', 'الصادر', 'الرصيد المتوقع', 'آخر جرد', 'الفارق', 'قيمة الهدر', 'تكلفة الاستخدام']}
+          rows={report.map((row) => [
+            row.nameAr,
+            qtyFmt(row.quantityIn),
+            qtyFmt(row.quantityIssued),
+            qtyFmt(row.expectedBalance),
+            row.lastCountedBalance == null ? '—' : qtyFmt(row.lastCountedBalance),
+            row.varianceQty == null ? '—' : qtyFmt(row.varianceQty),
+            moneyFmt(row.wasteValue),
+            moneyFmt(row.costOfUse),
+          ])}
+        />
+      </Card>
+    </div>
+  )
+}
+
 function InventoryExtensions({ ctx }: { ctx: LiveCtx }) {
-  const [activeTab, setActiveTab] = useState<'spareParts' | 'packaging'>('spareParts')
+  const [activeTab, setActiveTab] = useState<'spareParts' | 'packaging' | 'counts'>('spareParts')
   return (
     <div className="space-y-4">
       <div className="flex gap-2 border-b border-[#e5e7eb] pb-2">
@@ -809,14 +884,22 @@ function InventoryExtensions({ ctx }: { ctx: LiveCtx }) {
         >
           مواد التعبئة
         </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${activeTab === 'counts' ? 'text-[#1d7f72] border-b-2 border-[#1d7f72]' : 'text-[#6b7280]'}`}
+          onClick={() => setActiveTab('counts')}
+        >
+          الجرد الفعلي
+        </button>
       </div>
-      {activeTab === 'spareParts' ? <SpareParts ctx={ctx} /> : <PackagingMaterials ctx={ctx} />}
+      {activeTab === 'spareParts' ? <SpareParts ctx={ctx} /> : activeTab === 'packaging' ? <PackagingMaterials ctx={ctx} /> : <PackagingCounts ctx={ctx} />}
     </div>
   )
 }
 
 export function PurchasingScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
   if (entityKey === 'supplier') return <Suppliers ctx={ctx} />
+  if (entityKey === 'purchaseRequest') return <PurchaseRequests ctx={ctx} />
   if (entityKey === 'purchaseOrder') return <PurchaseOrders ctx={ctx} />
   if (entityKey === 'goodsReceipt') return <Receipts ctx={ctx} />
   if (entityKey === 'supplierRelations') return <SupplierRelations entityKey={entityKey} ctx={ctx} />
@@ -990,6 +1073,256 @@ function Receipts({ ctx }: { ctx: LiveCtx }) {
       >
         <DataTable columns={['السند', 'أمر الشراء', 'التاريخ']} rows={ctx.state.goodsReceipts.map((row) => [row.number, ctx.state.purchaseOrders.find((order) => order.id === row.purchaseOrderId)?.number ?? '', row.at.slice(0, 10)])} />
       </Card>
+    </div>
+  )
+}
+
+const PURPOSE_LABEL: Record<string, string> = {
+  MATERIAL: 'مواد خام',
+  RAW_MATERIAL: 'خام',
+  PACKAGING: 'تعبئة',
+  SPARE_PART: 'قطع غيار',
+  MAINTENANCE: 'صيانة',
+  SERVICE: 'خدمة',
+  OTHER: 'أخرى',
+}
+
+function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
+  const [selectedId, setSelectedId] = useState(ctx.state.purchaseRequests[0]?.id ?? '')
+  const request = ctx.state.purchaseRequests.find((item) => item.id === selectedId) ?? ctx.state.purchaseRequests[0]
+  const quotations = request ? ctx.state.supplierQuotations.filter((item) => item.requestId === request.id) : []
+  const lowestId = quotations.length > 0 ? quotations.reduce((min, item) => (item.total < min.total ? item : min), quotations[0]!).id : ''
+  const editor = useLines({ materialId: ctx.state.materials[0]?.id ?? '', qty: '' })
+  const [purpose, setPurpose] = useState<PurchasePurpose>('MATERIAL')
+  const [notes, setNotes] = useState('')
+  const [quoteSupplier, setQuoteSupplier] = useState(ctx.state.suppliers[0]?.id ?? '')
+  const [quoteDelivery, setQuoteDelivery] = useState('')
+  const [quoteValid, setQuoteValid] = useState('')
+  const [quoteNotes, setQuoteNotes] = useState('')
+  const [quoteLines, setQuoteLines] = useState<Record<string, string>>({})
+  const [selectReason, setSelectReason] = useState('')
+  const [formError, setFormError] = useState('')
+
+  function resetQuoteForm() {
+    setQuoteLines({})
+    setQuoteDelivery('')
+    setQuoteValid('')
+    setQuoteNotes('')
+    setSelectReason('')
+    setFormError('')
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card
+        title="طلبات الشراء"
+        hint="طلب → عروض الموردين → اختيار المورد → اعتماد → أمر شراء."
+        extra={
+          can(ctx.permissions, 'purchasing.request.create') ? (
+            <FormDialog title="طلب شراء جديد" openLabel="طلب شراء" wide>
+              {(close) => (
+                <form className="space-y-3" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('createPurchaseRequest', {
+                    purpose,
+                    notes,
+                    lines: editor.lines.map((line) => ({ materialId: line.materialId, qty: Number(line.qty) })),
+                  })
+                  if (result.ok) {
+                    editor.reset()
+                    setNotes('')
+                    close()
+                  }
+                }}>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Field label="الغرض">
+                      <SelectInput value={purpose} onChange={(e) => setPurpose(e.target.value as PurchasePurpose)}>
+                        {Object.entries(PURPOSE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </SelectInput>
+                    </Field>
+                    <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+                  </div>
+                  {editor.lines.map((line, index) => (
+                    <div key={index} className="grid gap-3 md:grid-cols-2">
+                      <SelectInput value={line.materialId} onChange={(e) => editor.update(index, { materialId: e.target.value })}>
+                        {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+                      </SelectInput>
+                      <TextInput type="number" min="0.001" step="0.001" placeholder="الكمية" value={line.qty} onChange={(e) => editor.update(index, { qty: e.target.value })} required />
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <GhostButton type="button" onClick={editor.add}>بند آخر</GhostButton>
+                    <PrimaryButton disabled={ctx.pending}>إنشاء الطلب</PrimaryButton>
+                  </div>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['الرقم', 'الغرض', 'الحالة', 'الاعتماد', '']}
+          rows={ctx.state.purchaseRequests.map((item) => [
+            item.number,
+            PURPOSE_LABEL[item.purpose] ?? item.purpose,
+            <Badge key={item.id} tone={toneForStatus(item.status)}>{statusLabel(item.status)}</Badge>,
+            item.approvalTier === 'GM' ? 'المدير العام' : 'التشغيل',
+            <button key={`${item.id}-open`} type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => { setSelectedId(item.id); resetQuoteForm() }}>عرض</button>,
+          ])}
+        />
+      </Card>
+
+      {request ? (
+        <Card title={`${request.number} — ${PURPOSE_LABEL[request.purpose] ?? request.purpose}`}>
+          <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-[#53655e]">
+            <span>الحالة: <Badge tone={toneForStatus(request.status)}>{statusLabel(request.status)}</Badge></span>
+            <span>الاعتماد: {request.approvalTier === 'GM' ? 'المدير العام' : 'التشغيل'}</span>
+            {request.notes ? <span>ملاحظات: {request.notes}</span> : null}
+          </div>
+
+          <h4 className="mb-2 font-semibold">بنود الطلب</h4>
+          <div className="mb-4 overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-[#e5e7eb] text-start text-[#1f1f1f]">
+                  <th className="px-2 py-2 font-semibold">المادة</th>
+                  <th className="px-2 py-2 font-semibold">الكمية</th>
+                  <th className="px-2 py-2 font-semibold">آخر سعر شراء</th>
+                  <th className="px-2 py-2 font-semibold">آخر مورد</th>
+                </tr>
+              </thead>
+              <tbody>
+                {request.lines.map((line) => (
+                  <tr key={line.materialId} className="border-b border-[#f3f4f6]">
+                    <td className="px-2 py-2">{materialName(ctx.state, line.materialId)}</td>
+                    <td className="px-2 py-2">{qtyFmt(line.qty)}</td>
+                    <td className="px-2 py-2">{line.lastUnitCost ? moneyFmt(line.lastUnitCost) : '—'}</td>
+                    <td className="px-2 py-2">{line.lastSupplierId ? partyName(ctx.state.suppliers, line.lastSupplierId) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h4 className="font-semibold">عروض الموردين ({quotations.length})</h4>
+            {can(ctx.permissions, 'purchasing.quotation.manage') && (request.status === 'DRAFT' || request.status === 'QUOTING') ? (
+              <FormDialog title={`عرض مورد على ${request.number}`} openLabel="إضافة عرض" wide>
+                {(close) => (
+                  <form className="space-y-3" onSubmit={async (event) => {
+                    event.preventDefault()
+                    const lines = request.lines.map((line) => ({
+                      materialId: line.materialId,
+                      qty: line.qty,
+                      unitCost: Number(quoteLines[line.materialId] || 0),
+                    }))
+                    const result = await ctx.act('addSupplierQuotation', {
+                      requestId: request.id,
+                      supplierId: quoteSupplier,
+                      deliveryCost: Number(quoteDelivery || 0),
+                      validUntil: quoteValid || undefined,
+                      notes: quoteNotes || undefined,
+                      lines,
+                    })
+                    if (result.ok) {
+                      resetQuoteForm()
+                      close()
+                    } else setFormError(result.message)
+                  }}>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <Field label="المورد">
+                        <SelectInput value={quoteSupplier} onChange={(e) => setQuoteSupplier(e.target.value)}>
+                          {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+                        </SelectInput>
+                      </Field>
+                      <Field label="تكلفة التوصيل"><TextInput type="number" min="0" step="0.001" value={quoteDelivery} onChange={(e) => setQuoteDelivery(e.target.value)} /></Field>
+                      <Field label="صالح حتى"><TextInput type="date" value={quoteValid} onChange={(e) => setQuoteValid(e.target.value)} /></Field>
+                    </div>
+                    {request.lines.map((line) => (
+                      <div key={line.materialId} className="grid gap-3 md:grid-cols-2">
+                        <div className="text-sm font-semibold">{materialName(ctx.state, line.materialId)} — {qtyFmt(line.qty)}</div>
+                        <TextInput type="number" min="0" step="0.001" placeholder="سعر الوحدة" value={quoteLines[line.materialId] ?? ''} onChange={(e) => setQuoteLines((current) => ({ ...current, [line.materialId]: e.target.value }))} required />
+                      </div>
+                    ))}
+                    <Field label="ملاحظات"><TextInput value={quoteNotes} onChange={(e) => setQuoteNotes(e.target.value)} /></Field>
+                    <InlineError message={formError} />
+                    <PrimaryButton disabled={ctx.pending}>حفظ العرض</PrimaryButton>
+                  </form>
+                )}
+              </FormDialog>
+            ) : null}
+          </div>
+
+          {quotations.length > 0 ? (
+            <div className="mb-4 overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="border-b border-[#e5e7eb] text-start text-[#1f1f1f]">
+                    <th className="px-2 py-2 font-semibold">المورد</th>
+                    {request.lines.map((line) => <th key={line.materialId} className="px-2 py-2 font-semibold">{materialName(ctx.state, line.materialId)}</th>)}
+                    <th className="px-2 py-2 font-semibold">التوصيل</th>
+                    <th className="px-2 py-2 font-semibold">الإجمالي</th>
+                    <th className="px-2 py-2 font-semibold"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotations.map((quote) => {
+                    const isLowest = quote.id === lowestId
+                    const selected = quote.id === request.selectedQuotationId
+                    return (
+                      <tr key={quote.id} className={`border-b border-[#f3f4f6] ${isLowest ? 'bg-[#e5ede6]' : ''}`}>
+                        <td className="px-2 py-2">
+                          <div className="font-medium">{partyName(ctx.state.suppliers, quote.supplierId)}</div>
+                          {isLowest ? <Badge tone="good">الأقل سعراً</Badge> : null}
+                          {selected ? <Badge tone="warn">مختار</Badge> : null}
+                        </td>
+                        {request.lines.map((line) => {
+                          const quoteLine = quote.lines.find((item) => item.materialId === line.materialId)
+                          const last = line.lastUnitCost ?? 0
+                          const quoted = quoteLine?.unitCost ?? 0
+                          const diff = last > 0 ? Math.round(((quoted - last) / last) * 1000) / 10 : null
+                          return (
+                            <td key={line.materialId} className="px-2 py-2">
+                              <div>{quoteLine ? moneyFmt(quoted) : '—'}</div>
+                              {diff !== null ? <div className={`text-xs ${diff > 0 ? 'text-[#dc2626]' : diff < 0 ? 'text-[#0a825d]' : 'text-[#6b7280]'}`}>{diff > 0 ? '+' : ''}{diff}% عن آخر شراء</div> : null}
+                            </td>
+                          )
+                        })}
+                        <td className="px-2 py-2">{moneyFmt(quote.deliveryCost)}</td>
+                        <td className="px-2 py-2 font-semibold">{moneyFmt(quote.total)}</td>
+                        <td className="px-2 py-2">
+                          {can(ctx.permissions, 'purchasing.quotation.manage') && (request.status === 'DRAFT' || request.status === 'QUOTING') ? (
+                            <span className="flex flex-wrap items-center gap-2">
+                              <TextInput placeholder="سبب الاختيار (إن لم يكن الأقل)" value={selectReason} onChange={(e) => setSelectReason(e.target.value)} className="h-8 w-40" />
+                              <GhostButton type="button" onClick={async () => {
+                                const result = await ctx.act('selectSupplierQuotation', { requestId: request.id, quotationId: quote.id, reason: selectReason || undefined })
+                                if (result.ok) setSelectReason('')
+                              }}>اختيار</GhostButton>
+                            </span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mb-4 text-sm text-[#788983]">لا توجد عروض بعد.</p>
+          )}
+
+          {can(ctx.permissions, 'purchasing.request.approve') && (request.status === 'SELECTED' || request.status === 'PENDING_APPROVAL') ? (
+            <div className="mb-4 flex flex-wrap gap-2">
+              <GhostButton type="button" onClick={() => ctx.act('decidePurchaseRequest', { id: request.id, decision: 'APPROVED' })}>اعتماد الطلب</GhostButton>
+              <GhostButton type="button" onClick={() => ctx.act('decidePurchaseRequest', { id: request.id, decision: 'REJECTED' })}>رفض الطلب</GhostButton>
+            </div>
+          ) : null}
+
+          {can(ctx.permissions, 'purchasing.po.create') && request.status === 'APPROVED' ? (
+            <GhostButton type="button" onClick={() => ctx.act('convertRequestToPurchaseOrder', { id: request.id })}>تحويل إلى أمر شراء</GhostButton>
+          ) : null}
+        </Card>
+      ) : null}
     </div>
   )
 }

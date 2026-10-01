@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -65,6 +65,17 @@ export type Company = {
   purchaseApprovalThreshold?: number
   /** Purchase requests at or below this amount may be approved by operations. */
   purchaseOperationsApprovalThreshold?: number
+  /**
+   * Value-based approval tiers for purchase orders, evaluated lowest tier first.
+   * A PO whose total is at or below a tier's `upTo` may be approved by `requiredRole`;
+   * anything above the highest tier needs the GM. Default: up to 100 OMR an OPERATIONS
+   * approval suffices, above that only the GM.
+   */
+  poApprovalTiers?: Array<{ upTo: number; requiredRole: 'OPERATIONS' | 'GM' }>
+  /** Flag a utility whose latest consumption per ton exceeds the previous 3-period average by this % (default 20). */
+  utilityVarianceThresholdPct?: number
+  /** Annual leave entitlement in days for every employee (default 30). */
+  annualLeaveEntitlementDays?: number
   /** How approved production payroll is spread across the month. Defaults to per ton. */
   laborAllocationBasis?: 'PER_TON' | 'PER_HOUR'
   /**
@@ -380,7 +391,7 @@ export type LedgerEntry = {
   notes: string
 }
 
-export type PurchasePurpose = 'RAW_MATERIAL' | 'PACKAGING' | 'SPARE_PART' | 'SERVICE' | 'OTHER'
+export type PurchasePurpose = 'MATERIAL' | 'RAW_MATERIAL' | 'PACKAGING' | 'SPARE_PART' | 'MAINTENANCE' | 'SERVICE' | 'OTHER'
 
 export type PurchaseRequest = {
   id: string
@@ -388,10 +399,12 @@ export type PurchaseRequest = {
   purpose: PurchasePurpose
   requestedBy: string
   requestedAt: string
-  status: 'PENDING_QUOTATIONS' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
+  status: 'DRAFT' | 'QUOTING' | 'SELECTED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CONVERTED'
   notes: string
   lines: Array<{ materialId: string; qty: number; lastUnitCost?: number; lastSupplierId?: string }>
   approvalTier: 'OPERATIONS' | 'GM'
+  /** Quotation chosen by the buyer; set by selectSupplierQuotation. */
+  selectedQuotationId?: string
   decidedBy?: string
   decidedAt?: string
   decisionReason?: string
@@ -404,8 +417,12 @@ export type SupplierQuotation = {
   quotedAt: string
   validUntil?: string
   lines: Array<{ materialId: string; qty: number; unitCost: number }>
+  /** Freight / delivery cost added on top of the line totals. */
+  deliveryCost: number
   total: number
   notes: string
+  /** Optional reference to a supplier-uploaded quote file. */
+  attachmentId?: string
 }
 
 export type PurchaseOrder = {
@@ -734,6 +751,39 @@ export type PackagingConsumption = {
   cost: number
   calculatedQty: number
   variance: number
+}
+
+/** Physical count of a packaging material, reconciled against the expected balance. */
+export type PackagingCount = {
+  id: string
+  packagingMaterialId: string
+  date: string
+  countedQty: number
+  expectedQty: number
+  varianceQty: number
+  varianceValue: number
+  countedBy: string
+  notes: string
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  createdAt: string
+  decidedBy?: string
+}
+
+export type LeaveType = 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY' | 'OTHER'
+
+export type LeaveRequest = {
+  id: string
+  employeeId: string
+  type: LeaveType
+  from: string
+  to: string
+  days: number
+  reason: string
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  decidedBy?: string
+  decidedAt?: string
+  createdBy: string
+  createdAt: string
 }
 
 /** Supplier communication template. */
@@ -1088,6 +1138,10 @@ export type ErpState = {
   /** Phase 4: Packaging materials. */
   packagingMaterials: PackagingMaterial[]
   packagingConsumption: PackagingConsumption[]
+  /** Phase 4: Packaging physical counts. */
+  packagingCounts: PackagingCount[]
+  /** Employee leave requests. */
+  leaveRequests: LeaveRequest[]
   /** Phase 4: Supplier communication. */
   supplierTemplates: SupplierTemplate[]
   supplierCommunications: SupplierCommunication[]
@@ -1135,9 +1189,10 @@ export type Command =
   | { action: 'updateCompany'; input: Partial<Company> }
   | { action: 'fundBank'; input: { amount: number; memo?: string } }
   | { action: 'createPurchaseRequest'; input: { purpose: PurchasePurpose; notes?: string; lines: Array<{ materialId: string; qty: number }> } }
-  | { action: 'addSupplierQuotation'; input: { requestId: string; supplierId: string; validUntil?: string; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
+  | { action: 'addSupplierQuotation'; input: { requestId: string; supplierId: string; validUntil?: string; deliveryCost?: number; attachmentId?: string; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
   | { action: 'selectSupplierQuotation'; input: { requestId: string; quotationId: string; reason?: string } }
   | { action: 'decidePurchaseRequest'; input: { id: string; decision: 'APPROVED' | 'REJECTED'; reason?: string } }
+  | { action: 'convertRequestToPurchaseOrder'; input: { id: string; notes?: string } }
   | { action: 'createPurchaseOrder'; input: { supplierId: string; purchaseRequestId?: string; purpose?: PurchasePurpose; notes?: string; lines: Array<{ materialId: string; qty: number; unitCost: number }> } }
   | { action: 'decidePurchaseOrder'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'receiveGoods'; input: { purchaseOrderId: string; lines: Array<{ materialId: string; qty: number; batchNo: string; expiryDate?: string | null; unitCost?: number }> } }
@@ -1178,6 +1233,10 @@ export type Command =
   | { action: 'recordSparePartUsage'; input: { sparePartId: string; machineId: string; quantity: number; reason: string; maintenanceId?: string } }
   | { action: 'createPackagingMaterial'; input: { code: string; nameAr: string; category: 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER'; quantity: number; unit: string; unitCost: number; minStock: number; supplierId?: string; expectedPerTon?: number } }
   | { action: 'recordPackagingConsumption'; input: { packagingMaterialId: string; productionOrderId: string; lotNo: string; quantity: number } }
+  | { action: 'recordPackagingCount'; input: { packagingMaterialId: string; date: string; countedQty: number; notes?: string } }
+  | { action: 'decidePackagingCount'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
+  | { action: 'createLeaveRequest'; input: { employeeId: string; type: LeaveType; from: string; to: string; days: number; reason: string } }
+  | { action: 'decideLeaveRequest'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
   | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
   | { action: 'approveSupplierCommunication'; input: { id: string } }

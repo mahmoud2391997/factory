@@ -273,6 +273,12 @@ export const ERP_NAV: ErpMainTab[] = [
         permission: ['suppliers.communicate'],
       },
       {
+        id: 'purchase-requests',
+        label: 'طلبات الشراء',
+        entityKey: 'purchaseRequest',
+        description: 'طلب → عروض الموردين → اختيار المورد → اعتماد → أمر شراء',
+      },
+      {
         id: 'purchase-orders',
         label: 'أوامر الشراء',
         entityKey: 'purchaseOrder',

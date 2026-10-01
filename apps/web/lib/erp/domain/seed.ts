@@ -153,6 +153,7 @@ export function emptyState(passwordHash: string): ErpState {
     sparePartUsages: [],
     packagingMaterials: [],
     packagingConsumption: [],
+    packagingCounts: [],
     supplierTemplates: [],
     supplierCommunications: [],
     scaleReadings: [],
@@ -518,6 +519,60 @@ export function buildSeedState(passwordHash = 'seed-hash', now = new Date()): Er
   state = step(state, clock, {
     action: 'createProductionOrder',
     input: { productId: broiler, recipeId: broilerRecipe.id, plannedQty: 1000 },
+  })
+
+  // Packaging physical count with a small shortage.
+  state = step(state, clock, {
+    action: 'createPackagingMaterial',
+    input: { code: 'PKG-BAG50', nameAr: 'كيس 50 كجم', category: 'BAG', quantity: 5000, unit: 'قطعة', unitCost: 0.02, minStock: 500 },
+  })
+  const bags = state.packagingMaterials.find((item) => item.code === 'PKG-BAG50')!
+  state = step(state, clock, {
+    action: 'recordPackagingCount',
+    input: { packagingMaterialId: bags.id, date: muscatDay(clock.now()), countedQty: 4980, notes: 'جرد نهاية اليوم' },
+  })
+  const bagCount = state.packagingCounts[0]!
+  state = step(state, clock, { action: 'decidePackagingCount', input: { id: bagCount.id, decision: 'APPROVED' } })
+
+  // Purchasing chain: request → quotes → supplier choice → approval → PO.
+  const salt = idOf('RM-SALT')
+  state = step(state, clock, {
+    action: 'createPurchaseRequest',
+    input: { purpose: 'MATERIAL', notes: 'تعويض مخزون الملح', lines: [{ materialId: salt, qty: 500 }] },
+  })
+  const saltRequest = state.purchaseRequests[0]!
+  const zafar = state.suppliers.find((item) => item.nameAr.includes('ظفار'))!
+  state = step(state, clock, {
+    action: 'addSupplierQuotation',
+    input: {
+      requestId: saltRequest.id,
+      supplierId: mills.id,
+      deliveryCost: 5,
+      lines: [{ materialId: salt, qty: 500, unitCost: 0.031 }],
+    },
+  })
+  state = step(state, clock, {
+    action: 'addSupplierQuotation',
+    input: {
+      requestId: saltRequest.id,
+      supplierId: zafar.id,
+      deliveryCost: 2,
+      lines: [{ materialId: salt, qty: 500, unitCost: 0.029 }],
+    },
+  })
+  const saltQuotes = state.supplierQuotations.filter((item) => item.requestId === saltRequest.id)
+  const cheapest = saltQuotes.reduce((min, item) => (item.total < min.total ? item : min), saltQuotes[0]!)
+  state = step(state, clock, {
+    action: 'selectSupplierQuotation',
+    input: { requestId: saltRequest.id, quotationId: cheapest.id },
+  })
+  state = step(state, clock, {
+    action: 'decidePurchaseRequest',
+    input: { id: saltRequest.id, decision: 'APPROVED' },
+  })
+  state = step(state, clock, {
+    action: 'convertRequestToPurchaseOrder',
+    input: { id: saltRequest.id },
   })
 
   return state
