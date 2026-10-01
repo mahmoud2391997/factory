@@ -47,6 +47,11 @@ export const STATUS_LABEL: Record<string, string> = {
   SALE: 'بيع',
   WITHDRAWAL: 'سحب',
   ADJUSTMENT: 'تعديل مخزون',
+  ANNUAL: 'سنوية',
+  SICK: 'مرضية',
+  UNPAID: 'غير مدفوعة',
+  EMERGENCY: 'طارئة',
+  OTHER: 'أخرى',
 }
 
 export function moneyFmt(value: number) {

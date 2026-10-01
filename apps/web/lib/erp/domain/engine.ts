@@ -3848,6 +3848,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
           const { basicSalary: _salary, ...rest } = employee
           return rest as typeof employee
         }),
+    leaveRequests: seeSalary ? state.leaveRequests : [],
     payrolls: seePayroll ? state.payrolls : [],
     journals: seeJournals ? state.journals : [],
     auditLogs: seeAudit ? state.auditLogs : [],
