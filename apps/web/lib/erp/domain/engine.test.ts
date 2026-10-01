@@ -92,14 +92,29 @@ test('a raw material statement answers the mill questions', () => {
   assert.equal(statement.stoppages[0]?.minutes, 45)
 })
 
-test('operations cannot approve a purchase order', () => {
+test('operations cannot approve a purchase order above the tier', () => {
   const state = buildSeedState()
-  const pending = state.purchaseOrders.find((order) => order.status === 'PENDING_APPROVAL')!
+  const poTotal = (order: { lines: Array<{ qty: number; unitCost: number }> }) =>
+    order.lines.reduce((sum, line) => sum + line.qty * line.unitCost, 0)
+  const pending = state.purchaseOrders.find((order) => order.status === 'PENDING_APPROVAL' && poTotal(order) > 100)!
+  assert.ok(pending, 'seed should keep a pending PO above the operations tier')
   const result = applyCommand(state, actor(state, 'user-ops'), {
     action: 'decidePurchaseOrder',
     input: { id: pending.id, decision: 'APPROVED' },
   })
   assert.equal(result.ok, false)
+  assert.match(result.error, /المدير العام/)
+})
+
+test('operations may approve a purchase order within the tier', () => {
+  const state = buildSeedState()
+  const small = state.purchaseOrders.find((order) => order.status === 'PENDING_APPROVAL' && order.lines.reduce((sum, line) => sum + line.qty * line.unitCost, 0) <= 100)!
+  assert.ok(small, 'seed should keep a pending PO within the operations tier')
+  const result = applyCommand(state, actor(state, 'user-ops'), {
+    action: 'decidePurchaseOrder',
+    input: { id: small.id, decision: 'APPROVED' },
+  })
+  assert.equal(result.ok, true)
 })
 
 test('goods cannot be received before approval or above the order', () => {

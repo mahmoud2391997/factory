@@ -52,6 +52,7 @@ import type {
   PurchaseRequest,
   SupplierQuotation,
   PurchaseOrder,
+  PurchasePurpose,
 } from './types'
 
 const INVENTORY_ACCOUNT: Record<ItemType, string> = {
@@ -118,6 +119,32 @@ function lastPurchaseInfo(state: ErpState, materialId: string): { unitCost: numb
   const line = latest.lines.find((entry) => entry.materialId === materialId)
   const po = state.purchaseOrders.find((order) => order.id === latest.purchaseOrderId)
   return { unitCost: line?.unitCost ?? 0, supplierId: po?.supplierId ?? null }
+}
+
+/**
+ * Value-based approval tier for a purchase order total. Tiers are evaluated lowest
+ * `upTo` first; a total within a tier may be approved by that tier's role, anything
+ * above the highest tier needs the GM. Default: up to 100 OMR an OPERATIONS
+ * approval suffices.
+ */
+function poApprovalRoleFor(state: ErpState, total: number): 'OPERATIONS' | 'GM' {
+  const tiers = state.company.poApprovalTiers ?? [{ upTo: 100, requiredRole: 'OPERATIONS' }]
+  const sorted = [...tiers].filter((tier) => Number.isFinite(tier.upTo)).sort((a, b) => a.upTo - b.upTo)
+  for (const tier of sorted) {
+    if (total <= tier.upTo + 0.0001) return tier.requiredRole
+  }
+  return 'GM'
+}
+
+/** True when the actor's role meets the required approval role (GM outranks OPERATIONS). */
+function roleMeetsTier(actor: Actor, requiredRole: 'OPERATIONS' | 'GM'): boolean {
+  if (requiredRole === 'GM') return actor.role === 'GM'
+  return actor.role === 'GM' || actor.role === 'OPERATIONS'
+}
+
+/** Maintenance and spare-part purchases must never move before they are approved. */
+function purposeNeedsApproval(purpose: PurchasePurpose | undefined): boolean {
+  return purpose === 'MAINTENANCE' || purpose === 'SPARE_PART'
 }
 
 function invoiceUnitPrice(state: ErpState, lot: ProductionLot, invoiceId: string) {
@@ -1124,6 +1151,21 @@ function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { 
       if (message) return fail(message)
     }
   }
+  if (input.utilityVarianceThresholdPct !== undefined) {
+    const message = bounded(input.utilityVarianceThresholdPct, 0, 100, 'حد انحراف المرافق يجب أن يكون بين 0 و 100')
+    if (message) return fail(message)
+  }
+  if (input.annualLeaveEntitlementDays !== undefined) {
+    const message = bounded(input.annualLeaveEntitlementDays, 0, 365, 'رصيد الإجازات السنوية يجب أن يكون بين 0 و 365')
+    if (message) return fail(message)
+  }
+  if (input.poApprovalTiers !== undefined) {
+    if (!Array.isArray(input.poApprovalTiers)) return fail('حدود اعتماد أوامر الشراء غير صحيحة')
+    for (const tier of input.poApprovalTiers) {
+      if (!Number.isFinite(tier?.upTo) || tier.upTo < 0) return fail('حد الاعتماد يجب أن يكون صفراً أو أكثر')
+      if (tier.requiredRole !== 'OPERATIONS' && tier.requiredRole !== 'GM') return fail('دور الاعتماد غير صحيح')
+    }
+  }
   state.company = {
     ...state.company,
     ...input,
@@ -1164,7 +1206,7 @@ function createPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
     })
   }
   const at = clock.now()
-  const po = {
+  const po: PurchaseOrder = {
     id: clock.id('po'),
     number: nextNumber(state, 'PO', at),
     supplierId: input.supplierId,
@@ -1173,6 +1215,8 @@ function createPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
     lines,
     createdBy: actor.id,
     createdAt: at,
+    ...(input.purchaseRequestId ? { purchaseRequestId: input.purchaseRequestId } : {}),
+    ...(input.purpose ? { purpose: input.purpose } : {}),
   }
   state.purchaseOrders.unshift(po)
   notify(state, clock, 'APPROVAL', `اعتماد أمر شراء ${po.number}`, 'أمر شراء بانتظار اعتماد المدير العام.', ['GM'], `appr:po:${po.id}`)
@@ -1184,6 +1228,11 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
   const po = state.purchaseOrders.find((item) => item.id === input.id)
   if (!po) return fail('أمر الشراء غير موجود')
   if (po.status !== 'PENDING_APPROVAL') return fail('لا يمكن اعتماد أمر الشراء في هذه الحالة')
+  const total = money(po.lines.reduce((sum, line) => sum + line.qty * line.unitCost, 0))
+  const requiredRole = poApprovalRoleFor(state, total)
+  if (!roleMeetsTier(actor, requiredRole)) {
+    return fail(`يتطلب اعتماد أمر الشراء هذا (${total} ر.ع.) صلاحية المدير العام`)
+  }
   po.status = input.decision
   po.decidedBy = actor.id
   po.decidedAt = clock.now()
@@ -1294,7 +1343,11 @@ function decidePurchaseRequest(state: ErpState, actor: Actor, input: Extract<Com
 function convertRequestToPurchaseOrder(state: ErpState, actor: Actor, input: Extract<Command, { action: 'convertRequestToPurchaseOrder' }>['input'], clock: Clock): CommandResult {
   const request = state.purchaseRequests.find((item) => item.id === input.id)
   if (!request) return fail('طلب الشراء غير موجود')
-  if (request.status !== 'APPROVED') return fail('لا يمكن تحويل الطلب قبل اعتماده')
+  if (request.status !== 'APPROVED') {
+    return fail(purposeNeedsApproval(request.purpose)
+      ? 'لا يمكن تحويل طلب الصيانة أو قطع الغيار إلى أمر شراء قبل اعتماده'
+      : 'لا يمكن تحويل الطلب قبل اعتماده')
+  }
   const quotation = state.supplierQuotations.find((item) => item.id === request.selectedQuotationId && item.requestId === request.id)
   if (!quotation) return fail('العرض المختار غير موجود')
   const lines = quotation.lines.map((line) => ({
@@ -1326,7 +1379,11 @@ function convertRequestToPurchaseOrder(state: ErpState, actor: Actor, input: Ext
 function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { action: 'receiveGoods' }>['input'], clock: Clock): CommandResult {
   const po = state.purchaseOrders.find((item) => item.id === input.purchaseOrderId)
   if (!po) return fail('أمر الشراء غير موجود')
-  if (po.status !== 'APPROVED' && po.status !== 'PARTIALLY_RECEIVED') return fail('الاستلام متاح بعد اعتماد أمر ال��راء فقط')
+  if (po.status !== 'APPROVED' && po.status !== 'PARTIALLY_RECEIVED') {
+    return fail(purposeNeedsApproval(po.purpose)
+      ? 'لا يمكن استلام مشتريات الصيانة أو قطع الغيار قبل اعتماد أمر الشراء'
+      : 'الاستلام متاح بعد اعتماد أمر الشراء فقط')
+  }
   if (input.lines.length === 0) return fail('أدخل الكميات المستلمة')
   const receiptLines = []
   let net = 0

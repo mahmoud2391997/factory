@@ -137,6 +137,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   'purchasing.request.approve',
   'purchasing.quotation.manage',
   'purchasing.po.create',
+  'purchasing.po.approve',
 
     'purchasing.gr.create',
     'production.read',
@@ -217,7 +218,7 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 9
+export const PERMISSIONS_VERSION = 10
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   9: {
@@ -225,6 +226,10 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
     ACCOUNTANT: ['purchasing.request.create', 'purchasing.quotation.manage'],
     OPERATIONS: ['purchasing.request.create', 'purchasing.request.approve', 'purchasing.quotation.manage'],
     STOREKEEPER: ['purchasing.request.create'],
+  },
+  10: {
+    // Value-based PO approval: OPERATIONS may approve POs up to the company tier.
+    OPERATIONS: ['purchasing.po.approve'],
   },
   1: {
     GM: ['qc.read', 'qc.manage', 'qc.release', 'qc.limits'],

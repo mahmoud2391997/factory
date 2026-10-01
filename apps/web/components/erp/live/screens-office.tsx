@@ -1071,6 +1071,9 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
       MAINTENANCE: company.costRates?.MAINTENANCE ?? 0,
       OVERHEAD: company.costRates?.OVERHEAD ?? 0,
     },
+    poApprovalTiers: (company.poApprovalTiers ?? [{ upTo: 100, requiredRole: 'OPERATIONS' as const }]).map((tier) => ({ ...tier })),
+    utilityVarianceThresholdPct: company.utilityVarianceThresholdPct ?? 20,
+    annualLeaveEntitlementDays: company.annualLeaveEntitlementDays ?? 30,
   })
   return (
     <Card title="إعدادات الشركة" hint="هذه البيانات تُطبع على الفاتورة الضريبية وأمر الشراء.">
@@ -1109,6 +1112,23 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
           <input type="checkbox" checked={Boolean(form.requireQcBeforeUse)} onChange={(e) => setForm({ ...form, requireQcBeforeUse: e.target.checked })} />
           <span>يتطلب فحص الجودة قبل تحويل الخام للتصنيع أو بيع المنتج</span>
         </label>
+        <Field label="حد انحراف المرافق %"><TextInput type="number" min="0" step="1" value={form.utilityVarianceThresholdPct} onChange={(e) => setForm({ ...form, utilityVarianceThresholdPct: Number(e.target.value) })} /></Field>
+        <Field label="رصيد الإجازات السنوية (يوم)"><TextInput type="number" min="0" step="1" value={form.annualLeaveEntitlementDays} onChange={(e) => setForm({ ...form, annualLeaveEntitlementDays: Number(e.target.value) })} /></Field>
+        <div className="space-y-2 md:col-span-2">
+          <div className="text-sm font-medium text-[#1f1f1f]">حدود اعتماد أوامر الشراء</div>
+          <p className="text-sm text-[#6b7280]">حتى المبلغ المحدد يعتمد التشغيل، وما فوقه يعتمد المدير العام فقط.</p>
+          {form.poApprovalTiers.map((tier, index) => (
+            <div key={index} className="flex flex-wrap items-center gap-2">
+              <TextInput type="number" min="0" step="0.001" value={tier.upTo} onChange={(e) => setForm({ ...form, poApprovalTiers: form.poApprovalTiers.map((t, i) => (i === index ? { ...t, upTo: Number(e.target.value) } : t)) })} />
+              <SelectInput value={tier.requiredRole} onChange={(e) => setForm({ ...form, poApprovalTiers: form.poApprovalTiers.map((t, i) => (i === index ? { ...t, requiredRole: e.target.value as 'OPERATIONS' | 'GM' } : t)) })}>
+                <option value="OPERATIONS">التشغيل</option>
+                <option value="GM">المدير العام</option>
+              </SelectInput>
+              <GhostButton type="button" onClick={() => setForm({ ...form, poApprovalTiers: form.poApprovalTiers.filter((_, i) => i !== index) })}>حذف</GhostButton>
+            </div>
+          ))}
+          <GhostButton type="button" onClick={() => setForm({ ...form, poApprovalTiers: [...form.poApprovalTiers, { upTo: 0, requiredRole: 'OPERATIONS' }] })}>إضافة حد</GhostButton>
+        </div>
         <Field label="بريد التنبيهات"><TextInput value={form.notifyEmail} onChange={(e) => setForm({ ...form, notifyEmail: e.target.value })} /></Field>
         <div className="flex flex-wrap gap-2">
           <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'settings.update')}>حفظ</PrimaryButton>
