@@ -72,6 +72,8 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   createSupplierTemplate: true,
   sendSupplierCommunication: true,
   approveSupplierCommunication: true,
+  markSupplierCommunicationDelivered: true,
+  markSupplierCommunicationFailed: true,
   recordScaleReading: true,
   createDistributionPoint: true,
   closeDistributionDay: true,

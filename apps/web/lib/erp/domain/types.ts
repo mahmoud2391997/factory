@@ -806,9 +806,11 @@ export type SupplierCommunication = {
   sentBy: string
   sentAt: string
   channel: 'EMAIL' | 'WHATSAPP' | 'OTHER'
-  status: 'DRAFT' | 'PENDING_APPROVAL' | 'SENT' | 'FAILED'
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED_TO_SEND' | 'SENT' | 'FAILED'
   approvedBy?: string
   approvedAt?: string
+  providerMessageId?: string
+  failureReason?: string
   response?: string
   responseAt?: string
   quoteAttachmentId?: string
@@ -1240,6 +1242,8 @@ export type Command =
   | { action: 'createSupplierTemplate'; input: { nameAr: string; subject: string; body: string; kind: 'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER' } }
   | { action: 'sendSupplierCommunication'; input: { supplierId: string; templateId?: string; subject: string; body: string; channel: 'EMAIL' | 'WHATSAPP' | 'OTHER' } }
   | { action: 'approveSupplierCommunication'; input: { id: string } }
+  | { action: 'markSupplierCommunicationDelivered'; input: { id: string; providerMessageId: string } }
+  | { action: 'markSupplierCommunicationFailed'; input: { id: string; error: string } }
   | { action: 'recordScaleReading'; input: { materialId: string; productionOrderId: string; actualQty: number; scaleId: string; eventId?: string } }
   | { action: 'createDistributionPoint'; input: { code: string; nameAr: string; location: string; managerId: string; phone: string } }
   | { action: 'closeDistributionDay'; input: { pointId: string; date: string; openingStock: Record<string, number>; sales: Record<string, number>; returns: Record<string, number>; closingStock: Record<string, number>; cash: number; transfers: number } }

@@ -755,6 +755,8 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createSupplierTemplate: 'suppliers.communicate',
     sendSupplierCommunication: 'suppliers.communicate',
     approveSupplierCommunication: 'suppliers.approve',
+    markSupplierCommunicationDelivered: 'suppliers.approve',
+    markSupplierCommunicationFailed: 'suppliers.approve',
     recordScaleReading: 'scale.manage',
     createDistributionPoint: 'distribution.manage',
     closeDistributionDay: 'distribution.manage',
@@ -922,9 +924,13 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return createSupplierTemplate(state, actor, command.input, clock)
     case 'sendSupplierCommunication':
       return sendSupplierCommunication(state, actor, command.input, clock)
-    case 'approveSupplierCommunication':
-      return approveSupplierCommunication(state, actor, command.input, clock)
-    case 'recordScaleReading':
+  case 'approveSupplierCommunication':
+    return approveSupplierCommunication(state, actor, command.input, clock)
+  case 'markSupplierCommunicationDelivered':
+    return markSupplierCommunicationDelivered(state, actor, command.input, clock)
+  case 'markSupplierCommunicationFailed':
+    return markSupplierCommunicationFailed(state, actor, command.input, clock)
+  case 'recordScaleReading':
       return recordScaleReading(state, actor, command.input, clock)
     case 'createDistributionPoint':
       return createDistributionPoint(state, actor, command.input, clock)
@@ -1157,7 +1163,7 @@ function bounded(value: number | undefined, min: number, max: number, message: s
 function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCompany' }>['input'], clock: Clock): CommandResult {
   const invalid =
     bounded(input.vatRatePct, 0, 100, 'نسبة الضريبة يجب أن تكون بين 0 و 100') ||
-    bounded(input.varianceThresholdPct, 0, 100, 'حد الانحراف يجب أن يكون بين 0 و 100') ||
+    bounded(input.varianceThresholdPct, 0, 100, '��د الانحراف يجب أن يكون بين 0 و 100') ||
     bounded(input.bagUnitCost, 0, 1000, 'تكلفة الكيس يجب أن تكون بين 0 و 1000') ||
     bounded(input.costApprovalThreshold, 0, 1_000_000, 'حد اعتماد التكلفة يجب أن يكون بين 0 و 1000000')
   if (invalid) return fail(invalid)
@@ -1791,7 +1797,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const product = findProduct(state, order.productId)
   const manual = input.costLines ?? []
   for (const line of manual) {
-    if (!Number.isFinite(line.amount) || line.amount < 0) return fail('مبلغ بند التكلفة غير صحيح')
+    if (!Number.isFinite(line.amount) || line.amount < 0) return fail('��بلغ بند التكلفة غير صحيح')
   }
   const threshold = state.company.costApprovalThreshold ?? 0
   const pendingManual = manual.filter((line) => money(line.amount) > threshold)
@@ -4128,12 +4134,34 @@ function approveSupplierCommunication(state: ErpState, actor: Actor, input: Extr
   if (!communication) return fail('التواصل غير موجود')
   if (communication.status !== 'PENDING_APPROVAL') return fail('التواصل ليس بانتظار الاعتماد')
 
-  communication.status = 'SENT'
+  communication.status = 'APPROVED_TO_SEND'
   communication.approvedBy = actor.id
   communication.approvedAt = clock.now()
 
   audit(state, actor, clock, 'اعتماد تواصل مورد', 'supplierCommunication', communication.id, communication.subject)
-  return ok(state, 'تم اعتماد وإرسال التواصل')
+  return ok(state, 'تم اعتماد التواصل وإحالته للإرسال')
+}
+
+function markSupplierCommunicationDelivered(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markSupplierCommunicationDelivered' }>['input'], clock: Clock): CommandResult {
+  const communication = state.supplierCommunications.find((item) => item.id === input.id)
+  if (!communication) return fail('التواصل غير موجود')
+  if (communication.status !== 'APPROVED_TO_SEND') return fail('التواصل ليس جاهزاً للإرسال')
+  if (!input.providerMessageId.trim()) return fail('معرف الرسالة مطلوب')
+  communication.status = 'SENT'
+  communication.providerMessageId = input.providerMessageId.trim()
+  communication.failureReason = undefined
+  audit(state, actor, clock, 'إرسال تواصل مورد', 'supplierCommunication', communication.id, communication.subject)
+  return ok(state, 'تم إرسال التواصل للمورد')
+}
+
+function markSupplierCommunicationFailed(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markSupplierCommunicationFailed' }>['input'], clock: Clock): CommandResult {
+  const communication = state.supplierCommunications.find((item) => item.id === input.id)
+  if (!communication) return fail('التواصل غير موجود')
+  if (communication.status !== 'APPROVED_TO_SEND') return fail('التواصل ليس جاهزاً للإرسال')
+  communication.status = 'FAILED'
+  communication.failureReason = input.error.trim().slice(0, 500) || 'فشل غير معروف'
+  audit(state, actor, clock, 'فشل إرسال تواصل مورد', 'supplierCommunication', communication.id, communication.failureReason)
+  return ok(state, 'تم تسجيل فشل إرسال التواصل')
 }
 
 function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordScaleReading' }>['input'], clock: Clock): CommandResult {
