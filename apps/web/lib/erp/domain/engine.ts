@@ -1158,7 +1158,7 @@ function decidePurchaseOrder(state: ErpState, actor: Actor, input: Extract<Comma
   po.status = input.decision
   po.decidedBy = actor.id
   po.decidedAt = clock.now()
-  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد أمر ��راء' : 'رفض أمر شراء', 'purchaseOrder', po.id, po.number)
+  audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد أمر شراء' : 'رفض أمر شراء', 'purchaseOrder', po.id, po.number)
   return ok(state, input.decision === 'APPROVED' ? `تم اعتماد ${po.number}` : `تم رفض ${po.number}`)
 }
 

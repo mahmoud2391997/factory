@@ -37,7 +37,7 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 }
 
 export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const lots = ctx.state.lots ?? []
   const [lotNo, setLotNo] = useState(lots[0]?.lotNo ?? '')
   const [closeMonth, setCloseMonth] = useState(() => new Date().toISOString().slice(0, 7))
@@ -140,7 +140,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
       ) : null}
       {trace ? (
         <Card
-          title={`تتبع ${trace.lot.lotNo}`}
+          title={`${translateUiText(language, 'تتبع')} ${trace.lot.lotNo}`}
           hint={detail ? 'من الدفعة إلى خامات الموردين ثم إلى العملاء.' : 'تفاصيل الدفعة المختارة.'}
           extra={<a className="text-sm font-semibold text-[#0d9488]" href={`/print/lot/${encodeURIComponent(trace.lot.lotNo)}`} target="_blank" rel="noreferrer">طباعة الشهادة</a>}
         >
@@ -276,15 +276,17 @@ function HoldActionDialog({
   action: HoldAction
   target: { lotNo?: string; materialId?: string; batchNo?: string }
 }) {
+  const { language } = useLanguage()
   const [reason, setReason] = useState('')
-  const label = action.startsWith('hold') ? 'حجر' : action.startsWith('release') ? 'رفع الحجر' : 'استدعاء'
-  return <FormDialog title={`${label} ${target.lotNo ? 'دفعة الإنتاج' : 'دفعة الخام'}`} openLabel={label}>
+  const label = translateUiText(language, action.startsWith('hold') ? 'حجر' : action.startsWith('release') ? 'رفع الحجر' : 'استدعاء')
+  const batchLabel = translateUiText(language, target.lotNo ? 'دفعة الإنتاج' : 'دفعة الخام')
+  return <FormDialog title={`${label} ${batchLabel}`} openLabel={label}>
     {(close) => <form className="grid gap-3" onSubmit={async (event) => {
       event.preventDefault()
       const result = await ctx.act(action, { ...target, reason })
       if (result.ok) { setReason(''); close() }
     }}>
-      <Field label={`سبب ${label}`}><TextInput value={reason} onChange={(event) => setReason(event.target.value)} required minLength={2} /></Field>
+      <Field label={`${translateUiText(language, 'سبب')} ${label}`}><TextInput value={reason} onChange={(event) => setReason(event.target.value)} required minLength={2} /></Field>
       <PrimaryButton disabled={ctx.pending || reason.trim().length < 2}>{label}</PrimaryButton>
     </form>}
   </FormDialog>
