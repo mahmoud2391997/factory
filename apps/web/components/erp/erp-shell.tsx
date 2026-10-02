@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Sun, X } from 'lucide-react'
+import { Bell, ChevronDown, ChevronsDownUp, ChevronsUpDown, Factory, Loader2, LogOut, Menu, Moon, PanelRightClose, PanelRightOpen, ScrollText, Search, Sun, X } from 'lucide-react'
 
 import { LiveWorkspace } from '@/components/erp/live/workspace'
 import type { LiveCtx } from '@/components/erp/live/ctx'
@@ -12,15 +12,14 @@ import { useAuth } from '@/components/providers/auth-provider'
 import {
   breadcrumbs,
   canSeeEntity,
-  entryHref,
   hrefForEntity,
   leafMeta,
   pageTabs,
   resolvePath,
-  sidebarNodes,
-  visibleDestinations,
 } from '@/lib/erp-routes'
+import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
+import { canAccessMain, canAccessSub, ERP_NAV, NAV_SECTIONS, sectionForMain } from '@/lib/erp-nav'
 import { destinationLabel, getSupportedLanguages, translateUiText } from '@/lib/i18n/translations'
 import type { Language } from '@/lib/i18n/translations'
 import { directionFor, useLanguage } from '@/lib/i18n/language-provider'
@@ -28,6 +27,7 @@ import { useErp } from '@/lib/use-erp'
 
 const COMPACT_KEY = 'erp-sidebar-compact'
 const THEME_KEY = 'erp-theme'
+const NAV_OPEN_KEY = 'erp-sidebar-open-groups'
 
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean)
@@ -44,7 +44,7 @@ export function ErpShell() {
   const { language, setLanguage, t } = useLanguage()
   const uiLabel = (value: string) => translateUiText(language, value)
   const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
-  const permissions = erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? []
+  const permissions = roleKey === 'GM' ? DEFAULT_ROLE_PERMISSIONS.GM : (erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? [])
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [toast, setToast] = useState('')
@@ -55,48 +55,34 @@ export function ErpShell() {
   const [themeReady, setThemeReady] = useState(false)
   const [noticesOpen, setNoticesOpen] = useState(false)
   const [expandedNav, setExpandedNav] = useState<Record<string, boolean>>({})
+  const [navSearch, setNavSearch] = useState('')
   const noticesRef = useRef<HTMLDivElement>(null)
 
   const resolved = resolvePath(pathname)
-  const destinations = visibleDestinations(permissions)
+  const mainTabs = ERP_NAV.filter((main) => canAccessMain(permissions, main) && main.subs.some((sub) => canAccessSub(permissions, sub, main)))
+  const currentMain = resolved ? mainTabs.find((main) => main.subs.some((sub) => sub.entityKey === resolved.leaf.entityKey && canAccessSub(permissions, sub, main))) : undefined
+  const query = navSearch.trim().toLocaleLowerCase('ar')
+  const sectionEntries = NAV_SECTIONS.map((section) => ({
+    section,
+    mains: mainTabs.filter((main) => section.mainIds.includes(main.id)).map((main) => {
+      const accessibleSubs = main.subs.filter((sub) => canAccessSub(permissions, sub, main) && hrefForEntity(sub.entityKey))
+      const mainMatches = !query || main.label.toLocaleLowerCase('ar').includes(query)
+      const subs = accessibleSubs.filter((sub) => mainMatches || !query || sub.label.toLocaleLowerCase('ar').includes(query))
+      return { main, subs, href: hrefForEntity(subs[0]?.entityKey ?? accessibleSubs[0]?.entityKey ?? '') }
+    }).filter((entry) => entry.subs.length > 0),
+  })).filter((entry) => entry.mains.length > 0)
   const destLabel = (destination: { id: string; label: string }) => destinationLabel(language, destination.id, destination.label)
   const iconOnly = compact && !mobileOpen
-  const destinationKey = (id: string) => `d:${id}`
-  const groupKey = (destinationId: string, groupId: string) => `g:${destinationId}:${groupId}`
-  const destinationOpen = (id: string) => expandedNav[destinationKey(id)] ?? id === resolved?.destination?.id
-  const groupOpen = (destinationId: string, groupId: string) =>
-    expandedNav[groupKey(destinationId, groupId)] ?? (destinationId === resolved?.destination?.id && groupId === resolved?.group?.id)
-  const toggleDestination = (id: string) =>
-    setExpandedNav((current) => {
-      const willOpen = !(current[destinationKey(id)] ?? id === resolved?.destination?.id)
-      const next = { ...current }
-      destinations.forEach((destination) => {
-        next[destinationKey(destination.id)] = false
-      })
-      next[destinationKey(id)] = willOpen
-      return next
-    })
-  const toggleGroup = (destinationId: string, groupId: string) =>
-    setExpandedNav((current) => {
-      const willOpen = !(current[groupKey(destinationId, groupId)] ?? (destinationId === resolved?.destination?.id && groupId === resolved?.group?.id))
-      const next = { ...current }
-      const destination = destinations.find((item) => item.id === destinationId)
-      destination &&
-        sidebarNodes(destination, permissions).forEach((node) => {
-          next[groupKey(destinationId, node.id)] = false
-        })
-      next[destinationKey(destinationId)] = true
-      next[groupKey(destinationId, groupId)] = willOpen
-      return next
-    })
+  const sectionKey = (id: string) => `s:${id}`
+  const mainKey = (id: string) => `m:${id}`
+  const sectionOpen = (id: string) => query !== '' || (expandedNav[sectionKey(id)] ?? true)
+  const mainOpen = (id: string) => query !== '' || (expandedNav[mainKey(id)] ?? currentMain?.id === id)
+  const toggleSection = (id: string) => setExpandedNav((current) => ({ ...current, [sectionKey(id)]: !(current[sectionKey(id)] ?? true) }))
+  const toggleMain = (id: string) => setExpandedNav((current) => ({ ...current, [mainKey(id)]: !(current[mainKey(id)] ?? currentMain?.id === id) }))
   const setAllNavExpanded = (expanded: boolean) => {
     const next: Record<string, boolean> = {}
-    destinations.forEach((destination) => {
-      next[destinationKey(destination.id)] = expanded
-      sidebarNodes(destination, permissions).forEach((node) => {
-        next[groupKey(destination.id, node.id)] = expanded
-      })
-    })
+    NAV_SECTIONS.forEach((section) => { next[sectionKey(section.id)] = expanded })
+    mainTabs.forEach((main) => { next[mainKey(main.id)] = expanded })
     setExpandedNav(next)
   }
 
@@ -112,6 +98,8 @@ export function ErpShell() {
     try {
       const storedCompact = localStorage.getItem(COMPACT_KEY)
       if (storedCompact === '1' || storedCompact === '0') setCompact(storedCompact === '1')
+      const storedNav = localStorage.getItem(NAV_OPEN_KEY)
+      if (storedNav) setExpandedNav(JSON.parse(storedNav) as Record<string, boolean>)
       else if (window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches) setCompact(true)
     } catch {
       /* keep defaults */
@@ -132,6 +120,11 @@ export function ErpShell() {
   }, [navReady, compact])
 
   useEffect(() => {
+    if (!navReady) return
+    localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(expandedNav))
+  }, [navReady, expandedNav])
+
+  useEffect(() => {
     if (!themeReady) return
     document.documentElement.classList.toggle('dark', dark)
     document.documentElement.classList.toggle('light', !dark)
@@ -142,16 +135,11 @@ export function ErpShell() {
     setMobileOpen(false)
     setNoticesOpen(false)
     const current = resolvePath(pathname)
-    if (!current?.destination) return
-    const next: Record<string, boolean> = {}
-    visibleDestinations(permissions).forEach((destination) => {
-      const activeDestination = destination.id === current.destination?.id
-      next[`d:${destination.id}`] = activeDestination
-      sidebarNodes(destination, permissions).forEach((node) => {
-        next[`g:${destination.id}:${node.id}`] = activeDestination && (node.id === current.group?.id || node.href === pathname)
-      })
-    })
-    setExpandedNav(next)
+    if (!current) return
+    const activeMain = ERP_NAV.find((main) => main.subs.some((sub) => sub.entityKey === current.leaf.entityKey && canAccessSub(permissions, sub, main)))
+    if (!activeMain) return
+    const section = sectionForMain(activeMain.id)
+    setExpandedNav((previous) => ({ ...previous, [sectionKey(section.id)]: true, [mainKey(activeMain.id)]: true }))
   }, [pathname, permissions.join('|')])
 
   useEffect(() => {
@@ -235,120 +223,58 @@ export function ErpShell() {
           </button>
         </div>
 
-        <nav className="erp-sidebar-nav flex-1 space-y-1 overflow-y-auto px-3 py-5" aria-label={uiLabel('أقسام النظام')}>
+        <nav className="erp-sidebar-nav flex-1 space-y-2 overflow-y-auto px-3 py-4" aria-label={uiLabel('أقسام النظام')}>
           {!iconOnly ? (
-            <div className="mb-3 flex items-center justify-between gap-2 px-3">
+            <div className="mb-2 flex items-center justify-between gap-2 px-2">
               <div className="text-[11px] font-semibold tracking-[0.12em] text-[#9ca3af]">{uiLabel('مساحة العمل')}</div>
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label={uiLabel('طي الكل')}
-                  title={uiLabel('طي الكل')}
-                  className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
-                  onClick={() => setAllNavExpanded(false)}
-                >
-                  <ChevronsDownUp size={15} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  aria-label={uiLabel('فتح الكل')}
-                  title={uiLabel('فتح الكل')}
-                  className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white hover:text-[#155e55] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
-                  onClick={() => setAllNavExpanded(true)}
-                >
-                  <ChevronsUpDown size={15} aria-hidden />
-                </button>
+                <button type="button" aria-label={uiLabel('طي الكل')} title={uiLabel('طي الكل')} className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white" onClick={() => setAllNavExpanded(false)}><ChevronsDownUp size={15} aria-hidden /></button>
+                <button type="button" aria-label={uiLabel('فتح الكل')} title={uiLabel('فتح الكل')} className="grid size-7 place-items-center rounded-md text-[#737373] hover:bg-white" onClick={() => setAllNavExpanded(true)}><ChevronsUpDown size={15} aria-hidden /></button>
               </div>
             </div>
           ) : null}
-          {destinations.map((destination) => {
-            const Icon = destination.icon
-            const active = resolved?.destination?.id === destination.id
-            const href = entryHref(destination, permissions)
-            const nodes = sidebarNodes(destination, permissions)
-            return (
-              <div key={destination.id}>
-                <div className="flex items-center gap-1">
-                  <Link
-                    href={href}
-                    aria-current={active && pathname === href ? 'page' : undefined}
-                    aria-label={destLabel(destination)}
-                    title={destLabel(destination)}
-                    className={`erp-nav-item relative flex h-11 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 text-sm font-medium transition-all duration-200 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
-                      active
-                        ? 'erp-nav-item-active border border-[#bde5df] bg-[#e9f7f4] text-[#155e55] shadow-sm'
-                        : 'text-[#525252] hover:bg-white hover:text-[#155e55] hover:shadow-sm'
-                    }`}
-                  >
-                    <Icon size={18} aria-hidden strokeWidth={active ? 2.2 : 2} className="transition-transform duration-300 group-hover:scale-110" />
-                    <span className={iconOnly ? 'sr-only' : 'truncate'}>{destLabel(destination)}</span>
-                  </Link>
-                  {!iconOnly && nodes.length > 0 ? (
-                    <button type="button" aria-label={`${uiLabel(destinationOpen(destination.id) ? 'طي' : 'فتح')} ${destLabel(destination)}`} aria-expanded={destinationOpen(destination.id)} title={`${uiLabel(destinationOpen(destination.id) ? 'طي' : 'فتح')} ${destLabel(destination)}`} onClick={() => toggleDestination(destination.id)} className="grid size-9 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
-                      <ChevronDown size={17} aria-hidden className={`transition-transform duration-300 ${destinationOpen(destination.id) ? 'rotate-180' : ''}`} />
-                    </button>
-                  ) : null}
-                </div>
-                {!iconOnly && nodes.length > 0 ? (
-                  <div className={`grid transition-all duration-300 ease-in-out ${destinationOpen(destination.id) ? 'grid-rows-[1fr] opacity-100 mb-2 mt-1' : 'grid-rows-[0fr] opacity-0'}`}>
-                    <div className="overflow-hidden">
-                      <div className="mr-4 space-y-1 border-r border-[#d7e4e2] pr-2">
-                    {nodes.map((node) => {
-                      const childCurrent = node.children.some((child) => child.href === pathname)
-                      const nodeCurrent = pathname === node.href && !childCurrent
-                      return (
-                        <div key={node.id}>
-                          <div className="flex items-center gap-1">
-                            <Link
-                              href={node.href}
-                              aria-current={nodeCurrent ? 'page' : undefined}
-                              title={uiLabel(node.label)}
-                              className={`flex h-10 min-w-0 flex-1 items-center rounded-lg px-3 text-right text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
-                                nodeCurrent ? 'bg-neutral-200/70 text-[#171717]' : childCurrent ? 'bg-white text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
-                              }`}
-                            >
-                              <span className="truncate">{uiLabel(node.label)}</span>
-                            </Link>
-                            {node.children.length > 0 ? (
-                              <button type="button" aria-label={`${uiLabel(groupOpen(destination.id, node.id) ? 'طي' : 'فتح')} ${uiLabel(node.label)}`} aria-expanded={groupOpen(destination.id, node.id)} title={`${uiLabel(groupOpen(destination.id, node.id) ? 'طي' : 'فتح')} ${uiLabel(node.label)}`} onClick={() => toggleGroup(destination.id, node.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#737373] hover:bg-white hover:text-[#155e55] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
-                                <ChevronDown size={15} aria-hidden className={`transition-transform duration-300 ${groupOpen(destination.id, node.id) ? 'rotate-180' : ''}`} />
-                              </button>
-                            ) : null}
-                          </div>
-                          {node.children.length > 0 ? (
-                            <div className={`grid transition-all duration-300 ease-in-out ${groupOpen(destination.id, node.id) ? 'grid-rows-[1fr] opacity-100 mb-1 mt-1' : 'grid-rows-[0fr] opacity-0'}`}>
-                              <div className="overflow-hidden">
-                                <div className="mr-3 space-y-1 border-r border-[#d7e4e2] pr-2">
-                              {node.children.map((child) => {
-                                const current = pathname === child.href
-                                return (
-                                  <Link
-                                    key={child.id}
-                                    href={child.href}
-                                    aria-current={current ? 'page' : undefined}
-                                    title={uiLabel(child.label)}
-                                    className={`flex h-10 w-full items-center rounded-lg px-3 text-right text-sm font-medium transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${
-                                      current ? 'bg-neutral-200/70 font-medium text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'
-                                    }`}
-                                  >
-                                    <span className="truncate">{uiLabel(child.label)}</span>
-                                  </Link>
-                                )
-                              })}
-                                </div>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                      </div>
+          {!iconOnly ? (
+            <label className="mb-3 flex h-10 items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 text-[#737373] focus-within:border-[#0d9488]">
+              <Search size={16} aria-hidden />
+              <input value={navSearch} onChange={(event) => setNavSearch(event.target.value)} placeholder={uiLabel('ابحث في القوائم')} aria-label={uiLabel('ابحث في القوائم')} className="min-w-0 flex-1 bg-transparent text-right text-sm text-[#1f1f1f] outline-none placeholder:text-[#9ca3af]" />
+              {navSearch ? <button type="button" aria-label={uiLabel('مسح البحث')} onClick={() => setNavSearch('')} className="text-xs text-[#6b7280]">×</button> : null}
+            </label>
+          ) : null}
+          {sectionEntries.map(({ section, mains }) => (
+            <section key={section.id} className="space-y-1">
+              {!iconOnly ? (
+                <button type="button" aria-expanded={sectionOpen(section.id)} onClick={() => toggleSection(section.id)} className="flex h-8 w-full items-center justify-between px-2 text-right text-[11px] font-semibold tracking-wide text-[#9ca3af] hover:text-[#155e55]">
+                  <span>{uiLabel(section.label)}</span><ChevronDown size={14} aria-hidden className={`transition-transform ${sectionOpen(section.id) ? 'rotate-180' : ''}`} />
+                </button>
+              ) : null}
+              {sectionOpen(section.id) ? mains.map(({ main, subs, href }) => {
+                const Icon = main.icon
+                const active = currentMain?.id === main.id
+                return (
+                  <div key={main.id} className="rounded-xl">
+                    <div className="flex items-center gap-1">
+                      <Link href={href ?? '/'} aria-current={active ? 'page' : undefined} aria-label={uiLabel(main.label)} title={uiLabel(main.label)} className={`erp-nav-item relative flex h-10 min-w-0 flex-1 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-all duration-200 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${active ? 'erp-nav-item-active border border-[#bde5df] bg-[#e9f7f4] text-[#155e55] shadow-sm' : 'text-[#525252] hover:bg-white hover:text-[#155e55] hover:shadow-sm'}`}>
+                        <Icon size={17} aria-hidden strokeWidth={active ? 2.2 : 2} className="shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                        <span className={iconOnly ? 'sr-only' : 'truncate'}>{uiLabel(main.label)}</span>
+                      </Link>
+                      {!iconOnly ? <button type="button" aria-label={`${uiLabel(mainOpen(main.id) ? 'طي' : 'فتح')} ${uiLabel(main.label)}`} aria-expanded={mainOpen(main.id)} title={uiLabel(main.label)} onClick={() => toggleMain(main.id)} className="grid size-8 shrink-0 place-items-center rounded-lg text-[#6b7280] hover:bg-white hover:text-[#155e55]"><ChevronDown size={15} aria-hidden className={`transition-transform ${mainOpen(main.id) ? 'rotate-180' : ''}`} /></button> : null}
                     </div>
+                    {!iconOnly && mainOpen(main.id) ? <div className="mr-4 mt-1 space-y-1 border-r border-[#d7e4e2] py-1 pr-2">
+                      {subs.map((sub) => {
+                        const href = hrefForEntity(sub.entityKey) ?? '/'
+                        const current = resolved?.leaf.entityKey === sub.entityKey && pathname === href
+                        return <Link key={sub.id} href={href} aria-current={current ? 'page' : undefined} title={uiLabel(sub.label)} className={`flex min-h-9 w-full items-center rounded-lg px-3 py-1.5 text-right text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${current ? 'bg-neutral-200/70 text-[#171717]' : 'text-[#525252] hover:bg-neutral-200/50'}`}><span className="truncate">{uiLabel(sub.label)}</span></Link>
+                      })}
+                    </div> : null}
                   </div>
-                ) : null}
-              </div>
-            )
-          })}
+                )
+              }) : mains.map(({ main, href }) => {
+                const Icon = main.icon
+                return <Link key={main.id} href={href ?? '/'} aria-label={uiLabel(main.label)} title={uiLabel(main.label)} className="grid h-10 place-items-center rounded-xl text-[#525252] hover:bg-white hover:text-[#155e55]"><Icon size={18} aria-hidden /></Link>
+              })}
+            </section>
+          ))}
+          {sectionEntries.length === 0 && !iconOnly ? <p className="px-3 py-6 text-center text-sm text-[#737373]">{uiLabel('لا توجد نتائج')}</p> : null}
         </nav>
 
         <div className="erp-sidebar-footer mt-auto border-t border-[#e5e7eb] bg-white/60 p-3">
@@ -381,6 +307,7 @@ export function ErpShell() {
               <div className="truncate text-sm font-medium">{user.fullName}</div>
               <div className="truncate text-[13px] text-[#6b7280]">{primaryRole}</div>
               <div className="truncate text-[12px] text-[#9ca3af]">{user.email}</div>
+              <div className="mt-1 truncate text-[10px] text-[#9ca3af]" dir="ltr">Build {process.env.NEXT_PUBLIC_GIT_COMMIT_SHA ?? 'local'} · {process.env.NEXT_PUBLIC_BUILD_DATE ?? 'development'}</div>
             </div>
             <button
               type="button"
