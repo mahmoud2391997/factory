@@ -2,6 +2,7 @@ import {
   ALL_NAV_PAGES,
   NAV_CONFIG,
   canonicalPages,
+  canAccessPage,
   pageForEntity,
   pageForId,
   type NavPage,
@@ -17,6 +18,7 @@ export type ResolvedRoute = {
   page: NavPage
   leaf: RouteLeaf
   redirectTo?: string
+  destination?: { id: string; label: string } | null
 }
 
 export type PageTab = { id: string; href: string; label: string }
@@ -73,7 +75,7 @@ export function resolvePath(pathname: string, search = ''): ResolvedRoute | null
     ? new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
     : url.searchParams
   const match = routeAt(path, params)
-  if (match) return { ...match, leaf: { href: match.page.href, entityKey: match.page.entityKey, tab: match.page.tab } }
+  if (match) return { ...match, destination: match.workspace ? { id: match.workspace.id, label: match.workspace.label } : null, leaf: { href: match.page.href, entityKey: match.page.entityKey, tab: match.page.tab } }
 
   const redirect = NAV_CONFIG.redirects.find((item) => normalizedPath(new URL(item.from, 'https://nav.invalid').pathname) === path)
   if (!redirect) return null
@@ -81,6 +83,7 @@ export function resolvePath(pathname: string, search = ''): ResolvedRoute | null
   if (!target) return null
   return {
     ...target,
+    destination: target.workspace ? { id: target.workspace.id, label: target.workspace.label } : null,
     leaf: { href: target.page.href, entityKey: target.page.entityKey, tab: target.page.tab },
     redirectTo: redirect.to,
   }
@@ -89,8 +92,7 @@ export function resolvePath(pathname: string, search = ''): ResolvedRoute | null
 export function canSeeEntity(permissions: string[], entityKey: string) {
   const page = pageForEntity(entityKey)
   if (!page) return false
-  if (page.permission.length === 0) return true
-  return page.permission.some((permission) => permissions.includes(permission))
+  return canAccessPage(page, permissions)
 }
 
 export function hrefForEntity(entityKey: string) {
@@ -108,9 +110,7 @@ export function leafMeta(entityKey: string) {
 
 export function visibleWorkspaces(permissions: string[]) {
   return NAV_CONFIG.workspaces.filter((workspace) =>
-    workspace.sections.some((section) => section.pages.some((page) => page.tab || page.entityKey === 'dashboard'
-      ? canSeeEntity(permissions, page.entityKey)
-      : canSeeEntity(permissions, page.entityKey))),
+    workspace.sections.some((section) => section.pages.some((page) => canSeeEntity(permissions, page.entityKey))),
   )
 }
 

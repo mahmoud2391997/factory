@@ -362,7 +362,10 @@ const LEGACY_ROUTES = [
   }
 ]
 const LEGACY_ENTITY_KEYS = LEGACY_ROUTES.map((route) => route.entityKey)
-const ALL_REGISTERED_PERMISSIONS = [...new Set(ALL_NAV_PAGES.flatMap((page) => page.permission))]
+const ALL_REGISTERED_PERMISSIONS = [...new Set(ALL_NAV_PAGES.flatMap((page) => [
+  ...page.permission,
+  ...page.accessPaths.flatMap((rule) => [...rule.mainPermission, ...rule.pagePermission]),
+]))]
 
 const allPagesForEveryRole = [...ALL_REGISTERED_PERMISSIONS, ...DEFAULT_ROLE_PERMISSIONS.GM]
 
