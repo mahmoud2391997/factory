@@ -3,6 +3,7 @@ import { test } from 'node:test'
 
 import { DEFAULT_ROLE_PERMISSIONS } from './erp/domain/permissions'
 import {
+  breadcrumbs,
   canSeeEntity,
   hrefForEntity,
   hrefForPageId,
@@ -438,4 +439,20 @@ test('search finds diesel, scale, and spare-parts synonyms and returns grouped n
   assert.ok(searchFor('قطع غيار').some((result) => result.type === 'page' && result.page?.entityKey === 'inventoryExtensions'))
   assert.ok(searchFor('العملاء والفواتير').some((result) => result.type === 'section' && result.workspace?.id === 'sales'))
   assert.ok(searchFor('دليل البنود').some((result) => result.href === '/guide'))
+})
+
+test('the navigation guide resolves as a searchable page and breadcrumbs are clickable links', () => {
+  const guide = resolvePath('/guide')
+  assert.ok(guide)
+  assert.equal(canSeeEntity(DEFAULT_ROLE_PERMISSIONS.GM, 'navigationGuide'), true)
+  assert.deepEqual(breadcrumbs(guide!, DEFAULT_ROLE_PERMISSIONS.GM), [
+    { href: '/', label: 'الرئيسية' },
+    { href: '/guide', label: 'دليل البنود' },
+  ])
+
+  const home = resolvePath('/')!
+  assert.deepEqual(breadcrumbs(home, DEFAULT_ROLE_PERMISSIONS.GM), [
+    { href: '/', label: 'الرئيسية' },
+    { href: '/', label: 'لوحة المالك' },
+  ])
 })

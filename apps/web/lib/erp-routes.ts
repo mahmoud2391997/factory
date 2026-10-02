@@ -75,7 +75,13 @@ export function resolvePath(pathname: string, search = ''): ResolvedRoute | null
     ? new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
     : url.searchParams
   const match = routeAt(path, params)
-  if (match) return { ...match, destination: match.workspace ? { id: match.workspace.id, label: match.workspace.label } : null, leaf: { href: match.page.href, entityKey: match.page.entityKey, tab: match.page.tab } }
+  if (match) {
+    return {
+      ...match,
+      destination: match.workspace ? { id: match.workspace.id, label: match.workspace.label } : null,
+      leaf: { href: match.page.href, entityKey: match.page.entityKey, tab: match.page.tab },
+    }
+  }
 
   const redirect = NAV_CONFIG.redirects.find((item) => normalizedPath(new URL(item.from, 'https://nav.invalid').pathname) === path)
   if (!redirect) return null
@@ -141,16 +147,21 @@ export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
 export function breadcrumbs(resolved: ResolvedRoute, permissions: string[]) {
   const crumbs: Array<{ href: string; label: string }> = [{ href: '/', label: 'الرئيسية' }]
   if (!resolved.workspace) {
-    if (resolved.page.entityKey !== 'dashboard') crumbs.push({ href: resolved.page.href, label: resolved.page.label })
+    if (resolved.page.entityKey !== 'dashboard' && crumbs.at(-1)?.label !== resolved.page.label) {
+      crumbs.push({ href: resolved.page.href, label: resolved.page.label })
+    }
     return crumbs
   }
+
   if (resolved.workspace.id !== 'home') {
     const entry = workspaceEntryHref(resolved.workspace, permissions) ?? resolved.page.href
-    crumbs.push({ href: entry, label: resolved.workspace.label })
-    if (resolved.section && resolved.section.label !== resolved.workspace.label) {
-      const sectionEntry = sectionEntryHref(resolved.section, permissions) ?? resolved.page.href
-      crumbs.push({ href: sectionEntry, label: resolved.section.label })
+    if (crumbs.at(-1)?.label !== resolved.workspace.label) {
+      crumbs.push({ href: entry, label: resolved.workspace.label })
     }
+  }
+  if (resolved.section && crumbs.at(-1)?.label !== resolved.section.label) {
+    const sectionEntry = sectionEntryHref(resolved.section, permissions) ?? resolved.page.href
+    crumbs.push({ href: sectionEntry, label: resolved.section.label })
   }
   if (resolved.page.entityKey !== 'dashboard' && crumbs.at(-1)?.label !== resolved.page.label) {
     crumbs.push({ href: resolved.page.href, label: resolved.page.label })
@@ -196,6 +207,7 @@ export function searchNavigation(query: string, permissions: string[]): NavSearc
   }
 
   for (const page of NAV_CONFIG.utilityPages) {
+    if (!canAccessPage(page, permissions)) continue
     if (normalizeText([page.label, page.description, ...page.keywords].join(' ')).includes(needle)) {
       results.push({ type: 'page', id: page.id, label: page.label, description: page.description, href: page.href, workspace: null, section: null, page })
     }

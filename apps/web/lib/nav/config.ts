@@ -179,7 +179,7 @@ export const NAV_CONFIG: { workspaces: NavWorkspace[]; utilityPages: NavPage[]; 
     ] },
   ],
   utilityPages: [
-    { id: 'navigation-guide', entityKey: 'navigationGuide', href: '/guide', label: 'دليل البنود', description: 'فهرس أقسام ومسارات النظام.', keywords: ['دليل', 'فهرس', 'أقسام', 'صفحات', 'navigation guide'], permission: [], tab: false },
+    { id: 'navigation-guide', entityKey: 'navigationGuide', href: '/guide', label: 'دليل البنود', description: 'فهرس أقسام ومسارات النظام.', keywords: ['دليل', 'فهرس', 'أقسام', 'صفحات', 'navigation guide'], permission: [], accessPaths: [{ mainPermission: [], pagePermission: [] }], tab: false },
   ],
   redirects: [
     { from: '/inventory/extensions', to: '/inventory/extensions?kind=spare' },
