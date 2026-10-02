@@ -60,9 +60,14 @@ export function ExportLinks({ href }: { href: string }) {
 
 export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
   const { language } = useLanguage()
+  const filterId = useId()
   const [sort, setSort] = useState<{ index: number; dir: 'asc' | 'desc' } | null>(null)
   const [page, setPage] = useState(0)
-  const sorted = [...rows]
+  const [query, setQuery] = useState('')
+  const filtered = query.trim()
+    ? rows.filter((row) => row.some((cell) => cellText(cell).toLocaleLowerCase('ar').includes(query.trim().toLocaleLowerCase('ar'))))
+    : rows
+  const sorted = [...filtered]
   if (sort) {
     const direction = sort.dir === 'asc' ? 1 : -1
     sorted.sort((a, b) => cellText(a[sort.index]).localeCompare(cellText(b[sort.index]), 'ar', { numeric: true }) * direction)
@@ -73,8 +78,19 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <label className="sr-only" htmlFor={filterId}>{translateUiText(language, 'تصفية الجدول')}</label>
+        <input
+          id={filterId}
+          value={query}
+          onChange={(event) => { setQuery(event.target.value); setPage(0) }}
+          placeholder={translateUiText(language, 'ابحث في جميع الصفوف')}
+          className="h-9 w-full rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#0d9488] sm:max-w-xs"
+        />
+        <span className="text-xs text-[#6b7280]">{sorted.length} {translateUiText(language, 'سجل')}</span>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-start text-sm">
+        <table className="w-full min-w-[640px] text-center text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] text-[#1f1f1f]">
               {columns.map((column, index) => {
@@ -84,7 +100,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
                   <th key={column} className="px-2 py-2 font-semibold" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
+                      className="mx-auto inline-flex items-center justify-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
                       aria-label={`${translateUiText(language, 'فرز')} ${label}`}
                       onClick={() => {
                         setPage(0)
@@ -112,7 +128,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
               visible.map((row, index) => (
                 <tr key={`${safePage}-${index}`} className="border-b border-[#f3f4f6] last:border-0">
                   {row.map((cell, cellIndex) => (
-                    <td key={cellIndex} className="px-2 py-3 align-top">
+                    <td key={cellIndex} className="px-2 py-3 text-center align-middle">
                       <LocalizedContent>{cell}</LocalizedContent>
                     </td>
                   ))}
