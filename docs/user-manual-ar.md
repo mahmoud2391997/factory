@@ -27,9 +27,9 @@
 | عنوان المالك | الشاشات الفرعية والمسارات القائمة |
 | --- | --- |
 | لوحة المالك | وضع المصنع اليوم `/`؛ المخطط `/inventory/manufacturing/planned`؛ الفعلي `/inventory/manufacturing/actual`؛ نسبة التنفيذ `/inventory/manufacturing/execution`؛ مبيعات اليوم `/sales/today` والشهر `/sales/month`؛ الطلبات المفتوحة `/sales/open-orders`؛ تكلفة الطن `/accounting/cost`؛ متوسط السعر `/accounting/price`؛ الهامش `/accounting/margin`؛ قيمة المخزون `/inventory/raw-materials/value`؛ المواد منخفضة الرصيد `/inventory/raw-materials/running-out`؛ الراكدة `/inventory/raw-materials/stagnant`؛ المحجوزة `/inventory/raw-materials/reserved`؛ الهدر `/inventory/manufacturing/waste`؛ الانحراف `/inventory/manufacturing/deviation`؛ تحليل الانحراف `/inventory/manufacturing/variance`؛ التوقفات `/inventory/manufacturing/stoppages` |
-| السيارات والنقل | المركبات وخدماتها `/fleet/vehicles`؛ الوقود `/fleet/fuel`؛ الرحلات وتكلفتها `/fleet/trips`؛ مؤشرات الاستهلاك والتكلفة تفتح أقرب شاشة وقود أو رحلات حالية |
+| السيارات والنقل | المركبات والصيانة الدورية `/fleet/vehicles`؛ كل تعبئة وقود `/fleet/fuel`؛ الرحلات والسائق والوجهة والمسافة والحمولة ومقارنة المتوقع بالفعلي وتوزيع التكلفة على الدفعات والفواتير `/fleet/trips` |
 | الأقساط والالتزامات المالية | جدول الالتزامات والأقساط `/accounting/obligations` |
-| البنك والحسابات | معاملات البنك `/accounting/financial-ops/bank-transactions`؛ دليل الحسابات `/accounting`؛ القيود `/accounting/journals`؛ المصروفات `/accounting/expenses`؛ العمليات المالية `/accounting/financial-ops`؛ الضريبة `/accounting/tax`؛ إقرار الضريبة `/accounting/vat`؛ التقارير `/accounting/reports` |
+| البنك والحسابات | معاملات البنك والمطابقة `/accounting/financial-ops/bank-transactions`؛ سجل التدقيق المشترك (للمدير العام) `/settings/audit`؛ دليل الحسابات `/accounting`؛ القيود `/accounting/journals`؛ المصروفات `/accounting/expenses`؛ العمليات المالية `/accounting/financial-ops`؛ الضريبة `/accounting/tax`؛ إقرار الضريبة `/accounting/vat`؛ التقارير `/accounting/reports` |
 | المشتريات والموافقات | طلبات الشراء وعروضها `/sales/parties/requests`؛ أوامر الشراء `/sales/parties/orders`؛ الاستلام `/sales/parties/receipts`؛ الموردون `/sales/parties/suppliers` |
 | مخزن قطع الغيار | المخزون الإضافي (قطع الغيار ومواد التعبئة) `/inventory/extensions` |
 | مخزن مواد التعبئة والتشغيل | المخزون الإضافي والجرد والاستهلاك `/inventory/extensions` |
@@ -51,7 +51,7 @@
 | المخزون العام | الخام `/inventory/raw-materials`؛ المنتجات `/inventory/products`؛ المستودعات `/inventory/warehouses`؛ التحويلات `/inventory/warehouses/transfers`؛ التسويات `/inventory/warehouses/adjustments`؛ الباركود `/inventory/warehouses/barcode`؛ الدفعات والأرصدة والدفتر `/inventory/raw-materials/batches`, `/inventory/raw-materials/balances`, `/inventory/raw-materials/ledger`؛ التقارير `/inventory/reports` |
 | النظام | المستخدمون `/settings/users`؛ سجل العمليات `/settings/audit`؛ الإعدادات `/settings`؛ التقارير `/tasks/reports`؛ الاعتمادات `/tasks/approvals`؛ الإشعارات `/notifications` |
 
-**حدود الشاشات الحالية:** لا توجد شاشة مستقلة لمرتجعات المبيعات؛ أقرب مساراتها الفاتورة والسحب. لا يوجد تقرير مستقل لمقارنة استهلاك وقود الأسطول المتوقع بالفعلي أو لتجميع تكلفة النقل لكل طن/عميل؛ أقرب الشاشات سجل الوقود والرحلات، مع وجود تسجيل انحراف الوقود وتوزيع تكلفة الرحلة على الفاتورة. الوصفات الخاصة بالعملاء داخلية ولا توجد بوابة عميل منفصلة للتحكم بعرض وصفة لعميل آخر.
+**حدود الشاشات الحالية:** لا توجد شاشة مستقلة لمرتجعات المبيعات؛ أقرب مساراتها الفاتورة والسحب. مقارنة الوقود المتوقع بالفعلي موجودة في سجل الرحلات، وتكلفة الرحلة يمكن توزيعها على الدفعات والفواتير، لكن لا يوجد تقرير تجميعي مستقل لتكلفة النقل لكل طن/طلبية/عميل. إثبات التسليم يحفظ اسم ورقم وموقع المستلم ووقت التسليم، دون إرفاق صورة. سجل النظام يوثق تعديلات وصفات العملاء، لكن لا توجد شاشة تاريخ أسعار مخصصة أو بوابة عميل وضبط لإظهار وصفة لعميل آخر.
 
 ## المسار اليومي للمصنع
 
