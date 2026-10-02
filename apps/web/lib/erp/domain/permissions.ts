@@ -157,7 +157,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'documents.read',
   ],
   QUALITY: ['qc.read', 'qc.manage', 'inventory.read', 'production.read', 'reports.read', 'notifications.read'],
-  DRIVER: ['fleet.read', 'reports.read', 'notifications.read'],
+  DRIVER: ['fleet.read'],
   STOREKEEPER: [
     'warehouses.read',
     'inventory.read',
@@ -251,7 +251,7 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
     GM: ['fleet.read', 'fleet.manage', 'obligations.read', 'obligations.manage', 'obligations.pay', 'documents.read', 'documents.manage'],
     ACCOUNTANT: ['fleet.read', 'obligations.read', 'obligations.pay', 'documents.read'],
     OPERATIONS: ['fleet.read', 'fleet.manage', 'documents.read'],
-    DRIVER: ['fleet.read', 'reports.read', 'notifications.read'],
+    DRIVER: ['fleet.read'],
   },
   5: {
     GM: ['spareparts.read', 'spareparts.manage', 'packaging.read', 'packaging.manage', 'suppliers.communicate', 'suppliers.approve', 'scale.read', 'scale.manage', 'distribution.read', 'distribution.manage', 'delivery.track', 'utilities.read', 'utilities.manage', 'maintenance.read', 'maintenance.manage', 'bank.read', 'bank.manage', 'recipes.custom', 'pricing.custom'],
