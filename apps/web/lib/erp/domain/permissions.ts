@@ -217,8 +217,8 @@ export function hasPermission(permissions: readonly string[], required: string) 
   return permissions.includes(required)
 }
 
-/** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 11
+/** Bump when built-in role defaults change and an existing state needs a permission migration. */
+export const PERMISSIONS_VERSION = 12
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   9: {
@@ -273,5 +273,12 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
     PRODUCTION: [...DEFAULT_ROLE_PERMISSIONS.PRODUCTION],
     MAINTENANCE: [...DEFAULT_ROLE_PERMISSIONS.MAINTENANCE],
     SALES: [...DEFAULT_ROLE_PERMISSIONS.SALES],
+  },
+}
+
+export const PERMISSIONS_RETIRED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
+  12: {
+    // Drivers should see only their vehicle trips and fuel screens, not general reports or notifications.
+    DRIVER: ['reports.read', 'notifications.read'],
   },
 }
