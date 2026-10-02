@@ -4,11 +4,11 @@ import { ensureDatabaseUrlEnv } from './env'
 
 const databaseUrl = ensureDatabaseUrlEnv()
 
-if (!databaseUrl) {
-  throw new Error(
-    'DATABASE_URL is required. Configure DATABASE_URL or POSTGRES_PRISMA_URL for the Supabase Postgres connection.',
-  )
-}
+// Route handlers can be imported during `next build` even when a deployment
+// intentionally runs in demo mode without database variables. Keep the client
+// constructible at build time; database-backed requests still require the real
+// DATABASE_URL or POSTGRES_PRISMA_URL at runtime.
+const prismaUrl = databaseUrl ?? 'postgresql://postgres:postgres@localhost:5432/erp'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -18,7 +18,7 @@ declare global {
 export const prisma =
   global.__erpPrisma ??
   new PrismaClient({
-    datasources: { db: { url: databaseUrl } },
+    datasources: { db: { url: prismaUrl } },
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   })
 
