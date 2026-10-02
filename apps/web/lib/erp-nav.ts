@@ -711,18 +711,16 @@ export const ERP_NAV: ErpMainTab[] = [
     screen('varianceReport'), screen('factoryStoppages'),
   ].map((sub) => ({ ...sub, permission: ['users.manage'] }))),
   main('fleet-transport', 'السيارات والنقل', CarFront, [
-    screen('fleet', 'المركبات', 'vehicles', 'ملف المركبة وبياناتها؛ الوثائق المرتبطة متاحة في مركز الوثائق.'),
-    screen('fleet', 'الصيانة الدورية والإطارات والزيوت', 'vehicle-service', 'أقرب شاشة موجودة: ملف المركبات وسجل خدماتها.'),
-    screen('fleetFuel', 'الوقود — كل تعبئة', 'fuel', 'سجل تعبئات الوقود والاستهلاك.'),
-    screen('fleetTrips', 'الرحلات — السائق والوجهة والمسافة والحمولة والتكلفة', 'trips', 'تسجيل الرحلات وتكلفتها.'),
-    screen('fleetFuel', 'الاستهلاك المتوقع مقابل الفعلي', 'fuel-variance', 'أقرب شاشة موجودة: سجل الوقود واستهلاك المركبة.'),
-    screen('fleetTrips', 'تكلفة النقل لكل طن أو طلبية أو عميل', 'transport-cost', 'أقرب شاشة موجودة: الرحلات وتوزيع تكلفتها على الفواتير.'),
+    screen('fleet', 'المركبات والصيانة الدورية والإطارات والزيوت', 'vehicles-service', 'ملف المركبة وسجل خدماتها؛ وثائق الملكية والتأمين والتنبيهات في مركز الوثائق.'),
+    screen('fleetFuel', 'الوقود والاستهلاك المتوقع مقابل الفعلي', 'fuel-consumption', 'سجل كل تعبئة؛ الرحلات تعرض مقارنة المتوقع بالفعلي وتنبيه الانحراف.'),
+    screen('fleetTrips', 'الرحلات وتكلفة النقل', 'trips-transport-cost', 'السائق والوجهة والمسافة والحمولة والديزل؛ يمكن توزيع التكلفة على الدفعات والفواتير.'),
   ]),
   main('obligations', 'الأقساط والالتزامات المالية', Receipt, [
     screen('obligation', 'جدول الالتزامات والدفعات والمتبقي والتنبيهات القادمة', 'obligations-table', 'الالتزامات والأقساط والاستحقاقات القادمة.'),
   ]),
   main('bank-accounts', 'البنك والحسابات', Landmark, [
-    screen('bankTransaction', 'معاملات البنك والمطابقة وسجل التدقيق', 'bank-reconciliation'),
+    screen('bankTransaction', 'معاملات البنك والمطابقة', 'bank-reconciliation'),
+    screen('auditLog', 'سجل التدقيق البنكي', 'bank-audit-log', 'سجل التدقيق الحالي متاح للمدير العام من هنا ومن قسم النظام.'),
     screen('account', 'دليل الحسابات', 'accounts'),
     screen('journalEntry', 'القيود اليومية', 'journals'),
     screen('expense', 'المصروفات والاعتمادات', 'expenses'),
