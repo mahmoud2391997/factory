@@ -30,9 +30,9 @@
 | عنوان القائمة | مفاتيح الشاشات والمسارات الحالية |
 |---|---|
 | لوحة المالك | `dashboard` `/`؛ `factoryPlanned` `/inventory/manufacturing/planned`؛ `factoryActual` `/inventory/manufacturing/actual`؛ `factoryExecution` `/inventory/manufacturing/execution`؛ ملخصات المبيعات والتكلفة والمخزون والهدر عبر `/sales/today`, `/sales/month`, `/sales/open-orders`, `/accounting/cost`, `/accounting/price`, `/accounting/margin`, `/inventory/raw-materials/value`, `/inventory/raw-materials/running-out`, `/inventory/raw-materials/stagnant`, `/inventory/raw-materials/reserved`, `/inventory/manufacturing/waste`, `/inventory/manufacturing/deviation`, `/inventory/manufacturing/variance`, `/inventory/manufacturing/stoppages` |
-| السيارات والنقل | `fleet` `/fleet/vehicles`؛ `fleetFuel` `/fleet/fuel`؛ `fleetTrips` `/fleet/trips` |
+| السيارات والنقل | `fleet` `/fleet/vehicles` (المركبات والخدمة الدورية)؛ `fleetFuel` `/fleet/fuel` (كل تعبئة)؛ `fleetTrips` `/fleet/trips` (الرحلات، المتوقع/الفعلي، وتوزيع التكلفة) |
 | الأقساط والالتزامات المالية | `obligation` `/accounting/obligations` |
-| البنك والحسابات | `bankTransaction` `/accounting/financial-ops/bank-transactions`؛ `account` `/accounting`؛ `journalEntry` `/accounting/journals`؛ `expense` `/accounting/expenses`؛ `financialOps` `/accounting/financial-ops`؛ `taxSettings` `/accounting/tax`؛ `vatReport` `/accounting/vat`؛ `accountingReports` `/accounting/reports` |
+| البنك والحسابات | `bankTransaction` `/accounting/financial-ops/bank-transactions`؛ `auditLog` `/settings/audit` (مشترك مع النظام ومحمي بصلاحية المدير العام)؛ `account` `/accounting`؛ `journalEntry` `/accounting/journals`؛ `expense` `/accounting/expenses`؛ `financialOps` `/accounting/financial-ops`؛ `taxSettings` `/accounting/tax`؛ `vatReport` `/accounting/vat`؛ `accountingReports` `/accounting/reports` |
 | المشتريات والموافقات | `purchaseRequest` `/sales/parties/requests`؛ `purchaseOrder` `/sales/parties/orders`؛ `goodsReceipt` `/sales/parties/receipts`؛ `supplier` `/sales/parties/suppliers` |
 | مخزن قطع الغيار | `inventoryExtensions` `/inventory/extensions` |
 | مخزن مواد التعبئة والتشغيل | `inventoryExtensions` `/inventory/extensions` |
@@ -54,7 +54,7 @@
 | المخزون العام | `material` `/inventory/raw-materials`؛ `product` `/inventory/products`؛ `warehouse` `/inventory/warehouses`؛ `stockTransfer` `/inventory/warehouses/transfers`؛ `stockAdjustment` `/inventory/warehouses/adjustments`؛ `barcode` `/inventory/warehouses/barcode`؛ `materialBatch` `/inventory/raw-materials/batches`؛ `inventoryBalance` `/inventory/raw-materials/balances`؛ `inventoryTransaction` `/inventory/raw-materials/ledger`؛ `inventoryReports` `/inventory/reports`؛ مؤشرات الأرصدة `/inventory/raw-materials/value`, `/inventory/raw-materials/running-out`, `/inventory/raw-materials/stagnant`, `/inventory/raw-materials/reserved` |
 | النظام | `users` `/settings/users`؛ `auditLog` `/settings/audit`؛ `companySettings` `/settings`؛ `report` `/tasks/reports`؛ `approvals` `/tasks/approvals`؛ `notification` `/notifications` |
 
-**شاشات لا توجد لها صفحة مستقلة حتى الآن:** مرتجعات المبيعات (أقربها الفاتورة والسحب)، تقرير مقارنة استهلاك الوقود المتوقع/الفعلي، تقرير تكلفة النقل حسب الطن أو العميل (أقربها سجل الرحلات وتوزيع التكلفة على الفواتير)، وبوابة عميل مستقلة للتحكم في إظهار وصفات العميل. هذه العناصر ظاهرة كاختصارات إلى أقرب شاشة فعلية ولا تمثل وظائف جديدة.
+**شاشات/قدرات مستقلة غير موجودة حتى الآن:** مرتجعات المبيعات (أقربها الفاتورة والسحب)؛ تقرير تجميعي لتكلفة النقل لكل طن/طلبية/عميل (الرحلة تقارن وقودها المتوقع/الفعلي ويمكن توزيع تكلفتها على الدفعات والفواتير)؛ رفع صورة إثبات التسليم (الشاشة تحفظ اسم/رقم/موقع المستلم ووقت التسليم)؛ تاريخ أسعار مخصص لخلطات العملاء؛ وضبط/بوابة عميل لإظهار وصفة لعميل آخر. الاختصارات تشير فقط إلى أقرب شاشة حالية ولا تنشئ وظائف جديدة.
 
 ## التحقق من الربط
 
