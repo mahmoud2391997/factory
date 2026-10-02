@@ -23,6 +23,7 @@ test('every navigation sub-tab resolves to its existing route and screen key', (
   assert.equal(new Set(routeKeys).size, routeKeys.length, 'route entity keys are unique')
 
   for (const main of ERP_NAV) {
+    assert.equal(new Set(main.subs.map((sub) => sub.entityKey)).size, main.subs.length, `${main.label} has no duplicate screen aliases`)
     for (const sub of main.subs) {
       const href = hrefForEntity(sub.entityKey)
       assert.ok(href, `${main.label} / ${sub.label} has a route`)
