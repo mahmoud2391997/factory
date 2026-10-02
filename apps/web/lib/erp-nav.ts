@@ -861,7 +861,9 @@ export const NAV_SECTIONS: Array<{ id: string; label: string; mainIds: string[] 
   { id: 'sales', label: 'المبيعات', mainIds: ['sales'] },
   { id: 'inventory', label: 'المخزون العام', mainIds: ['inventory'] },
   { id: 'admin', label: 'الإدارة', mainIds: ['system'] },
-]export function sectionForMain(mainId: string) {
+]
+
+export function sectionForMain(mainId: string) {
   return NAV_SECTIONS.find((section) => section.mainIds.includes(mainId)) ?? NAV_SECTIONS[NAV_SECTIONS.length - 1]!
 }
 
