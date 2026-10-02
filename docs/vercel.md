@@ -16,12 +16,12 @@
 
 | Variable | مطلوب | ملاحظات |
 |----------|--------|---------|
-| `DATABASE_URL` **أو** `POSTGRES_PRISMA_URL` / `POSTGRES_URL` | ✅ | أي واحد يكفي — التطبيق يوحّدهم تلقائيًا |
+| `DATABASE_URL` **أو** `POSTGRES_URL_NON_POOLING` / `POSTGRES_PRISMA_URL` / `PRISMA_DATABASE_URL` / `POSTGRES_URL` / `DATABASE_URL_UNPOOLED` | ✅ | أي واحد يكفي — سكربت النشر يطبع المتغير إلى `DATABASE_URL` قبل تشغيل Prisma، ويفضل الرابط غير المجمع للـ migrations |
 | `JWT_SECRET` | ✅ | جلسات الدخول |
 | `SETUP_TOKEN` | ✅ | تهيئة أول Admin عبر `/api/setup/bootstrap` |
 
 ### لو عندك Vercel Postgres
-Storage → Postgres عادةً يضيف `POSTGRES_URL` و`POSTGRES_PRISMA_URL` تلقائيًا.  
+Storage → Postgres عادةً يضيف `POSTGRES_URL` و`POSTGRES_PRISMA_URL` تلقائيًا؛ أضف `DATABASE_URL` أو `POSTGRES_URL_NON_POOLING` إذا كانت المنصة توفر رابط اتصال مباشر خاصاً بالـ migrations.  
 بعد الربط: **Redeploy**، ثم افتح `/api/health` وتأكد أن `databaseReachable: true`.
 
 إذا ظهر خطأ Prisma `DATABASE_URL resolved to an empty string` فهذا يعني أن كل متغيرات قاعدة البيانات فاضية — اربط Postgres أو الصق connection string يدويًا.
@@ -29,7 +29,7 @@ Storage → Postgres عادةً يضيف `POSTGRES_URL` و`POSTGRES_PRISMA_URL` 
 ## سلوك `npm run vercel-build`
 
 1. `prisma generate` لتجهيز عميل قاعدة البيانات.
-2. `pnpm db:deploy` لتطبيق كل migrations المسجلة عبر `prisma migrate deploy`؛ يجب أن يكون رابط قاعدة البيانات موجوداً.
+2. يطبع السكربت أي alias مدعوم إلى `DATABASE_URL` ثم يشغّل `pnpm db:deploy` لتطبيق كل migrations المسجلة عبر `prisma migrate deploy`؛ يجب أن يكون رابط قاعدة البيانات موجوداً.
 3. يُحقن `NEXT_PUBLIC_GIT_COMMIT_SHA` وتاريخ UTC للبناء، ثم يُنفّذ `next build`.
 
 ملف `packages/database/prisma/seed.ts` لا ينشئ بيانات ERP. عند إنشاء حالة التطبيق لأول مرة، ينشئ مخزن ERP الحالة الأولية من `buildSeedState` بما فيها مستخدم المدير العام وصلاحيات GM الافتراضية الكاملة. لذلك لا تستخدم `prisma db seed` كخطوة تهيئة بيانات المستخدمين.
