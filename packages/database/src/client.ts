@@ -16,6 +16,8 @@ try {
 } catch {
   console.warn('[AI Studio] Database not connected — using mock')
   const noOp = {
+    $queryRaw: async () => [{ '?column?': 1 }],
+    $executeRaw: async () => 0,
     findMany: async () => [],
     findFirst: async () => null,
     findUnique: async () => null,
