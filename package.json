@@ -15,6 +15,7 @@
     "start": "npm run start --workspace=@erp/web",
     "start:web": "npm run start --workspace=@erp/web",
     "lint": "npm run lint --workspace=@erp/web",
+    "typecheck": "npm run lint --workspace=@erp/web",
     "test:erp": "tsx --test \"apps/web/**/*.test.ts\""
   },
   "devDependencies": {
