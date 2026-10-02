@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-import { ROLE_LABELS } from '@/lib/erp/domain/permissions'
+import { DEFAULT_ROLE_PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import { getDemoSessionUser, isDemoMode, isDemoUserId } from '@/server/demo'
 import { getAccessTokenFromRequest, verifyAccessToken } from '@/server/auth/jwt'
 async function loadState() {
@@ -30,7 +30,7 @@ export async function getSessionUserById(userId: string): Promise<SessionUser | 
         fullName: erpUser.fullName,
         isActive: true,
         roles: [{ key: erpUser.role, nameAr: ROLE_LABELS[erpUser.role] }],
-        permissions: [...loaded.state.rolePermissions[erpUser.role]],
+        permissions: [...(erpUser.role === 'GM' ? DEFAULT_ROLE_PERMISSIONS.GM : loaded.state.rolePermissions[erpUser.role])],
         mustChangePassword: Boolean(erpUser.mustChangePassword),
       }
     }
@@ -64,7 +64,7 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
       fullName: erpUser.fullName,
       isActive: true,
       roles: [{ key: erpUser.role, nameAr: ROLE_LABELS[erpUser.role] }],
-      permissions: [...loaded.state.rolePermissions[erpUser.role]],
+      permissions: [...(erpUser.role === 'GM' ? DEFAULT_ROLE_PERMISSIONS.GM : loaded.state.rolePermissions[erpUser.role])],
       mustChangePassword: Boolean(erpUser.mustChangePassword),
     }
   } catch (error) {
