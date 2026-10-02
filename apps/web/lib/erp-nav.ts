@@ -763,6 +763,7 @@ export const ERP_NAV: ErpMainTab[] = [
     screen('customerRecipe', 'وصفات العملاء والأسعار الخاصة', 'customer-recipes'),
   ]),
   main('distribution', 'نقاط التوزيع', Route, [
+    screen('distribution', 'التوزيع', 'distribution-hub'),
     screen('distributionPoint', 'نقاط التوزيع وأرصدة كل نقطة', 'distribution-points'),
     screen('barcode', 'مسح الباركود', 'distribution-barcode'),
     screen('distributionClosing', 'الإقفال اليومي', 'distribution-closing'),
@@ -779,6 +780,7 @@ export const ERP_NAV: ErpMainTab[] = [
   main('employees', 'الموظفون', Users, [
     screen('employee', 'ملفات الموظفين والعقود والإقامات', 'employees'),
     screen('attendance', 'الحضور والإجازات', 'attendance'),
+    screen('overtime', 'الإضافي', 'overtime'),
     screen('payroll', 'الرواتب', 'payroll'),
   ]),
   main('raw-material-analysis', 'تحليل أسعار المواد الخام', ChartBar, [
@@ -830,11 +832,6 @@ export const ERP_NAV: ErpMainTab[] = [
     screen('factoryStagnant', 'المواد الراكدة', 'inventory-stagnant'),
     screen('factoryReserved', 'المواد المحجوزة', 'inventory-reserved'),
   ]),
-  main('fleet', 'السيارات والنقل', Truck, [
-    screen('fleet', 'المركبات', 'fleet-vehicles'),
-    screen('fleetFuel', 'الوقود', 'fleet-fuel'),
-    screen('fleetTrips', 'الرحلات', 'fleet-trips'),
-  ]),
   main('system', 'النظام', Settings, [
     screen('users', 'المستخدمون والصلاحيات', 'users'),
     screen('auditLog', 'سجل العمليات', 'audit-log'),
@@ -859,7 +856,7 @@ export const NAV_SECTIONS: Array<{ id: string; label: string; mainIds: string[] 
   { id: 'purchasing-stores', label: 'المشتريات والمخازن', mainIds: ['purchasing', 'spare-parts', 'packaging', 'supplier-communications', 'inventory'] },
   { id: 'finance', label: 'المالية', mainIds: ['obligations', 'bank-accounts', 'profitability'] },
   { id: 'sales-distribution', label: 'المبيعات والتوزيع', mainIds: ['sales', 'distribution', 'invoice-delivery'] },
-  { id: 'fleet-maintenance', label: 'الأسطول والصيانة', mainIds: ['fleet-transport', 'maintenance', 'fleet'] },
+  { id: 'fleet-maintenance', label: 'الأسطول والصيانة', mainIds: ['fleet-transport', 'maintenance'] },
   { id: 'hr', label: 'الموارد البشرية', mainIds: ['employees'] },
   { id: 'admin', label: 'الإدارة', mainIds: ['documents', 'system'] },
 ]
