@@ -108,6 +108,9 @@ const SCREEN_MAP: Record<string, typeof FactoryScreens> = {
   accountingReports: OfficeScreens,
   financialOps: OfficeScreens,
   documents: OfficeScreens,
+  fleet: OfficeScreens,
+  fleetFuel: OfficeScreens,
+  fleetTrips: OfficeScreens,
 }
 
 export function LiveWorkspace({

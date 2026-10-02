@@ -158,7 +158,11 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         <Field label="وقود الرحلة"><TextInput type="number" min="0.001" value={tripFuel} onChange={(event) => setTripFuel(event.target.value)} /></Field>
       </div>
       <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId || !driverId || !destination} onClick={async () => { const result = await ctx.act('createTrip', { vehicleId, driverId, date: new Date().toISOString().slice(0, 10), destination, km: Number(km), loadKg: Number(loadKg), fuelLiters: Number(tripFuel), invoiceId: tripInvoiceId || undefined }); if (result.ok) { setDestination(''); setKm(''); setLoadKg(''); setTripFuel('') } }}>حفظ الرحلة</PrimaryButton>
-      <DataTable columns={['التاريخ', 'المركبة', 'الوجهة', 'الفاتورة', 'كم', 'الحمولة', 'التكلفة', 'توزيع التكلفة']} rows={ctx.state.trips.map((trip) => {
+      <DataTable columns={['التاريخ', 'المركبة', 'الوجهة', 'الفاتورة', 'كم', 'الحمولة', 'الوقود (الفعلي / المتوقع)', 'التكلفة', 'تكلفة/طن', 'توزيع التكلفة']} rows={ctx.state.trips.map((trip) => {
+        const veh = ctx.state.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)
+        const expectedFuel = veh?.kmPerLiter && veh.kmPerLiter > 0 ? Number((trip.km / veh.kmPerLiter).toFixed(1)) : null
+        const isAbnormal = expectedFuel != null && trip.fuelLiters > expectedFuel * 1.15
+        const costPerTon = trip.loadKg > 0 ? moneyFmt((trip.cost / (trip.loadKg / 1000))) : '—'
         const allocation = ctx.state.tripCostAllocations.filter((item) => item.tripId === trip.id).at(-1)
         const allocationLabel = allocation
           ? `${statusLabel(allocation.status)}: ${allocation.allocations.map((line) => `${line.lotNo} ${qtyFmt(line.quantityKg)} كجم / ${moneyFmt(line.amount)}`).join('، ')}`
@@ -174,12 +178,18 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
                 : '—'
         return [
           trip.date.slice(0, 10),
-          ctx.state.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)?.nameAr ?? '—',
+          veh?.nameAr ?? '—',
           trip.destination,
           ctx.state.invoices.find((invoice) => invoice.id === trip.invoiceId)?.number ?? '—',
           String(trip.km),
-          String(trip.loadKg),
+          `${qtyFmt(trip.loadKg)} كجم`,
+          <div key={`fuel-${trip.id}`} className="space-y-1">
+            <span className="font-semibold">{trip.fuelLiters} لتر</span>
+            {expectedFuel != null ? <span className="block text-xs text-[#6b7280]">المتوقع: {expectedFuel} لتر</span> : null}
+            {isAbnormal ? <Badge tone="bad">استهلاك غير طبيعي</Badge> : null}
+          </div>,
           moneyFmt(trip.cost),
+          costPerTon,
           <div key={trip.id} className="grid gap-1"><span>{allocationLabel}</span>{controls}</div>,
         ]
       })} />

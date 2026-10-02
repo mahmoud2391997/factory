@@ -16,15 +16,6 @@
     "lint": "npm run lint --workspace=@erp/web",
     "test:erp": "tsx --test \"apps/web/**/*.test.ts\""
   },
-  "packageManager": "pnpm@9.15.4",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "esbuild",
-      "prisma"
-    ]
-  },
   "devDependencies": {
     "tsx": "^4.23.15"
   }

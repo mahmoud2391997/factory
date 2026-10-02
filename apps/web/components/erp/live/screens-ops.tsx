@@ -1726,7 +1726,7 @@ export function PurchasingScreens({ entityKey, ctx }: { entityKey: string; ctx: 
   if (entityKey === 'purchaseRequest') return <PurchaseRequests ctx={ctx} />
   if (entityKey === 'purchaseOrder') return <PurchaseOrders ctx={ctx} />
   if (entityKey === 'goodsReceipt') return <Receipts ctx={ctx} />
-  if (entityKey === 'supplierRelations') return <SupplierRelations entityKey={entityKey} ctx={ctx} />
+  if (entityKey === 'supplierRelations' || entityKey === 'supplierTemplate' || entityKey === 'supplierCommunication') return <SupplierRelations entityKey={entityKey} ctx={ctx} />
   return null
 }
 
@@ -3502,26 +3502,584 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
 }
 
 function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
+  const deliveries = ctx.state.invoiceDeliveries ?? []
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(
+    ctx.state.invoices.filter((inv) => inv.status !== 'DRAFT' && !deliveries.some((d) => d.invoiceId === inv.id))[0]?.id ?? ''
+  )
+  const [advanceDeliveryId, setAdvanceDeliveryId] = useState<string | null>(null)
+  const [nextStep, setNextStep] = useState<'LOADER' | 'DRIVER' | 'CUSTOMER'>('LOADER')
+  const [stepNotes, setStepNotes] = useState('')
+  const [recipientName, setRecipientName] = useState('')
+  const [recipientPhone, setRecipientPhone] = useState('')
+
+  const STEP_TITLES: Record<string, string> = {
+    ACCOUNTANT: '1. المحاسب (إصدار الفاتورة)',
+    LOADER: '2. التحميل (جاهزية البضاعة)',
+    DRIVER: '3. السائق (خروج الشحنة)',
+    CUSTOMER: '4. العميل (استلام وتوقيع)',
+  }
+
+  const STEP_ORDER: Array<'ACCOUNTANT' | 'LOADER' | 'DRIVER' | 'CUSTOMER'> = ['ACCOUNTANT', 'LOADER', 'DRIVER', 'CUSTOMER']
+
+  const activeDelivery = deliveries.find((d) => d.id === advanceDeliveryId)
+
   return (
     <div className="space-y-4">
-      <Card title="تسليم الفواتير" hint="تتبع سير عمل تسليم الفواتير من المحاسب إلى العميل.">
+      <Card
+        title="دورة الفاتورة والتسليم"
+        hint="المحاسب ← التحميل ← السائق ← العميل، مع تسجيل التوقيت والاعتماد وإثبات الاستلام."
+        extra={
+          can(ctx.permissions, 'delivery.track') ? (
+            <FormDialog title="بدء تسليم فاتورة" openLabel="بدء تسليم">
+              {(close) => (
+                <form
+                  className="space-y-3"
+                  onSubmit={async (event) => {
+                    event.preventDefault()
+                    if (!selectedInvoiceId) return
+                    const res = await ctx.act('advanceInvoiceDelivery', {
+                      invoiceId: selectedInvoiceId,
+                      step: 'ACCOUNTANT',
+                      notes: 'بدء تسليم الفاتورة',
+                    })
+                    if (res.ok) {
+                      close()
+                    }
+                  }}
+                >
+                  <Field label="الفاتورة">
+                    <SelectInput value={selectedInvoiceId} onChange={(e) => setSelectedInvoiceId(e.target.value)}>
+                      <option value="">اختر الفاتورة...</option>
+                      {ctx.state.invoices
+                        .filter((inv) => inv.status !== 'DRAFT' && !deliveries.some((d) => d.invoiceId === inv.id))
+                        .map((inv) => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.number} — {partyName(ctx.state.customers, inv.customerId)} ({moneyFmt(inv.total)})
+                          </option>
+                        ))}
+                    </SelectInput>
+                  </Field>
+                  <PrimaryButton disabled={ctx.pending || !selectedInvoiceId}>بدء التسليم</PrimaryButton>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-[#f0fdf4] p-3 text-xs text-[#166534] border border-[#bbf7d0]">
+          <span className="font-bold">مراحل التسليم:</span>
+          <span>1. المحاسب (الاعتماد)</span>
+          <span>→</span>
+          <span>2. التحميل (المستودع)</span>
+          <span>→</span>
+          <span>3. السائق (النقل)</span>
+          <span>→</span>
+          <span>4. العميل (إثبات الاستلام والتوقيع)</span>
+        </div>
+
         <DataTable
-          columns={['الفاتورة', 'الخطوة الحالية', 'الخطوات المنجزة', 'حالة التسليم', 'أمر التسليم']}
-          rows={(ctx.state.invoiceDeliveries ?? []).map((item) => [
-            ctx.state.invoices.find((i) => i.id === item.invoiceId)?.number || '—',
-            statusLabel(item.currentStep),
-            item.steps.length.toString(),
-            item.deliveryProof ? 'مكتمل' : 'قيد التنفيذ',
-            <a key={`delivery-print-${item.id}`} className="font-semibold text-[#0d9488]" href={`/print/delivery/${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer">طباعة</a>,
-          ])}
+          columns={['الفاتورة', 'العميل', 'المرحلة الحالية', 'التقدم', 'إثبات التسليم', 'الإجراءات', 'الطباعة']}
+          rows={deliveries.map((item) => {
+            const inv = ctx.state.invoices.find((i) => i.id === item.invoiceId)
+            const customer = inv ? ctx.state.customers.find((c) => c.id === inv.customerId) : null
+            const stepIdx = STEP_ORDER.indexOf(item.currentStep)
+            const isCompleted = item.currentStep === 'CUSTOMER' && item.deliveryProof != null
+            const nextPossibleStep: 'LOADER' | 'DRIVER' | 'CUSTOMER' =
+              item.currentStep === 'ACCOUNTANT' ? 'LOADER' : item.currentStep === 'LOADER' ? 'DRIVER' : 'CUSTOMER'
+
+            return [
+              inv?.number || '—',
+              customer?.nameAr || '—',
+              <Badge key={`step-${item.id}`} tone={isCompleted ? 'good' : 'warn'}>
+                {STEP_TITLES[item.currentStep] || item.currentStep}
+              </Badge>,
+              <div key={`prog-${item.id}`} className="flex items-center gap-1 text-xs">
+                {STEP_ORDER.map((s, idx) => (
+                  <div
+                    key={s}
+                    className={`h-2 w-6 rounded ${
+                      idx <= stepIdx ? 'bg-[#0d9488]' : 'bg-[#e5e7eb]'
+                    }`}
+                    title={STEP_TITLES[s]}
+                  />
+                ))}
+              </div>,
+              item.deliveryProof ? (
+                <div key={`proof-${item.id}`} className="text-xs space-y-0.5">
+                  <span className="font-semibold text-[#0f766e]">المستلم: {item.deliveryProof.recipientName}</span>
+                  {item.deliveryProof.recipientPhone ? (
+                    <span className="block text-[#6b7280]">{item.deliveryProof.recipientPhone}</span>
+                  ) : null}
+                </div>
+              ) : (
+                <span key={`pending-${item.id}`} className="text-xs text-[#9ca3af]">قيد التنفيذ</span>
+              ),
+              can(ctx.permissions, 'delivery.track') && !isCompleted ? (
+                <GhostButton
+                  key={`adv-${item.id}`}
+                  type="button"
+                  onClick={() => {
+                    setAdvanceDeliveryId(item.id)
+                    setNextStep(nextPossibleStep)
+                    setStepNotes('')
+                    setRecipientName(customer?.nameAr || '')
+                    setRecipientPhone(customer?.phone || '')
+                  }}
+                >
+                  اعتماد {STEP_TITLES[nextPossibleStep]?.slice(3)}
+                </GhostButton>
+              ) : isCompleted ? (
+                <Badge key={`done-${item.id}`} tone="good">تم التسليم بنجاح</Badge>
+              ) : null,
+              <a
+                key={`delivery-print-${item.id}`}
+                className="font-semibold text-[#0d9488] hover:underline"
+                href={`/print/delivery/${encodeURIComponent(item.id)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                أمر التسليم
+              </a>,
+            ]
+          })}
         />
       </Card>
+
+      {advanceDeliveryId && activeDelivery ? (
+        <Dialog title={`اعتماد مرحلة التسليم: ${STEP_TITLES[nextStep]}`} onClose={() => setAdvanceDeliveryId(null)}>
+          <form
+            className="space-y-3"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const deliveryProof =
+                nextStep === 'CUSTOMER'
+                  ? {
+                      recipientName: recipientName.trim() || 'العميل',
+                      recipientPhone: recipientPhone.trim() || undefined,
+                    }
+                  : undefined
+
+              const res = await ctx.act('advanceInvoiceDelivery', {
+                invoiceId: activeDelivery.invoiceId,
+                step: nextStep,
+                notes: stepNotes.trim() || undefined,
+                deliveryProof,
+              })
+              if (res.ok) {
+                setAdvanceDeliveryId(null)
+              }
+            }}
+          >
+            <Field label="المرحلة المستهدفة">
+              <SelectInput value={nextStep} onChange={(e) => setNextStep(e.target.value as typeof nextStep)}>
+                <option value="LOADER">2. التحميل (جاهزية البضاعة في المستودع)</option>
+                <option value="DRIVER">3. السائق (خروج البضاعة على الشاحنة)</option>
+                <option value="CUSTOMER">4. العميل (تأكيد وصول وتسليم البضاعة)</option>
+              </SelectInput>
+            </Field>
+
+            <Field label="ملاحظات المرحلة">
+              <TextInput
+                value={stepNotes}
+                onChange={(e) => setStepNotes(e.target.value)}
+                placeholder="اسم السائق، رقم اللوحة، ملاحظات الحمولة..."
+              />
+            </Field>
+
+            {nextStep === 'CUSTOMER' ? (
+              <div className="rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] p-3 space-y-3">
+                <p className="text-xs font-bold text-[#166534]">إثبات استلام العميل:</p>
+                <Field label="اسم المستلم">
+                  <TextInput value={recipientName} onChange={(e) => setRecipientName(e.target.value)} required />
+                </Field>
+                <Field label="هاتف المستلم">
+                  <TextInput value={recipientPhone} onChange={(e) => setRecipientPhone(e.target.value)} placeholder="9xxxxxxx" />
+                </Field>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <GhostButton type="button" onClick={() => setAdvanceDeliveryId(null)}>
+                إلغاء
+              </GhostButton>
+              <PrimaryButton disabled={ctx.pending}>تأكيد الاعتماد</PrimaryButton>
+            </div>
+          </form>
+        </Dialog>
+      ) : null}
     </div>
   )
 }
 
-export function SupplierRelations(_props: { entityKey: string; ctx: LiveCtx }) {
-  return null
+export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
+  const [tab, setTab] = useState<'templates' | 'compose' | 'communications'>(() => {
+    if (entityKey === 'supplierTemplate') return 'templates'
+    if (entityKey === 'supplierCommunication') return 'communications'
+    return 'communications'
+  })
+
+  // Template creation form state
+  const [tplName, setTplName] = useState('')
+  const [tplKind, setTplKind] = useState<'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER'>('QUOTE_REQUEST')
+  const [tplSubject, setTplSubject] = useState('')
+  const [tplBody, setTplBody] = useState('')
+  const [editingTemplate, setEditingTemplate] = useState<(typeof ctx.state.supplierTemplates)[number] | null>(null)
+
+  // Compose message state
+  const [selectedSupplierId, setSelectedSupplierId] = useState(ctx.state.suppliers[0]?.id ?? '')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [channel, setChannel] = useState<'WHATSAPP' | 'EMAIL' | 'OTHER'>('WHATSAPP')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+
+  const templates = ctx.state.supplierTemplates ?? []
+  const communications = ctx.state.supplierCommunications ?? []
+  const selectedSupplier = ctx.state.suppliers.find((s) => s.id === selectedSupplierId)
+
+  const KIND_LABEL: Record<string, string> = {
+    QUOTE_REQUEST: 'طلب عرض سعر',
+    INQUIRY: 'استفسار عن توفر/مواصفات',
+    ORDER: 'أمر شراء / توريد',
+    OTHER: 'أخرى',
+  }
+
+  const CHANNEL_LABEL: Record<string, string> = {
+    WHATSAPP: 'واتساب WhatsApp',
+    EMAIL: 'البريد الإلكتروني Email',
+    OTHER: 'أخرى',
+  }
+
+  function applyTemplate(templateId: string) {
+    setSelectedTemplateId(templateId)
+    const tpl = templates.find((t) => t.id === templateId)
+    if (tpl) {
+      setSubject(tpl.subject)
+      const supplierName = selectedSupplier?.nameAr || 'المورد المحترم'
+      const filledBody = tpl.body
+        .replace('{supplier}', supplierName)
+        .replace('{date}', new Date().toISOString().slice(0, 10))
+      setBody(filledBody)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex border-b border-[#e5e7eb] gap-2 pb-2">
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === 'communications' ? 'border-b-2 border-[#1d7f72] text-[#1d7f72]' : 'text-[#6b7280]'
+          }`}
+          onClick={() => setTab('communications')}
+        >
+          مراسلات الموردين ({communications.length})
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === 'compose' ? 'border-b-2 border-[#1d7f72] text-[#1d7f72]' : 'text-[#6b7280]'
+          }`}
+          onClick={() => setTab('compose')}
+        >
+          تجهيز مراسلة جديدة
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === 'templates' ? 'border-b-2 border-[#1d7f72] text-[#1d7f72]' : 'text-[#6b7280]'
+          }`}
+          onClick={() => setTab('templates')}
+        >
+          قوالب الرسائل ({templates.length})
+        </button>
+      </div>
+
+      {tab === 'templates' ? (
+        <Card
+          title="قوالب رسائل الموردين"
+          hint="قوالب جاهزة لطلبات الأسعار واستفسارات المواد الخام وتأكيد أوامر التوريد."
+          extra={
+            can(ctx.permissions, 'suppliers.communicate') ? (
+              <FormDialog title="قالب مراسلة جديد" openLabel="إضافة قالب">
+                {(close) => (
+                  <form
+                    className="space-y-3"
+                    onSubmit={async (e) => {
+                      e.preventDefault()
+                      const res = await ctx.act('createSupplierTemplate', {
+                        nameAr: tplName,
+                        kind: tplKind,
+                        subject: tplSubject,
+                        body: tplBody,
+                      })
+                      if (res.ok) {
+                        setTplName('')
+                        setTplSubject('')
+                        setTplBody('')
+                        close()
+                      }
+                    }}
+                  >
+                    <Field label="اسم القالب">
+                      <TextInput value={tplName} onChange={(e) => setTplName(e.target.value)} required />
+                    </Field>
+                    <Field label="نوع القالب">
+                      <SelectInput value={tplKind} onChange={(e) => setTplKind(e.target.value as typeof tplKind)}>
+                        {Object.entries(KIND_LABEL).map(([val, lbl]) => (
+                          <option key={val} value={val}>{lbl}</option>
+                        ))}
+                      </SelectInput>
+                    </Field>
+                    <Field label="الموضوع">
+                      <TextInput value={tplSubject} onChange={(e) => setTplSubject(e.target.value)} required />
+                    </Field>
+                    <Field label="نص الرسالة">
+                      <textarea
+                        className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm outline-none focus:border-[#1d7f72]"
+                        value={tplBody}
+                        onChange={(e) => setTplBody(e.target.value)}
+                        placeholder="يمكنك استخدام {supplier} لاسم المورد و {date} للتاريخ"
+                        required
+                      />
+                    </Field>
+                    <PrimaryButton disabled={ctx.pending}>حفظ القالب</PrimaryButton>
+                  </form>
+                )}
+              </FormDialog>
+            ) : null
+          }
+        >
+          <DataTable
+            columns={['اسم القالب', 'النوع', 'الموضوع', 'الحالة']}
+            rows={templates.map((tpl) => [
+              tpl.nameAr,
+              KIND_LABEL[tpl.kind] || tpl.kind,
+              tpl.subject,
+              tpl.active ? <Badge key={tpl.id} tone="good">نشط</Badge> : <Badge key={tpl.id} tone="bad">معطل</Badge>,
+            ])}
+            rowActions={(_, index) => {
+              const item = templates[index]
+              if (!item) return null
+              return (
+                <RowActions
+                  canEdit={can(ctx.permissions, 'suppliers.communicate')}
+                  canDelete={can(ctx.permissions, 'suppliers.communicate')}
+                  onEdit={() => setEditingTemplate(item)}
+                  onDelete={async () => {
+                    await ctx.act('deleteSupplierTemplate', { id: item.id })
+                  }}
+                  deletePrompt={`هل أنت متأكد من حذف قالب "${item.nameAr}"؟`}
+                />
+              )
+            }}
+          />
+          {editingTemplate ? (
+            <SupplierTemplateEditor
+              ctx={ctx}
+              template={editingTemplate}
+              onClose={() => setEditingTemplate(null)}
+            />
+          ) : null}
+        </Card>
+      ) : null}
+
+      {tab === 'compose' ? (
+        <Card
+          title="تجهيز مراسلة مورد"
+          hint="يقوم الموظف بتجهيز الرسالة ← ثم تعتمدها الإدارة ← ويتم إرسالها رسمياً عبر واتساب أو البريد."
+        >
+          <form
+            className="space-y-4 max-w-2xl"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              if (!selectedSupplierId || !subject.trim() || !body.trim()) return
+              const res = await ctx.act('sendSupplierCommunication', {
+                supplierId: selectedSupplierId,
+                templateId: selectedTemplateId || undefined,
+                channel,
+                subject: subject.trim(),
+                body: body.trim(),
+              })
+              if (res.ok) {
+                setSubject('')
+                setBody('')
+                setSelectedTemplateId('')
+                setTab('communications')
+              }
+            }}
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="المورد المستهدف">
+                <SelectInput
+                  value={selectedSupplierId}
+                  onChange={(e) => {
+                    setSelectedSupplierId(e.target.value)
+                  }}
+                >
+                  {ctx.state.suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nameAr} {s.phone ? `(${s.phone})` : ''}
+                    </option>
+                  ))}
+                </SelectInput>
+              </Field>
+
+              <Field label="قالب جاهز (اختياري)">
+                <SelectInput value={selectedTemplateId} onChange={(e) => applyTemplate(e.target.value)}>
+                  <option value="">بدون قالب / كتابة حرة</option>
+                  {templates
+                    .filter((t) => t.active)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nameAr} ({KIND_LABEL[t.kind] || t.kind})
+                      </option>
+                    ))}
+                </SelectInput>
+              </Field>
+
+              <Field label="قناة التواصل">
+                <SelectInput value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)}>
+                  {Object.entries(CHANNEL_LABEL).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </SelectInput>
+              </Field>
+
+              <Field label="الموضوع">
+                <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} required />
+              </Field>
+            </div>
+
+            <Field label="نص الرسالة">
+              <textarea
+                className="min-h-36 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm outline-none focus:border-[#1d7f72]"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="اكتب تفاصيل طلب السعر أو الاستفسار أو أمر الشراء..."
+                required
+              />
+            </Field>
+
+            {selectedSupplier?.phone ? (
+              <p className="text-xs text-[#0d9488]">
+                رقم هاتف المورد: <strong>{selectedSupplier.phone}</strong> (جاهز للإرسال المباشر عبر WhatsApp)
+              </p>
+            ) : null}
+
+            <div className="flex gap-2">
+              <PrimaryButton disabled={ctx.pending || !selectedSupplierId}>
+                إرسال للاعتماد (Submit for Approval)
+              </PrimaryButton>
+            </div>
+          </form>
+        </Card>
+      ) : null}
+
+      {tab === 'communications' ? (
+        <Card
+          title="سجل مراسلات الموردين"
+          hint="متابعة حالة كل رسالة: بانتظار الاعتماد ← معتمدة للإرسال ← تم الإرسال عبر WhatsApp/Email."
+          extra={
+            <GhostButton type="button" onClick={() => setTab('compose')}>
+              + مراسلة جديدة
+            </GhostButton>
+          }
+        >
+          <DataTable
+            columns={['التاريخ', 'المورد', 'القناة', 'الموضوع', 'الحالة', 'الإجراءات']}
+            rows={communications.map((item) => {
+              const supplier = ctx.state.suppliers.find((s) => s.id === item.supplierId)
+              const cleanPhone = (supplier?.phone || '').replace(/[^0-9]/g, '')
+              const waUrl = cleanPhone
+                ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(item.body)}`
+                : ''
+
+              return [
+                item.sentAt?.slice(0, 16).replace('T', ' ') || '—',
+                supplier?.nameAr || '—',
+                <Badge key={`chan-${item.id}`} tone="neutral">
+                  {CHANNEL_LABEL[item.channel] || item.channel}
+                </Badge>,
+                <div>
+                  <span className="font-semibold block">{item.subject}</span>
+                  <span className="text-xs text-[#6b7280] line-clamp-1">{item.body}</span>
+                </div>,
+                <Badge
+                  key={`st-${item.id}`}
+                  tone={
+                    item.status === 'SENT'
+                      ? 'good'
+                      : item.status === 'APPROVED_TO_SEND'
+                      ? 'warn'
+                      : item.status === 'FAILED'
+                      ? 'bad'
+                      : 'neutral'
+                  }
+                >
+                  {item.status === 'PENDING_APPROVAL'
+                    ? 'بانتظار الاعتماد'
+                    : item.status === 'APPROVED_TO_SEND'
+                    ? 'معتمدة للإرسال'
+                    : item.status === 'SENT'
+                    ? 'تم الإرسال'
+                    : 'فشل الإرسال'}
+                </Badge>,
+                <div key={`act-${item.id}`} className="flex flex-wrap items-center gap-1.5">
+                  {item.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'approvals.decide') ? (
+                    <PrimaryButton
+                      type="button"
+                      disabled={ctx.pending}
+                      onClick={async () => {
+                        await ctx.act('approveSupplierCommunication', { id: item.id })
+                      }}
+                    >
+                      اعتماد
+                    </PrimaryButton>
+                  ) : null}
+
+                  {item.status === 'APPROVED_TO_SEND' ? (
+                    item.channel === 'WHATSAPP' && waUrl ? (
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#128C7E]"
+                        onClick={async () => {
+                          await ctx.act('markSupplierCommunicationDelivered', {
+                            id: item.id,
+                            providerMessageId: `wa-${Date.now()}`,
+                          })
+                        }}
+                      >
+                        إرسال عبر WhatsApp
+                      </a>
+                    ) : (
+                      <GhostButton
+                        type="button"
+                        disabled={ctx.pending}
+                        onClick={async () => {
+                          await ctx.act('markSupplierCommunicationDelivered', {
+                            id: item.id,
+                            providerMessageId: `manual-${Date.now()}`,
+                          })
+                        }}
+                      >
+                        تأكيد الإرسال
+                      </GhostButton>
+                    )
+                  ) : null}
+
+                  {item.status === 'SENT' ? (
+                    <span className="text-xs text-[#166534]">مرسل بنجاح</span>
+                  ) : null}
+                </div>,
+              ]
+            })}
+          />
+        </Card>
+      ) : null}
+    </div>
+  )
 }
 
 function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
