@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { DEFAULT_ROLE_PERMISSIONS } from './erp/domain/permissions'
 import { canSeeEntity, DESTINATIONS, EXTRA_LEAVES, hrefForEntity, pageTabs, resolvePath } from './erp-routes'
-import { ERP_NAV, LEGACY_ENTITY_KEYS, visibleMainTabs } from './erp-nav'
+import { ERP_NAV, LEGACY_ENTITY_KEYS, NAV_SECTIONS, visibleMainTabs } from './erp-nav'
 
 const allRegisteredPermissions = [...new Set(
   ERP_NAV.flatMap((main) => [
@@ -51,6 +51,7 @@ test('no existing entity key disappeared from the new navigation', () => {
 test('general manager sees every main tab', () => {
   const visible = visibleMainTabs(DEFAULT_ROLE_PERMISSIONS.GM)
   assert.deepEqual(visible.map((main) => main.id), ERP_NAV.map((main) => main.id))
+  assert.deepEqual(NAV_SECTIONS.flatMap((section) => section.mainIds), ERP_NAV.map((main) => main.id))
 })
 
 test('driver sees only fleet trip and fuel tabs', () => {
