@@ -486,7 +486,7 @@ const LEGACY_ERP_NAV: ErpMainTab[] = [
     icon: CarFront,
     permission: ['fleet.read'],
     subs: [
-      { id: 'vehicles', label: 'المركبات', entityKey: 'fleet', description: 'المركبات والوثائق والعدادات', permission: ['fleet.read', 'fleet.service.manage', 'fleet.manage'] },
+      { id: 'vehicles', label: 'المركبات', entityKey: 'fleet', description: 'المركبات والوثائق والعدادات', permission: ['fleet.service.manage', 'fleet.manage'] },
       { id: 'fleet-fuel', label: 'الوقود', entityKey: 'fleetFuel', description: 'سجل الوقود والاستهلاك', permission: ['fleet.read'] },
       { id: 'fleet-trips', label: 'الرحلات', entityKey: 'fleetTrips', description: 'الرحلات والتكاليف والمسافات', permission: ['fleet.read'] },
     ],
@@ -842,7 +842,7 @@ export const ERP_NAV: ErpMainTab[] = [
   ]),
 ]
 
-const LEGACY_ENTITY_KEYS = new Set(LEGACY_SUBS.keys())
+export const LEGACY_ENTITY_KEYS = [...LEGACY_SUBS.keys()]
 for (const entityKey of LEGACY_ENTITY_KEYS) {
   if (!ERP_NAV.some((item) => item.subs.some((sub) => sub.entityKey === entityKey))) {
     throw new Error(`شاشة قديمة غير موجودة في التنقل الجديد: ${entityKey}`)
@@ -884,4 +884,8 @@ export function canAccessSub(permissions: string[], sub: ErpSubTab, main: ErpMai
   const needed = sub.permission ?? main.permission ?? []
   if (needed.length === 0) return true
   return needed.some((p) => permissions.includes(p))
+}
+
+export function visibleMainTabs(permissions: string[]) {
+  return ERP_NAV.filter((main) => canAccessMain(permissions, main) && main.subs.some((sub) => canAccessSub(permissions, sub, main)))
 }
