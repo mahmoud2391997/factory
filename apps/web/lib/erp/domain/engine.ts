@@ -1481,7 +1481,7 @@ function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { a
 
 function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { action: 'transferStock' }>['input'], clock: Clock): CommandResult {
   if (input.from === input.to) return fail('لا يمكن التحويل إلى نفس المستودع')
-  if (input.lines.length === 0) return fail('أضف بنود التحويل')
+  if (input.lines.length === 0) return fail('أضف ��نود التحويل')
   const at = clock.now()
   const transfer = {
     id: clock.id('tr'),
@@ -2530,6 +2530,7 @@ function decideLeaveRequest(state: ErpState, actor: Actor, input: Extract<Comman
 function markNotificationRead(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markNotificationRead' }>['input'], clock: Clock): CommandResult {
   const note = state.notifications.find((item) => item.id === input.id)
   if (!note) return fail('الإشعار غير موجود')
+  if (note.read) return ok(state, 'الإشعار مقروء بالفعل')
   note.read = true
   audit(state, actor, clock, 'قراءة إشعار', 'notification', note.id, note.title)
   return ok(state, 'تم تعليم الإشعار كمقروء')
@@ -2843,7 +2844,7 @@ function holdLot(state: ErpState, actor: Actor, input: Extract<Command, { action
   if (!lot) return fail('دفعة الإنتاج غير موجودة')
   if (!input.reason.trim()) return fail('سبب الحجر مطلوب')
   const previous = latestQualityHold(state, 'LOT', lot.lotNo)
-  if (previous?.status === 'HELD' || previous?.status === 'RECALLED') return fail('الدفعة محجورة أو مستدعاة بالفعل')
+  if (previous?.status === 'HELD' || previous?.status === 'RECALLED') return fail('الدفعة محجورة أو مستدعاة با��فعل')
   const hold = createQualityHold(state, actor, clock, { targetType: 'LOT', lotNo: lot.lotNo, batchNo: lot.lotNo, status: 'HELD', reason: input.reason })
   audit(state, actor, clock, 'حجر دفعة إنتاج', 'qualityHold', hold.id, `${lot.lotNo}: ${hold.reason}`)
   return ok(state, 'تم حجر دفعة الإنتاج')
