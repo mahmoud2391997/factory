@@ -1,4 +1,4 @@
-const DATABASE_ENV_KEYS = ['DATABASE_URL', 'DATABASE_URL_UNPOOLED'] as const
+const DATABASE_ENV_KEYS = ['DATABASE_URL', 'POSTGRES_PRISMA_URL', 'POSTGRES_URL', 'DATABASE_URL_UNPOOLED'] as const
 
 export function resolveDatabaseEnvKey(): (typeof DATABASE_ENV_KEYS)[number] | null {
   for (const key of DATABASE_ENV_KEYS) {
@@ -8,8 +8,11 @@ export function resolveDatabaseEnvKey(): (typeof DATABASE_ENV_KEYS)[number] | nu
 }
 
 export function resolveDatabaseUrl(): string | null {
-  const value = process.env.DATABASE_URL?.trim()
-  return value || null
+  for (const key of DATABASE_ENV_KEYS) {
+    const value = process.env[key]?.trim()
+    if (value) return value
+  }
+  return null
 }
 
 export function ensureDatabaseUrlEnv(): string | null {

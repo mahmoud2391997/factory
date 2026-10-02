@@ -137,7 +137,7 @@ export default function LoginPage() {
                   detail={
                     health.databaseConfigured
                       ? `موجود: ${health.databaseEnvKey}`
-                      : 'أضف MONGODB_URI أو اربط MongoDB Atlas'
+                      : 'اربط Supabase أو أضف اتصال PostgreSQL في Vercel'
                   }
                 />
                 <StatusRow ok={health.jwtConfigured} label="JWT_SECRET" detail={health.jwtConfigured ? 'موجود' : 'ناقص'} />
