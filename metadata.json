@@ -1,0 +1,7 @@
+{
+  "name": "مصنع الخليج للأعلاف | نظام إدارة المصنع",
+  "description": "منصة إدارة متكاملة لمصنع الأعلاف والعمليات الصناعية في سلطنة عمان",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

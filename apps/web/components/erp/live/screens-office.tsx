@@ -14,7 +14,7 @@ import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
 
-import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
 
@@ -55,6 +55,41 @@ function Accounts({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function VehicleEditor({ ctx, vehicle, onClose }: { ctx: LiveCtx; vehicle: (typeof ctx.state.vehicles)[number]; onClose: () => void }) {
+  const [code, setCode] = useState(vehicle.code)
+  const [plateNo, setPlateNo] = useState(vehicle.plateNo)
+  const [nameAr, setNameAr] = useState(vehicle.nameAr)
+  const [type, setType] = useState(vehicle.type)
+  const [active, setActive] = useState(vehicle.active)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+        <h3 className="text-lg font-bold">تعديل بيانات المركبة</h3>
+        <form className="grid gap-3 md:grid-cols-2" onSubmit={async (e) => {
+          e.preventDefault()
+          const result = await ctx.act('updateVehicle', { id: vehicle.id, code, plateNo, nameAr, type, active })
+          if (result.ok) onClose()
+        }}>
+          <Field label="الرمز"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+          <Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(e) => setPlateNo(e.target.value)} required /></Field>
+          <Field label="النوع"><TextInput value={type} onChange={(e) => setType(e.target.value)} required /></Field>
+          <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+          <Field label="الحالة">
+            <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+              <option value="true">نشطة</option>
+              <option value="false">متوقفة</option>
+            </SelectInput>
+          </Field>
+          <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+            <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+            <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   const [vehicleId, setVehicleId] = useState(ctx.state.vehicles[0]?.id ?? '')
   const [code, setCode] = useState('')
@@ -78,6 +113,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   const [serviceSupplierId, setServiceSupplierId] = useState('')
   const [driverId, setDriverId] = useState(ctx.state.employees[0]?.id ?? '')
   const [tripInvoiceId, setTripInvoiceId] = useState(ctx.state.invoices.find((invoice) => invoice.status !== 'DRAFT')?.id ?? '')
+  const [editingVehicle, setEditingVehicle] = useState<(typeof ctx.state.vehicles)[number] | null>(null)
   const selectedVehicle = ctx.state.vehicles.find((vehicle) => vehicle.id === vehicleId)
 
   if (mode === 'fleetFuel') return (
@@ -89,7 +125,24 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         <Field label="العداد"><TextInput type="number" min={selectedVehicle?.currentOdometer ?? 0} value={odometer} onChange={(event) => setOdometer(event.target.value)} /></Field>
       </div>
       <PrimaryButton className="mt-3" disabled={ctx.pending || !vehicleId} onClick={async () => { const result = await ctx.act('addFuelLog', { vehicleId, date: new Date().toISOString().slice(0, 10), liters: Number(liters), cost: Number(fuelCost), odometer: Number(odometer), driverId }); if (result.ok) { setLiters(''); setFuelCost(''); setOdometer('') } }}>تسجيل التعبئة</PrimaryButton>
-      <DataTable columns={['التاريخ', 'المركبة', 'اللترات', 'التكلفة', 'العداد']} rows={ctx.state.fuelLogs.map((log) => [log.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === log.vehicleId)?.nameAr ?? '—', String(log.liters), moneyFmt(log.cost), String(log.odometer)])} />
+      <DataTable
+        columns={['التاريخ', 'المركبة', 'اللترات', 'التكلفة', 'العداد']}
+        rows={ctx.state.fuelLogs.map((log) => [log.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === log.vehicleId)?.nameAr ?? '—', String(log.liters), moneyFmt(log.cost), String(log.odometer)])}
+        rowActions={(_, index) => {
+          const log = ctx.state.fuelLogs[index]
+          if (!log) return null
+          return (
+            <RowActions
+              canEdit={false}
+              canDelete={can(ctx.permissions, 'fleet.manage')}
+              onDelete={async () => {
+                await ctx.act('deleteFuelLog', { id: log.id })
+              }}
+              deletePrompt="هل أنت متأكد من حذف سجل الوقود؟"
+            />
+          )
+        }}
+      />
     </Card>
   )
 
@@ -139,8 +192,29 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         {can(ctx.permissions, 'fleet.manage') ? <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
           {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><TextInput value={code} onChange={(event) => setCode(event.target.value)} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
         </FormDialog> : null}
-        <DataTable columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']} rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])} />
+        <DataTable
+          columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']}
+          rows={ctx.state.vehicles.map((vehicle) => [vehicle.code, vehicle.nameAr, vehicle.plateNo, String(vehicle.currentOdometer), vehicle.kmPerLiter ? `${vehicle.kmPerLiter} كم/ل` : '—', vehicle.active ? 'نشطة' : 'متوقفة'])}
+          rowActions={(_, index) => {
+            const vehicle = ctx.state.vehicles[index]
+            if (!vehicle) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'fleet.manage')}
+                canDelete={can(ctx.permissions, 'fleet.manage')}
+                onEdit={() => setEditingVehicle(vehicle)}
+                onDelete={async () => {
+                  await ctx.act('deleteVehicle', { id: vehicle.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف المركبة "${vehicle.nameAr}"؟`}
+              />
+            )
+          }}
+        />
       </Card>
+      {editingVehicle ? (
+        <VehicleEditor ctx={ctx} vehicle={editingVehicle} onClose={() => setEditingVehicle(null)} />
+      ) : null}
       <Card
         title="خدمات الأسطول"
         extra={can(ctx.permissions, 'fleet.manage') || can(ctx.permissions, 'fleet.service.manage') ? (
@@ -167,12 +241,29 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
               <Field label="موعد الصيانة التالية"><TextInput type="date" value={nextDueDate} onChange={(event) => setNextDueDate(event.target.value)} /></Field>
               <Field label="العداد عند الصيانة التالية"><TextInput type="number" min="0" step="1" value={nextDueKm} onChange={(event) => setNextDueKm(event.target.value)} /></Field>
               <Field label="المورد"><SelectInput value={serviceSupplierId} onChange={(event) => setServiceSupplierId(event.target.value)}><option value="">بدون</option>{ctx.state.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.nameAr}</option>)}</SelectInput></Field>
-              <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !vehicleId}>حف���</PrimaryButton></div>
+              <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !vehicleId}>حفظ</PrimaryButton></div>
             </form>}
           </FormDialog>
         ) : null}
       >
-        <DataTable columns={['التاريخ', 'المركبة', 'الخدمة', 'التكلفة', 'العداد', 'موعد الخدمة التالية']} rows={ctx.state.vehicleServices.map((service) => [service.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === service.vehicleId)?.nameAr ?? '—', service.description, moneyFmt(service.cost), String(service.odometer), service.nextDueDate ?? (service.nextDueKm ? `${service.nextDueKm} كم` : '—')])} />
+        <DataTable
+          columns={['التاريخ', 'المركبة', 'الخدمة', 'التكلفة', 'العداد', 'موعد الخدمة التالية']}
+          rows={ctx.state.vehicleServices.map((service) => [service.date.slice(0, 10), ctx.state.vehicles.find((vehicle) => vehicle.id === service.vehicleId)?.nameAr ?? '—', service.description, moneyFmt(service.cost), String(service.odometer), service.nextDueDate ?? (service.nextDueKm ? `${service.nextDueKm} كم` : '—')])}
+          rowActions={(_, index) => {
+            const service = ctx.state.vehicleServices[index]
+            if (!service) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'fleet.manage') || can(ctx.permissions, 'fleet.service.manage')}
+                onDelete={async () => {
+                  await ctx.act('deleteVehicleService', { id: service.id })
+                }}
+                deletePrompt="هل أنت متأكد من حذف سجل الخدمة؟"
+              />
+            )
+          }}
+        />
       </Card>
     </div>
   )
@@ -195,6 +286,58 @@ function TripCostAllocationReview({ ctx, allocationId }: { ctx: LiveCtx; allocat
   </div>
 }
 
+function CompanyDocumentEditor({ ctx, document, onClose }: { ctx: LiveCtx; document: CompanyDocument; onClose: () => void }) {
+  const [title, setTitle] = useState(document.title)
+  const [kind, setKind] = useState<CompanyDocument['kind']>(document.kind)
+  const [issueDate, setIssueDate] = useState(document.issueDate)
+  const [expiryDate, setExpiryDate] = useState(document.expiryDate ?? '')
+  const [cost, setCost] = useState(document.cost === undefined ? '' : String(document.cost))
+  const [notes, setNotes] = useState(document.notes ?? '')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+        <h3 className="text-lg font-bold">تعديل الوثيقة</h3>
+        <form className="grid gap-3 md:grid-cols-2" onSubmit={async (e) => {
+          e.preventDefault()
+          const result = await ctx.act('updateCompanyDocument', {
+            id: document.id,
+            title,
+            kind,
+            issueDate,
+            expiryDate: expiryDate || undefined,
+            cost: cost ? Number(cost) : undefined,
+            notes,
+          })
+          if (result.ok) onClose()
+        }}>
+          <Field label="العنوان"><TextInput value={title} onChange={(event) => setTitle(event.target.value)} required /></Field>
+          <Field label="النوع">
+            <SelectInput value={kind} onChange={(event) => setKind(event.target.value as CompanyDocument['kind'])}>
+              <option value="LICENSE">ترخيص</option>
+              <option value="OWNERSHIP">ملكية</option>
+              <option value="INSURANCE">تأمين</option>
+              <option value="CONTRACT">عقد</option>
+              <option value="LEASE">إيجار</option>
+              <option value="GOV_PERMIT">تصريح حكومي</option>
+              <option value="CERTIFICATE">شهادة</option>
+              <option value="INSPECTION">فحص دوري</option>
+              <option value="OTHER">أخرى</option>
+            </SelectInput>
+          </Field>
+          <Field label="تاريخ الإصدار"><TextInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required /></Field>
+          <Field label="تاريخ الانتهاء"><TextInput type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>
+          <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(event) => setCost(event.target.value)} /></Field>
+          <Field label="ملاحظات"><TextInput value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
+          <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+            <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+            <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function Documents({ ctx }: { ctx: LiveCtx }) {
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<CompanyDocument['kind']>('LICENSE')
@@ -205,6 +348,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
   const [renewalOwnerId, setRenewalOwnerId] = useState('')
   const [entityType, setEntityType] = useState<NonNullable<CompanyDocument['entityType']>>('COMPANY')
   const [entityId, setEntityId] = useState('')
+  const [editingDoc, setEditingDoc] = useState<CompanyDocument | null>(null)
   const today = new Date().toISOString().slice(0, 10)
   const sorted = [...ctx.state.companyDocuments].sort((a, b) => (a.expiryDate ?? '9999').localeCompare(b.expiryDate ?? '9999'))
   const linkedEntities = entityType === 'VEHICLE'
@@ -268,22 +412,40 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
             </form>}
           </FormDialog>
         ) : null}
-        <DataTable columns={['الوثيقة', 'الجهة', 'النوع', 'الإصدار', 'الانتهاء', 'الحالة', 'المرفقات', 'التجديد']} rows={sorted.map((document) => [
-          document.title,
-          documentEntityName(ctx, document),
-          document.kind,
-          document.issueDate,
-          document.expiryDate ?? '—',
-          status(document.expiryDate),
-          <div key={`${document.id}-files`} className="flex flex-col gap-1">
-            {(document.attachments ?? []).map((attachment) => <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName} — إصدار {attachment.issueDate}</a>)}
-            {document.attachmentId ? <span className="text-xs text-[#7c8c86]">مرفق قديم</span> : null}
-          </div>,
-          <div key={`${document.id}-actions`} className="flex flex-wrap gap-1">
-            {can(ctx.permissions, 'documents.manage') ? <DocumentActions key={document.id} ctx={ctx} document={document} /> : null}
-            {(document.renewalHistory ?? []).length ? <span className="text-xs text-[#52635d]">سجل تجديد: {document.renewalHistory!.length}</span> : null}
-          </div>,
-        ])} />
+        <DataTable
+          columns={['الوثيقة', 'الجهة', 'النوع', 'الإصدار', 'الانتهاء', 'الحالة', 'المرفقات', 'التجديد']}
+          rows={sorted.map((document) => [
+            document.title,
+            documentEntityName(ctx, document),
+            document.kind,
+            document.issueDate,
+            document.expiryDate ?? '—',
+            status(document.expiryDate),
+            <div key={`${document.id}-files`} className="flex flex-col gap-1">
+              {(document.attachments ?? []).map((attachment) => <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName} — إصدار {attachment.issueDate}</a>)}
+              {document.attachmentId ? <span className="text-xs text-[#7c8c86]">مرفق قديم</span> : null}
+            </div>,
+            <div key={`${document.id}-actions`} className="flex flex-wrap gap-1">
+              {can(ctx.permissions, 'documents.manage') ? <DocumentActions key={document.id} ctx={ctx} document={document} /> : null}
+              {(document.renewalHistory ?? []).length ? <span className="text-xs text-[#52635d]">سجل تجديد: {document.renewalHistory!.length}</span> : null}
+            </div>,
+          ])}
+          rowActions={(_, index) => {
+            const document = sorted[index]
+            if (!document) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'documents.manage')}
+                canDelete={can(ctx.permissions, 'documents.manage')}
+                onEdit={() => setEditingDoc(document)}
+                onDelete={async () => {
+                  await ctx.act('deleteCompanyDocument', { id: document.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الوثيقة "${document.title}"؟`}
+              />
+            )
+          }}
+        />
         {sorted.some((document) => document.renewalHistory?.length) ? (
           <details className="mt-4 rounded-xl border border-[#e1e8e4] p-3">
             <summary className="cursor-pointer font-bold">سجل التجديدات السابقة</summary>
@@ -298,6 +460,9 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
           </details>
         ) : null}
       </Card>
+      {editingDoc ? (
+        <CompanyDocumentEditor ctx={ctx} document={editingDoc} onClose={() => setEditingDoc(null)} />
+      ) : null}
     </div>
   )
 }
@@ -409,11 +574,52 @@ function Journals({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function ExpenseEditor({ ctx, expense, onClose }: { ctx: LiveCtx; expense: (typeof ctx.state.expenses)[number]; onClose: () => void }) {
+  const [category, setCategory] = useState(expense.category)
+  const [amount, setAmount] = useState(String(expense.amount))
+  const [description, setDescription] = useState(expense.description)
+  const [vatTreatment, setVatTreatment] = useState<VatTreatment>(expense.vatTreatment)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+        <h3 className="text-lg font-bold">تعديل المصروف {expense.number}</h3>
+        <form className="grid gap-3" onSubmit={async (e) => {
+          e.preventDefault()
+          const result = await ctx.act('updateExpense', {
+            id: expense.id,
+            category,
+            amount: Number(amount),
+            description,
+            vatTreatment,
+          })
+          if (result.ok) onClose()
+        }}>
+          <Field label="التصنيف"><TextInput value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
+          <Field label="المبلغ غير شامل الضريبة"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
+          <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+          <Field label="الضريبة">
+            <SelectInput value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value as VatTreatment)}>
+              <option value="STANDARD">خاضعة</option>
+              <option value="ZERO">صفرية</option>
+              <option value="EXEMPT">معفاة</option>
+            </SelectInput>
+          </Field>
+          <div className="flex items-end justify-end gap-2 pt-2">
+            <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+            <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function Expenses({ ctx }: { ctx: LiveCtx }) {
   const [category, setCategory] = useState('تشغيل')
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>('STANDARD')
+  const [editingExpense, setEditingExpense] = useState<(typeof ctx.state.expenses)[number] | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -459,8 +665,26 @@ function Expenses({ ctx }: { ctx: LiveCtx }) {
               <GhostButton key={`${expense.id}-a`} type="button" onClick={() => ctx.act('decideExpense', { id: expense.id, decision: 'POSTED' })}>اعتماد وترحيل</GhostButton>
             ) : '—',
           ])}
+          rowActions={(_, index) => {
+            const expense = ctx.state.expenses[index]
+            if (!expense) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'expenses.manage') && expense.status !== 'POSTED'}
+                canDelete={can(ctx.permissions, 'expenses.manage') && expense.status !== 'POSTED'}
+                onEdit={() => setEditingExpense(expense)}
+                onDelete={async () => {
+                  await ctx.act('deleteExpense', { id: expense.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف المصروف "${expense.number}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingExpense ? (
+        <ExpenseEditor ctx={ctx} expense={editingExpense} onClose={() => setEditingExpense(null)} />
+      ) : null}
     </div>
   )
 }
@@ -654,6 +878,47 @@ function BankTransactions({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function ObligationEditor({ ctx, obligation, onClose }: { ctx: LiveCtx; obligation: (NonNullable<typeof ctx.state.obligations>[number]); onClose: () => void }) {
+  const [beneficiary, setBeneficiary] = useState(obligation.beneficiary)
+  const [description, setDescription] = useState(obligation.description)
+  const [kind, setKind] = useState(obligation.kind)
+  const [total, setTotal] = useState(String(obligation.total))
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+        <h3 className="text-lg font-bold">تعديل الالتزام</h3>
+        <form className="grid gap-3" onSubmit={async (e) => {
+          e.preventDefault()
+          const result = await ctx.act('updateObligation', {
+            id: obligation.id,
+            beneficiary,
+            description,
+            kind,
+            total: Number(total),
+          })
+          if (result.ok) onClose()
+        }}>
+          <Field label="المستفيد"><TextInput value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} required /></Field>
+          <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+          <Field label="النوع">
+            <SelectInput value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+              <option value="LOAN">قرض</option>
+              <option value="INSTALLMENT">قسط</option>
+              <option value="RENT">إيجار</option>
+              <option value="OTHER">أخرى</option>
+            </SelectInput>
+          </Field>
+          <Field label="المبلغ الإجمالي"><TextInput type="number" min="0.001" step="0.001" value={total} onChange={(e) => setTotal(e.target.value)} required /></Field>
+          <div className="flex items-end justify-end gap-2 pt-2">
+            <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+            <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function Obligations({ ctx }: { ctx: LiveCtx }) {
   const { language } = useLanguage()
   const [beneficiary, setBeneficiary] = useState('')
@@ -664,6 +929,7 @@ function Obligations({ ctx }: { ctx: LiveCtx }) {
   const [firstDueDate, setFirstDueDate] = useState('')
   const [frequency, setFrequency] = useState<'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME'>('MONTHLY')
   const [numberOfInstallments, setNumberOfInstallments] = useState('')
+  const [editingObligation, setEditingObligation] = useState<(NonNullable<typeof ctx.state.obligations>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -738,8 +1004,26 @@ function Obligations({ ctx }: { ctx: LiveCtx }) {
               </span>
             ) : '—',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.obligations ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'obligations.manage')}
+                canDelete={can(ctx.permissions, 'obligations.manage')}
+                onEdit={() => setEditingObligation(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteObligation', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الالتزام "${item.beneficiary}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingObligation ? (
+        <ObligationEditor ctx={ctx} obligation={editingObligation} onClose={() => setEditingObligation(null)} />
+      ) : null}
       {(ctx.state.obligations ?? []).map((obligation) => {
         const lines = (ctx.state.obligationScheduleLines ?? []).filter((line) => line.obligationId === obligation.id).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
         if (lines.length === 0) return null
@@ -818,6 +1102,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
   const [leaveTo, setLeaveTo] = useState(() => muscatDay(new Date().toISOString()))
   const [leaveDays, setLeaveDays] = useState('1')
   const [leaveReason, setLeaveReason] = useState('')
+  const [editingEmployee, setEditingEmployee] = useState<(typeof ctx.state.employees)[number] | null>(null)
 
   function autoDays(from: string, to: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return '1'
@@ -858,12 +1143,31 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
           rowActions={(_, rowIndex) => {
             const employee = ctx.state.employees[rowIndex]
             if (!employee) return null
-            return can(ctx.permissions, 'employees.manage')
-              ? <FormDialog title="تحديث الموظف" openLabel="تعديل">{(close) => <EmployeeEditor ctx={ctx} employee={employee} onSaved={close} />}</FormDialog>
-              : <span className="text-xs text-amber-700">لا تملك صلاحية التعديل</span>
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'employees.manage')}
+                canDelete={can(ctx.permissions, 'employees.manage')}
+                onEdit={() => setEditingEmployee(employee)}
+                onDelete={async () => {
+                  await ctx.act('deleteEmployee', { id: employee.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الموظف "${employee.nameAr}"؟`}
+              />
+            )
           }}
         />
       </Card>
+      {editingEmployee ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <h3 className="text-lg font-bold">تحديث بيانات الموظف</h3>
+            <EmployeeEditor ctx={ctx} employee={editingEmployee} onSaved={() => setEditingEmployee(null)} />
+            <div className="flex justify-end pt-2">
+              <GhostButton type="button" onClick={() => setEditingEmployee(null)}>إغلاق</GhostButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <Card title="الإجازات" hint={`رصيد السنوي = ${entitlement} − المعتمد في السنة. الإجازة غير المدفوعة تخصم من المسير عند الإنشاء.`}>
         {selected ? (
@@ -1027,6 +1331,20 @@ function Attendance({ ctx }: { ctx: LiveCtx }) {
         <DataTable
           columns={['الموظف', 'التاريخ', 'حضور', 'انصراف', 'المصدر']}
           rows={ctx.state.attendance.slice(0, 40).map((row) => [ctx.state.employees.find((employee) => employee.id === row.employeeId)?.nameAr ?? '', row.date, row.checkIn, row.checkOut || '—', statusLabel(row.source)])}
+          rowActions={(_, index) => {
+            const row = ctx.state.attendance.slice(0, 40)[index]
+            if (!row) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'attendance.manage')}
+                onDelete={async () => {
+                  await ctx.act('deleteAttendance', { id: row.id })
+                }}
+                deletePrompt="هل أنت متأكد من حذف هذا السجل للحضور؟"
+              />
+            )
+          }}
         />
       </Card>
     </div>
@@ -1357,12 +1675,50 @@ function Approvals({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function UserEditor({ ctx, user, onClose }: { ctx: LiveCtx; user: (typeof ctx.state.users)[number]; onClose: () => void }) {
+  const [fullName, setFullName] = useState(user.fullName)
+  const [email, setEmail] = useState(user.email)
+  const [role, setRole] = useState(user.role)
+  const [active, setActive] = useState(user.active)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+        <h3 className="text-lg font-bold">تعديل بيانات المستخدم</h3>
+        <form className="grid gap-3" onSubmit={async (e) => {
+          e.preventDefault()
+          const result = await ctx.act('updateUser', { id: user.id, fullName, email, role, active })
+          if (result.ok) onClose()
+        }}>
+          <Field label="الاسم الكامل"><TextInput value={fullName} onChange={(e) => setFullName(e.target.value)} required /></Field>
+          <Field label="البريد الإلكتروني"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
+          <Field label="الدور">
+            <SelectInput value={role} onChange={(e) => setRole(e.target.value as RoleKey)}>
+              {ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </SelectInput>
+          </Field>
+          <Field label="الحالة">
+            <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+              <option value="true">نشط</option>
+              <option value="false">موقوف</option>
+            </SelectInput>
+          </Field>
+          <div className="flex items-end justify-end gap-2 pt-2">
+            <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+            <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function Users({ ctx }: { ctx: LiveCtx }) {
   const [role, setRole] = useState<RoleKey>('OPERATIONS')
   const [selected, setSelected] = useState<string[]>(ctx.state.rolePermissions.OPERATIONS)
   const [userId, setUserId] = useState(ctx.state.users[0]?.id ?? '')
   const [password, setPassword] = useState('')
   const [newUser, setNewUser] = useState({ fullName: '', email: '', role: 'OPERATIONS' as RoleKey, password: '' })
+  const [editingUser, setEditingUser] = useState<(typeof ctx.state.users)[number] | null>(null)
   return (
   <div className="space-y-4">
   <Card
@@ -1405,8 +1761,29 @@ function Users({ ctx }: { ctx: LiveCtx }) {
           </div>
         }
       >
-        <DataTable columns={['الاسم', 'البريد', 'الدور', 'الحالة']} rows={ctx.state.users.map((user) => [user.fullName, user.email, ROLE_OPTIONS.find((item) => item.value === user.role)?.label ?? user.role, user.active ? 'نشط' : 'موقوف'])} />
+        <DataTable
+          columns={['الاسم', 'البريد', 'الدور', 'الحالة']}
+          rows={ctx.state.users.map((user) => [user.fullName, user.email, ROLE_OPTIONS.find((item) => item.value === user.role)?.label ?? user.role, user.active ? 'نشط' : 'موقوف'])}
+          rowActions={(_, index) => {
+            const user = ctx.state.users[index]
+            if (!user) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'users.manage')}
+                canDelete={can(ctx.permissions, 'users.manage') && ctx.state.users.length > 1}
+                onEdit={() => setEditingUser(user)}
+                onDelete={async () => {
+                  await ctx.act('deleteUser', { id: user.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف المستخدم "${user.fullName}"؟`}
+              />
+            )
+          }}
+        />
       </Card>
+      {editingUser ? (
+        <UserEditor ctx={ctx} user={editingUser} onClose={() => setEditingUser(null)} />
+      ) : null}
       <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُسحب حق إدارة المستخدمين من المدير العام.">
         <form className="space-y-3" onSubmit={async (event) => {
           event.preventDefault()

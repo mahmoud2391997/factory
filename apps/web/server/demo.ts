@@ -31,7 +31,6 @@ export function isDemoMode() {
   if (configuredMode === 'production' || configuredMode === 'prod') return false
 
   if (resolveDatabaseUrl()) return false
-  if (process.env.NODE_ENV === 'production') return false
   return true
 }
 

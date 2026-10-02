@@ -6,7 +6,7 @@ import { supplierQuality } from '@/lib/erp/domain/reports'
 import { calculateLotNutrition, compareNutrition } from '@/lib/erp/domain/nutrition'
 import type { QcResult, QualitySample } from '@/lib/erp/domain/types'
 
-import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput } from './bits'
+import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, pctFmt, qtyFmt, statusLabel } from './format'
 
@@ -304,6 +304,20 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
               <ResultButtons key={sample.id} ctx={ctx} sampleId={sample.id} />
             ) : '—',
           ])}
+          rowActions={(_, index) => {
+            const sample = rows[index]
+            if (!sample) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'qc.manage')}
+                onDelete={async () => {
+                  await ctx.act('deleteQualitySample', { id: sample.id })
+                }}
+                deletePrompt="هل أنت متأكد من حذف هذه العينة؟"
+              />
+            )
+          }}
         />
       </Card>
       {rows.find((sample) => sample.type === 'FINISHED_PRODUCT') ? (

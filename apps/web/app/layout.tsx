@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 
 import { ThemeInit } from '@/components/theme-init'
@@ -51,7 +50,6 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>{children}</AuthProvider>
         </LanguageProvider>
-        {process.env.NEXT_PUBLIC_VERCEL_ANALYTICS === '1' ? <Analytics /> : null}
       </body>
     </html>
   )

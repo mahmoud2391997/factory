@@ -1,6 +1,7 @@
 'use client'
 
 import { isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
@@ -356,4 +357,97 @@ export function toneForStatus(status: string): 'neutral' | 'good' | 'warn' | 'ba
   if (['PENDING_APPROVAL', 'PARTIAL', 'PARTIALLY_RECEIVED', 'RELEASED', 'OPEN', 'DRAFT', 'HOLD', 'PENDING'].includes(status)) return 'warn'
   if (['REJECTED', 'FAILED'].includes(status)) return 'bad'
   return 'neutral'
+}
+
+export function RowActions({
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+  deleteTitle = 'تأكيد الحذف',
+  deletePrompt = 'هل أنت متأكد من رغبتك في حذف هذا السجل نهائياً؟',
+  disabled = false,
+}: {
+  onEdit?: () => void
+  onDelete?: () => void | Promise<void>
+  canEdit?: boolean
+  canDelete?: boolean
+  deleteTitle?: string
+  deletePrompt?: string
+  disabled?: boolean
+}) {
+  const { language } = useLanguage()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  if (!canEdit && !canDelete) return null
+
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      {canEdit && onEdit ? (
+        <button
+          type="button"
+          disabled={disabled || submitting}
+          onClick={onEdit}
+          className="inline-flex items-center gap-1 rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs font-semibold text-[#0d9488] shadow-xs hover:bg-[#f0fdfa] hover:border-[#0d9488]/40 disabled:opacity-40 transition-colors cursor-pointer"
+          title={translateUiText(language, 'تعديل')}
+        >
+          <Pencil size={13} className="shrink-0" />
+          <span>{translateUiText(language, 'تعديل')}</span>
+        </button>
+      ) : null}
+      {canDelete && onDelete ? (
+        <>
+          <button
+            type="button"
+            disabled={disabled || submitting}
+            onClick={() => setConfirmOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-[#fecaca] bg-white px-2 py-1 text-xs font-semibold text-[#dc2626] shadow-xs hover:bg-[#fef2f2] hover:border-[#dc2626]/40 disabled:opacity-40 transition-colors cursor-pointer"
+            title={translateUiText(language, 'حذف')}
+          >
+            <Trash2 size={13} className="shrink-0" />
+            <span>{translateUiText(language, 'حذف')}</span>
+          </button>
+          {confirmOpen ? (
+            <Dialog
+              title={deleteTitle}
+              onClose={() => !submitting && setConfirmOpen(false)}
+            >
+              <div className="space-y-4 text-right" dir="rtl">
+                <p className="text-sm text-[#374151] leading-relaxed">
+                  {translateUiText(language, deletePrompt)}
+                </p>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f3f4f6]">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setConfirmOpen(false)}
+                    className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 text-xs font-medium text-[#6b7280] hover:bg-[#f9fafb] cursor-pointer"
+                  >
+                    {translateUiText(language, 'إلغاء')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={async () => {
+                      setSubmitting(true)
+                      try {
+                        await onDelete()
+                        setConfirmOpen(false)
+                      } finally {
+                        setSubmitting(false)
+                      }
+                    }}
+                    className="rounded-md bg-[#dc2626] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-[#b91c1c] disabled:opacity-50 cursor-pointer"
+                  >
+                    {submitting ? translateUiText(language, 'جارٍ الحذف...') : translateUiText(language, 'تأكيد الحذف')}
+                  </button>
+                </div>
+              </div>
+            </Dialog>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
 }

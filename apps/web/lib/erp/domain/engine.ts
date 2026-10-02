@@ -770,12 +770,144 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createCustomerRecipe: 'recipes.custom',
     setCustomerPricing: 'pricing.custom',
     setAlternativeBagWeights: 'production.create',
+    updateMaterial: 'inventory.adjust',
+    deleteMaterial: 'inventory.adjust',
+    updateProduct: 'production.create',
+    deleteProduct: 'production.create',
+    updateSupplier: 'purchasing.po.create',
+    deleteSupplier: 'purchasing.po.create',
+    updateCustomer: 'sales.create',
+    deleteCustomer: 'sales.create',
+    deleteEmployee: 'employees.manage',
+    deleteVehicle: 'fleet.manage',
+    updateMachine: 'maintenance.manage',
+    deleteMachine: 'maintenance.manage',
+    updateSparePart: 'spareparts.manage',
+    deleteSparePart: 'spareparts.manage',
+    updatePackagingMaterial: 'packaging.manage',
+    deletePackagingMaterial: 'packaging.manage',
+    updateDistributionPoint: 'distribution.manage',
+    deleteDistributionPoint: 'distribution.manage',
+    updateRecipe: 'production.create',
+    deleteRecipe: 'production.create',
+    updateUser: 'users.manage',
+    deleteUser: 'users.manage',
+    deleteMaintenanceSchedule: 'maintenance.manage',
+    updateSupplierTemplate: 'suppliers.communicate',
+    deleteSupplierTemplate: 'suppliers.communicate',
+    deleteCompanyDocument: 'documents.manage',
+    updateCompanyDocument: 'documents.manage',
+    deleteObligation: 'obligations.manage',
+    updateObligation: 'obligations.manage',
+    deleteCustomerRecipe: 'recipes.custom',
+    updateCustomerRecipe: 'recipes.custom',
+    updateMaintenanceSchedule: 'maintenance.manage',
+    updateMaintenanceRecord: 'maintenance.manage',
+    deleteMaintenanceRecord: 'maintenance.manage',
+    deleteQualitySample: 'qc.manage',
+    updateExpense: 'expenses.manage',
+    deleteExpense: 'expenses.manage',
+    deletePurchaseRequest: 'purchasing.request.create',
+    deletePurchaseOrder: 'purchasing.po.create',
+    deleteProductionOrder: 'production.create',
+    deleteInvoice: 'sales.create',
+    deleteFuelLog: 'fleet.manage',
+    deleteVehicleService: 'fleet.service.manage',
+    deleteAttendance: 'attendance.manage',
   }
   return allow(actor, map[command.action])
 }
 
 function run(state: ErpState, actor: Actor, command: Command, clock: Clock): CommandResult {
   switch (command.action) {
+    case 'updateMaintenanceSchedule':
+      return updateMaintenanceSchedule(state, actor, command.input, clock)
+    case 'updateMaintenanceRecord':
+      return updateMaintenanceRecord(state, actor, command.input, clock)
+    case 'deleteMaintenanceRecord':
+      return deleteMaintenanceRecord(state, actor, command.input, clock)
+    case 'updateCompanyDocument':
+      return updateCompanyDocument(state, actor, command.input, clock)
+    case 'updateObligation':
+      return updateObligation(state, actor, command.input, clock)
+    case 'deleteQualitySample':
+      return deleteQualitySample(state, actor, command.input, clock)
+    case 'updateCustomerRecipe':
+      return updateCustomerRecipe(state, actor, command.input, clock)
+    case 'updateExpense':
+      return updateExpense(state, actor, command.input, clock)
+    case 'deleteExpense':
+      return deleteExpense(state, actor, command.input, clock)
+    case 'deletePurchaseRequest':
+      return deletePurchaseRequest(state, actor, command.input, clock)
+    case 'deletePurchaseOrder':
+      return deletePurchaseOrder(state, actor, command.input, clock)
+    case 'deleteProductionOrder':
+      return deleteProductionOrder(state, actor, command.input, clock)
+    case 'deleteInvoice':
+      return deleteInvoice(state, actor, command.input, clock)
+    case 'deleteFuelLog':
+      return deleteFuelLog(state, actor, command.input, clock)
+    case 'deleteVehicleService':
+      return deleteVehicleService(state, actor, command.input, clock)
+    case 'deleteAttendance':
+      return deleteAttendance(state, actor, command.input, clock)
+    case 'updateMaterial':
+      return updateMaterial(state, actor, command.input, clock)
+    case 'deleteMaterial':
+      return deleteMaterial(state, actor, command.input, clock)
+    case 'updateProduct':
+      return updateProduct(state, actor, command.input, clock)
+    case 'deleteProduct':
+      return deleteProduct(state, actor, command.input, clock)
+    case 'updateSupplier':
+      return updateParty(state, actor, 'suppliers', command.input, clock)
+    case 'deleteSupplier':
+      return deleteParty(state, actor, 'suppliers', command.input, clock)
+    case 'updateCustomer':
+      return updateParty(state, actor, 'customers', command.input, clock)
+    case 'deleteCustomer':
+      return deleteParty(state, actor, 'customers', command.input, clock)
+    case 'deleteEmployee':
+      return deleteEmployee(state, actor, command.input, clock)
+    case 'deleteVehicle':
+      return deleteVehicle(state, actor, command.input, clock)
+    case 'updateMachine':
+      return updateMachine(state, actor, command.input, clock)
+    case 'deleteMachine':
+      return deleteMachine(state, actor, command.input, clock)
+    case 'updateSparePart':
+      return updateSparePart(state, actor, command.input, clock)
+    case 'deleteSparePart':
+      return deleteSparePart(state, actor, command.input, clock)
+    case 'updatePackagingMaterial':
+      return updatePackagingMaterial(state, actor, command.input, clock)
+    case 'deletePackagingMaterial':
+      return deletePackagingMaterial(state, actor, command.input, clock)
+    case 'updateDistributionPoint':
+      return updateDistributionPoint(state, actor, command.input, clock)
+    case 'deleteDistributionPoint':
+      return deleteDistributionPoint(state, actor, command.input, clock)
+    case 'updateRecipe':
+      return updateRecipe(state, actor, command.input, clock)
+    case 'deleteRecipe':
+      return deleteRecipe(state, actor, command.input, clock)
+    case 'updateUser':
+      return updateUser(state, actor, command.input, clock)
+    case 'deleteUser':
+      return deleteUser(state, actor, command.input, clock)
+    case 'deleteMaintenanceSchedule':
+      return deleteMaintenanceSchedule(state, actor, command.input, clock)
+    case 'updateSupplierTemplate':
+      return updateSupplierTemplate(state, actor, command.input, clock)
+    case 'deleteSupplierTemplate':
+      return deleteSupplierTemplate(state, actor, command.input, clock)
+    case 'deleteCompanyDocument':
+      return deleteCompanyDocument(state, actor, command.input, clock)
+    case 'deleteObligation':
+      return deleteObligation(state, actor, command.input, clock)
+    case 'deleteCustomerRecipe':
+      return deleteCustomerRecipe(state, actor, command.input, clock)
     case 'createMaterial':
       return createMaterial(state, actor, command.input, clock)
     case 'createProduct':
@@ -959,6 +1091,536 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
     default:
       return fail('إجراء غير معروف')
   }
+}
+
+function updateMaterial(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateMaterial' }>['input'], clock: Clock): CommandResult {
+  const item = state.materials.find((m) => m.id === input.id)
+  if (!item) return fail('المادة غير موجودة')
+  if (input.code !== undefined) {
+    const code = input.code.trim().toUpperCase()
+    if (!code) return fail('كود المادة مطلوب')
+    if (state.materials.some((m) => m.id !== input.id && m.code === code)) return fail('كود المادة مستخدم')
+    item.code = code
+  }
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم المادة مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.category !== undefined) item.category = input.category.trim() || item.category
+  if (input.unit !== undefined) item.unit = input.unit.trim() || item.unit
+  if (input.minQty !== undefined) {
+    if (input.minQty < 0) return fail('الحد الأدنى غير صحيح')
+    item.minQty = qty(input.minQty)
+  }
+  if (input.vatTreatment !== undefined) item.vatTreatment = input.vatTreatment
+  if (input.barcode !== undefined) item.barcode = input.barcode.trim()
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل مادة خام', 'material', item.id, item.nameAr)
+  return ok(state, 'تم تعديل المادة الخام بنجاح')
+}
+
+function deleteMaterial(state: ErpState, actor: Actor, input: Extract<Command, { action: 'deleteMaterial' }>['input'], clock: Clock): CommandResult {
+  const index = state.materials.findIndex((m) => m.id === input.id)
+  if (index < 0) return fail('المادة غير موجودة')
+  const item = state.materials[index]!
+  state.materials.splice(index, 1)
+  audit(state, actor, clock, 'حذف مادة خام', 'material', item.id, item.nameAr)
+  return ok(state, 'تم حذف المادة الخام بنجاح')
+}
+
+function updateProduct(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateProduct' }>['input'], clock: Clock): CommandResult {
+  const item = state.products.find((p) => p.id === input.id)
+  if (!item) return fail('المنتج غير موجود')
+  if (input.code !== undefined) {
+    const code = input.code.trim().toUpperCase()
+    if (!code) return fail('كود المنتج مطلوب')
+    if (state.products.some((p) => p.id !== input.id && p.code === code)) return fail('كود المنتج مستخدم')
+    item.code = code
+  }
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم المنتج مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.salePrice !== undefined) {
+    if (input.salePrice < 0) return fail('سعر البيع غير صحيح')
+    item.salePrice = money(input.salePrice)
+  }
+  if (input.unit !== undefined) item.unit = input.unit.trim() || item.unit
+  if (input.vatTreatment !== undefined) item.vatTreatment = input.vatTreatment
+  if (input.barcode !== undefined) item.barcode = input.barcode.trim()
+  if (input.bagKg !== undefined) item.bagKg = input.bagKg > 0 ? input.bagKg : item.bagKg
+  if (input.varianceWarningPct !== undefined) item.varianceWarningPct = input.varianceWarningPct ?? undefined
+  if (input.varianceCriticalPct !== undefined) item.varianceCriticalPct = input.varianceCriticalPct ?? undefined
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل منتج', 'product', item.id, item.nameAr)
+  return ok(state, 'تم تعديل المنتج بنجاح')
+}
+
+function deleteProduct(state: ErpState, actor: Actor, input: Extract<Command, { action: 'deleteProduct' }>['input'], clock: Clock): CommandResult {
+  const index = state.products.findIndex((p) => p.id === input.id)
+  if (index < 0) return fail('المنتج غير موجود')
+  const item = state.products[index]!
+  state.products.splice(index, 1)
+  audit(state, actor, clock, 'حذف منتج', 'product', item.id, item.nameAr)
+  return ok(state, 'تم حذف المنتج بنجاح')
+}
+
+function updateParty(state: ErpState, actor: Actor, key: 'suppliers' | 'customers', input: { id: string; nameAr?: string; vatNumber?: string; phone?: string; email?: string; address?: string }, clock: Clock): CommandResult {
+  const list = state[key]
+  const item = list.find((p) => p.id === input.id)
+  if (!item) return fail(key === 'suppliers' ? 'المورد غير موجود' : 'العميل غير موجود')
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('الاسم مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.vatNumber !== undefined) item.vatNumber = input.vatNumber.trim()
+  if (input.phone !== undefined) item.phone = input.phone.trim()
+  if (input.email !== undefined) item.email = input.email.trim()
+  if (input.address !== undefined) item.address = input.address.trim()
+  audit(state, actor, clock, key === 'suppliers' ? 'تعديل مورد' : 'تعديل عميل', key, item.id, item.nameAr)
+  return ok(state, key === 'suppliers' ? 'تم تعديل المورد بنجاح' : 'تم تعديل العميل بنجاح')
+}
+
+function deleteParty(state: ErpState, actor: Actor, key: 'suppliers' | 'customers', input: { id: string }, clock: Clock): CommandResult {
+  const list = state[key]
+  const index = list.findIndex((p) => p.id === input.id)
+  if (index < 0) return fail(key === 'suppliers' ? 'المورد غير موجود' : 'العميل غير موجود')
+  const item = list[index]!
+  list.splice(index, 1)
+  audit(state, actor, clock, key === 'suppliers' ? 'حذف مورد' : 'حذف عميل', key, item.id, item.nameAr)
+  return ok(state, key === 'suppliers' ? 'تم حذف المورد بنجاح' : 'تم حذف العميل بنجاح')
+}
+
+function deleteEmployee(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.employees.findIndex((e) => e.id === input.id)
+  if (index < 0) return fail('الموظف غير موجود')
+  const item = state.employees[index]!
+  state.employees.splice(index, 1)
+  audit(state, actor, clock, 'حذف موظف', 'employee', item.id, item.nameAr)
+  return ok(state, 'تم حذف الموظف بنجاح')
+}
+
+function deleteVehicle(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.vehicles.findIndex((v) => v.id === input.id)
+  if (index < 0) return fail('المركبة غير موجودة')
+  const item = state.vehicles[index]!
+  state.vehicles.splice(index, 1)
+  audit(state, actor, clock, 'حذف مركبة', 'vehicle', item.id, item.nameAr)
+  return ok(state, 'تم حذف المركبة بنجاح')
+}
+
+function updateMachine(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateMachine' }>['input'], clock: Clock): CommandResult {
+  const item = state.machines.find((m) => m.id === input.id)
+  if (!item) return fail('الآلة غير موجودة')
+  if (input.code !== undefined) {
+    const code = input.code.trim().toUpperCase()
+    if (!code) return fail('رمز الآلة مطلوب')
+    if (state.machines.some((m) => m.id !== input.id && m.code === code)) return fail('رمز الآلة مستخدم')
+    item.code = code
+  }
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم الآلة مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.type !== undefined) item.type = input.type.trim() || item.type
+  if (input.location !== undefined) item.location = input.location.trim() || item.location
+  audit(state, actor, clock, 'تعديل آلة', 'machine', item.id, item.nameAr)
+  return ok(state, 'تم تعديل الآلة بنجاح')
+}
+
+function deleteMachine(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.machines.findIndex((m) => m.id === input.id)
+  if (index < 0) return fail('الآلة غير موجودة')
+  const item = state.machines[index]!
+  state.machines.splice(index, 1)
+  audit(state, actor, clock, 'حذف آلة', 'machine', item.id, item.nameAr)
+  return ok(state, 'تم حذف الآلة بنجاح')
+}
+
+function updateSparePart(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateSparePart' }>['input'], clock: Clock): CommandResult {
+  const item = state.spareParts.find((s) => s.id === input.id)
+  if (!item) return fail('قطعة الغيار غير موجودة')
+  if (input.code !== undefined) {
+    const code = input.code.trim().toUpperCase()
+    if (!code) return fail('رمز القطعة مطلوب')
+    if (state.spareParts.some((s) => s.id !== input.id && s.code === code)) return fail('رمز القطعة مستخدم')
+    item.code = code
+  }
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم القطعة مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.description !== undefined) item.description = input.description.trim() || undefined
+  if (input.minStock !== undefined) item.minStock = qty(input.minStock)
+  if (input.quantity !== undefined) item.quantity = qty(input.quantity)
+  if (input.unitCost !== undefined) item.unitCost = money(input.unitCost)
+  if (input.machineIds !== undefined) item.machineIds = input.machineIds
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل قطعة غيار', 'sparePart', item.id, item.nameAr)
+  return ok(state, 'تم تعديل قطعة الغيار بنجاح')
+}
+
+function deleteSparePart(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.spareParts.findIndex((s) => s.id === input.id)
+  if (index < 0) return fail('قطعة الغيار غير موجودة')
+  const item = state.spareParts[index]!
+  state.spareParts.splice(index, 1)
+  audit(state, actor, clock, 'حذف قطعة غيار', 'sparePart', item.id, item.nameAr)
+  return ok(state, 'تم حذف قطعة الغيار بنجاح')
+}
+
+function updatePackagingMaterial(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updatePackagingMaterial' }>['input'], clock: Clock): CommandResult {
+  const item = state.packagingMaterials.find((p) => p.id === input.id)
+  if (!item) return fail('مادة التعبئة غير موجودة')
+  if (input.code !== undefined) {
+    const code = input.code.trim().toUpperCase()
+    if (!code) return fail('رمز مادة التعبئة مطلوب')
+    if (state.packagingMaterials.some((p) => p.id !== input.id && p.code === code)) return fail('رمز مادة التعبئة مستخدم')
+    item.code = code
+  }
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم مادة التعبئة مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.category !== undefined) item.category = input.category
+  if (input.unit !== undefined) item.unit = input.unit.trim() || item.unit
+  if (input.minStock !== undefined) item.minStock = qty(input.minStock)
+  if (input.quantity !== undefined) item.quantity = qty(input.quantity)
+  if (input.unitCost !== undefined) item.unitCost = money(input.unitCost)
+  if (input.expectedPerTon !== undefined) item.expectedPerTon = input.expectedPerTon
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل مادة تعبئة', 'packagingMaterial', item.id, item.nameAr)
+  return ok(state, 'تم تعديل مادة التعبئة بنجاح')
+}
+
+function deletePackagingMaterial(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.packagingMaterials.findIndex((p) => p.id === input.id)
+  if (index < 0) return fail('مادة التعبئة غير موجودة')
+  const item = state.packagingMaterials[index]!
+  state.packagingMaterials.splice(index, 1)
+  audit(state, actor, clock, 'حذف مادة تعبئة', 'packagingMaterial', item.id, item.nameAr)
+  return ok(state, 'تم حذف مادة التعبئة بنجاح')
+}
+
+function updateDistributionPoint(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateDistributionPoint' }>['input'], clock: Clock): CommandResult {
+  const item = state.distributionPoints.find((p) => p.id === input.id)
+  if (!item) return fail('نقطة التوزيع غير موجودة')
+  if (input.code !== undefined) {
+    const code = input.code.trim().toUpperCase()
+    if (!code) return fail('رمز نقطة التوزيع مطلوب')
+    if (state.distributionPoints.some((p) => p.id !== input.id && p.code === code)) return fail('رمز نقطة التوزيع مستخدم')
+    item.code = code
+  }
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم نقطة التوزيع مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.location !== undefined) item.location = input.location.trim() || item.location
+  if (input.managerId !== undefined) item.managerId = input.managerId
+  if (input.phone !== undefined) item.phone = input.phone.trim()
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل نقطة توزيع', 'distributionPoint', item.id, item.nameAr)
+  return ok(state, 'تم تعديل نقطة التوزيع بنجاح')
+}
+
+function deleteDistributionPoint(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.distributionPoints.findIndex((p) => p.id === input.id)
+  if (index < 0) return fail('نقطة التوزيع غير موجودة')
+  const item = state.distributionPoints[index]!
+  state.distributionPoints.splice(index, 1)
+  audit(state, actor, clock, 'حذف نقطة توزيع', 'distributionPoint', item.id, item.nameAr)
+  return ok(state, 'تم حذف نقطة التوزيع بنجاح')
+}
+
+function updateRecipe(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateRecipe' }>['input'], clock: Clock): CommandResult {
+  const item = state.recipes.find((r) => r.id === input.id)
+  if (!item) return fail('الوصفة غير موجودة')
+  if (input.nameAr !== undefined) {
+    if (!input.nameAr.trim()) return fail('اسم الوصفة مطلوب')
+    item.nameAr = input.nameAr.trim()
+  }
+  if (input.baseOutputQty !== undefined) {
+    if (input.baseOutputQty <= 0) return fail('الإنتاج الأساسي يجب أن يكون أكبر من صفر')
+    item.baseOutputQty = qty(input.baseOutputQty)
+  }
+  if (input.varianceWarningPct !== undefined) item.varianceWarningPct = input.varianceWarningPct ?? undefined
+  if (input.varianceCriticalPct !== undefined) item.varianceCriticalPct = input.varianceCriticalPct ?? undefined
+  audit(state, actor, clock, 'تعديل وصفة', 'recipe', item.id, item.nameAr)
+  return ok(state, 'تم تعديل الوصفة بنجاح')
+}
+
+function deleteRecipe(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.recipes.findIndex((r) => r.id === input.id)
+  if (index < 0) return fail('الوصفة غير موجودة')
+  const item = state.recipes[index]!
+  state.recipes.splice(index, 1)
+  audit(state, actor, clock, 'حذف وصفة', 'recipe', item.id, item.nameAr)
+  return ok(state, 'تم حذف الوصفة بنجاح')
+}
+
+function updateUser(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateUser' }>['input'], clock: Clock): CommandResult {
+  const item = state.users.find((u) => u.id === input.id)
+  if (!item) return fail('المستخدم غير موجود')
+  if (input.fullName !== undefined) {
+    if (!input.fullName.trim()) return fail('اسم المستخدم مطلوب')
+    item.fullName = input.fullName.trim()
+  }
+  if (input.email !== undefined) {
+    const email = input.email.trim().toLowerCase()
+    if (!email) return fail('البريد الإلكتروني مطلوب')
+    if (state.users.some((u) => u.id !== input.id && u.email === email)) return fail('البريد الإلكتروني مستخدم')
+    item.email = email
+  }
+  if (input.role !== undefined) item.role = input.role
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل مستخدم', 'user', item.id, item.fullName)
+  return ok(state, 'تم تعديل المستخدم بنجاح')
+}
+
+function deleteUser(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  if (actor.id === input.id) return fail('لا يمكنك حذف حسابك الحالي')
+  const index = state.users.findIndex((u) => u.id === input.id)
+  if (index < 0) return fail('المستخدم غير موجود')
+  const item = state.users[index]!
+  state.users.splice(index, 1)
+  audit(state, actor, clock, 'حذف مستخدم', 'user', item.id, item.fullName)
+  return ok(state, 'تم حذف المستخدم بنجاح')
+}
+
+function deleteMaintenanceSchedule(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.maintenanceSchedules.findIndex((s) => s.id === input.id)
+  if (index < 0) return fail('جدول الصيانة غير موجود')
+  const item = state.maintenanceSchedules[index]!
+  state.maintenanceSchedules.splice(index, 1)
+  audit(state, actor, clock, 'حذف جدول صيانة', 'maintenanceSchedule', item.id, item.description)
+  return ok(state, 'تم حذف جدول الصيانة بنجاح')
+}
+
+function updateSupplierTemplate(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateSupplierTemplate' }>['input'], clock: Clock): CommandResult {
+  const item = state.supplierTemplates.find((t) => t.id === input.id)
+  if (!item) return fail('القالب غير موجود')
+  if (input.nameAr !== undefined) item.nameAr = input.nameAr.trim() || item.nameAr
+  if (input.kind !== undefined) item.kind = input.kind
+  if (input.subject !== undefined) item.subject = input.subject.trim() || item.subject
+  if (input.body !== undefined) item.body = input.body.trim() || item.body
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل قالب مورد', 'supplierTemplate', item.id, item.nameAr)
+  return ok(state, 'تم تعديل القالب بنجاح')
+}
+
+function deleteSupplierTemplate(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.supplierTemplates.findIndex((t) => t.id === input.id)
+  if (index < 0) return fail('القالب غير موجود')
+  const item = state.supplierTemplates[index]!
+  state.supplierTemplates.splice(index, 1)
+  audit(state, actor, clock, 'حذف قالب مورد', 'supplierTemplate', item.id, item.nameAr)
+  return ok(state, 'تم حذف القالب بنجاح')
+}
+
+function deleteCompanyDocument(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.companyDocuments.findIndex((d) => d.id === input.id)
+  if (index < 0) return fail('الوثيقة غير موجودة')
+  const item = state.companyDocuments[index]!
+  state.companyDocuments.splice(index, 1)
+  audit(state, actor, clock, 'حذف وثيقة', 'companyDocument', item.id, item.title)
+  return ok(state, 'تم حذف الوثيقة بنجاح')
+}
+
+function deleteObligation(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.obligations.findIndex((o) => o.id === input.id)
+  if (index < 0) return fail('الالتزام غير موجود')
+  const item = state.obligations[index]!
+  state.obligations.splice(index, 1)
+  audit(state, actor, clock, 'حذف التزام مالي', 'obligation', item.id, item.description)
+  return ok(state, 'تم حذف الالتزام المالي بنجاح')
+}
+
+function deleteCustomerRecipe(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.customerRecipes.findIndex((r) => r.id === input.id)
+  if (index < 0) return fail('الوصفة المخصصة غير موجودة')
+  const item = state.customerRecipes[index]!
+  state.customerRecipes.splice(index, 1)
+  audit(state, actor, clock, 'حذف وصفة مخصصة', 'customerRecipe', item.id, item.nameAr)
+  return ok(state, 'تم حذف الوصفة المخصصة بنجاح')
+}
+
+function updateMaintenanceSchedule(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateMaintenanceSchedule' }>['input'], clock: Clock): CommandResult {
+  const item = state.maintenanceSchedules.find((s) => s.id === input.id)
+  if (!item) return fail('جدول الصيانة غير موجود')
+  if (input.machineId !== undefined) item.machineId = input.machineId
+  if (input.type !== undefined) item.type = input.type
+  if (input.description !== undefined) item.description = input.description.trim() || item.description
+  if (input.interval !== undefined) item.interval = input.interval > 0 ? input.interval : item.interval
+  if (input.assignedTo !== undefined) item.assignedTo = input.assignedTo.trim()
+  audit(state, actor, clock, 'تعديل جدول صيانة', 'maintenanceSchedule', item.id, item.description)
+  return ok(state, 'تم تعديل جدول الصيانة بنجاح')
+}
+
+function updateMaintenanceRecord(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateMaintenanceRecord' }>['input'], clock: Clock): CommandResult {
+  const item = state.maintenanceRecords.find((r) => r.id === input.id)
+  if (!item) return fail('سجل الصيانة غير موجود')
+  if (input.description !== undefined) item.description = input.description.trim() || item.description
+  if (input.cost !== undefined) item.cost = money(input.cost)
+  if (input.notes !== undefined) item.notes = input.notes.trim()
+  audit(state, actor, clock, 'تعديل سجل صيانة', 'maintenanceRecord', item.id, item.description)
+  return ok(state, 'تم تعديل سجل الصيانة بنجاح')
+}
+
+function deleteMaintenanceRecord(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.maintenanceRecords.findIndex((r) => r.id === input.id)
+  if (index < 0) return fail('سجل الصيانة غير موجود')
+  const item = state.maintenanceRecords[index]!
+  state.maintenanceRecords.splice(index, 1)
+  audit(state, actor, clock, 'حذف سجل صيانة', 'maintenanceRecord', item.id, item.description)
+  return ok(state, 'تم حذف سجل الصيانة بنجاح')
+}
+
+function updateCompanyDocument(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCompanyDocument' }>['input'], clock: Clock): CommandResult {
+  const item = state.companyDocuments.find((d) => d.id === input.id)
+  if (!item) return fail('الوثيقة غير موجودة')
+  if (input.title !== undefined) item.title = input.title.trim() || item.title
+  if (input.kind !== undefined) item.kind = input.kind
+  if (input.entityType !== undefined) item.entityType = input.entityType
+  if (input.entityId !== undefined) item.entityId = input.entityId
+  if (input.issueDate !== undefined) item.issueDate = input.issueDate
+  if (input.expiryDate !== undefined) item.expiryDate = input.expiryDate
+  if (input.cost !== undefined) item.cost = money(input.cost)
+  if (input.renewalOwnerId !== undefined) item.renewalOwnerId = input.renewalOwnerId
+  if (input.notes !== undefined) item.notes = input.notes.trim()
+  audit(state, actor, clock, 'تعديل وثيقة', 'companyDocument', item.id, item.title)
+  return ok(state, 'تم تعديل الوثيقة بنجاح')
+}
+
+function updateObligation(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateObligation' }>['input'], clock: Clock): CommandResult {
+  const item = state.obligations.find((o) => o.id === input.id)
+  if (!item) return fail('الالتزام غير موجود')
+  if (input.beneficiary !== undefined) item.beneficiary = input.beneficiary.trim() || item.beneficiary
+  if (input.description !== undefined) item.description = input.description.trim() || item.description
+  if (input.kind !== undefined) item.kind = input.kind
+  if (input.total !== undefined) item.total = money(input.total)
+  audit(state, actor, clock, 'تعديل التزام مالي', 'obligation', item.id, item.description)
+  return ok(state, 'تم تعديل الالتزام بنجاح')
+}
+
+function deleteQualitySample(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.qualitySamples.findIndex((s) => s.id === input.id)
+  if (index < 0) return fail('العينة غير موجودة')
+  const item = state.qualitySamples[index]!
+  state.qualitySamples.splice(index, 1)
+  audit(state, actor, clock, 'حذف عينة جودة', 'qualitySample', item.id, item.type)
+  return ok(state, 'تم حذف عينة الجودة بنجاح')
+}
+
+function updateCustomerRecipe(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCustomerRecipe' }>['input'], clock: Clock): CommandResult {
+  const item = state.customerRecipes.find((r) => r.id === input.id)
+  if (!item) return fail('الوصفة المخصصة غير موجودة')
+  if (input.nameAr !== undefined) item.nameAr = input.nameAr.trim() || item.nameAr
+  if (input.salePrice !== undefined) {
+    item.salePrice = money(input.salePrice)
+    item.marginPerTon = money(item.salePrice * 1000 - item.costPerTon)
+  }
+  if (input.baseOutputQty !== undefined && input.baseOutputQty > 0) item.baseOutputQty = qty(input.baseOutputQty)
+  if (input.active !== undefined) item.active = input.active
+  audit(state, actor, clock, 'تعديل وصفة مخصصة', 'customerRecipe', item.id, item.nameAr)
+  return ok(state, 'تم تعديل الوصفة المخصصة بنجاح')
+}
+
+function updateExpense(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateExpense' }>['input'], clock: Clock): CommandResult {
+  const item = state.expenses.find((e) => e.id === input.id)
+  if (!item) return fail('المصروف غير موجود')
+  if (item.status === 'POSTED') return fail('لا يمكن تعديل مصروف تم ترحيله مسبقاً')
+  if (input.category !== undefined) item.category = input.category.trim() || item.category
+  if (input.description !== undefined) item.description = input.description.trim() || item.description
+  if (input.vatTreatment !== undefined) item.vatTreatment = input.vatTreatment
+  if (input.amount !== undefined) {
+    item.amount = money(input.amount)
+    const rate = item.vatTreatment === 'STANDARD' ? (state.company.vatRatePct ?? 5) / 100 : 0
+    item.vatAmount = money(item.amount * rate)
+    item.total = money(item.amount + item.vatAmount)
+  }
+  audit(state, actor, clock, 'تعديل مصروف', 'expense', item.id, item.description)
+  return ok(state, 'تم تعديل المصروف بنجاح')
+}
+
+function deleteExpense(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.expenses.findIndex((e) => e.id === input.id)
+  if (index < 0) return fail('المصروف غير موجود')
+  const item = state.expenses[index]!
+  if (item.status === 'POSTED') return fail('لا يمكن حذف مصروف تم ترحيله مسبقاً')
+  state.expenses.splice(index, 1)
+  audit(state, actor, clock, 'حذف مصروف', 'expense', item.id, item.description)
+  return ok(state, 'تم حذف المصروف بنجاح')
+}
+
+function deletePurchaseRequest(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.purchaseRequests.findIndex((r) => r.id === input.id)
+  if (index < 0) return fail('طلب الشراء غير موجود')
+  const item = state.purchaseRequests[index]!
+  if (item.status === 'APPROVED') return fail('لا يمكن حذف طلب شراء تم اعتماده')
+  state.purchaseRequests.splice(index, 1)
+  audit(state, actor, clock, 'حذف طلب شراء', 'purchaseRequest', item.id, item.number)
+  return ok(state, 'تم حذف طلب الشراء بنجاح')
+}
+
+function deletePurchaseOrder(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.purchaseOrders.findIndex((o) => o.id === input.id)
+  if (index < 0) return fail('أمر الشراء غير موجود')
+  const item = state.purchaseOrders[index]!
+  if (item.status === 'RECEIVED' || item.status === 'PARTIALLY_RECEIVED') {
+    return fail('لا يمكن حذف أمر شراء مستلم')
+  }
+  const hasReceipts = state.goodsReceipts.some((r) => r.purchaseOrderId === item.id)
+  if (hasReceipts) return fail('لا يمكن حذف أمر شراء مسجل له سندات استلام')
+  state.purchaseOrders.splice(index, 1)
+  audit(state, actor, clock, 'حذف أمر شراء', 'purchaseOrder', item.id, item.number)
+  return ok(state, 'تم حذف أمر الشراء بنجاح')
+}
+
+function deleteProductionOrder(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.productionOrders.findIndex((o) => o.id === input.id)
+  if (index < 0) return fail('أمر الإنتاج غير موجود')
+  const item = state.productionOrders[index]!
+  if (item.status === 'COMPLETED') return fail('لا يمكن حذف أمر إنتاج تم إكماله')
+  state.productionOrders.splice(index, 1)
+  audit(state, actor, clock, 'حذف أمر إنتاج', 'productionOrder', item.id, item.number)
+  return ok(state, 'تم حذف أمر الإنتاج بنجاح')
+}
+
+function deleteInvoice(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.invoices.findIndex((i) => i.id === input.id)
+  if (index < 0) return fail('الفاتورة غير موجودة')
+  const item = state.invoices[index]!
+  if (item.status !== 'DRAFT') return fail('لا يمكن حذف فاتورة تم تأكيدها أو سدادها')
+  state.invoices.splice(index, 1)
+  audit(state, actor, clock, 'حذف فاتورة', 'invoice', item.id, item.number)
+  return ok(state, 'تم حذف الفاتورة بنجاح')
+}
+
+function deleteFuelLog(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.fuelLogs.findIndex((f) => f.id === input.id)
+  if (index < 0) return fail('سجل الوقود غير موجود')
+  const item = state.fuelLogs[index]!
+  state.fuelLogs.splice(index, 1)
+  audit(state, actor, clock, 'حذف سجل وقود', 'fuelLog', item.id, String(item.liters))
+  return ok(state, 'تم حذف سجل الوقود بنجاح')
+}
+
+function deleteVehicleService(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.vehicleServices.findIndex((s) => s.id === input.id)
+  if (index < 0) return fail('سجل الصيانة غير موجود')
+  const item = state.vehicleServices[index]!
+  state.vehicleServices.splice(index, 1)
+  audit(state, actor, clock, 'حذف صيانة مركبة', 'vehicleService', item.id, item.description)
+  return ok(state, 'تم حذف صيانة المركبة بنجاح')
+}
+
+function deleteAttendance(state: ErpState, actor: Actor, input: { id: string }, clock: Clock): CommandResult {
+  const index = state.attendance.findIndex((a) => a.id === input.id)
+  if (index < 0) return fail('سجل الحضور غير موجود')
+  const item = state.attendance[index]!
+  state.attendance.splice(index, 1)
+  audit(state, actor, clock, 'حذف سجل حضور', 'attendance', item.id, item.date)
+  return ok(state, 'تم حذف سجل الحضور بنجاح')
 }
 
 function createMaterial(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createMaterial' }>['input'], clock: Clock): CommandResult {

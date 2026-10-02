@@ -7,7 +7,7 @@ import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, PurchasePurpose, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
 
-import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus } from './bits'
 import { QcLimitsEditor } from './screens-qc'
 import type { LiveCtx } from './ctx'
 import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
@@ -167,12 +167,745 @@ function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
+function MaterialEditor({
+  ctx,
+  material,
+  onClose,
+}: {
+  ctx: LiveCtx
+  material: (typeof ctx.state.materials)[number]
+  onClose: () => void
+}) {
+  const [code, setCode] = useState(material.code)
+  const [nameAr, setNameAr] = useState(material.nameAr)
+  const [category, setCategory] = useState(material.category)
+  const [minQty, setMinQty] = useState(String(material.minQty))
+  const [vatTreatment, setVatTreatment] = useState<VatTreatment>(material.vatTreatment)
+  const [barcode, setBarcode] = useState(material.barcode)
+  const [active, setActive] = useState(material.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل مادة خام" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateMaterial', {
+            id: material.id,
+            code,
+            nameAr,
+            category,
+            minQty: Number(minQty),
+            vatTreatment,
+            barcode,
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="التصنيف"><TextInput value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
+        <Field label="الحد الأدنى (كجم)"><TextInput type="number" min="0" step="0.001" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
+        <Field label="الباركود"><TextInput value={barcode} onChange={(e) => setBarcode(e.target.value)} /></Field>
+        <Field label="الضريبة">
+          <SelectInput value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value as VatTreatment)}>
+            <option value="ZERO">صفرية</option>
+            <option value="STANDARD">خاضعة</option>
+            <option value="EXEMPT">معفاة</option>
+          </SelectInput>
+        </Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشطة</option>
+            <option value="false">معطلة</option>
+          </SelectInput>
+        </Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function ProductEditor({
+  ctx,
+  product,
+  onClose,
+}: {
+  ctx: LiveCtx
+  product: (typeof ctx.state.products)[number]
+  onClose: () => void
+}) {
+  const [code, setCode] = useState(product.code)
+  const [nameAr, setNameAr] = useState(product.nameAr)
+  const [salePrice, setSalePrice] = useState(String(product.salePrice))
+  const [bagKg, setBagKg] = useState(String(product.bagKg ?? 50))
+  const [active, setActive] = useState(product.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل منتج نهائي" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateProduct', {
+            id: product.id,
+            code,
+            nameAr,
+            salePrice: Number(salePrice),
+            bagKg: Number(bagKg),
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="سعر البيع / كجم"><TextInput type="number" min="0" step="0.001" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} required /></Field>
+        <Field label="وزن الكيس (كجم)"><TextInput type="number" min="1" step="1" value={bagKg} onChange={(e) => setBagKg(e.target.value)} /></Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشط</option>
+            <option value="false">معطل</option>
+          </SelectInput>
+        </Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function SupplierEditor({
+  ctx,
+  supplier,
+  onClose,
+}: {
+  ctx: LiveCtx
+  supplier: (typeof ctx.state.suppliers)[number]
+  onClose: () => void
+}) {
+  const [nameAr, setNameAr] = useState(supplier.nameAr)
+  const [vatNumber, setVatNumber] = useState(supplier.vatNumber ?? '')
+  const [phone, setPhone] = useState(supplier.phone ?? '')
+  const [email, setEmail] = useState(supplier.email ?? '')
+  const [address, setAddress] = useState(supplier.address ?? '')
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل بيانات مورد" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateSupplier', {
+            id: supplier.id,
+            nameAr,
+            vatNumber,
+            phone,
+            email,
+            address,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="الرقم الضريبي"><TextInput value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></Field>
+        <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+        <Field label="البريد الإلكتروني"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+        <div className="md:col-span-2">
+          <Field label="العنوان"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
+        </div>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function CustomerEditor({
+  ctx,
+  customer,
+  onClose,
+}: {
+  ctx: LiveCtx
+  customer: (typeof ctx.state.customers)[number]
+  onClose: () => void
+}) {
+  const [nameAr, setNameAr] = useState(customer.nameAr)
+  const [vatNumber, setVatNumber] = useState(customer.vatNumber ?? '')
+  const [phone, setPhone] = useState(customer.phone ?? '')
+  const [email, setEmail] = useState(customer.email ?? '')
+  const [address, setAddress] = useState(customer.address ?? '')
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل بيانات عميل" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateCustomer', {
+            id: customer.id,
+            nameAr,
+            vatNumber,
+            phone,
+            email,
+            address,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="الرقم الضريبي"><TextInput value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></Field>
+        <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+        <Field label="البريد الإلكتروني"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+        <div className="md:col-span-2">
+          <Field label="العنوان"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
+        </div>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function SparePartEditor({
+  ctx,
+  part,
+  onClose,
+}: {
+  ctx: LiveCtx
+  part: (typeof ctx.state.spareParts)[number]
+  onClose: () => void
+}) {
+  const [code, setCode] = useState(part.code)
+  const [nameAr, setNameAr] = useState(part.nameAr)
+  const [description, setDescription] = useState(part.description ?? '')
+  const [quantity, setQuantity] = useState(String(part.quantity))
+  const [unitCost, setUnitCost] = useState(String(part.unitCost))
+  const [minStock, setMinStock] = useState(String(part.minStock))
+  const [active, setActive] = useState(part.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل قطعة غيار" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateSparePart', {
+            id: part.id,
+            code,
+            nameAr,
+            description,
+            quantity: Number(quantity),
+            unitCost: Number(unitCost),
+            minStock: Number(minStock),
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="الكمية"><TextInput type="number" min="0" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /></Field>
+        <Field label="تكلفة الوحدة"><TextInput type="number" min="0" step="0.001" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} required /></Field>
+        <Field label="الحد الأدنى"><TextInput type="number" min="0" step="1" value={minStock} onChange={(e) => setMinStock(e.target.value)} required /></Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشطة</option>
+            <option value="false">معطلة</option>
+          </SelectInput>
+        </Field>
+        <div className="md:col-span-2">
+          <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+        </div>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function PackagingMaterialEditor({
+  ctx,
+  material,
+  onClose,
+}: {
+  ctx: LiveCtx
+  material: (typeof ctx.state.packagingMaterials)[number]
+  onClose: () => void
+}) {
+  const [code, setCode] = useState(material.code)
+  const [nameAr, setNameAr] = useState(material.nameAr)
+  const [category, setCategory] = useState(material.category)
+  const [unit, setUnit] = useState(material.unit)
+  const [quantity, setQuantity] = useState(String(material.quantity))
+  const [unitCost, setUnitCost] = useState(String(material.unitCost))
+  const [minStock, setMinStock] = useState(String(material.minStock))
+  const [expectedPerTon, setExpectedPerTon] = useState(material.expectedPerTon ? String(material.expectedPerTon) : '')
+  const [active, setActive] = useState(material.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل مادة تعبئة" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updatePackagingMaterial', {
+            id: material.id,
+            code,
+            nameAr,
+            category,
+            unit,
+            quantity: Number(quantity),
+            unitCost: Number(unitCost),
+            minStock: Number(minStock),
+            expectedPerTon: expectedPerTon ? Number(expectedPerTon) : undefined,
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="التصنيف">
+          <SelectInput value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
+            <option value="BAG">أكياس</option>
+            <option value="THREAD">خيوط</option>
+            <option value="INK">أحبار</option>
+            <option value="LABEL">ملصقات</option>
+            <option value="OTHER">أخرى</option>
+          </SelectInput>
+        </Field>
+        <Field label="الوحدة"><TextInput value={unit} onChange={(e) => setUnit(e.target.value)} required /></Field>
+        <Field label="الكمية"><TextInput type="number" min="0" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /></Field>
+        <Field label="تكلفة الوحدة"><TextInput type="number" min="0" step="0.001" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} required /></Field>
+        <Field label="الحد الأدنى"><TextInput type="number" min="0" step="1" value={minStock} onChange={(e) => setMinStock(e.target.value)} required /></Field>
+        <Field label="معدل استهلاك/طن"><TextInput type="number" min="0" step="0.1" value={expectedPerTon} onChange={(e) => setExpectedPerTon(e.target.value)} /></Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشطة</option>
+            <option value="false">معطلة</option>
+          </SelectInput>
+        </Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function SupplierTemplateEditor({
+  ctx,
+  template,
+  onClose,
+}: {
+  ctx: LiveCtx
+  template: (typeof ctx.state.supplierTemplates)[number]
+  onClose: () => void
+}) {
+  const [nameAr, setNameAr] = useState(template.nameAr)
+  const [kind, setKind] = useState(template.kind)
+  const [subject, setSubject] = useState(template.subject)
+  const [body, setBody] = useState(template.body)
+  const [active, setActive] = useState(template.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل قالب التواصل" onClose={onClose}>
+      <form
+        className="grid gap-3"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateSupplierTemplate', {
+            id: template.id,
+            nameAr,
+            kind,
+            subject,
+            body,
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="النوع">
+          <SelectInput value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+            <option value="QUOTE_REQUEST">طلب عرض سعر</option>
+            <option value="INQUIRY">استفسار</option>
+            <option value="ORDER">أمر</option>
+            <option value="OTHER">أخرى</option>
+          </SelectInput>
+        </Field>
+        <Field label="الموضوع"><TextInput value={subject} onChange={(e) => setSubject(e.target.value)} required /></Field>
+        <Field label="المحتوى"><textarea className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm" value={body} onChange={(e) => setBody(e.target.value)} required /></Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشط</option>
+            <option value="false">معطل</option>
+          </SelectInput>
+        </Field>
+        <div className="flex items-end justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function RecipeEditor({
+  ctx,
+  recipe,
+  onClose,
+}: {
+  ctx: LiveCtx
+  recipe: (typeof ctx.state.recipes)[number]
+  onClose: () => void
+}) {
+  const [nameAr, setNameAr] = useState(recipe.nameAr)
+  const [baseOutputQty, setBaseOutputQty] = useState(String(recipe.baseOutputQty))
+  const [warningPct, setWarningPct] = useState(recipe.varianceWarningPct !== undefined ? String(recipe.varianceWarningPct) : '')
+  const [criticalPct, setCriticalPct] = useState(recipe.varianceCriticalPct !== undefined ? String(recipe.varianceCriticalPct) : '')
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل وصفة الإنتاج" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateRecipe', {
+            id: recipe.id,
+            nameAr,
+            baseOutputQty: Number(baseOutputQty),
+            varianceWarningPct: warningPct ? Number(warningPct) : undefined,
+            varianceCriticalPct: criticalPct ? Number(criticalPct) : undefined,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="اسم الوصفة"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="أساس المخرجات (كجم)"><TextInput type="number" min="0.001" step="0.001" value={baseOutputQty} onChange={(e) => setBaseOutputQty(e.target.value)} required /></Field>
+        <Field label="حد تحذير الانحراف %"><TextInput type="number" step="0.1" value={warningPct} onChange={(e) => setWarningPct(e.target.value)} placeholder="اختياري" /></Field>
+        <Field label="حد الخطر للانحراف %"><TextInput type="number" step="0.1" value={criticalPct} onChange={(e) => setCriticalPct(e.target.value)} placeholder="اختياري" /></Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function CustomerRecipeEditor({
+  ctx,
+  recipe,
+  onClose,
+}: {
+  ctx: LiveCtx
+  recipe: NonNullable<typeof ctx.state.customerRecipes>[number]
+  onClose: () => void
+}) {
+  const [nameAr, setNameAr] = useState(recipe.nameAr)
+  const [salePrice, setSalePrice] = useState(String(recipe.salePrice))
+  const [baseOutputQty, setBaseOutputQty] = useState(String(recipe.baseOutputQty))
+  const [active, setActive] = useState(recipe.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل وصفة العميل المخصصة" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateCustomerRecipe', {
+            id: recipe.id,
+            nameAr,
+            salePrice: Number(salePrice),
+            baseOutputQty: Number(baseOutputQty),
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="اسم الوصفة"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="سعر البيع / كجم"><TextInput type="number" min="0" step="0.001" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} required /></Field>
+        <Field label="أساس المخرجات (كجم)"><TextInput type="number" min="0.001" step="0.001" value={baseOutputQty} onChange={(e) => setBaseOutputQty(e.target.value)} required /></Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشطة</option>
+            <option value="false">معطلة</option>
+          </SelectInput>
+        </Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function MachineEditor({
+  ctx,
+  machine,
+  onClose,
+}: {
+  ctx: LiveCtx
+  machine: (typeof ctx.state.machines)[number]
+  onClose: () => void
+}) {
+  const [code, setCode] = useState(machine.code)
+  const [nameAr, setNameAr] = useState(machine.nameAr)
+  const [type, setType] = useState(machine.type)
+  const [location, setLocation] = useState(machine.location)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل بيانات الآلة" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateMachine', {
+            id: machine.id,
+            code,
+            nameAr,
+            type,
+            location,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="النوع"><TextInput value={type} onChange={(e) => setType(e.target.value)} required /></Field>
+        <Field label="الموقع"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} required /></Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function MaintenanceScheduleEditor({
+  ctx,
+  schedule,
+  onClose,
+}: {
+  ctx: LiveCtx
+  schedule: (typeof ctx.state.maintenanceSchedules)[number]
+  onClose: () => void
+}) {
+  const [machineId, setMachineId] = useState(schedule.machineId)
+  const [type, setType] = useState(schedule.type)
+  const [description, setDescription] = useState(schedule.description)
+  const [interval, setInterval] = useState(String(schedule.interval))
+  const [assignedTo, setAssignedTo] = useState(schedule.assignedTo)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل جدول الصيانة" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateMaintenanceSchedule', {
+            id: schedule.id,
+            machineId,
+            type,
+            description,
+            interval: Number(interval),
+            assignedTo,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الآلة">
+          <SelectInput value={machineId} onChange={(e) => setMachineId(e.target.value)}>
+            {(ctx.state.machines ?? []).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+          </SelectInput>
+        </Field>
+        <Field label="النوع">
+          <SelectInput value={type} onChange={(e) => setType(e.target.value as typeof type)}>
+            <option value="DAILY">يومي</option>
+            <option value="WEEKLY">أسبوعي</option>
+            <option value="MONTHLY">شهري</option>
+            <option value="YEARLY">سنوي</option>
+            <option value="HOURS_BASED">حسب ساعات التشغيل</option>
+          </SelectInput>
+        </Field>
+        <Field label="الفترة"><TextInput type="number" min="1" step="1" value={interval} onChange={(e) => setInterval(e.target.value)} required /></Field>
+        <Field label="المسؤول"><TextInput value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} /></Field>
+        <div className="md:col-span-2">
+          <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+        </div>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function MaintenanceRecordEditor({
+  ctx,
+  record,
+  onClose,
+}: {
+  ctx: LiveCtx
+  record: (typeof ctx.state.maintenanceRecords)[number]
+  onClose: () => void
+}) {
+  const [description, setDescription] = useState(record.description)
+  const [cost, setCost] = useState(String(record.cost))
+  const [notes, setNotes] = useState(record.notes ?? '')
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل سجل الصيانة" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateMaintenanceRecord', {
+            id: record.id,
+            description,
+            cost: Number(cost),
+            notes,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <div className="md:col-span-2">
+          <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
+        </div>
+        <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(e) => setCost(e.target.value)} required /></Field>
+        <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function DistributionPointEditor({
+  ctx,
+  point,
+  onClose,
+}: {
+  ctx: LiveCtx
+  point: (typeof ctx.state.distributionPoints)[number]
+  onClose: () => void
+}) {
+  const [code, setCode] = useState(point.code)
+  const [nameAr, setNameAr] = useState(point.nameAr)
+  const [location, setLocation] = useState(point.location)
+  const [managerId, setManagerId] = useState(point.managerId)
+  const [phone, setPhone] = useState(point.phone)
+  const [active, setActive] = useState(point.active)
+  const [error, setError] = useState('')
+
+  return (
+    <Dialog title="تعديل نقطة التوزيع" onClose={onClose}>
+      <form
+        className="grid gap-3 md:grid-cols-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const res = await ctx.act('updateDistributionPoint', {
+            id: point.id,
+            code,
+            nameAr,
+            location,
+            managerId,
+            phone,
+            active,
+          })
+          if (res.ok) onClose()
+          else setError(res.message)
+        }}
+      >
+        <InlineError message={error} />
+        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+        <Field label="الموقع"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} required /></Field>
+        <Field label="المدير">
+          <SelectInput value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+            {ctx.state.employees.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
+          </SelectInput>
+        </Field>
+        <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} required /></Field>
+        <Field label="الحالة">
+          <SelectInput value={active ? 'true' : 'false'} onChange={(e) => setActive(e.target.value === 'true')}>
+            <option value="true">نشطة</option>
+            <option value="false">معطلة</option>
+          </SelectInput>
+        </Field>
+        <div className="flex items-end md:col-span-2 justify-end gap-2 pt-2">
+          <GhostButton type="button" onClick={onClose}>إلغاء</GhostButton>
+          <PrimaryButton disabled={ctx.pending}>حفظ التعديلات</PrimaryButton>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
 function Materials({ ctx }: { ctx: LiveCtx }) {
   const [code, setCode] = useState('')
   const [nameAr, setNameAr] = useState('')
   const [category, setCategory] = useState('حبوب')
   const [minQty, setMinQty] = useState('1000')
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>('ZERO')
+  const [editingMaterial, setEditingMaterial] = useState<(typeof ctx.state.materials)[number] | null>(null)
+
   return (
     <div className="space-y-4">
     <Card
@@ -212,10 +945,36 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
       }
     >
       <DataTable
-        columns={['الكود', 'الاسم', 'التصنيف', 'الحد الأدنى', 'الضريبة', 'الباركود']}
-        rows={ctx.state.materials.map((item) => [item.code, item.nameAr, item.category, qtyFmt(item.minQty), statusLabel(item.vatTreatment), item.barcode])}
+        columns={['الكود', 'الاسم', 'التصنيف', 'الحد الأدنى', 'الضريبة', 'الباركود', 'الحالة']}
+        rows={ctx.state.materials.map((item) => [
+          item.code,
+          item.nameAr,
+          item.category,
+          qtyFmt(item.minQty),
+          statusLabel(item.vatTreatment),
+          item.barcode,
+          <Badge key={item.id} tone={item.active ? 'good' : 'neutral'}>{item.active ? 'نشطة' : 'معطلة'}</Badge>,
+        ])}
+        rowActions={(_, index) => {
+          const item = ctx.state.materials[index]
+          if (!item) return null
+          return (
+            <RowActions
+              canEdit={can(ctx.permissions, 'inventory.adjust')}
+              canDelete={can(ctx.permissions, 'inventory.adjust')}
+              onEdit={() => setEditingMaterial(item)}
+              onDelete={async () => {
+                await ctx.act('deleteMaterial', { id: item.id })
+              }}
+              deletePrompt={`هل أنت متأكد من حذف المادة الخام "${item.nameAr}"؟`}
+            />
+          )
+        }}
       />
     </Card>
+    {editingMaterial ? (
+      <MaterialEditor ctx={ctx} material={editingMaterial} onClose={() => setEditingMaterial(null)} />
+    ) : null}
     <QcLimitsEditor ctx={ctx} itemType="MATERIAL" />
     </div>
   )
@@ -225,6 +984,8 @@ function Products({ ctx }: { ctx: LiveCtx }) {
   const [code, setCode] = useState('')
   const [nameAr, setNameAr] = useState('')
   const [salePrice, setSalePrice] = useState('0.180')
+  const [editingProduct, setEditingProduct] = useState<(typeof ctx.state.products)[number] | null>(null)
+
   return (
     <div className="space-y-4">
     <Card
@@ -257,10 +1018,35 @@ function Products({ ctx }: { ctx: LiveCtx }) {
       }
     >
       <DataTable
-        columns={['الكود', 'الاسم', 'السعر', 'الضريبة', 'كيس']}
-        rows={ctx.state.products.map((item) => [item.code, item.nameAr, moneyFmt(item.salePrice), statusLabel(item.vatTreatment), `${item.bagKg} كجم`])}
+        columns={['الكود', 'الاسم', 'السعر', 'الضريبة', 'كيس', 'الحالة']}
+        rows={ctx.state.products.map((item) => [
+          item.code,
+          item.nameAr,
+          moneyFmt(item.salePrice),
+          statusLabel(item.vatTreatment),
+          `${item.bagKg} كجم`,
+          <Badge key={item.id} tone={item.active ? 'good' : 'neutral'}>{item.active ? 'نشط' : 'معطل'}</Badge>,
+        ])}
+        rowActions={(_, index) => {
+          const item = ctx.state.products[index]
+          if (!item) return null
+          return (
+            <RowActions
+              canEdit={can(ctx.permissions, 'production.create')}
+              canDelete={can(ctx.permissions, 'production.create')}
+              onEdit={() => setEditingProduct(item)}
+              onDelete={async () => {
+                await ctx.act('deleteProduct', { id: item.id })
+              }}
+              deletePrompt={`هل أنت متأكد من حذف المنتج "${item.nameAr}"؟`}
+            />
+          )
+        }}
       />
     </Card>
+    {editingProduct ? (
+      <ProductEditor ctx={ctx} product={editingProduct} onClose={() => setEditingProduct(null)} />
+    ) : null}
     <QcLimitsEditor ctx={ctx} itemType="PRODUCT" />
     </div>
   )
@@ -576,6 +1362,7 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
   const [usageMachineId, setUsageMachineId] = useState(ctx.state.machines[0]?.id ?? '')
   const [usageQuantity, setUsageQuantity] = useState('')
   const [usageReason, setUsageReason] = useState('')
+  const [editingPart, setEditingPart] = useState<NonNullable<typeof ctx.state.spareParts>[number] | null>(null)
   return (
     <div className="space-y-4">
       <Card title="صرف قطعة غيار" hint="يُخصم الصرف من الرصيد ويُسجل على الماكينة والسبب.">
@@ -659,8 +1446,26 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
             qtyFmt(item.minStock),
             item.quantity <= item.minStock ? <Badge key={`${item.id}-stock`} tone="bad">تحت الحد الأدنى</Badge> : item.active ? 'نشط' : 'موقوف',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.spareParts ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'spareparts.manage')}
+                canDelete={can(ctx.permissions, 'spareparts.manage')}
+                onEdit={() => setEditingPart(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteSparePart', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف قطعة الغيار "${item.nameAr}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingPart ? (
+        <SparePartEditor ctx={ctx} part={editingPart} onClose={() => setEditingPart(null)} />
+      ) : null}
     </div>
   )
 }
@@ -680,6 +1485,7 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
   const availableLots = ctx.state.lots.filter((lot) => !productionOrderId || lot.productionOrderId === productionOrderId)
   const [lotNo, setLotNo] = useState(availableLots[0]?.lotNo ?? '')
   const [consumptionQuantity, setConsumptionQuantity] = useState('')
+  const [editingPkg, setEditingPkg] = useState<NonNullable<typeof ctx.state.packagingMaterials>[number] | null>(null)
   const selectedPackaging = ctx.state.packagingMaterials.find((item) => item.id === consumptionMaterialId)
   const selectedLot = availableLots.find((item) => item.lotNo === lotNo)
   const product = selectedLot ? ctx.state.products.find((item) => item.id === selectedLot.productId) : undefined
@@ -779,6 +1585,21 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
             qtyFmt(item.minStock),
             item.quantity <= item.minStock ? <Badge key={`${item.id}-stock`} tone="bad">تحت الحد الأدنى</Badge> : item.active ? 'نشط' : 'موقوف',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.packagingMaterials ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'packaging.manage')}
+                canDelete={can(ctx.permissions, 'packaging.manage')}
+                onEdit={() => setEditingPkg(item)}
+                onDelete={async () => {
+                  await ctx.act('deletePackagingMaterial', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف مادة التعبئة "${item.nameAr}"؟`}
+              />
+            )
+          }}
         />
         <h4 className="mb-2 mt-5 font-semibold">الاستهلاك والانحراف</h4>
         <DataTable columns={['المادة', 'المتوقع', 'المصروف فعلياً', 'الفارق/الهدر', 'التكلفة']} rows={packagingVarianceSummary(ctx.state).map((summary) => [
@@ -786,6 +1607,9 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
           qtyFmt(summary.expected), qtyFmt(summary.actual), qtyFmt(summary.variance), moneyFmt(summary.cost),
         ])} />
       </Card>
+      {editingPkg ? (
+        <PackagingMaterialEditor ctx={ctx} material={editingPkg} onClose={() => setEditingPkg(null)} />
+      ) : null}
     </div>
   )
 }
@@ -910,35 +1734,59 @@ function Suppliers({ ctx }: { ctx: LiveCtx }) {
   const [nameAr, setNameAr] = useState('')
   const [vatNumber, setVatNumber] = useState('')
   const [phone, setPhone] = useState('')
+  const [editingSupplier, setEditingSupplier] = useState<(typeof ctx.state.suppliers)[number] | null>(null)
   return (
-    <Card
-      title="الموردون"
-      extra={
-        can(ctx.permissions, 'purchasing.po.create') ? (
-          <FormDialog title="مورد جديد" openLabel="إضافة مورد">
-            {(close) => (
-              <form className="grid gap-3" onSubmit={async (event) => {
-                event.preventDefault()
-                const result = await ctx.act('createSupplier', { nameAr, vatNumber, phone })
-                if (result.ok) {
-                  setNameAr('')
-                  setVatNumber('')
-                  setPhone('')
-                  close()
-                }
-              }}>
-                <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
-                <Field label="الرقم الضريبي"><TextInput value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></Field>
-                <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-                <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
-              </form>
-            )}
-          </FormDialog>
-        ) : null
-      }
-    >
-      <DataTable columns={['الكود', 'الاسم', 'الرقم الضريبي', 'الهاتف']} rows={ctx.state.suppliers.map((item) => [item.code, item.nameAr, item.vatNumber || '—', item.phone || '—'])} />
-    </Card>
+    <div className="space-y-4">
+      <Card
+        title="الموردون"
+        extra={
+          can(ctx.permissions, 'purchasing.po.create') ? (
+            <FormDialog title="مورد جديد" openLabel="إضافة مورد">
+              {(close) => (
+                <form className="grid gap-3" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('createSupplier', { nameAr, vatNumber, phone })
+                  if (result.ok) {
+                    setNameAr('')
+                    setVatNumber('')
+                    setPhone('')
+                    close()
+                  }
+                }}>
+                  <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+                  <Field label="الرقم الضريبي"><TextInput value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></Field>
+                  <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+                  <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['الكود', 'الاسم', 'الرقم الضريبي', 'الهاتف']}
+          rows={ctx.state.suppliers.map((item) => [item.code, item.nameAr, item.vatNumber || '—', item.phone || '—'])}
+          rowActions={(_, index) => {
+            const item = ctx.state.suppliers[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'purchasing.po.create')}
+                canDelete={can(ctx.permissions, 'purchasing.po.create')}
+                onEdit={() => setEditingSupplier(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteSupplier', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف المورد "${item.nameAr}"؟`}
+              />
+            )
+          }}
+        />
+      </Card>
+      {editingSupplier ? (
+        <SupplierEditor ctx={ctx} supplier={editingSupplier} onClose={() => setEditingSupplier(null)} />
+      ) : null}
+    </div>
   )
 }
 
@@ -1001,13 +1849,27 @@ function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
             order.number,
             partyName(ctx.state.suppliers, order.supplierId),
             <Badge key={order.id} tone={toneForStatus(order.status)}>{statusLabel(order.status)}</Badge>,
-            <span key={`${order.id}-p`} className="flex flex-wrap gap-2">
+            <span key={`${order.id}-p`} className="flex flex-wrap items-center justify-center gap-2">
               <a className="text-sm font-bold text-[#1d7f72]" href={`/print/po/${order.id}`} target="_blank" rel="noreferrer">طباعة</a>
               {order.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'purchasing.po.approve') ? (
                 <GhostButton type="button" onClick={() => ctx.act('decidePurchaseOrder', { id: order.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
               ) : null}
             </span>,
           ])}
+          rowActions={(_, index) => {
+            const order = ctx.state.purchaseOrders[index]
+            if (!order) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'purchasing.po.create') && order.status !== 'RECEIVED'}
+                onDelete={async () => {
+                  await ctx.act('deletePurchaseOrder', { id: order.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف أمر الشراء "${order.number}"؟`}
+              />
+            )
+          }}
         />
       </Card>
     </div>
@@ -1169,6 +2031,20 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
             item.approvalTier === 'GM' ? 'المدير العام' : 'التشغيل',
             <button key={`${item.id}-open`} type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => { setSelectedId(item.id); resetQuoteForm() }}>عرض</button>,
           ])}
+          rowActions={(_, index) => {
+            const item = ctx.state.purchaseRequests[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'purchasing.pr.create') && item.status !== 'CONVERTED'}
+                onDelete={async () => {
+                  await ctx.act('deletePurchaseRequest', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف طلب الشراء "${item.number}"؟`}
+              />
+            )
+          }}
         />
       </Card>
 
@@ -1332,6 +2208,7 @@ function SupplierTemplates({ ctx }: { ctx: LiveCtx }) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [kind, setKind] = useState<'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER'>('QUOTE_REQUEST')
+  const [editingTemplate, setEditingTemplate] = useState<(NonNullable<typeof ctx.state.supplierTemplates>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -1376,8 +2253,26 @@ function SupplierTemplates({ ctx }: { ctx: LiveCtx }) {
             item.subject,
             item.active ? 'نشط' : 'موقوف',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.supplierTemplates ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'suppliers.communicate')}
+                canDelete={can(ctx.permissions, 'suppliers.communicate')}
+                onEdit={() => setEditingTemplate(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteSupplierTemplate', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف القالب "${item.nameAr}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingTemplate ? (
+        <SupplierTemplateEditor ctx={ctx} template={editingTemplate} onClose={() => setEditingTemplate(null)} />
+      ) : null}
     </div>
   )
 }
@@ -1492,6 +2387,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
   const [nameAr, setNameAr] = useState('وصفة جديدة')
   const [baseOutputQty, setBaseOutputQty] = useState('1000')
   const [qtys, setQtys] = useState<Record<string, string>>({})
+  const [editingRecipe, setEditingRecipe] = useState<(typeof ctx.state.recipes)[number] | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -1543,8 +2439,26 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
             qtyFmt(recipe.baseOutputQty),
             recipe.items.map((item) => `${materialName(ctx.state, item.materialId)} ${qtyFmt(item.qty)}`).join('، '),
           ])}
+          rowActions={(_, index) => {
+            const recipe = ctx.state.recipes[index]
+            if (!recipe) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'production.create')}
+                canDelete={can(ctx.permissions, 'production.create')}
+                onEdit={() => setEditingRecipe(recipe)}
+                onDelete={async () => {
+                  await ctx.act('deleteRecipe', { id: recipe.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الوصفة "${recipe.nameAr}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingRecipe ? (
+        <RecipeEditor ctx={ctx} recipe={editingRecipe} onClose={() => setEditingRecipe(null)} />
+      ) : null}
     </div>
   )
 }
@@ -1655,6 +2569,20 @@ function Production({ ctx }: { ctx: LiveCtx }) {
               <GhostButton key={`${order.id}-done`} type="button" onClick={() => setCompletingId(order.id)}>إكمال</GhostButton>
             ) : '—',
           ])}
+          rowActions={(_, index) => {
+            const order = ctx.state.productionOrders[index]
+            if (!order) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'production.create') && order.status !== 'COMPLETED'}
+                onDelete={async () => {
+                  await ctx.act('deleteProductionOrder', { id: order.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف أمر الإنتاج "${order.number}"؟`}
+              />
+            )
+          }}
         />
       </Card>
       <VarianceThresholdsEditor ctx={ctx} />
@@ -1766,6 +2694,7 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
   const [nameAr, setNameAr] = useState('')
   const [baseOutputQty, setBaseOutputQty] = useState('1000')
   const [salePrice, setSalePrice] = useState('')
+  const [editingCustomerRecipe, setEditingCustomerRecipe] = useState<(NonNullable<typeof ctx.state.customerRecipes>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -1826,8 +2755,26 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(item.marginPerTon),
             item.active ? 'نشط' : 'موقوف',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.customerRecipes ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'recipes.custom')}
+                canDelete={can(ctx.permissions, 'recipes.custom')}
+                onEdit={() => setEditingCustomerRecipe(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteCustomerRecipe', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الوصفة المخصصة "${item.nameAr}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingCustomerRecipe ? (
+        <CustomerRecipeEditor ctx={ctx} recipe={editingCustomerRecipe} onClose={() => setEditingCustomerRecipe(null)} />
+      ) : null}
     </div>
   )
 }
@@ -1871,6 +2818,7 @@ function Machines({ ctx }: { ctx: LiveCtx }) {
   const [nameAr, setNameAr] = useState('')
   const [type, setType] = useState('')
   const [location, setLocation] = useState('')
+  const [editingMachine, setEditingMachine] = useState<(NonNullable<typeof ctx.state.machines>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -1912,8 +2860,26 @@ function Machines({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(machineCostsByMachine(ctx.state).find((cost) => cost.machineId === item.id)?.totalCost ?? 0),
             item.active ? 'نشط' : 'موقوف',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.machines ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'maintenance.manage')}
+                canDelete={can(ctx.permissions, 'maintenance.manage')}
+                onEdit={() => setEditingMachine(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteMachine', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الآلة "${item.nameAr}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingMachine ? (
+        <MachineEditor ctx={ctx} machine={editingMachine} onClose={() => setEditingMachine(null)} />
+      ) : null}
     </div>
   )
 }
@@ -1924,6 +2890,7 @@ function MaintenanceSchedules({ ctx }: { ctx: LiveCtx }) {
   const [description, setDescription] = useState('')
   const [interval, setInterval] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
+  const [editingSchedule, setEditingSchedule] = useState<(NonNullable<typeof ctx.state.maintenanceSchedules>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -1982,8 +2949,26 @@ function MaintenanceSchedules({ ctx }: { ctx: LiveCtx }) {
             item.nextDue.slice(0, 10),
             item.assignedTo,
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.maintenanceSchedules ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'maintenance.manage')}
+                canDelete={can(ctx.permissions, 'maintenance.manage')}
+                onEdit={() => setEditingSchedule(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteMaintenanceSchedule', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف جدول الصيانة "${item.description}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingSchedule ? (
+        <MaintenanceScheduleEditor ctx={ctx} schedule={editingSchedule} onClose={() => setEditingSchedule(null)} />
+      ) : null}
     </div>
   )
 }
@@ -2000,6 +2985,7 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
   const [sparePartId, setSparePartId] = useState('')
   const [sparePartQuantity, setSparePartQuantity] = useState('')
   const [notes, setNotes] = useState('')
+  const [editingRecord, setEditingRecord] = useState<(NonNullable<typeof ctx.state.maintenanceRecords>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -2077,8 +3063,26 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
             String(item.downtimeMinutes),
             ctx.state.users.find((user) => user.id === item.performedBy)?.fullName ?? item.performedBy,
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.maintenanceRecords ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'maintenance.manage')}
+                canDelete={can(ctx.permissions, 'maintenance.manage')}
+                onEdit={() => setEditingRecord(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteMaintenanceRecord', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف سجل الصيانة "${item.description}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingRecord ? (
+        <MaintenanceRecordEditor ctx={ctx} record={editingRecord} onClose={() => setEditingRecord(null)} />
+      ) : null}
     </div>
   )
 }
@@ -2116,35 +3120,59 @@ function Customers({ ctx }: { ctx: LiveCtx }) {
   const [nameAr, setNameAr] = useState('')
   const [vatNumber, setVatNumber] = useState('')
   const [address, setAddress] = useState('')
+  const [editingCustomer, setEditingCustomer] = useState<(typeof ctx.state.customers)[number] | null>(null)
   return (
-    <Card
-      title="العملاء"
-      extra={
-        can(ctx.permissions, 'sales.create') ? (
-          <FormDialog title="عميل جديد" openLabel="إضافة عميل">
-            {(close) => (
-              <form className="grid gap-3" onSubmit={async (event) => {
-                event.preventDefault()
-                const result = await ctx.act('createCustomer', { nameAr, vatNumber, address })
-                if (result.ok) {
-                  setNameAr('')
-                  setVatNumber('')
-                  setAddress('')
-                  close()
-                }
-              }}>
-                <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
-                <Field label="الرقم الضريبي"><TextInput value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></Field>
-                <Field label="العنوان"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
-                <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
-              </form>
-            )}
-          </FormDialog>
-        ) : null
-      }
-    >
-      <DataTable columns={['الكود', 'الاسم', 'الرقم الضريبي', 'العنوان']} rows={ctx.state.customers.map((item) => [item.code, item.nameAr, item.vatNumber || '—', item.address || '—'])} />
-    </Card>
+    <div className="space-y-4">
+      <Card
+        title="العملاء"
+        extra={
+          can(ctx.permissions, 'sales.create') ? (
+            <FormDialog title="عميل جديد" openLabel="إضافة عميل">
+              {(close) => (
+                <form className="grid gap-3" onSubmit={async (event) => {
+                  event.preventDefault()
+                  const result = await ctx.act('createCustomer', { nameAr, vatNumber, address })
+                  if (result.ok) {
+                    setNameAr('')
+                    setVatNumber('')
+                    setAddress('')
+                    close()
+                  }
+                }}>
+                  <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
+                  <Field label="الرقم الضريبي"><TextInput value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></Field>
+                  <Field label="العنوان"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
+                  <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
+                </form>
+              )}
+            </FormDialog>
+          ) : null
+        }
+      >
+        <DataTable
+          columns={['الكود', 'الاسم', 'الرقم الضريبي', 'العنوان']}
+          rows={ctx.state.customers.map((item) => [item.code, item.nameAr, item.vatNumber || '—', item.address || '—'])}
+          rowActions={(_, index) => {
+            const item = ctx.state.customers[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'sales.create')}
+                canDelete={can(ctx.permissions, 'sales.create')}
+                onEdit={() => setEditingCustomer(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteCustomer', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف العميل "${item.nameAr}"؟`}
+              />
+            )
+          }}
+        />
+      </Card>
+      {editingCustomer ? (
+        <CustomerEditor ctx={ctx} customer={editingCustomer} onClose={() => setEditingCustomer(null)} />
+      ) : null}
+    </div>
   )
 }
 
@@ -2217,6 +3245,20 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
               ) : null}
             </span>,
           ])}
+          rowActions={(_, index) => {
+            const invoice = ctx.state.invoices[index]
+            if (!invoice) return null
+            return (
+              <RowActions
+                canEdit={false}
+                canDelete={can(ctx.permissions, 'sales.create') && invoice.status === 'DRAFT'}
+                onDelete={async () => {
+                  await ctx.act('deleteInvoice', { id: invoice.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف الفاتورة "${invoice.number}"؟`}
+              />
+            )
+          }}
         />
         <div className="mt-3"><InlineError message={confirmError} /></div>
       </Card>
@@ -2307,6 +3349,7 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
   const [location, setLocation] = useState('')
   const [managerId, setManagerId] = useState('')
   const [phone, setPhone] = useState('')
+  const [editingPoint, setEditingPoint] = useState<(NonNullable<typeof ctx.state.distributionPoints>[number]) | null>(null)
   return (
     <div className="space-y-4">
       <Card
@@ -2359,8 +3402,26 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
             item.phone,
             item.active ? 'نشط' : 'موقوف',
           ])}
+          rowActions={(_, index) => {
+            const item = (ctx.state.distributionPoints ?? [])[index]
+            if (!item) return null
+            return (
+              <RowActions
+                canEdit={can(ctx.permissions, 'distribution.manage')}
+                canDelete={can(ctx.permissions, 'distribution.manage')}
+                onEdit={() => setEditingPoint(item)}
+                onDelete={async () => {
+                  await ctx.act('deleteDistributionPoint', { id: item.id })
+                }}
+                deletePrompt={`هل أنت متأكد من حذف نقطة التوزيع "${item.nameAr}"؟`}
+              />
+            )
+          }}
         />
       </Card>
+      {editingPoint ? (
+        <DistributionPointEditor ctx={ctx} point={editingPoint} onClose={() => setEditingPoint(null)} />
+      ) : null}
     </div>
   )
 }

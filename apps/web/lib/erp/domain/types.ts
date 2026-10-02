@@ -1270,6 +1270,50 @@ export type Command =
   | { action: 'createCompanyDocument'; input: { title: string; kind: CompanyDocument['kind']; entityType?: CompanyDocument['entityType']; entityId?: string; issueDate: string; expiryDate?: string; cost?: number; renewalOwnerId?: string; notes?: string; attachmentId?: string } }
   | { action: 'renewCompanyDocument'; input: { id: string; issueDate: string; expiryDate?: string; cost?: number; notes?: string; attachmentId?: string } }
   | { action: 'addCompanyDocumentAttachment'; input: { documentId: string; id: string; fileName: string; mediaType: CompanyDocumentAttachment['mediaType']; sizeBytes: number } }
+  | { action: 'updateMaterial'; input: { id: string; code?: string; nameAr?: string; category?: string; unit?: string; minQty?: number; vatTreatment?: VatTreatment; barcode?: string; active?: boolean } }
+  | { action: 'deleteMaterial'; input: { id: string } }
+  | { action: 'updateProduct'; input: { id: string; code?: string; nameAr?: string; unit?: string; salePrice?: number; vatTreatment?: VatTreatment; barcode?: string; bagKg?: number; varianceWarningPct?: number; varianceCriticalPct?: number; active?: boolean } }
+  | { action: 'deleteProduct'; input: { id: string } }
+  | { action: 'updateSupplier'; input: { id: string; nameAr?: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
+  | { action: 'deleteSupplier'; input: { id: string } }
+  | { action: 'updateCustomer'; input: { id: string; nameAr?: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
+  | { action: 'deleteCustomer'; input: { id: string } }
+  | { action: 'deleteEmployee'; input: { id: string } }
+  | { action: 'deleteVehicle'; input: { id: string } }
+  | { action: 'updateMachine'; input: { id: string; code?: string; nameAr?: string; type?: string; location?: string } }
+  | { action: 'deleteMachine'; input: { id: string } }
+  | { action: 'updateSparePart'; input: { id: string; code?: string; nameAr?: string; description?: string; minStock?: number; quantity?: number; unitCost?: number; machineIds?: string[]; active?: boolean } }
+  | { action: 'deleteSparePart'; input: { id: string } }
+  | { action: 'updatePackagingMaterial'; input: { id: string; code?: string; nameAr?: string; category?: PackagingMaterial['category']; unit?: string; minStock?: number; quantity?: number; unitCost?: number; expectedPerTon?: number; active?: boolean } }
+  | { action: 'deletePackagingMaterial'; input: { id: string } }
+  | { action: 'updateDistributionPoint'; input: { id: string; code?: string; nameAr?: string; location?: string; managerId?: string; phone?: string; active?: boolean } }
+  | { action: 'deleteDistributionPoint'; input: { id: string } }
+  | { action: 'updateRecipe'; input: { id: string; nameAr?: string; baseOutputQty?: number; varianceWarningPct?: number; varianceCriticalPct?: number } }
+  | { action: 'deleteRecipe'; input: { id: string } }
+  | { action: 'updateUser'; input: { id: string; fullName?: string; email?: string; role?: RoleKey; active?: boolean } }
+  | { action: 'deleteUser'; input: { id: string } }
+  | { action: 'deleteMaintenanceSchedule'; input: { id: string } }
+  | { action: 'updateSupplierTemplate'; input: { id: string; nameAr?: string; subject?: string; body?: string; kind?: SupplierTemplate['kind']; active?: boolean } }
+  | { action: 'deleteSupplierTemplate'; input: { id: string } }
+  | { action: 'deleteCompanyDocument'; input: { id: string } }
+  | { action: 'updateCompanyDocument'; input: { id: string; title?: string; kind?: CompanyDocument['kind']; entityType?: CompanyDocument['entityType']; entityId?: string; issueDate?: string; expiryDate?: string; cost?: number; renewalOwnerId?: string; notes?: string } }
+  | { action: 'deleteObligation'; input: { id: string } }
+  | { action: 'updateObligation'; input: { id: string; beneficiary?: string; description?: string; kind?: Obligation['kind']; total?: number } }
+  | { action: 'deleteCustomerRecipe'; input: { id: string } }
+  | { action: 'updateCustomerRecipe'; input: { id: string; nameAr?: string; salePrice?: number; baseOutputQty?: number; active?: boolean } }
+  | { action: 'updateMaintenanceSchedule'; input: { id: string; machineId?: string; type?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'HOURS_BASED'; description?: string; interval?: number; assignedTo?: string } }
+  | { action: 'updateMaintenanceRecord'; input: { id: string; description?: string; cost?: number; notes?: string } }
+  | { action: 'deleteMaintenanceRecord'; input: { id: string } }
+  | { action: 'deleteQualitySample'; input: { id: string } }
+  | { action: 'updateExpense'; input: { id: string; category?: string; description?: string; amount?: number; vatTreatment?: VatTreatment } }
+  | { action: 'deleteExpense'; input: { id: string } }
+  | { action: 'deletePurchaseRequest'; input: { id: string } }
+  | { action: 'deletePurchaseOrder'; input: { id: string } }
+  | { action: 'deleteProductionOrder'; input: { id: string } }
+  | { action: 'deleteInvoice'; input: { id: string } }
+  | { action: 'deleteFuelLog'; input: { id: string } }
+  | { action: 'deleteVehicleService'; input: { id: string } }
+  | { action: 'deleteAttendance'; input: { id: string } }
 
 export type CommandOk = {
   ok: true
