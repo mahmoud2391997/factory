@@ -1737,7 +1737,7 @@ function updateEmployee(state: ErpState, actor: Actor, input: Extract<Command, {
 function createRecipe(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createRecipe' }>['input'], clock: Clock): CommandResult {
   if (!findProduct(state, input.productId)) return fail('المنتج غير موجود')
   if (input.baseOutputQty <= 0) return fail('كمية المخرجات الأساسية يجب أن تكون أكبر من صفر')
-  if (input.items.length === 0) return fail('أضف مكو��ات الوصفة')
+  if (input.items.length === 0) return fail('أضف مكونات الوصفة')
   for (const item of input.items) {
     if (!findMaterial(state, item.materialId)) return fail('إحدى المواد غير موجودة')
     if (item.qty <= 0) return fail('كمية المكوّن يجب أن تكون أكبر من صفر')
@@ -2143,7 +2143,7 @@ function receiveGoods(state: ErpState, actor: Actor, input: Extract<Command, { a
 
 function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { action: 'transferStock' }>['input'], clock: Clock): CommandResult {
   if (input.from === input.to) return fail('لا يمكن التحويل إلى نفس المستودع')
-  if (input.lines.length === 0) return fail('أضف ��نود التحويل')
+  if (input.lines.length === 0) return fail('أضف بنود التحويل')
   const at = clock.now()
   const transfer = {
     id: clock.id('tr'),
@@ -2459,7 +2459,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const product = findProduct(state, order.productId)
   const manual = input.costLines ?? []
   for (const line of manual) {
-    if (!Number.isFinite(line.amount) || line.amount < 0) return fail('��بلغ بند التكلفة غير صحيح')
+    if (!Number.isFinite(line.amount) || line.amount < 0) return fail('مبلغ بند التكلفة غير صحيح')
   }
   const threshold = state.company.costApprovalThreshold ?? 0
   const pendingManual = manual.filter((line) => money(line.amount) > threshold)
@@ -2987,7 +2987,7 @@ function recordAttendance(state: ErpState, actor: Actor, input: Extract<Command,
     source: input.source ?? 'MANUAL',
   }
   state.attendance.unshift(row)
-  audit(state, actor, clock, 'تسجيل حضو��', 'attendance', row.id, input.date)
+  audit(state, actor, clock, 'تسجيل حضور', 'attendance', row.id, input.date)
   return ok(state, 'تم تسجيل الحضور')
 }
 
@@ -3506,7 +3506,7 @@ function holdLot(state: ErpState, actor: Actor, input: Extract<Command, { action
   if (!lot) return fail('دفعة الإنتاج غير موجودة')
   if (!input.reason.trim()) return fail('سبب الحجر مطلوب')
   const previous = latestQualityHold(state, 'LOT', lot.lotNo)
-  if (previous?.status === 'HELD' || previous?.status === 'RECALLED') return fail('الدفعة محجورة أو مستدعاة با��فعل')
+  if (previous?.status === 'HELD' || previous?.status === 'RECALLED') return fail('الدفعة محجورة أو مستدعاة بالفعل')
   const hold = createQualityHold(state, actor, clock, { targetType: 'LOT', lotNo: lot.lotNo, batchNo: lot.lotNo, status: 'HELD', reason: input.reason })
   audit(state, actor, clock, 'حجر دفعة إنتاج', 'qualityHold', hold.id, `${lot.lotNo}: ${hold.reason}`)
   return ok(state, 'تم حجر دفعة الإنتاج')
@@ -5239,7 +5239,7 @@ function setCustomerPricing(state: ErpState, actor: Actor, input: Extract<Comman
   })
 
   audit(state, actor, clock, 'تعديل سعر عميل', 'product', product.id, `${customer.nameAr}: ${input.price}`)
-  return ok(state, 'تم حفظ سعر ال��ميل')
+  return ok(state, 'تم حفظ سعر العميل')
 }
 
 function setAlternativeBagWeights(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setAlternativeBagWeights' }>['input'], clock: Clock): CommandResult {

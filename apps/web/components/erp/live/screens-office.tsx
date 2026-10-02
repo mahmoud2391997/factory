@@ -577,7 +577,7 @@ function Journals({ ctx }: { ctx: LiveCtx }) {
           entry.number,
           entry.at.slice(0, 10),
           entry.memo,
-          entry.lines.map((line) => `${line.accountCode} مدين ${moneyFmt(line.debit)} / دائ�� ${moneyFmt(line.credit)}`).join(' — '),
+          entry.lines.map((line) => `${line.accountCode} مدين ${moneyFmt(line.debit)} / دائن ${moneyFmt(line.credit)}`).join(' — '),
         ])}
       />
     </Card>
@@ -2061,7 +2061,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
       ) : null}
 
       {access.quality ? (
-        <Card title="الجودة" hint="المرفوض والمعلّق بانتظار إجراء، و��سبة القبول خلال شهر التشغيل." extra={<GhostButton type="button" onClick={() => ctx.navigate('qualitySample')}>العينات</GhostButton>}>
+        <Card title="الجودة" hint="المرفوض والمعلّق بانتظار إجراء، ونسبة القبول خلال شهر التشغيل." extra={<GhostButton type="button" onClick={() => ctx.navigate('qualitySample')}>العينات</GhostButton>}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Metric label="بانتظار إجراء" value={String(status.qc.awaiting.length)} tone={status.qc.awaiting.length ? 'bad' : 'good'} />
             <Metric label="نسبة القبول الشهرية" value={status.qc.monthPassRate == null ? '—' : pctFmt(status.qc.monthPassRate)} hint={status.qc.monthSamples ? `${status.qc.monthSamples} عينة` : 'لا عينات'} />
