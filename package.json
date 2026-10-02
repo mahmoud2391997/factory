@@ -10,10 +10,20 @@
     "dev:web": "npm run dev --workspace=@erp/web",
     "build": "npm run build --workspace=@erp/web",
     "build:web": "npm run build --workspace=@erp/web",
+    "vercel-build": "npm run build --workspace=@erp/web",
     "start": "npm run start --workspace=@erp/web",
     "start:web": "npm run start --workspace=@erp/web",
     "lint": "npm run lint --workspace=@erp/web",
     "test:erp": "tsx --test \"apps/web/**/*.test.ts\""
+  },
+  "packageManager": "pnpm@9.15.4",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
   },
   "devDependencies": {
     "tsx": "^4.23.15"

@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "next build",
+    "vercel-build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
-    "@erp/database": "*",
+    "@erp/database": "workspace:*",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
