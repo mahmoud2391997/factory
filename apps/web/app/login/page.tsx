@@ -197,6 +197,23 @@ export default function LoginPage() {
               {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
               دخول النظام
             </button>
+
+            {!healthLoading && health?.demoMode ? (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() =>
+                  signIn(
+                    health.demoCredentials?.email ?? 'admin@factory.local',
+                    health.demoCredentials?.password ?? 'Admin123!',
+                  )
+                }
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#19725f] bg-[#f0faf7] text-sm font-semibold text-[#19725f] transition hover:bg-[#e3f5ef] disabled:opacity-60"
+              >
+                {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
+                دخول تجريبي ببيانات وهمية
+              </button>
+            ) : null}
           </form>
 
           <p className="mt-5 text-center text-[13px] leading-5 text-[#6b7280]">
