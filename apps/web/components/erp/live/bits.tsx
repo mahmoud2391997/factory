@@ -61,9 +61,11 @@ export function ExportLinks({ href }: { href: string }) {
 export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
   const { language } = useLanguage()
   const filterId = useId()
+  const selectId = useId()
   const [sort, setSort] = useState<{ index: number; dir: 'asc' | 'desc' } | null>(null)
   const [page, setPage] = useState(0)
   const [query, setQuery] = useState('')
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const filtered = query.trim()
     ? rows.filter((row) => row.some((cell) => cellText(cell).toLocaleLowerCase('ar').includes(query.trim().toLocaleLowerCase('ar'))))
     : rows
@@ -75,6 +77,8 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const visible = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
+  const visibleIndexes = visible.map((row) => rows.indexOf(row))
+  const allVisibleSelected = visibleIndexes.length > 0 && visibleIndexes.every((index) => selectedRows.has(index))
 
   return (
     <div className="space-y-3">
@@ -93,6 +97,21 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
         <table className="w-full min-w-[640px] text-center text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] text-[#1f1f1f]">
+              <th className="w-12 px-2 py-2 text-center">
+                <label className="sr-only" htmlFor={selectId}>{translateUiText(language, 'تحديد كل الصفوف')}</label>
+                <input
+                  id={selectId}
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  aria-label={translateUiText(language, 'تحديد كل الصفوف')}
+                  onChange={() => setSelectedRows((current) => {
+                    const next = new Set(current)
+                    if (allVisibleSelected) visibleIndexes.forEach((index) => next.delete(index))
+                    else visibleIndexes.forEach((index) => next.add(index))
+                    return next
+                  })}
+                />
+              </th>
               {columns.map((column, index) => {
                 const active = sort?.index === index
                 const label = translateUiText(language, column)
@@ -120,20 +139,34 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="py-10 text-center">
+                <td colSpan={columns.length + 1} className="py-10 text-center">
                   <p className="text-base font-medium text-[#1f1f1f]">{translateUiText(language, 'لا توجد سجلات')}</p>
                 </td>
               </tr>
             ) : (
-              visible.map((row, index) => (
-                <tr key={`${safePage}-${index}`} className="border-b border-[#f3f4f6] last:border-0">
+                  visible.map((row, index) => {
+                const originalIndex = visibleIndexes[index] ?? -1
+                return <tr key={`${safePage}-${index}`} className="border-b border-[#f3f4f6] last:border-0">
+                  <td className="w-12 px-2 py-3 text-center align-middle">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(originalIndex)}
+                      aria-label={`${translateUiText(language, 'تحديد الصف')} ${index + 1}`}
+                      onChange={() => setSelectedRows((current) => {
+                        const next = new Set(current)
+                        if (next.has(originalIndex)) next.delete(originalIndex)
+                        else next.add(originalIndex)
+                        return next
+                      })}
+                    />
+                  </td>
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex} className="px-2 py-3 text-center align-middle">
                       <LocalizedContent>{cell}</LocalizedContent>
                     </td>
                   ))}
                 </tr>
-              ))
+              })
             )}
           </tbody>
         </table>

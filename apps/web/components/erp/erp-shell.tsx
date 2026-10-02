@@ -447,8 +447,14 @@ export function ErpShell() {
                       {notices.length === 0 ? <p className="text-sm text-[#6b7280]">{uiLabel('لا توجد إشعارات')}</p> : null}
                       {notices.slice(0, 8).map((item) => (
                         <div key={item.id} className="rounded-lg border border-[#e5e7eb] p-3">
-                          <div className="font-medium">{uiLabel(item.title)}</div>
-                          <div className="text-sm text-[#6b7280]">{uiLabel(item.body)}</div>
+                          <Link
+                            href="/notifications"
+                            onClick={() => setNoticesOpen(false)}
+                            className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
+                          >
+                            <div className="font-medium">{uiLabel(item.title)}</div>
+                            <div className="text-sm text-[#6b7280]">{uiLabel(item.body)}</div>
+                          </Link>
                           {!item.read && liveCtx ? (
                             <button
                               type="button"
