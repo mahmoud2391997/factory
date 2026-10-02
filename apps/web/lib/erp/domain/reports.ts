@@ -330,7 +330,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
   )
   const monthSamples = samples.filter((sample) => {
     const sampleDay = muscatDay(sample.sampledAt)
-    return sampleDay.slice(0, 7) === month && sampleDay <= day && sample.result !== 'PENDING'
+    return sampleDay.slice(0, 7) === month && sample.result !== 'PENDING'
   })
   const monthPassed = monthSamples.filter((sample) => sample.result === 'PASSED').length
   const monthLots = (state.lots ?? []).filter((lot) => {

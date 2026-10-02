@@ -396,6 +396,9 @@ export function buildSeedState(passwordHash = 'seed-hash', now?: Date | string):
   const invoice = state.invoices[0]!
   state = step(state, clock, { action: 'confirmInvoice', input: { id: invoice.id } })
   state = step(state, clock, { action: 'recordPayment', input: { invoiceId: invoice.id, amount: 50, method: 'تحويل بنكي' } })
+  const seededPayment = state.payments[0]
+  const seededCompletion = state.productionOrders.find((order) => order.id === production.id)?.completedAt
+  if (seededPayment && seededCompletion) seededPayment.at = seededCompletion
 
   state = step(state, clock, {
     action: 'createPurchaseOrder',
