@@ -740,7 +740,7 @@ export const ERP_NAV: ErpMainTab[] = [
   main('spare-parts', 'مخزن قطع الغيار', Package, [
     screen('inventoryExtensions', 'القطع والأكواد والصرف والحد الأدنى والماكينة', 'spare-parts', 'شاشة المخزون الإضافي الحالية تشمل قطع الغيار ومواد التعبئة.'),
   ]),
-  main('packaging', 'مخزن مواد التعبئة والتشغيل', Boxes, [
+  main('packaging', 'مخزن مواد التعبئة والتشغيل', Package, [
     screen('inventoryExtensions', 'الأكياس والخيوط والحبر والأوراق والملصقات', 'packaging-stock', 'المخزون الإضافي الحالي؛ صرف التعبئة والجرد مرتبطان بأوامر الإنتاج.'),
   ]),
   main('supplier-communications', 'التواصل مع الموردين', MessageSquare, [
@@ -762,7 +762,7 @@ export const ERP_NAV: ErpMainTab[] = [
   main('customer-recipes', 'خلطات العملاء', Users, [
     screen('customerRecipe', 'وصفات العملاء والأسعار الخاصة', 'customer-recipes'),
   ]),
-  main('distribution', 'نقاط التوزيع', Route, [
+  main('distribution', 'نقاط التوزيع', Truck, [
     screen('distribution', 'التوزيع', 'distribution-hub'),
     screen('distributionPoint', 'نقاط التوزيع وأرصدة كل نقطة', 'distribution-points'),
     screen('barcode', 'مسح الباركود', 'distribution-barcode'),
@@ -774,7 +774,7 @@ export const ERP_NAV: ErpMainTab[] = [
   main('utilities', 'الكهرباء والماء والغاز', Droplets, [
     screen('utilitiesReading', 'قراءات المرافق والاستهلاك لكل طن والمقارنة الشهرية', 'utilities-readings'),
   ]),
-  main('documents', 'التصاريح والعقود والوثائق', FileArchive, [
+  main('documents', 'التصاريح والعقود والوثائق', FileText, [
     screen('documents', 'الوثائق والتراخيص والملكية والتأمين والعقود والإيجارات', 'company-documents'),
   ]),
   main('employees', 'الموظفون', Users, [
@@ -796,7 +796,7 @@ export const ERP_NAV: ErpMainTab[] = [
     screen('qualitySample', 'عينات الخام والمنتج والتحليل المخبري', 'quality-samples'),
     screen('supplierQuality', 'مقارنة الجودة والمواصفة وجودة الموردين', 'supplier-quality'),
   ]),
-  main('batch-tracking', 'تتبع الدفعات والهدر', ClipboardList, [
+  main('batch-tracking', 'تتبع الدفعات والهدر', ClipboardCheck, [
     screen('lotTrace', 'تتبع الخامة والاستدعاء', 'lot-trace'),
     screen('factoryWaste', 'تحليل الهدر', 'waste-analysis'),
     screen('factoryDeviation', 'تحليل الانحراف', 'deviation-analysis'),
@@ -832,7 +832,7 @@ export const ERP_NAV: ErpMainTab[] = [
     screen('factoryStagnant', 'المواد الراكدة', 'inventory-stagnant'),
     screen('factoryReserved', 'المواد المحجوزة', 'inventory-reserved'),
   ]),
-  main('system', 'النظام', Settings, [
+  main('system', 'النظام', BarChart3, [
     screen('users', 'المستخدمون والصلاحيات', 'users'),
     screen('auditLog', 'سجل العمليات', 'audit-log'),
     screen('companySettings', 'الإعدادات', 'settings'),
