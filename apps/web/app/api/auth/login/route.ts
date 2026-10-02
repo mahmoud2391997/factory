@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     // ERP document store is preferred, but must not block Prisma-user login on remote
     // cold-start races / seed failures (those previously surfaced as AUTH_INTERNAL_ERROR).
-    let storage: 'mongodb' | 'file' | undefined
+    let storage: 'postgresql' | 'file' | undefined
     try {
       const loaded = await (await import('@/server/erp/store')).loadState()
       storage = loaded.storage

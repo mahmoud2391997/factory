@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: factory_erp
+      POSTGRES_USER: factory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factory -d factory_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_MODE: demo
+      DATABASE_URL: postgresql://factory:${POSTGRES_PASSWORD}@postgres:5432/factory_erp
+      ERP_DATA_DIR: /app/data
+    ports:
+      - "3000:3000"
+    volumes:
+      - erp_data:/app/data
+
+volumes:
+  postgres_data:
+  erp_data:

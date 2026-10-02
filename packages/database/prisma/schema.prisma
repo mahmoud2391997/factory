@@ -129,6 +129,16 @@ model ErpDocument {
   updatedAt DateTime @updatedAt
 }
 
+model ArchiveRecord {
+  id         String   @id
+  kind       String
+  at         DateTime
+  payload    Json
+  archivedAt DateTime @default(now())
+
+  @@index([kind, at])
+}
+
 model WarehouseLocation {
   id          String    @id @default(cuid())
   warehouseId String

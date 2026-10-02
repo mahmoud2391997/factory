@@ -1,10 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-import type { AnyBulkWriteOperation, Document } from 'mongodb'
-
+import { prisma } from '@erp/database/client'
 import type { ArchivePlan } from '@/lib/erp/domain/archive'
-import { COLLECTIONS, getDb } from '@/server/db'
 
 async function mergeArchiveFile(file: string, rows: unknown[]) {
   if (rows.length === 0) return
@@ -16,10 +14,7 @@ async function mergeArchiveFile(file: string, rows: unknown[]) {
     current = []
   }
   const byId = new Map<string, unknown>()
-  for (const row of current) {
-    if (row && typeof row === 'object' && 'id' in row) byId.set(String((row as { id: unknown }).id), row)
-  }
-  for (const row of rows) {
+  for (const row of [...current, ...rows]) {
     if (row && typeof row === 'object' && 'id' in row) byId.set(String((row as { id: unknown }).id), row)
   }
   await writeFile(file, JSON.stringify([...byId.values()]))
@@ -32,31 +27,20 @@ export async function writeFileArchive(dir: string, plan: ArchivePlan) {
   await mergeArchiveFile(path.join(dir, 'audit-logs.json'), plan.auditLogs)
 }
 
-type ArchiveRow = { id: string; at: string }
-type ArchiveDocument = Document & { _id: string }
-
-function insertIfMissing<T extends ArchiveRow>(rows: T[]): AnyBulkWriteOperation<ArchiveDocument>[] {
-  return rows.map((row) => {
-    const { id, at, ...rest } = row
-    return {
-      updateOne: {
-        filter: { _id: id },
-        update: { $setOnInsert: { ...rest, at: new Date(at), archivedAt: new Date() } },
-        upsert: true,
-      },
-    }
-  })
-}
-
-/** Idempotent: re-archiving the same rows never overwrites what is already stored. */
+/** Idempotent cold storage for records removed from the live ERP document. */
 export async function writeDatabaseArchive(plan: ArchivePlan) {
-  const db = await getDb()
-  const writes: Array<[string, AnyBulkWriteOperation<ArchiveDocument>[]]> = [
-    [COLLECTIONS.archiveLedger, insertIfMissing(plan.ledger)],
-    [COLLECTIONS.archiveJournals, insertIfMissing(plan.journals)],
-    [COLLECTIONS.archiveAuditLogs, insertIfMissing(plan.auditLogs)],
-  ]
-  for (const [name, operations] of writes) {
-    if (operations.length > 0) await db.collection<ArchiveDocument>(name).bulkWrite(operations, { ordered: false })
+  const groups = [
+    ['ledger', plan.ledger],
+    ['journal', plan.journals],
+    ['audit', plan.auditLogs],
+  ] as const
+  for (const [kind, rows] of groups) {
+    for (const row of rows) {
+      await prisma.archiveRecord.upsert({
+        where: { id: row.id },
+        update: {},
+        create: { id: row.id, kind, at: new Date(row.at), payload: row as object },
+      })
+    }
   }
 }
