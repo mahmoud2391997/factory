@@ -852,15 +852,16 @@ for (const entityKey of LEGACY_ENTITY_KEYS) {
 /** Visual groups for the sidebar. Ids stay the existing modules so routes do not change. */
 export const NAV_SECTIONS: Array<{ id: string; label: string; mainIds: string[] }> = [
   { id: 'overview', label: 'نظرة عامة', mainIds: ['dashboard'] },
-  { id: 'operations', label: 'العمليات والإنتاج', mainIds: ['manufacturing-scale', 'recipes', 'customer-recipes', 'raw-material-analysis', 'utilities', 'quality', 'batch-tracking'] },
-  { id: 'purchasing-stores', label: 'المشتريات والمخازن', mainIds: ['purchasing', 'spare-parts', 'packaging', 'supplier-communications', 'inventory'] },
-  { id: 'finance', label: 'المالية', mainIds: ['obligations', 'bank-accounts', 'profitability'] },
-  { id: 'sales-distribution', label: 'المبيعات والتوزيع', mainIds: ['sales', 'distribution', 'invoice-delivery'] },
-  { id: 'fleet-maintenance', label: 'الأسطول والصيانة', mainIds: ['fleet-transport', 'maintenance'] },
-  { id: 'hr', label: 'الموارد البشرية', mainIds: ['employees'] },
-  { id: 'admin', label: 'الإدارة', mainIds: ['documents', 'system'] },
-]
-export function sectionForMain(mainId: string) {
+  { id: 'fleet-finance', label: 'الأسطول والمالية', mainIds: ['fleet-transport', 'obligations', 'bank-accounts'] },
+  { id: 'purchasing-stores', label: 'المشتريات والمخازن', mainIds: ['purchasing', 'spare-parts', 'packaging', 'supplier-communications'] },
+  { id: 'production', label: 'التصنيع والخلطات', mainIds: ['manufacturing-scale', 'recipes', 'customer-recipes'] },
+  { id: 'distribution', label: 'التوزيع والتسليم', mainIds: ['distribution', 'invoice-delivery'] },
+  { id: 'facilities-people', label: 'المرافق والوثائق والموظفون', mainIds: ['utilities', 'documents', 'employees'] },
+  { id: 'analysis-quality', label: 'التحليل والصيانة والجودة', mainIds: ['raw-material-analysis', 'maintenance', 'quality', 'batch-tracking', 'profitability'] },
+  { id: 'sales', label: 'المبيعات', mainIds: ['sales'] },
+  { id: 'inventory', label: 'المخزون العام', mainIds: ['inventory'] },
+  { id: 'admin', label: 'الإدارة', mainIds: ['system'] },
+]export function sectionForMain(mainId: string) {
   return NAV_SECTIONS.find((section) => section.mainIds.includes(mainId)) ?? NAV_SECTIONS[NAV_SECTIONS.length - 1]!
 }
 
