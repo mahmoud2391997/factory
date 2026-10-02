@@ -1,5 +1,5 @@
 import { money, qty } from './money'
-import { PERMISSIONS_INTRODUCED, PERMISSIONS_VERSION, type Permission, type RoleKey } from './permissions'
+import { PERMISSIONS_INTRODUCED, PERMISSIONS_RETIRED, PERMISSIONS_VERSION, type Permission, type RoleKey } from './permissions'
 import type { ErpState, ProductionLot } from './types'
 import { SCHEMA_VERSION } from './types'
 
@@ -57,27 +57,39 @@ function attributeLotDeliveries(state: ErpState, freshLotNos: Set<string>) {
   }
 }
 
-/** Add default permissions introduced after the document was saved. Never puts back a key an admin removed once this version was applied. */
+/** Merge new defaults and apply explicit role retirements after the document was saved. */
 export function mergeRolePermissions(state: ErpState): ErpState {
   const current = state.permissionsVersion ?? 0
   if (current >= PERMISSIONS_VERSION) return state
-  const added: string[] = []
+  const changes: string[] = []
   for (let version = current + 1; version <= PERMISSIONS_VERSION; version += 1) {
     const introduced = PERMISSIONS_INTRODUCED[version]
-    if (!introduced) continue
-    for (const [role, permissions] of Object.entries(introduced) as Array<[RoleKey, Permission[]]>) {
-      const list = state.rolePermissions[role] ?? []
-      for (const permission of permissions) {
-        if (!list.includes(permission)) {
-          list.push(permission)
-          added.push(`${role}:${permission}`)
+    if (introduced) {
+      for (const [role, permissions] of Object.entries(introduced) as Array<[RoleKey, Permission[]]>) {
+        const list = state.rolePermissions[role] ?? []
+        for (const permission of permissions) {
+          if (!list.includes(permission)) {
+            list.push(permission)
+            changes.push(`${role}:+${permission}`)
+          }
         }
+        state.rolePermissions[role] = list
       }
-      state.rolePermissions[role] = list
+    }
+    const retired = PERMISSIONS_RETIRED[version]
+    if (retired) {
+      for (const [role, permissions] of Object.entries(retired) as Array<[RoleKey, Permission[]]>) {
+        const list = state.rolePermissions[role] ?? []
+        state.rolePermissions[role] = list.filter((permission) => {
+          if (!permissions.includes(permission)) return true
+          changes.push(`${role}:-${permission}`)
+          return false
+        })
+      }
     }
   }
   state.permissionsVersion = PERMISSIONS_VERSION
-  if (added.length > 0) {
+  if (changes.length > 0) {
     state.auditLogs = state.auditLogs ?? []
     const already = state.auditLogs.some((entry) => entry.id === `aud-permissions-${PERMISSIONS_VERSION}`)
     if (!already) {
@@ -89,7 +101,7 @@ export function mergeRolePermissions(state: ErpState): ErpState {
         action: 'دمج الصلاحيات الافتراضية',
         entity: 'rolePermissions',
         entityId: String(PERMISSIONS_VERSION),
-        detail: added.join('، '),
+        detail: changes.join('، '),
       })
     }
   }
