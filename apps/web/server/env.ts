@@ -53,10 +53,10 @@ export function toApiError(error: unknown) {
   }
 
   if (
-    message.includes('MONGODB_URI') ||
-    message.includes('Server selection timed out') ||
-    message.includes('MongoNetworkError') ||
-    message.includes('MongoServerSelectionError') ||
+    message.includes('DATABASE_URL') ||
+    message.includes('PrismaClient') ||
+    message.includes('P1001') ||
+    message.includes('P2025') ||
     message.includes('bad auth') ||
     message.includes('Authentication failed') ||
     message.includes('ENOTFOUND') ||
@@ -66,7 +66,7 @@ export function toApiError(error: unknown) {
       status: 503,
       body: {
         success: false as const,
-        message: 'تعذر الاتصال بقاعدة البيانات. تحقق من MONGODB_URI وأن MongoDB Atlas يسمح بالاتصال (Network Access).',
+        message: 'تعذر الاتصال بقاعدة PostgreSQL. تحقق من DATABASE_URL وصلاحية الاتصال من Vercel أو خادم Hostinger.',
         code: 'DATABASE_UNAVAILABLE',
       },
     }

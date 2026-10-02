@@ -19,9 +19,9 @@ import { BCRYPT_ROUNDS } from '@/server/auth/password'
 import { ensureDatabaseUrlEnv } from '@/server/db-url'
 
 async function getErpDocuments() {
-  const { getDb, COLLECTIONS } = await import('@/server/db')
+  const { getDb } = await import('@/server/db')
   const db = await getDb()
-  return db.collection<import('@/server/db').ErpDocumentRow>(COLLECTIONS.erpDocuments)
+  return db.erpDocument
 }
 
 import { writeDatabaseArchive, writeFileArchive } from './archive-store'
@@ -35,7 +35,7 @@ function randomRequiredPassword() {
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
-export type StorageKind = 'mongodb' | 'file'
+export type StorageKind = 'postgresql' | 'file'
 
 /** In-memory fallback for serverless hosts where the app directory is read-only. */
 let memoryState: ErpState | null = null
@@ -232,7 +232,7 @@ function assertStorageConfigured() {
 
 async function readDatabase(): Promise<ErpState | null> {
   const documents = await getErpDocuments()
-  const row = await documents.findOne({ _id: DOC_ID })
+  const row = await documents.findUnique({ where: { id: DOC_ID } })
   if (!row) return null
   return asState(row.payload)
 }
@@ -243,18 +243,15 @@ function isDuplicateKeyError(error: unknown) {
 
 async function writeDatabase(state: ErpState, expectedRevision: number) {
   const documents = await getErpDocuments()
-  const payload = JSON.parse(JSON.stringify(state)) as unknown
-  const updated = await documents.updateOne(
-    { _id: DOC_ID, version: expectedRevision },
-    { $set: { version: state.revision, payload, updatedAt: new Date() } },
-  )
-  if (updated.matchedCount > 0) return
-  const existing = await documents.findOne({ _id: DOC_ID }, { projection: { _id: 1 } })
+  const payload = JSON.parse(JSON.stringify(state)) as object
+  const updated = await documents.updateMany({ where: { id: DOC_ID, version: expectedRevision }, data: { version: state.revision, payload } })
+  if (updated.count > 0) return
+  const existing = await documents.findUnique({ where: { id: DOC_ID }, select: { id: true } })
   if (existing) throw new Error(REVISION_CONFLICT)
   try {
-    await documents.insertOne({ _id: DOC_ID, version: state.revision, payload, updatedAt: new Date() })
+    await documents.create({ data: { id: DOC_ID, version: state.revision, payload } })
   } catch (error) {
-    if (isDuplicateKeyError(error)) throw new Error(REVISION_CONFLICT)
+    if (isDuplicateKeyError(error) || (error instanceof Error && error.message.includes('Unique constraint'))) throw new Error(REVISION_CONFLICT)
     throw error
   }
 }
@@ -262,7 +259,7 @@ async function writeDatabase(state: ErpState, expectedRevision: number) {
 async function persist(state: ErpState, storage: StorageKind) {
   const expected = state.revision
   state.revision = expected + 1
-  if (storage === 'mongodb') {
+  if (storage === 'postgresql') {
     await writeDatabase(state, expected)
     await writeLocalCopy(state).catch((error) => console.error('[erp/backup]', error))
     return
@@ -274,7 +271,7 @@ export async function loadState(): Promise<{ state: ErpState; storage: StorageKi
   if (await databaseEnabled()) {
     const state = await readDatabase()
     if (!state) throw new Error('ERP_NOT_BOOTSTRAPPED')
-    return { state, storage: 'mongodb' }
+    return { state, storage: 'postgresql' }
   }
 
   if (!isDemoMode()) throw new Error('SERVICE_NOT_CONFIGURED')
@@ -381,7 +378,7 @@ export async function runCommand(
           const plan = planArchive(loaded.state, olderThanDays, nowIso)
           const rows = plan.ledger.length + plan.journals.length + plan.auditLogs.length
           if (rows > 0) {
-            if (loaded.storage === 'mongodb') await writeDatabaseArchive(plan)
+            if (loaded.storage === 'postgresql') await writeDatabaseArchive(plan)
             else await writeFileArchive(path.join(dataDir(), 'archive'), plan)
           }
         }

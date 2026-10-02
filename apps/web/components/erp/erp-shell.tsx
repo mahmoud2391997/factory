@@ -498,7 +498,7 @@ export function ErpShell() {
             </label>
             {erp.storage ? (
               <span className="hidden rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 py-1 text-xs font-medium text-[#6b7280] sm:inline">
-                {uiLabel(erp.storage === 'mongodb' ? 'تخزين سحابي' : 'نسخة محلية')}
+                {uiLabel(erp.storage === 'postgresql' ? 'تخزين سحابي' : 'نسخة محلية')}
                 {process.env.NEXT_PUBLIC_APP_ENV === 'staging' ? ` — ${uiLabel('تجريبي')}` : ''}
               </span>
             ) : null}
