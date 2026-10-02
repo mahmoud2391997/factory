@@ -106,6 +106,19 @@ test('permissions introduced after v2 are merged and later admin removals stay r
   assert.equal(migrated.rolePermissions.GM.includes('production.cost.approve'), false)
 })
 
+test('v11 stored driver permissions migrate to fleet-only access', () => {
+  const state = emptyState('permissions-v11-driver')
+  state.permissionsVersion = 11
+  state.rolePermissions.DRIVER = ['fleet.read', 'reports.read', 'notifications.read']
+
+  const migrated = migrateErpState(state)
+  assert.equal(migrated.permissionsVersion, PERMISSIONS_VERSION)
+  assert.deepEqual(migrated.rolePermissions.DRIVER, ['fleet.read'])
+  assert.ok(migrated.auditLogs.some((entry) => entry.id === `aud-permissions-${PERMISSIONS_VERSION}`))
+  const snapshot = JSON.stringify(migrated)
+  assert.equal(JSON.stringify(migrateErpState(migrated)), snapshot)
+})
+
 test('v11 documents receive packaging counts and backfilled quotation delivery cost', () => {
   const state = emptyState('migration-v11-packaging')
   state.schemaVersion = 11
