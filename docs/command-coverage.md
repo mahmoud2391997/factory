@@ -23,6 +23,39 @@
 | المستخدمون والتدقيق | `setRolePermissions`, `setUserPassword`, `archiveHistory` | المستخدمون/الصلاحيات `users`، الأرشفة من الإعدادات، وسجل التدقيق `auditLog` |
 | الإشعارات | `markNotificationRead` | الإشعارات `notification` |
 
+## خريطة القائمة الجانبية الجديدة
+
+كل عنوان أدناه مستقل في الشريط الجانبي، وتظل المسارات القديمة كما هي. قد يوجّه أكثر من عنوان إلى الشاشة نفسها إذا كانت الشاشة القائمة تخدم الوظيفتين، مثل المخزون الإضافي والباركود.
+
+| عنوان القائمة | مفاتيح الشاشات والمسارات الحالية |
+|---|---|
+| لوحة المالك | `dashboard` `/`؛ `factoryPlanned` `/inventory/manufacturing/planned`؛ `factoryActual` `/inventory/manufacturing/actual`؛ `factoryExecution` `/inventory/manufacturing/execution`؛ ملخصات المبيعات والتكلفة والمخزون والهدر عبر `/sales/today`, `/sales/month`, `/sales/open-orders`, `/accounting/cost`, `/accounting/price`, `/accounting/margin`, `/inventory/raw-materials/value`, `/inventory/raw-materials/running-out`, `/inventory/raw-materials/stagnant`, `/inventory/raw-materials/reserved`, `/inventory/manufacturing/waste`, `/inventory/manufacturing/deviation`, `/inventory/manufacturing/variance`, `/inventory/manufacturing/stoppages` |
+| السيارات والنقل | `fleet` `/fleet/vehicles`؛ `fleetFuel` `/fleet/fuel`؛ `fleetTrips` `/fleet/trips` |
+| الأقساط والالتزامات المالية | `obligation` `/accounting/obligations` |
+| البنك والحسابات | `bankTransaction` `/accounting/financial-ops/bank-transactions`؛ `account` `/accounting`؛ `journalEntry` `/accounting/journals`؛ `expense` `/accounting/expenses`؛ `financialOps` `/accounting/financial-ops`؛ `taxSettings` `/accounting/tax`؛ `vatReport` `/accounting/vat`؛ `accountingReports` `/accounting/reports` |
+| المشتريات والموافقات | `purchaseRequest` `/sales/parties/requests`؛ `purchaseOrder` `/sales/parties/orders`؛ `goodsReceipt` `/sales/parties/receipts`؛ `supplier` `/sales/parties/suppliers` |
+| مخزن قطع الغيار | `inventoryExtensions` `/inventory/extensions` |
+| مخزن مواد التعبئة والتشغيل | `inventoryExtensions` `/inventory/extensions` |
+| التواصل مع الموردين | `supplierTemplate` `/sales/parties/templates`؛ `supplierCommunication` `/sales/parties/communications`؛ `supplierRelations` `/sales/parties/relations` |
+| التصنيع والميزان | `productionOrder` `/inventory/manufacturing/orders`؛ `scaleReading` `/inventory/manufacturing/scale`؛ `productionLot` `/inventory/manufacturing/lots`؛ `productionReports` `/inventory/manufacturing/reports` |
+| الخلطات والأوزان | `recipe` `/inventory/manufacturing`؛ `recipeItem` `/inventory/manufacturing/recipe-items`؛ بطاقة المنتج `product` `/inventory/products` |
+| خلطات العملاء | `customerRecipe` `/inventory/manufacturing/customer-recipes` |
+| نقاط التوزيع | `distribution` `/sales/distribution`؛ `distributionPoint` `/sales/distribution/points`؛ `barcode` `/inventory/warehouses/barcode`؛ `distributionClosing` `/sales/distribution/closing` |
+| دورة الفاتورة والتسليم | `invoiceDelivery` `/sales/delivery` |
+| الكهرباء والماء والغاز | `utilitiesReading` `/accounting/financial-ops/utilities` |
+| التصاريح والعقود والوثائق | `documents` `/accounting/documents` |
+| الموظفون | `employee` `/hr`؛ `attendance` `/hr/attendance`؛ `overtime` `/hr/overtime`؛ `payroll` `/hr/payroll` |
+| تحليل أسعار المواد الخام | `materialPriceAnalysis` `/inventory/raw-materials/price-analysis` |
+| الصيانة | `maintenance` `/inventory/manufacturing/maintenance`؛ `machine` `/inventory/manufacturing/maintenance/machines`؛ `maintenanceSchedule` `/inventory/manufacturing/maintenance/schedules`؛ `maintenanceRecord` `/inventory/manufacturing/maintenance/records` |
+| الجودة والتحليل الغذائي | `qualitySample` `/inventory/manufacturing/quality`؛ `supplierQuality` `/inventory/manufacturing/supplier-quality` |
+| تتبع الدفعات والهدر | `lotTrace` `/inventory/manufacturing/lot-trace`؛ `factoryWaste` `/inventory/manufacturing/waste`؛ `factoryDeviation` `/inventory/manufacturing/deviation`؛ `varianceReport` `/inventory/manufacturing/variance`؛ `materialTrace` `/tasks/material` |
+| الربحية | `profitability` `/sales/profitability`؛ تكلفة الطن `/accounting/cost`؛ الهامش `/accounting/margin`؛ متوسط السعر `/accounting/price` |
+| المبيعات | `customer` `/sales/parties`؛ `salesInvoice` `/sales`؛ `salesPayment` `/sales/collections`؛ `withdrawal` `/sales/withdrawals`؛ `salesReports` `/sales/reports` |
+| المخزون العام | `material` `/inventory/raw-materials`؛ `product` `/inventory/products`؛ `warehouse` `/inventory/warehouses`؛ `stockTransfer` `/inventory/warehouses/transfers`؛ `stockAdjustment` `/inventory/warehouses/adjustments`؛ `barcode` `/inventory/warehouses/barcode`؛ `materialBatch` `/inventory/raw-materials/batches`؛ `inventoryBalance` `/inventory/raw-materials/balances`؛ `inventoryTransaction` `/inventory/raw-materials/ledger`؛ `inventoryReports` `/inventory/reports`؛ مؤشرات الأرصدة `/inventory/raw-materials/value`, `/inventory/raw-materials/running-out`, `/inventory/raw-materials/stagnant`, `/inventory/raw-materials/reserved` |
+| النظام | `users` `/settings/users`؛ `auditLog` `/settings/audit`؛ `companySettings` `/settings`؛ `report` `/tasks/reports`؛ `approvals` `/tasks/approvals`؛ `notification` `/notifications` |
+
+**شاشات لا توجد لها صفحة مستقلة حتى الآن:** مرتجعات المبيعات (أقربها الفاتورة والسحب)، تقرير مقارنة استهلاك الوقود المتوقع/الفعلي، تقرير تكلفة النقل حسب الطن أو العميل (أقربها سجل الرحلات وتوزيع التكلفة على الفواتير)، وبوابة عميل مستقلة للتحكم في إظهار وصفات العميل. هذه العناصر ظاهرة كاختصارات إلى أقرب شاشة فعلية ولا تمثل وظائف جديدة.
+
 ## التحقق من الربط
 
 - واجهة `Command` هي قائمة الأوامر المرجعية، وخريطة الشاشات في `apps/web/components/erp/live/workspace.tsx` تربط مفاتيح الصفحات بمكوّناتها.
