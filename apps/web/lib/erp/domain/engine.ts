@@ -2462,7 +2462,8 @@ function approvedLeaveDaysInMonth(state: ErpState, employeeId: string, month: st
 }
 
 /** Remaining annual leave balance for an employee in a year: entitlement − approved annual days. */
-export function annualLeaveBalance(state: ErpState, employeeId: string, year: string): number {
+export function annualLeaveBalance(state: Pick<ErpState, 'company' | 'leaveRequests'>, employeeId: string, year: string): number {
+  
   const entitlement = state.company.annualLeaveEntitlementDays ?? 30
   const used = state.leaveRequests
     .filter((request) => request.employeeId === employeeId && request.status === 'APPROVED' && request.type === 'ANNUAL' && request.from.startsWith(year))
