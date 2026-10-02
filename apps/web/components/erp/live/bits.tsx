@@ -58,7 +58,15 @@ export function ExportLinks({ href }: { href: string }) {
   )
 }
 
-export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
+export function DataTable({
+  columns,
+  rows,
+  rowActions,
+}: {
+  columns: string[]
+  rows: ReactNode[][]
+  rowActions?: (row: ReactNode[], rowIndex: number) => ReactNode
+}) {
   const { language } = useLanguage()
   const filterId = useId()
   const selectId = useId()
@@ -134,12 +142,13 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
                   </th>
                 )
               })}
+              {rowActions ? <th className="px-2 py-2 font-semibold">{translateUiText(language, 'إجراءات')}</th> : null}
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 1} className="py-10 text-center">
+                <td colSpan={columns.length + 1 + (rowActions ? 1 : 0)} className="py-10 text-center">
                   <p className="text-base font-medium text-[#1f1f1f]">{translateUiText(language, 'لا توجد سجلات')}</p>
                 </td>
               </tr>
@@ -165,6 +174,7 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
                       <LocalizedContent>{cell}</LocalizedContent>
                     </td>
                   ))}
+                  {rowActions ? <td className="px-2 py-3 text-center align-middle"><LocalizedContent>{rowActions(row, originalIndex)}</LocalizedContent></td> : null}
                 </tr>
               })
             )}

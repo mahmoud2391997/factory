@@ -167,7 +167,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
               <Field label="موعد الصيانة التالية"><TextInput type="date" value={nextDueDate} onChange={(event) => setNextDueDate(event.target.value)} /></Field>
               <Field label="العداد عند الصيانة التالية"><TextInput type="number" min="0" step="1" value={nextDueKm} onChange={(event) => setNextDueKm(event.target.value)} /></Field>
               <Field label="المورد"><SelectInput value={serviceSupplierId} onChange={(event) => setServiceSupplierId(event.target.value)}><option value="">بدون</option>{ctx.state.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.nameAr}</option>)}</SelectInput></Field>
-              <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !vehicleId}>حفظ</PrimaryButton></div>
+              <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !vehicleId}>حف���</PrimaryButton></div>
             </form>}
           </FormDialog>
         ) : null}
@@ -402,7 +402,7 @@ function Journals({ ctx }: { ctx: LiveCtx }) {
           entry.number,
           entry.at.slice(0, 10),
           entry.memo,
-          entry.lines.map((line) => `${line.accountCode} مدين ${moneyFmt(line.debit)} / دائن ${moneyFmt(line.credit)}`).join(' — '),
+          entry.lines.map((line) => `${line.accountCode} مدين ${moneyFmt(line.debit)} / دائ�� ${moneyFmt(line.credit)}`).join(' — '),
         ])}
       />
     </Card>
@@ -852,7 +852,17 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
           </FormDialog>
         }
       >
-        <DataTable columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب', 'إجراء']} rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—', can(ctx.permissions, 'employees.manage') ? <FormDialog key={`${employee.id}-edit`} title="تحديث الموظف" openLabel="تعديل">{(close) => <EmployeeEditor ctx={ctx} employee={employee} onSaved={close} />}</FormDialog> : '—'])} />
+        <DataTable
+          columns={['الكود', 'الاسم', 'القسم', 'المسمى', 'الراتب']}
+          rows={ctx.state.employees.map((employee) => [employee.code, employee.nameAr, employee.department, employee.jobTitle, typeof employee.basicSalary === 'number' ? moneyFmt(employee.basicSalary) : '—'])}
+          rowActions={(_, rowIndex) => {
+            const employee = ctx.state.employees[rowIndex]
+            if (!employee) return null
+            return can(ctx.permissions, 'employees.manage')
+              ? <FormDialog title="تحديث الموظف" openLabel="تعديل">{(close) => <EmployeeEditor ctx={ctx} employee={employee} onSaved={close} />}</FormDialog>
+              : <span className="text-xs text-amber-700">لا تملك صلاحية التعديل</span>
+          }}
+        />
       </Card>
 
       <Card title="الإجازات" hint={`رصيد السنوي = ${entitlement} − المعتمد في السنة. الإجازة غير المدفوعة تخصم من المسير عند الإنشاء.`}>
