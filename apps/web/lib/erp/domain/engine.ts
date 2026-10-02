@@ -1737,7 +1737,7 @@ function updateEmployee(state: ErpState, actor: Actor, input: Extract<Command, {
 function createRecipe(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createRecipe' }>['input'], clock: Clock): CommandResult {
   if (!findProduct(state, input.productId)) return fail('المنتج غير موجود')
   if (input.baseOutputQty <= 0) return fail('كمية المخرجات الأساسية يجب أن تكون أكبر من صفر')
-  if (input.items.length === 0) return fail('أضف مكونات الوصفة')
+  if (input.items.length === 0) return fail('أضف مكو��ات الوصفة')
   for (const item of input.items) {
     if (!findMaterial(state, item.materialId)) return fail('إحدى المواد غير موجودة')
     if (item.qty <= 0) return fail('كمية المكوّن يجب أن تكون أكبر من صفر')
@@ -1825,7 +1825,7 @@ function bounded(value: number | undefined, min: number, max: number, message: s
 function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCompany' }>['input'], clock: Clock): CommandResult {
   const invalid =
     bounded(input.vatRatePct, 0, 100, 'نسبة الضريبة يجب أن تكون بين 0 و 100') ||
-    bounded(input.varianceThresholdPct, 0, 100, '��د الانحراف يجب أن يكون بين 0 و 100') ||
+    bounded(input.varianceThresholdPct, 0, 100, 'حد الانحراف يجب أن يكون بين 0 و 100') ||
     bounded(input.bagUnitCost, 0, 1000, 'تكلفة الكيس يجب أن تكون بين 0 و 1000') ||
     bounded(input.costApprovalThreshold, 0, 1_000_000, 'حد اعتماد التكلفة يجب أن يكون بين 0 و 1000000')
   if (invalid) return fail(invalid)
@@ -5239,7 +5239,7 @@ function setCustomerPricing(state: ErpState, actor: Actor, input: Extract<Comman
   })
 
   audit(state, actor, clock, 'تعديل سعر عميل', 'product', product.id, `${customer.nameAr}: ${input.price}`)
-  return ok(state, 'تم حفظ سعر العميل')
+  return ok(state, 'تم حفظ سعر ال��ميل')
 }
 
 function setAlternativeBagWeights(state: ErpState, actor: Actor, input: Extract<Command, { action: 'setAlternativeBagWeights' }>['input'], clock: Clock): CommandResult {
