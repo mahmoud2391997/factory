@@ -364,7 +364,6 @@ export function leafMeta(entityKey: string) {
 }
 
 export function canSeeEntity(permissions: string[], entityKey: string) {
-  if (entityKey === 'dashboard') return true
   for (const main of ERP_NAV) {
     for (const sub of main.subs) {
       if (sub.entityKey === entityKey && canAccessSub(permissions, sub, main)) return true
