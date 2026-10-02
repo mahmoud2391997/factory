@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
 import { emptyState } from '@/lib/erp/domain/seed'
+import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
 import { getDb } from '@/server/db'
 
 export const runtime = 'nodejs'
@@ -43,5 +44,19 @@ export async function POST(req: NextRequest) {
   state.company.notifyEmail = email
   state.revision = 1
   await db.erpDocument.create({ data: { id: DOC_ID, version: 1, payload: JSON.parse(JSON.stringify(state)) } })
-  return NextResponse.json({ success: true, data: { user: { email, fullName: parsed.data.fullName.trim() } }, message: 'تمت تهيئة النظام بنجاح. سجّل الدخول ثم غيّر كلمة المرور.' })
+
+  // Bootstrap is the first authenticated action. Issue the same session cookies
+  // as normal login so the administrator can continue directly to the password-change flow.
+  const accessToken = await issueAccessToken({ sub: 'user-admin', ver: 1 })
+  const refreshToken = await issueRefreshToken({ sub: 'user-admin', ver: 1 })
+  const response = NextResponse.json({
+    success: true,
+    data: {
+      user: { id: 'user-admin', email, fullName: parsed.data.fullName.trim(), role: 'GM', mustChangePassword: true },
+      authenticated: true,
+    },
+    message: 'تمت تهيئة النظام وتسجيل الدخول بنجاح. غيّر كلمة المرور للمتابعة.',
+  })
+  setAuthCookies(response, { accessToken, refreshToken })
+  return response
 }
