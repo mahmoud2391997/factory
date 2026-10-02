@@ -9,6 +9,18 @@ import {
   CarFront,
   Users,
   Warehouse,
+  Landmark,
+  Package,
+  MessageSquare,
+  Wrench,
+  ClipboardCheck,
+  Droplets,
+  Scale,
+  Fuel,
+  Gauge,
+  ShieldCheck,
+  Receipt,
+  ChartBar,
 } from 'lucide-react'
 
 export type ErpSubTab = {
@@ -30,7 +42,7 @@ export type ErpMainTab = {
 /**
  * ERP navigation: main modules → sub pages (schema-backed entities).
  */
-export const ERP_NAV: ErpMainTab[] = [
+const LEGACY_ERP_NAV: ErpMainTab[] = [
   {
     id: 'dashboard',
     label: 'لوحة التحكم',
@@ -657,15 +669,200 @@ export const ERP_NAV: ErpMainTab[] = [
   },
 ]
 
+/** Build the owner-facing navigation from the prior screens, preserving entity keys and effective access. */
+const LEGACY_SUBS = new Map<string, ErpSubTab>()
+for (const legacyMain of LEGACY_ERP_NAV) {
+  for (const legacySub of legacyMain.subs) {
+    LEGACY_SUBS.set(legacySub.entityKey, {
+      ...legacySub,
+      permission: [...(legacySub.permission ?? legacyMain.permission ?? [])],
+    })
+  }
+}
+
+function screen(entityKey: string, label?: string, id?: string, description?: string): ErpSubTab {
+  const existing = LEGACY_SUBS.get(entityKey)
+  if (!existing) throw new Error(`شاشة غير معروفة في التنقل: ${entityKey}`)
+  return {
+    ...existing,
+    id: id ?? existing.id,
+    label: label ?? existing.label,
+    description: description ?? existing.description,
+    permission: [...(existing.permission ?? [])],
+  }
+}
+
+function main(id: string, label: string, icon: LucideIcon, subs: ErpSubTab[]): ErpMainTab {
+  return {
+    id,
+    label,
+    icon,
+    permission: [...new Set(subs.flatMap((sub) => sub.permission ?? []))],
+    subs,
+  }
+}
+
+export const ERP_NAV: ErpMainTab[] = [
+  main('dashboard', 'لوحة المالك', LayoutDashboard, [
+    screen('dashboard'), screen('factoryPlanned'), screen('factoryActual'), screen('factoryExecution'),
+    screen('factorySalesToday'), screen('factorySalesMonth'), screen('factoryOpenOrders'), screen('factoryCostPerTon'),
+    screen('factoryAvgPrice'), screen('factoryMargin'), screen('factoryStockValue'), screen('factoryRunningOut'),
+    screen('factoryStagnant'), screen('factoryReserved'), screen('factoryWaste'), screen('factoryDeviation'),
+    screen('varianceReport'), screen('factoryStoppages'),
+  ]),
+  main('fleet-transport', 'السيارات والنقل', CarFront, [
+    screen('fleet', 'المركبات', 'vehicles', 'ملف المركبة وبياناتها؛ الوثائق المرتبطة متاحة في مركز الوثائق.'),
+    screen('fleet', 'الصيانة الدورية والإطارات والزيوت', 'vehicle-service', 'أقرب شاشة موجودة: ملف المركبات وسجل خدماتها.'),
+    screen('fleetFuel', 'الوقود — كل تعبئة', 'fuel', 'سجل تعبئات الوقود والاستهلاك.'),
+    screen('fleetTrips', 'الرحلات — السائق والوجهة والمسافة والحمولة والتكلفة', 'trips', 'تسجيل الرحلات وتكلفتها.'),
+    screen('fleetFuel', 'الاستهلاك المتوقع مقابل الفعلي', 'fuel-variance', 'أقرب شاشة موجودة: سجل الوقود واستهلاك المركبة.'),
+    screen('fleetTrips', 'تكلفة النقل لكل طن أو طلبية أو عميل', 'transport-cost', 'أقرب شاشة موجودة: الرحلات وتوزيع تكلفتها على الفواتير.'),
+  ]),
+  main('obligations', 'الأقساط والالتزامات المالية', Receipt, [
+    screen('obligation', 'جدول الالتزامات والدفعات والمتبقي والتنبيهات القادمة', 'obligations-table', 'الالتزامات والأقساط والاستحقاقات القادمة.'),
+  ]),
+  main('bank-accounts', 'البنك والحسابات', Landmark, [
+    screen('bankTransaction', 'معاملات البنك والمطابقة وسجل التدقيق', 'bank-reconciliation'),
+    screen('account', 'دليل الحسابات', 'accounts'),
+    screen('journalEntry', 'القيود اليومية', 'journals'),
+    screen('expense', 'المصروفات والاعتمادات', 'expenses'),
+    screen('financialOps', 'العمليات المالية', 'financial-operations'),
+    screen('taxSettings', 'الضرائب', 'tax-settings'),
+    screen('vatReport', 'إقرار الضريبة', 'vat-report'),
+    screen('accountingReports', 'تقارير المحاسبة', 'accounting-reports'),
+  ]),
+  main('purchasing', 'المشتريات والموافقات', ShoppingCart, [
+    screen('purchaseRequest', 'طلبات الشراء وعروض الأسعار والمقارنة والاعتماد', 'purchase-requests'),
+    screen('purchaseOrder', 'أوامر الشراء', 'purchase-orders'),
+    screen('goodsReceipt', 'استلام البضاعة والفواتير', 'goods-receipts'),
+    screen('supplier', 'ملف الموردين وآخر أسعار الشراء', 'suppliers', 'ملفات الموردين؛ تحليل الأسعار في شاشة تحليل أسعار المواد الخام.'),
+  ]),
+  main('spare-parts', 'مخزن قطع الغيار', Package, [
+    screen('inventoryExtensions', 'القطع والأكواد والصرف والحد الأدنى والماكينة', 'spare-parts', 'شاشة المخزون الإضافي الحالية تشمل قطع الغيار ومواد التعبئة.'),
+  ]),
+  main('packaging', 'مخزن مواد التعبئة والتشغيل', Boxes, [
+    screen('inventoryExtensions', 'الأكياس والخيوط والحبر والأوراق والملصقات', 'packaging-stock', 'المخزون الإضافي الحالي؛ صرف التعبئة والجرد مرتبطان بأوامر الإنتاج.'),
+  ]),
+  main('supplier-communications', 'التواصل مع الموردين', MessageSquare, [
+    screen('supplierTemplate', 'قوالب الرسائل', 'supplier-templates'),
+    screen('supplierCommunication', 'تجهيز الرسالة واعتماد المسؤول وسجل المراسلات', 'supplier-communications'),
+    screen('supplierRelations', 'العروض داخل ملف المورد وعلاقات الموردين', 'supplier-relations'),
+  ]),
+  main('manufacturing-scale', 'التصنيع والميزان', Factory, [
+    screen('productionOrder', 'أوامر التصنيع', 'production-orders'),
+    screen('scaleReading', 'الميزان وقراءات الخام', 'scale-readings'),
+    screen('productionLot', 'المنتج النهائي ودفعات الإنتاج', 'production-lots'),
+    screen('productionReports', 'تكلفة الطن الفعلية وتقارير الإنتاج', 'production-reports'),
+  ]),
+  main('recipes', 'الخلطات والأوزان', Scale, [
+    screen('recipe', 'الوصفات والأوزان', 'recipes'),
+    screen('recipeItem', 'مكونات الوصفة', 'recipe-items'),
+    screen('product', 'الأوزان وتكلفة المنتج بالخلطة الحالية', 'recipe-product-cost', 'أقرب شاشة موجودة: بطاقة المنتج والوصفة الحالية.'),
+  ]),
+  main('customer-recipes', 'خلطات العملاء', Users, [
+    screen('customerRecipe', 'وصفات العملاء والأسعار الخاصة', 'customer-recipes'),
+  ]),
+  main('distribution', 'نقاط التوزيع', Route, [
+    screen('distributionPoint', 'نقاط التوزيع وأرصدة كل نقطة', 'distribution-points'),
+    screen('barcode', 'مسح الباركود', 'distribution-barcode'),
+    screen('distributionClosing', 'الإقفال اليومي', 'distribution-closing'),
+  ]),
+  main('invoice-delivery', 'دورة الفاتورة والتسليم', ClipboardCheck, [
+    screen('invoiceDelivery', 'المحاسب ← التحميل ← السائق ← العميل وإثبات التسليم', 'invoice-delivery'),
+  ]),
+  main('utilities', 'الكهرباء والماء والغاز', Droplets, [
+    screen('utilitiesReading', 'قراءات المرافق والاستهلاك لكل طن والمقارنة الشهرية', 'utilities-readings'),
+  ]),
+  main('documents', 'التصاريح والعقود والوثائق', FileArchive, [
+    screen('documents', 'الوثائق والتراخيص والملكية والتأمين والعقود والإيجارات', 'company-documents'),
+  ]),
+  main('employees', 'الموظفون', Users, [
+    screen('employee', 'ملفات الموظفين والعقود والإقامات', 'employees'),
+    screen('attendance', 'الحضور والإجازات', 'attendance'),
+    screen('payroll', 'الرواتب', 'payroll'),
+  ]),
+  main('raw-material-analysis', 'تحليل أسعار المواد الخام', ChartBar, [
+    screen('materialPriceAnalysis', 'متوسط وأعلى وأقل سعر والمورد والكمية والتكلفة الواصلة', 'material-price-analysis'),
+  ]),
+  main('maintenance', 'الصيانة', Wrench, [
+    screen('machine', 'ملف كل ماكينة', 'machines'),
+    screen('maintenanceSchedule', 'جداول الصيانة', 'maintenance-schedules'),
+    screen('maintenanceRecord', 'الأعطال والتكلفة والتوقف وقطع الغيار المستخدمة', 'maintenance-records'),
+    screen('maintenance', 'مركز الصيانة', 'maintenance-hub'),
+  ]),
+  main('quality', 'الجودة والتحليل الغذائي', ShieldCheck, [
+    screen('qualitySample', 'عينات الخام والمنتج والتحليل المخبري', 'quality-samples'),
+    screen('supplierQuality', 'مقارنة الجودة والمواصفة وجودة الموردين', 'supplier-quality'),
+  ]),
+  main('batch-tracking', 'تتبع الدفعات والهدر', ClipboardList, [
+    screen('lotTrace', 'تتبع الخامة والاستدعاء', 'lot-trace'),
+    screen('factoryWaste', 'تحليل الهدر', 'waste-analysis'),
+    screen('factoryDeviation', 'تحليل الانحراف', 'deviation-analysis'),
+    screen('varianceReport', 'الدفعات والانحراف حسب المنتج والوردية', 'batch-variance'),
+    screen('materialTrace', 'تتبع الخامة من الاستلام إلى الاستهلاك', 'material-trace'),
+  ]),
+  main('profitability', 'الربحية', BarChart3, [
+    screen('profitability', 'الربحية حسب المنتج والعميل', 'profitability-analysis'),
+    screen('factoryCostPerTon', 'تكلفة الطن', 'profit-cost-per-ton'),
+    screen('factoryMargin', 'هامش الربح', 'profit-margin'),
+    screen('factoryAvgPrice', 'متوسط سعر البيع', 'profit-average-price'),
+  ]),
+  main('sales', 'المبيعات', ShoppingCart, [
+    screen('customer', 'العملاء', 'customers'),
+    screen('salesInvoice', 'الطلبات والفواتير', 'sales-invoices'),
+    screen('salesPayment', 'التحصيل', 'sales-payments'),
+    screen('withdrawal', 'السحوبات والمرتجعات', 'withdrawals-returns', 'أقرب شاشة موجودة: السحوبات والفواتير؛ لا توجد شاشة مرتجعات مستقلة بعد.'),
+    screen('salesReports', 'تقارير المبيعات', 'sales-reports'),
+  ]),
+  main('inventory', 'المخزون العام', Warehouse, [
+    screen('material', 'المواد الخام', 'raw-materials'),
+    screen('product', 'المنتجات النهائية', 'finished-products'),
+    screen('warehouse', 'المستودعات', 'warehouses'),
+    screen('stockTransfer', 'تحويلات المخزون', 'stock-transfers'),
+    screen('stockAdjustment', 'تعديل المخزون', 'stock-adjustments'),
+    screen('barcode', 'محطة الباركود', 'inventory-barcode'),
+    screen('materialBatch', 'دفعات المواد', 'material-batches'),
+    screen('inventoryBalance', 'أرصدة المخزون', 'inventory-balances'),
+    screen('inventoryTransaction', 'دفتر الحركات', 'inventory-ledger'),
+    screen('inventoryReports', 'تقارير المخزون', 'inventory-reports'),
+    screen('factoryStockValue', 'قيمة المخزون', 'inventory-value'),
+    screen('factoryRunningOut', 'المواد التي ستنفد', 'inventory-low-stock'),
+    screen('factoryStagnant', 'المواد الراكدة', 'inventory-stagnant'),
+    screen('factoryReserved', 'المواد المحجوزة', 'inventory-reserved'),
+  ]),
+  main('fleet', 'السيارات والنقل', Truck, [
+    screen('fleet', 'المركبات', 'fleet-vehicles'),
+    screen('fleetFuel', 'الوقود', 'fleet-fuel'),
+    screen('fleetTrips', 'الرحلات', 'fleet-trips'),
+  ]),
+  main('system', 'النظام', Settings, [
+    screen('users', 'المستخدمون والصلاحيات', 'users'),
+    screen('auditLog', 'سجل العمليات', 'audit-log'),
+    screen('companySettings', 'الإعدادات', 'settings'),
+    screen('report', 'التقارير', 'reports'),
+    screen('approvals', 'الاعتمادات', 'approvals'),
+    screen('notification', 'الإشعارات', 'notifications'),
+  ]),
+]
+
+const LEGACY_ENTITY_KEYS = new Set(LEGACY_SUBS.keys())
+for (const entityKey of LEGACY_ENTITY_KEYS) {
+  if (!ERP_NAV.some((item) => item.subs.some((sub) => sub.entityKey === entityKey))) {
+    throw new Error(`شاشة قديمة غير موجودة في التنقل الجديد: ${entityKey}`)
+  }
+}
+
 /** Visual groups for the sidebar. Ids stay the existing modules so routes do not change. */
 export const NAV_SECTIONS: Array<{ id: string; label: string; mainIds: string[] }> = [
   { id: 'overview', label: 'نظرة عامة', mainIds: ['dashboard'] },
-  { id: 'operations', label: 'العمليات', mainIds: ['inventory', 'purchasing', 'manufacturing'] },
-  { id: 'sales', label: 'المبيعات', mainIds: ['sales'] },
-  { id: 'hr', label: 'الموارد البشرية', mainIds: ['hr'] },
-  { id: 'admin', label: 'الإدارة', mainIds: ['accounting', 'system'] },
+  { id: 'operations', label: 'العمليات والإنتاج', mainIds: ['manufacturing-scale', 'recipes', 'customer-recipes', 'raw-material-analysis', 'utilities', 'quality', 'batch-tracking'] },
+  { id: 'purchasing-stores', label: 'المشتريات والمخازن', mainIds: ['purchasing', 'spare-parts', 'packaging', 'supplier-communications', 'inventory'] },
+  { id: 'finance', label: 'المالية', mainIds: ['obligations', 'bank-accounts', 'profitability'] },
+  { id: 'sales-distribution', label: 'المبيعات والتوزيع', mainIds: ['sales', 'distribution', 'invoice-delivery'] },
+  { id: 'fleet-maintenance', label: 'الأسطول والصيانة', mainIds: ['fleet-transport', 'maintenance', 'fleet'] },
+  { id: 'hr', label: 'الموارد البشرية', mainIds: ['employees'] },
+  { id: 'admin', label: 'الإدارة', mainIds: ['documents', 'system'] },
 ]
-
 export function sectionForMain(mainId: string) {
   return NAV_SECTIONS.find((section) => section.mainIds.includes(mainId)) ?? NAV_SECTIONS[NAV_SECTIONS.length - 1]!
 }
