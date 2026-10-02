@@ -1626,6 +1626,10 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'ضمن الوصفة': { en: 'Within recipe', hi: 'रेसिपी के भीतर' },
   'الخط يعمل': { en: 'Line running', hi: 'लाइन चल रही है' },
   'لا توجد': { en: 'None', hi: 'कोई नहीं' },
+  'مكونات الوصفات': { en: 'Recipe components', hi: 'रेसिपी घटक' },
+  'تصفية الجدول': { en: 'Filter table', hi: 'तालिका फ़िल्टर करें' },
+  'تحديد كل الصفوف': { en: 'Select all rows', hi: 'सभी पंक्तियाँ चुनें' },
+  'دفعات العميل: ': { en: "Customer batches: ", hi: 'ग्राहक बैच: ' },
 }
 
 export function translateUiText(lang: Language, source: string): string {
@@ -1634,7 +1638,7 @@ export function translateUiText(lang: Language, source: string): string {
   if (supplemental) return supplemental[lang]
   const commonKey = ARABIC_KEYS.get(source)
   if (commonKey) return translations[lang][commonKey]
-  return source
+  return source.replace(/ر\.ع\.?/g, lang === 'en' ? 'OMR' : 'ओमानी रियाल')
 }
 
 /** Maps sidebar destination ids to translation keys. */

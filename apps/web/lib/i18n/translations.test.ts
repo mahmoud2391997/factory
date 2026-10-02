@@ -38,6 +38,18 @@ test('shared UI labels translate without changing Arabic or unknown dynamic valu
   assert.equal(translateUiText('hi', 'حفظ الحدود'), 'सीमाएँ सहेजें')
 })
 
+test('live navigation, table accessibility, trace labels, and dynamic currency are localized', () => {
+  assert.equal(translateUiText('en', 'مكونات الوصفات'), 'Recipe components')
+  assert.equal(translateUiText('hi', 'مكونات الوصفات'), 'रेसिपी घटक')
+  assert.equal(translateUiText('en', 'تصفية الجدول'), 'Filter table')
+  assert.equal(translateUiText('hi', 'تحديد كل الصفوف'), 'सभी पंक्तियाँ चुनें')
+  assert.equal(translateUiText('en', 'دفعات العميل: '), 'Customer batches: ')
+  assert.equal(translateUiText('hi', 'دفعات العميل: '), 'ग्राहक बैच: ')
+  assert.equal(translateUiText('en', '0.000 ر.ع.'), '0.000 OMR')
+  assert.equal(translateUiText('hi', '0.000 ر.ع.'), '0.000 ओमानी रियाल')
+  assert.equal(translateUiText('ar', '0.000 ر.ع.'), '0.000 ر.ع.')
+})
+
 test('formatted dates, currency, and units follow the selected language', () => {
   const englishDate = translateUiText('en', 'الأربعاء، 12 سبتمبر 2026')
   assert.ok(englishDate.includes('Wednesday'))
