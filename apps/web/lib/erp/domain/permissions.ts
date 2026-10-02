@@ -218,7 +218,7 @@ export function hasPermission(permissions: readonly string[], required: string) 
 }
 
 /** Bump when built-in roles gain new default permissions. The migration adds only these keys. */
-export const PERMISSIONS_VERSION = 10
+export const PERMISSIONS_VERSION = 11
 
 export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Permission[]>>> = {
   9: {
@@ -230,6 +230,10 @@ export const PERMISSIONS_INTRODUCED: Record<number, Partial<Record<RoleKey, Perm
   10: {
     // Value-based PO approval: OPERATIONS may approve POs up to the company tier.
     OPERATIONS: ['purchasing.po.approve'],
+  },
+  11: {
+    // Keep existing GM accounts usable after permission sets were customized or upgraded.
+    GM: ['accounting.read', 'accounting.manage', 'tax.read', 'tax.manage', 'expenses.manage', 'expenses.approve', 'bank.read', 'bank.manage', 'obligations.read', 'obligations.manage', 'obligations.pay'],
   },
   1: {
     GM: ['qc.read', 'qc.manage', 'qc.release', 'qc.limits'],
