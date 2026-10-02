@@ -28,16 +28,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Run ERP domain tests
-        run: pnpm test:erp
+        run: npm run test:erp
 
       - name: Build Next.js application
-        run: pnpm build
+        run: npm run build

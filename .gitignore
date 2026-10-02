@@ -16,9 +16,6 @@ node_modules
 .DS_Store
 *.tsbuildinfo
 
-# Lockfiles
-package-lock.json
-
 # Build outputs (monorepo)
 apps/*/dist
 packages/*/dist
@@ -32,4 +29,3 @@ packages/workforce-database/src/generated
 # Operational data and local backups
 data/
 apps/web/data/
-
