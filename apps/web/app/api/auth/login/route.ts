@@ -7,6 +7,7 @@ import { getSessionUserById } from '@/server/auth/session'
 import { getDemoSecrets, getDemoSessionUser, isDemoMode } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
 import { loginThrottleMessage, recordLoginFailure, recordLoginSuccess } from '@/server/auth/login-throttle'
+import { createClient } from '@supabase/supabase-js'
 
 function clientIp(req: NextRequest) {
   const forwarded = req.headers.get('x-forwarded-for')
@@ -64,6 +65,27 @@ export async function POST(req: NextRequest) {
     const locked = loginThrottleMessage(email, ip)
     if (locked) {
       return NextResponse.json({ success: false, message: locked, code: 'LOGIN_LOCKED' }, { status: 429 })
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+    const supabaseKey =
+      process.env.SUPABASE_PUBLISHABLE_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+      process.env.SUPABASE_ANON_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+
+    // Production credentials are verified by Supabase Auth. The ERP document then
+    // supplies the application's roles and permissions, keeping auth and business
+    // data in the same Postgres-backed workflow.
+    if (!isDemoMode() && supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error || !data.user) {
+        recordLoginFailure(email, ip)
+        return NextResponse.json({ success: false, message: 'بيانات الدخول غير صحيحة' }, { status: 401 })
+      }
     }
 
     // ERP document store is preferred, but must not block Prisma-user login on remote
