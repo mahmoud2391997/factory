@@ -1,495 +1,208 @@
-import type { LucideIcon } from 'lucide-react'
-import { CarFront, ClipboardList, Factory, FileText, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
+import {
+  ALL_NAV_PAGES,
+  NAV_CONFIG,
+  canonicalPages,
+  pageForEntity,
+  pageForId,
+  type NavPage,
+  type NavSection,
+  type NavWorkspace,
+} from './nav/config'
 
-import { canAccessSub, ERP_NAV } from './erp-nav'
-
-export type RouteLeaf = {
-  href: string
-  entityKey: string
-  /** In-page tab. سجل العمليات stays a route reached from the header and settings. */
-  tab: boolean
-}
-
-export type RouteGroup = {
-  id: string
-  label: string
-  leaves: RouteLeaf[]
-}
-
-export type Destination = {
-  id: string
-  label: string
-  icon: LucideIcon
-  groups: RouteGroup[]
-}
-
-/**
- * Seven sidebar destinations. Every existing entityKey appears once.
- * Group labels follow the requested information architecture.
- * Leaf labels stay the current Arabic screen names.
- * Read-only tables (no create, edit, or approval — export at most) sit in
- * each major's التقارير group, so they open as that section's reports tab.
- * No receivables/payables pages exist, so الحسابات keeps its current screens.
- */
-export const DESTINATIONS: Destination[] = [
-  {
-    id: 'home',
-    label: 'الرئيسية',
-    icon: LayoutDashboard,
-    groups: [
-      {
-        id: 'home',
-        label: 'لوحة التحكم',
-        leaves: [{ href: '/', entityKey: 'dashboard', tab: false }],
-      },
-    ],
-  },
-  {
-    id: 'production',
-    label: 'الإنتاج',
-    icon: Factory,
-    groups: [
-      {
-        id: 'manufacturing',
-        label: 'التصنيع',
-        leaves: [
-          { href: '/inventory/manufacturing', entityKey: 'recipe', tab: true },
-          { href: '/inventory/manufacturing/recipe-items', entityKey: 'recipeItem', tab: true },
-          { href: '/inventory/manufacturing/customer-recipes', entityKey: 'customerRecipe', tab: true },
-          { href: '/inventory/manufacturing/orders', entityKey: 'productionOrder', tab: true },
-          { href: '/inventory/manufacturing/scale', entityKey: 'scaleReading', tab: true },
-          { href: '/inventory/manufacturing/lots', entityKey: 'productionLot', tab: true },
-          { href: '/inventory/manufacturing/lot-trace', entityKey: 'lotTrace', tab: true },
-        ],
-      },
-      {
-        id: 'products',
-        label: 'المنتجات',
-        leaves: [{ href: '/inventory/products', entityKey: 'product', tab: true }],
-      },
-      {
-        id: 'quality',
-        label: 'الجودة',
-        leaves: [
-          { href: '/inventory/manufacturing/quality', entityKey: 'qualitySample', tab: true },
-          { href: '/inventory/manufacturing/supplier-quality', entityKey: 'supplierQuality', tab: true },
-        ],
-      },
-      {
-        id: 'maintenance',
-        label: 'الصيانة',
-        leaves: [
-          { href: '/inventory/manufacturing/maintenance', entityKey: 'maintenance', tab: true },
-          { href: '/inventory/manufacturing/maintenance/machines', entityKey: 'machine', tab: true },
-          { href: '/inventory/manufacturing/maintenance/schedules', entityKey: 'maintenanceSchedule', tab: true },
-          { href: '/inventory/manufacturing/maintenance/records', entityKey: 'maintenanceRecord', tab: true },
-        ],
-      },
-      {
-        id: 'production-reports',
-        label: 'التقارير',
-        leaves: [
-          { href: '/inventory/manufacturing/reports', entityKey: 'productionReports', tab: true },
-          { href: '/inventory/manufacturing/planned', entityKey: 'factoryPlanned', tab: true },
-          { href: '/inventory/manufacturing/actual', entityKey: 'factoryActual', tab: true },
-          { href: '/inventory/manufacturing/execution', entityKey: 'factoryExecution', tab: true },
-          { href: '/inventory/manufacturing/waste', entityKey: 'factoryWaste', tab: true },
-          { href: '/inventory/manufacturing/deviation', entityKey: 'factoryDeviation', tab: true },
-          { href: '/inventory/manufacturing/variance', entityKey: 'varianceReport', tab: true },
-          { href: '/inventory/manufacturing/stoppages', entityKey: 'factoryStoppages', tab: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'inventory',
-    label: 'المخزون',
-    icon: Warehouse,
-    groups: [
-      {
-        id: 'materials',
-        label: 'المواد الخام',
-        leaves: [
-          { href: '/inventory/raw-materials', entityKey: 'material', tab: true },
-        ],
-      },
-      {
-        id: 'inventory-extensions',
-        label: 'المخزون الإضافي',
-        leaves: [
-          { href: '/inventory/extensions', entityKey: 'inventoryExtensions', tab: true },
-        ],
-      },
-      {
-        id: 'warehouses',
-        label: 'المستودعات',
-        leaves: [
-          { href: '/inventory/warehouses', entityKey: 'warehouse', tab: true },
-          { href: '/inventory/warehouses/transfers', entityKey: 'stockTransfer', tab: true },
-          { href: '/inventory/warehouses/adjustments', entityKey: 'stockAdjustment', tab: true },
-          { href: '/inventory/warehouses/barcode', entityKey: 'barcode', tab: true },
-        ],
-      },
-      {
-        id: 'stock-reports',
-        label: 'التقارير',
-        leaves: [
-          { href: '/inventory/reports', entityKey: 'inventoryReports', tab: true },
-          { href: '/inventory/raw-materials/batches', entityKey: 'materialBatch', tab: true },
-          { href: '/inventory/raw-materials/balances', entityKey: 'inventoryBalance', tab: true },
-          { href: '/inventory/raw-materials/ledger', entityKey: 'inventoryTransaction', tab: true },
-          { href: '/inventory/raw-materials/value', entityKey: 'factoryStockValue', tab: true },
-          { href: '/inventory/raw-materials/running-out', entityKey: 'factoryRunningOut', tab: true },
-          { href: '/inventory/raw-materials/stagnant', entityKey: 'factoryStagnant', tab: true },
-          { href: '/inventory/raw-materials/reserved', entityKey: 'factoryReserved', tab: true },
-          { href: '/inventory/raw-materials/price-analysis', entityKey: 'materialPriceAnalysis', tab: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'sales',
-    label: 'المبيعات',
-    icon: ShoppingCart,
-    groups: [
-      {
-        id: 'sales',
-        label: 'المبيعات',
-        leaves: [
-          { href: '/sales', entityKey: 'salesInvoice', tab: true },
-          { href: '/sales/withdrawals', entityKey: 'withdrawal', tab: true },
-          { href: '/sales/collections', entityKey: 'salesPayment', tab: true },
-        ],
-      },
-      {
-        id: 'distribution',
-        label: 'التوزيع',
-        leaves: [
-          { href: '/sales/distribution', entityKey: 'distribution', tab: true },
-          { href: '/sales/distribution/points', entityKey: 'distributionPoint', tab: true },
-          { href: '/sales/distribution/closing', entityKey: 'distributionClosing', tab: true },
-          { href: '/sales/delivery', entityKey: 'invoiceDelivery', tab: true },
-        ],
-      },
-      {
-        id: 'parties',
-        label: 'العملاء والموردين',
-        leaves: [
-          { href: '/sales/parties', entityKey: 'customer', tab: true },
-          { href: '/sales/parties/suppliers', entityKey: 'supplier', tab: true },
-          { href: '/sales/parties/requests', entityKey: 'purchaseRequest', tab: true },
-          { href: '/sales/parties/orders', entityKey: 'purchaseOrder', tab: true },
-          { href: '/sales/parties/receipts', entityKey: 'goodsReceipt', tab: true },
-        ],
-      },
-      {
-        id: 'supplier-relations',
-        label: 'علاقات الموردين',
-        leaves: [
-          { href: '/sales/parties/relations', entityKey: 'supplierRelations', tab: true },
-          { href: '/sales/parties/templates', entityKey: 'supplierTemplate', tab: true },
-          { href: '/sales/parties/communications', entityKey: 'supplierCommunication', tab: true },
-        ],
-      },
-      {
-        id: 'sales-reports',
-        label: 'التقارير',
-        leaves: [
-          { href: '/sales/reports', entityKey: 'salesReports', tab: true },
-          { href: '/sales/profitability', entityKey: 'profitability', tab: true },
-          { href: '/sales/today', entityKey: 'factorySalesToday', tab: true },
-          { href: '/sales/month', entityKey: 'factorySalesMonth', tab: true },
-          { href: '/sales/open-orders', entityKey: 'factoryOpenOrders', tab: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'accounting',
-    label: 'الحسابات',
-    icon: FileText,
-    groups: [
-      {
-        id: 'accounting',
-        label: 'المحاسبة',
-        leaves: [
-          { href: '/accounting', entityKey: 'account', tab: true },
-          { href: '/accounting/journals', entityKey: 'journalEntry', tab: true },
-          { href: '/accounting/expenses', entityKey: 'expense', tab: true },
-        ],
-      },
-      {
-        id: 'tax',
-        label: 'الضرائب',
-        leaves: [
-          { href: '/accounting/tax', entityKey: 'taxSettings', tab: true },
-          { href: '/accounting/vat', entityKey: 'vatReport', tab: true },
-        ],
-      },
-      {
-        id: 'financial-operations',
-        label: 'العمليات المالية',
-        leaves: [
-          { href: '/accounting/financial-ops', entityKey: 'financialOps', tab: true },
-          { href: '/accounting/financial-ops/utilities', entityKey: 'utilitiesReading', tab: true },
-          { href: '/accounting/financial-ops/bank-transactions', entityKey: 'bankTransaction', tab: true },
-          { href: '/accounting/obligations', entityKey: 'obligation', tab: true },
-          { href: '/accounting/documents', entityKey: 'documents', tab: true },
-        ],
-      },
-      {
-        id: 'accounting-reports',
-        label: 'التقارير',
-        leaves: [
-          { href: '/accounting/reports', entityKey: 'accountingReports', tab: true },
-          { href: '/accounting/cost', entityKey: 'factoryCostPerTon', tab: true },
-          { href: '/accounting/price', entityKey: 'factoryAvgPrice', tab: true },
-          { href: '/accounting/margin', entityKey: 'factoryMargin', tab: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'fleet',
-    label: 'الأسطول',
-    icon: CarFront,
-    groups: [
-      { id: 'fleet', label: 'الأسطول', leaves: [
-        { href: '/fleet/vehicles', entityKey: 'fleet', tab: true },
-        { href: '/fleet/fuel', entityKey: 'fleetFuel', tab: true },
-        { href: '/fleet/trips', entityKey: 'fleetTrips', tab: true },
-      ] },
-    ],
-  },
-  {
-    id: 'hr',
-    label: 'الموارد البشرية',
-    icon: Users,
-    groups: [
-      {
-        id: 'hr',
-        label: 'الموارد البشرية',
-        leaves: [
-          { href: '/hr', entityKey: 'employee', tab: true },
-          { href: '/hr/attendance', entityKey: 'attendance', tab: true },
-          { href: '/hr/payroll', entityKey: 'payroll', tab: true },
-        ],
-      },
-      {
-        id: 'hr-reports',
-        label: 'التقارير',
-        leaves: [{ href: '/hr/overtime', entityKey: 'overtime', tab: true }],
-      },
-    ],
-  },
-  {
-    id: 'tasks',
-    label: 'التقارير والمتابعة',
-    icon: ClipboardList,
-    groups: [
-      {
-        id: 'tasks',
-        label: 'التقارير والمتابعة',
-        leaves: [
-          { href: '/tasks/material', entityKey: 'materialTrace', tab: true },
-          { href: '/tasks/reports', entityKey: 'report', tab: true },
-          { href: '/tasks/approvals', entityKey: 'approvals', tab: true },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'settings',
-    label: 'الإعدادات',
-    icon: Settings,
-    groups: [
-      {
-        id: 'settings',
-        label: 'الإعدادات',
-        leaves: [
-          { href: '/settings', entityKey: 'companySettings', tab: true },
-          { href: '/settings/users', entityKey: 'users', tab: true },
-          { href: '/settings/audit', entityKey: 'auditLog', tab: false },
-        ],
-      },
-    ],
-  },
-]
-
-export const EXTRA_LEAVES: RouteLeaf[] = [{ href: '/notifications', entityKey: 'notification', tab: false }]
+export type RouteLeaf = Pick<NavPage, 'href' | 'entityKey' | 'tab'>
 
 export type ResolvedRoute = {
-  destination: Destination | null
-  group: RouteGroup | null
+  workspace: NavWorkspace | null
+  section: NavSection | null
+  page: NavPage
   leaf: RouteLeaf
-}
-
-const ALL_LEAVES: RouteLeaf[] = [
-  ...DESTINATIONS.flatMap((destination) => destination.groups.flatMap((group) => group.leaves)),
-  ...EXTRA_LEAVES,
-]
-
-const HREF_TO_LEAF = new Map<string, RouteLeaf>()
-const ENTITY_TO_HREF = new Map<string, string>()
-for (const leaf of ALL_LEAVES) {
-  if (HREF_TO_LEAF.has(leaf.href)) throw new Error(`مسار مكرر: ${leaf.href}`)
-  if (ENTITY_TO_HREF.has(leaf.entityKey)) throw new Error(`شاشة مكررة: ${leaf.entityKey}`)
-  HREF_TO_LEAF.set(leaf.href, leaf)
-  ENTITY_TO_HREF.set(leaf.entityKey, leaf.href)
-}
-
-const NAV_ENTITY_KEYS = new Set<string>()
-for (const main of ERP_NAV) {
-  for (const sub of main.subs) {
-    if (!ENTITY_TO_HREF.has(sub.entityKey)) throw new Error(`مسار مفقود: ${sub.entityKey}`)
-    NAV_ENTITY_KEYS.add(sub.entityKey)
-  }
-}
-
-/**
- * canSeeEntity resolves permissions through ERP_NAV, so a route leaf with no entry there
- * is hidden from the sidebar and denied on its own URL — for every role, including the GM.
- */
-for (const leaf of ALL_LEAVES) {
-  if (!NAV_ENTITY_KEYS.has(leaf.entityKey)) throw new Error(`شاشة بلا تعريف في ERP_NAV: ${leaf.entityKey}`)
-}
-
-export function leafMeta(entityKey: string) {
-  for (const main of ERP_NAV) {
-    for (const sub of main.subs) {
-      if (sub.entityKey === entityKey) return { label: sub.label, description: sub.description }
-    }
-  }
-  return { label: entityKey, description: '' }
-}
-
-export function canSeeEntity(permissions: string[], entityKey: string) {
-  for (const main of ERP_NAV) {
-    for (const sub of main.subs) {
-      if (sub.entityKey === entityKey && canAccessSub(permissions, sub, main)) return true
-    }
-  }
-  return false
-}
-
-export function hrefForEntity(entityKey: string) {
-  return ENTITY_TO_HREF.get(entityKey) ?? null
-}
-
-export function resolvePath(pathname: string): ResolvedRoute | null {
-  const path = pathname.split('?')[0]?.replace(/\/$/, '') || '/'
-  let best: ResolvedRoute | null = null
-  for (const destination of DESTINATIONS) {
-    for (const group of destination.groups) {
-      for (const leaf of group.leaves) {
-        const matches = path === leaf.href || (leaf.href !== '/' && path.startsWith(`${leaf.href}/`))
-        if (!matches) continue
-        if (!best || leaf.href.length > best.leaf.href.length) best = { destination, group, leaf }
-      }
-    }
-  }
-  if (best) return best
-  const extra = EXTRA_LEAVES.find((leaf) => path === leaf.href)
-  if (!extra) return null
-  return { destination: null, group: null, leaf: extra }
-}
-
-export function visibleDestinations(permissions: string[]) {
-  return DESTINATIONS.filter((destination) =>
-    destination.groups.some((group) => group.leaves.some((leaf) => canSeeEntity(permissions, leaf.entityKey))),
-  )
-}
-
-export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
-  const destination = resolved.destination
-  if (!destination) return { primary: [] as PageTab[], secondary: [] as PageTab[], activePrimary: '', activeSecondary: '' }
-  const groups = destination.groups
-    .map((group) => ({
-      ...group,
-      leaves: group.leaves.filter((leaf) => canSeeEntity(permissions, leaf.entityKey)),
-    }))
-    .filter((group) => group.leaves.some((leaf) => leaf.tab))
-  if (groups.length === 0) return { primary: [] as PageTab[], secondary: [] as PageTab[], activePrimary: '', activeSecondary: '' }
-  if (groups.length === 1) {
-    const primary = groups[0]!.leaves
-      .filter((leaf) => leaf.tab)
-      .map((leaf) => ({ id: leaf.href, href: leaf.href, label: leafMeta(leaf.entityKey).label }))
-    return { primary, secondary: [] as PageTab[], activePrimary: resolved.leaf.href, activeSecondary: '' }
-  }
-  const primary = groups.map((group) => {
-    const first = group.leaves.find((leaf) => leaf.tab) ?? group.leaves[0]!
-    return { id: group.id, href: first.href, label: group.label }
-  })
-  const activeGroup = groups.find((group) => group.id === resolved.group?.id) ?? groups[0]!
-  const secondary = activeGroup.leaves
-    .filter((leaf) => leaf.tab)
-    .map((leaf) => ({ id: leaf.href, href: leaf.href, label: leafMeta(leaf.entityKey).label }))
-  return { primary, secondary, activePrimary: activeGroup.id, activeSecondary: resolved.leaf.href }
+  redirectTo?: string
 }
 
 export type PageTab = { id: string; href: string; label: string }
+export type NavSearchResult = {
+  type: 'workspace' | 'section' | 'page'
+  id: string
+  label: string
+  description: string
+  href: string
+  workspace: NavWorkspace | null
+  section: NavSection | null
+  page: NavPage | null
+}
 
-export type SidebarNode = { id: string; href: string; label: string; children: SidebarNode[] }
+type PageLocation = { workspace: NavWorkspace | null; section: NavSection | null; page: NavPage }
 
-/** Same tabs shown on the page, nested for the sidebar. */
-export function sidebarNodes(destination: Destination, permissions: string[]): SidebarNode[] {
-  const groups = destination.groups
-    .map((group) => ({
-      ...group,
-      leaves: group.leaves.filter((leaf) => leaf.tab && canSeeEntity(permissions, leaf.entityKey)),
-    }))
-    .filter((group) => group.leaves.length > 0)
-  if (groups.length === 0) return []
-  if (groups.length === 1) {
-    const leaves = groups[0]!.leaves
-    if (leaves.length < 2) return []
-    return leaves.map((leaf) => ({
-      id: leaf.href,
-      href: leaf.href,
-      label: leafMeta(leaf.entityKey).label,
-      children: [],
-    }))
+function locationForPage(page: NavPage): PageLocation {
+  for (const workspace of NAV_CONFIG.workspaces) {
+    for (const section of workspace.sections) {
+      const match = section.pages.find((item) => item.id === page.id)
+      if (match) return { workspace, section, page: match }
+    }
   }
-  return groups.map((group) => {
-    const first = group.leaves[0]!
-    const children =
-      group.leaves.length > 1
-        ? group.leaves.map((leaf) => ({
-            id: leaf.href,
-            href: leaf.href,
-            label: leafMeta(leaf.entityKey).label,
-            children: [] as SidebarNode[],
-          }))
-        : []
-    return { id: group.id, href: first.href, label: group.label, children }
-  })
+  return { workspace: null, section: null, page }
+}
+
+function normalizedPath(pathname: string) {
+  return pathname.replace(/\/+$/, '') || '/'
+}
+
+function routeAt(path: string, params: URLSearchParams): PageLocation | null {
+  const candidates = ALL_NAV_PAGES
+    .filter((page) => {
+      const href = new URL(page.href, 'https://nav.invalid')
+      const routePath = normalizedPath(href.pathname)
+      const pathMatches = path === routePath || (routePath !== '/' && path.startsWith(`${routePath}/`))
+      if (!pathMatches) return false
+      if (!page.queryView) return true
+      return params.get(page.queryView.param) === page.queryView.value
+    })
+    .sort((a, b) => new URL(b.href, 'https://nav.invalid').pathname.length - new URL(a.href, 'https://nav.invalid').pathname.length)
+  return candidates[0] ? locationForPage(candidates[0]) : null
+}
+
+function routeFromHref(href: string) {
+  const url = new URL(href, 'https://nav.invalid')
+  return routeAt(normalizedPath(url.pathname), url.searchParams)
+}
+
+export function resolvePath(pathname: string, search = ''): ResolvedRoute | null {
+  const url = new URL(pathname, 'https://nav.invalid')
+  const path = normalizedPath(url.pathname)
+  const params = search
+    ? new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+    : url.searchParams
+  const match = routeAt(path, params)
+  if (match) return { ...match, leaf: { href: match.page.href, entityKey: match.page.entityKey, tab: match.page.tab } }
+
+  const redirect = NAV_CONFIG.redirects.find((item) => normalizedPath(new URL(item.from, 'https://nav.invalid').pathname) === path)
+  if (!redirect) return null
+  const target = routeFromHref(redirect.to)
+  if (!target) return null
+  return {
+    ...target,
+    leaf: { href: target.page.href, entityKey: target.page.entityKey, tab: target.page.tab },
+    redirectTo: redirect.to,
+  }
+}
+
+export function canSeeEntity(permissions: string[], entityKey: string) {
+  const page = pageForEntity(entityKey)
+  if (!page) return false
+  if (page.permission.length === 0) return true
+  return page.permission.some((permission) => permissions.includes(permission))
+}
+
+export function hrefForEntity(entityKey: string) {
+  return pageForEntity(entityKey)?.href ?? null
+}
+
+export function hrefForPageId(pageId: string) {
+  return pageForId(pageId)?.href ?? null
+}
+
+export function leafMeta(entityKey: string) {
+  const page = pageForEntity(entityKey)
+  return page ? { label: page.label, description: page.description } : { label: entityKey, description: '' }
+}
+
+export function visibleWorkspaces(permissions: string[]) {
+  return NAV_CONFIG.workspaces.filter((workspace) =>
+    workspace.sections.some((section) => section.pages.some((page) => page.tab || page.entityKey === 'dashboard'
+      ? canSeeEntity(permissions, page.entityKey)
+      : canSeeEntity(permissions, page.entityKey))),
+  )
+}
+
+export function visibleSections(workspace: NavWorkspace, permissions: string[]) {
+  return workspace.sections.filter((section) => section.pages.some((page) => canSeeEntity(permissions, page.entityKey)))
+}
+
+export function sectionEntryHref(section: NavSection, permissions: string[]) {
+  return section.pages.find((page) => canSeeEntity(permissions, page.entityKey))?.href ?? null
+}
+
+export function workspaceEntryHref(workspace: NavWorkspace, permissions: string[]) {
+  for (const section of workspace.sections) {
+    const href = sectionEntryHref(section, permissions)
+    if (href) return href
+  }
+  return null
+}
+
+/** Kept as a compatibility-shaped export; the new information architecture has one page-tab row. */
+export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
+  const primary = (resolved.section?.pages ?? [])
+    .filter((page) => page.tab && canSeeEntity(permissions, page.entityKey))
+    .map((page) => ({ id: page.id, href: page.href, label: page.label }))
+  return { primary, secondary: [] as PageTab[], activePrimary: resolved.page.id, activeSecondary: '' }
 }
 
 export function breadcrumbs(resolved: ResolvedRoute, permissions: string[]) {
-  const meta = leafMeta(resolved.leaf.entityKey)
   const crumbs: Array<{ href: string; label: string }> = [{ href: '/', label: 'الرئيسية' }]
-  if (!resolved.destination || resolved.destination.id === 'home') {
-    if (meta.label !== 'الرئيسية') crumbs.push({ href: resolved.leaf.href, label: meta.label })
+  if (!resolved.workspace) {
+    if (resolved.page.entityKey !== 'dashboard') crumbs.push({ href: resolved.page.href, label: resolved.page.label })
     return crumbs
   }
-  const entry = entryHref(resolved.destination, permissions)
-  crumbs.push({ href: entry, label: resolved.destination.label })
-  if (resolved.group && resolved.destination.groups.length > 1 && resolved.group.label !== crumbs[crumbs.length - 1]?.label) {
-    const first = resolved.group.leaves.find((leaf) => leaf.tab) ?? resolved.group.leaves[0]!
-    crumbs.push({ href: first.href, label: resolved.group.label })
+  if (resolved.workspace.id !== 'home') {
+    const entry = workspaceEntryHref(resolved.workspace, permissions) ?? resolved.page.href
+    crumbs.push({ href: entry, label: resolved.workspace.label })
+    if (resolved.section && resolved.section.label !== resolved.workspace.label) {
+      const sectionEntry = sectionEntryHref(resolved.section, permissions) ?? resolved.page.href
+      crumbs.push({ href: sectionEntry, label: resolved.section.label })
+    }
   }
-  if (meta.label !== crumbs[crumbs.length - 1]?.label) crumbs.push({ href: resolved.leaf.href, label: meta.label })
+  if (resolved.page.entityKey !== 'dashboard' && crumbs.at(-1)?.label !== resolved.page.label) {
+    crumbs.push({ href: resolved.page.href, label: resolved.page.label })
+  }
   return crumbs
 }
 
-export function entryHref(destination: Destination, permissions: string[]) {
-  for (const group of destination.groups) {
-    const leaf = group.leaves.find((item) => item.tab && canSeeEntity(permissions, item.entityKey))
-    if (leaf) return leaf.href
+export function entryHref(workspace: NavWorkspace, permissions: string[]) {
+  return workspaceEntryHref(workspace, permissions) ?? '/'
+}
+
+function normalizeText(value: string) {
+  return value.normalize('NFKD').replace(/[\u064B-\u065F\u0670]/g, '').toLocaleLowerCase('ar').trim()
+}
+
+export function searchNavigation(query: string, permissions: string[]): NavSearchResult[] {
+  const needle = normalizeText(query)
+  if (!needle) return []
+  const results: NavSearchResult[] = []
+  const accessiblePages = (pages: NavPage[]) => pages.filter((page) => canSeeEntity(permissions, page.entityKey))
+
+  for (const workspace of NAV_CONFIG.workspaces) {
+    const pages = accessiblePages(workspace.sections.flatMap((section) => section.pages))
+    if (pages.length === 0) continue
+    const href = workspaceEntryHref(workspace, permissions)
+    if (href && normalizeText([workspace.label, ...workspace.keywords].join(' ')).includes(needle)) {
+      results.push({ type: 'workspace', id: workspace.id, label: workspace.label, description: '', href, workspace, section: null, page: null })
+    }
+    for (const section of workspace.sections) {
+      const sectionPages = accessiblePages(section.pages)
+      if (sectionPages.length === 0) continue
+      const sectionHref = sectionEntryHref(section, permissions)
+      if (sectionHref && normalizeText([section.label, ...section.keywords].join(' ')).includes(needle)) {
+        results.push({ type: 'section', id: `${workspace.id}:${section.id}`, label: section.label, description: '', href: sectionHref, workspace, section, page: null })
+      }
+      for (const page of sectionPages) {
+        const searchable = normalizeText([page.label, page.description, ...page.keywords].join(' '))
+        if (searchable.includes(needle)) {
+          results.push({ type: 'page', id: page.id, label: page.label, description: page.description, href: page.href, workspace, section, page })
+        }
+      }
+    }
   }
-  for (const group of destination.groups) {
-    const leaf = group.leaves.find((item) => canSeeEntity(permissions, item.entityKey))
-    if (leaf) return leaf.href
+
+  for (const page of NAV_CONFIG.utilityPages) {
+    if (normalizeText([page.label, page.description, ...page.keywords].join(' ')).includes(needle)) {
+      results.push({ type: 'page', id: page.id, label: page.label, description: page.description, href: page.href, workspace: null, section: null, page })
+    }
   }
-  return '/'
+  return results.slice(0, 40)
+}
+
+export function routePages() {
+  return canonicalPages()
 }
