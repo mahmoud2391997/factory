@@ -27,10 +27,14 @@ export function getDemoSecrets() {
 /** Demo mode works out of the box when no production configuration is present. */
 export function isDemoMode() {
   const configuredMode = process.env.APP_MODE?.trim().toLowerCase()
-  if (configuredMode === 'demo') return true
-  if (configuredMode === 'production' || configuredMode === 'prod') return false
+  const hasDatabase = Boolean(resolveDatabaseUrl())
 
-  if (resolveDatabaseUrl()) return false
+  // A configured PostgreSQL connection always takes precedence so Vercel
+  // cannot silently serve demo data when the database integration is present.
+  if (hasDatabase) return false
+  if (configuredMode === 'production' || configuredMode === 'prod') return false
+  if (configuredMode === 'demo') return true
+
   return true
 }
 
