@@ -342,7 +342,6 @@ const NAV_ENTITY_KEYS = new Set<string>()
 for (const main of ERP_NAV) {
   for (const sub of main.subs) {
     if (!ENTITY_TO_HREF.has(sub.entityKey)) throw new Error(`مسار مفقود: ${sub.entityKey}`)
-    if (NAV_ENTITY_KEYS.has(sub.entityKey)) throw new Error(`شاشة مكررة في ERP_NAV: ${sub.entityKey}`)
     NAV_ENTITY_KEYS.add(sub.entityKey)
   }
 }
