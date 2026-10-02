@@ -709,7 +709,7 @@ export const ERP_NAV: ErpMainTab[] = [
     screen('factoryAvgPrice'), screen('factoryMargin'), screen('factoryStockValue'), screen('factoryRunningOut'),
     screen('factoryStagnant'), screen('factoryReserved'), screen('factoryWaste'), screen('factoryDeviation'),
     screen('varianceReport'), screen('factoryStoppages'),
-  ]),
+  ].map((sub) => ({ ...sub, permission: ['users.manage'] }))),
   main('fleet-transport', 'السيارات والنقل', CarFront, [
     screen('fleet', 'المركبات', 'vehicles', 'ملف المركبة وبياناتها؛ الوثائق المرتبطة متاحة في مركز الوثائق.'),
     screen('fleet', 'الصيانة الدورية والإطارات والزيوت', 'vehicle-service', 'أقرب شاشة موجودة: ملف المركبات وسجل خدماتها.'),
