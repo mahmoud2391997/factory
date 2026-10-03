@@ -3,6 +3,6 @@
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm run vercel-build",
-  "devCommand": "cd ../.. && (npm run dev || bun run dev)",
+  "devCommand": "cd ../.. && pnpm dev",
   "outputDirectory": ".next"
 }
