@@ -128,6 +128,8 @@ export function LiveWorkspace({
   crumbs,
   tabs,
   activeTabId,
+  secondaryTabs,
+  activeSecondaryId,
   relatedLinks,
   ctx,
 }: {
@@ -138,6 +140,8 @@ export function LiveWorkspace({
   crumbs: Breadcrumb[]
   tabs: PageTab[]
   activeTabId: string
+  secondaryTabs: PageTab[]
+  activeSecondaryId: string
   relatedLinks: RelatedLink[]
   ctx: LiveCtx
 }) {
@@ -168,7 +172,13 @@ export function LiveWorkspace({
         </ol>
       </nav>
 
-      <PageTabs label="صفحات القسم" tabs={tabs} activeId={activeTabId} />
+      <PageTabs
+        label="الأقسام الرئيسية"
+        primaryTabs={tabs}
+        secondaryTabs={secondaryTabs}
+        activePrimaryId={activeTabId}
+        activeSecondaryId={activeSecondaryId}
+      />
 
       <header className="space-y-2">
         <h2 className="text-2xl font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{title}</h2>

@@ -136,12 +136,25 @@ export function workspaceEntryHref(workspace: NavWorkspace, permissions: string[
   return null
 }
 
-/** Kept as a compatibility-shaped export; the new information architecture has one page-tab row. */
 export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
-  const primary = (resolved.section?.pages ?? [])
+  const primary = NAV_CONFIG.workspaces.flatMap((workspace) =>
+    workspace.sections
+      .filter((section) => section.pages.some((page) => canSeeEntity(permissions, page.entityKey)))
+      .map((section) => ({
+        id: `${workspace.id}:${section.id}`,
+        href: sectionEntryHref(section, permissions) ?? '/',
+        label: section.label,
+      })),
+  )
+  const secondary = (resolved.section?.pages ?? [])
     .filter((page) => page.tab && canSeeEntity(permissions, page.entityKey))
     .map((page) => ({ id: page.id, href: page.href, label: page.label }))
-  return { primary, secondary: [] as PageTab[], activePrimary: resolved.page.id, activeSecondary: '' }
+  return {
+    primary,
+    secondary,
+    activePrimary: resolved.section ? `${resolved.workspace?.id ?? 'references'}:${resolved.section.id}` : '',
+    activeSecondary: resolved.page.id,
+  }
 }
 
 export function breadcrumbs(resolved: ResolvedRoute, permissions: string[]) {
