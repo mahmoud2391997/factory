@@ -1676,6 +1676,7 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'تصفية الجدول': { en: 'Filter table', hi: 'तालिका फ़िल्टर करें' },
   'تحديد كل الصفوف': { en: 'Select all rows', hi: 'सभी पंक्तियाँ चुनें' },
   'دفعات العميل: ': { en: "Customer batches: ", hi: 'ग्राहक बैच: ' },
+  'صفحات': { en: 'pages', hi: 'पृष्ठ' },
   'عميل ← فاتورة ← متابعة الرصيد': { en: 'Customer → invoice → balance follow-up', hi: 'ग्राहक → चालान → शेष राशि की निगरानी' },
   'فاتورة ← تحصيل ← مرتجع': { en: 'Invoice → collection → return', hi: 'चालान → वसूली → वापसी' },
   'تجهيز ← تسليم ← إقفال يومي': { en: 'Prepare → deliver → daily close', hi: 'तैयारी → डिलीवरी → दैनिक समापन' },

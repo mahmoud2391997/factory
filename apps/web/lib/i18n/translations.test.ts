@@ -39,6 +39,7 @@ test('shared UI labels translate without changing Arabic or unknown dynamic valu
 })
 
 test('live navigation, table accessibility, trace labels, and dynamic currency are localized', () => {
+  assert.equal(translateUiText('en', 'صفحات'), 'pages')
   assert.equal(translateUiText('en', 'مورد ← طلب شراء ← أمر شراء ← استلام'), 'Supplier → purchase request → purchase order → receipt')
   assert.equal(translateUiText('hi', 'موظف ← حضور ← إضافي ← راتب'), 'कर्मचारी → उपस्थिति → ओवरटाइम → पेरोल')
   assert.equal(translateUiText('en', 'مكونات الوصفات'), 'Recipe components')

@@ -104,6 +104,7 @@ export function ErpShell() {
   const [noticesOpen, setNoticesOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openWorkspaceId, setOpenWorkspaceId] = useState<string | null>('home')
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<string[]>([])
   const [flyoutWorkspaceId, setFlyoutWorkspaceId] = useState<string | null>(null)
   const [flyoutPosition, setFlyoutPosition] = useState<{ top: number; left: number } | null>(null)
   const [navSearch, setNavSearch] = useState('')
@@ -242,6 +243,12 @@ export function ErpShell() {
       setOpenWorkspaceId(resolved.workspace.id)
     }
   }, [navReady, resolved?.workspace?.id, pathname, searchString, permissionKey])
+
+  useEffect(() => {
+    if (!resolved?.workspace || !resolved.section) return
+    const activeSectionId = `${resolved.workspace.id}:${resolved.section.id}`
+    setCollapsedSectionIds((collapsed) => collapsed.filter((sectionId) => sectionId !== activeSectionId))
+  }, [resolved?.workspace?.id, resolved?.section?.id])
 
   useEffect(() => {
     if (resolved?.redirectTo) router.replace(resolved.redirectTo)
@@ -405,17 +412,37 @@ export function ErpShell() {
     const pages = section.pages.filter((page) => canSeeEntity(permissions, page.entityKey))
     if (pages.length === 0) return null
     const isFlyout = variant === 'flyout'
+    const sectionKey = `${workspaceId}:${section.id}`
+    const collapsed = collapsedSectionIds.includes(sectionKey)
+
+    if (pages.length === 1) {
+      const page = pages[0]!
+      const active = resolved?.page.id === page.id
+      return (
+        <Link key={`${variant}:${workspaceId}:${section.id}`} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={`${uiLabel(section.label)} · ${uiLabel(page.description)}`} onClick={() => { setOpenWorkspaceId(workspaceId); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${active ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
+          <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
+          <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
+        </Link>
+      )
+    }
+
+    const pagesId = `erp-navigation-${workspaceId}-${section.id}-${variant}`
     return (
       <section key={`${variant}:${workspaceId}:${section.id}`} className={isFlyout ? 'border-b border-[#e5e7eb] pb-2 last:border-b-0 dark:border-[#3f3f46]' : 'py-1'}>
-        <div className={`flex min-h-8 items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-[#a1a1aa] ${isFlyout ? 'px-2.5' : ''}`}>
-          <span className="min-w-0 flex-1 truncate">{uiLabel(section.label)}</span>
+        <button type="button" data-nav-item="true" aria-expanded={!collapsed} aria-controls={pagesId} onClick={() => setCollapsedSectionIds((current) => collapsed ? current.filter((id) => id !== sectionKey) : [...current, sectionKey])} className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-right text-xs font-semibold text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:text-[#e4e4e7] dark:hover:bg-[#27272a] ${isFlyout ? 'px-2.5' : ''}`}>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate">{uiLabel(section.label)}</span>
+            {section.workflow ? <span className="mt-0.5 block truncate text-[10px] font-normal normal-case tracking-normal text-[#6b7280] dark:text-[#a1a1aa]">{uiLabel(section.workflow)}</span> : null}
+          </span>
+          <CountBadge value={pages.length} label={uiLabel('صفحات')} />
           <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
-        </div>
-        <div className="flex flex-col gap-0.5">
+          <ChevronDown size={14} aria-hidden className={`shrink-0 transition-transform motion-reduce:transition-none ${collapsed ? '' : 'rotate-180'}`} />
+        </button>
+        <div id={pagesId} hidden={collapsed} className={`${collapsed ? 'hidden' : 'flex'} me-2 mt-0.5 flex-col gap-0.5 border-e border-[#d1d5db] pe-1 dark:border-[#52525b]`}>
           {pages.map((page) => {
             const active = resolved?.page.id === page.id
             return (
-              <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceId(workspaceId); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
+              <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceId(workspaceId); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-9 items-center rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
                 <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
               </Link>
             )
