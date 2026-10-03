@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=@erp/web",
+    "predev": "npm run generate --workspace=@erp/database",
     "dev:web": "npm run dev --workspace=@erp/web",
     "build": "npm run build --workspace=@erp/web",
     "build:web": "npm run build --workspace=@erp/web",
