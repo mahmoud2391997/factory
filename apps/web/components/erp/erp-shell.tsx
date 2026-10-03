@@ -31,7 +31,6 @@ import {
   pageTabs,
   resolvePath,
   searchNavigation,
-  sectionEntryHref,
   visibleSections,
   visibleWorkspaces,
   workspaceEntryHref,
@@ -351,8 +350,8 @@ export function ErpShell() {
   const openFlyoutAt = (workspaceId: string, element: HTMLElement) => {
     if (flyoutCloseTimer.current != null) window.clearTimeout(flyoutCloseTimer.current)
     const rect = element.getBoundingClientRect()
-    const flyoutWidth = 240
-    const flyoutHeight = Math.min(window.innerHeight * 0.7, 420)
+    const flyoutWidth = 260
+    const flyoutHeight = Math.min(window.innerHeight * 0.85, 680)
     const top = Math.max(12, Math.min(rect.top, window.innerHeight - flyoutHeight - 12))
     const left = language === 'ar'
       ? Math.max(8, rect.left - flyoutWidth - 8)
@@ -400,6 +399,30 @@ export function ErpShell() {
     if (sectionId === 'documents' && canSeeEntity(permissions, 'documents')) return alerts?.documents.length ?? 0
     if (sectionId === 'notifications' && canSeeEntity(permissions, 'notification')) return unread
     return 0
+  }
+
+  const renderSectionGroup = (section: (typeof visibleSections extends never ? never : ReturnType<typeof visibleSections>[number]), workspaceId: string, variant: 'sidebar' | 'mobile' | 'flyout') => {
+    const pages = section.pages.filter((page) => canSeeEntity(permissions, page.entityKey))
+    if (pages.length === 0) return null
+    const isFlyout = variant === 'flyout'
+    return (
+      <section key={`${variant}:${workspaceId}:${section.id}`} className={isFlyout ? 'border-b border-[#e5e7eb] pb-2 last:border-b-0 dark:border-[#3f3f46]' : 'py-1'}>
+        <div className={`flex min-h-8 items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280] dark:text-[#a1a1aa] ${isFlyout ? 'px-2.5' : ''}`}>
+          <span className="min-w-0 flex-1 truncate">{uiLabel(section.label)}</span>
+          <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {pages.map((page) => {
+            const active = resolved?.page.id === page.id
+            return (
+              <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceId(workspaceId); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
+                <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </section>
+    )
   }
 
   if (authLoading || !user) {
@@ -545,17 +568,7 @@ export function ErpShell() {
 
               {mobileOpen && mobileWorkspaceId ? (
                 <div className="space-y-1">
-                  {visibleSections(workspaces.find((workspace) => workspace.id === mobileWorkspaceId)!, permissions).map((section) => {
-                    const href = sectionEntryHref(section, permissions)
-                    if (!href) return null
-                    const active = resolved?.section?.id === section.id
-                    return (
-                      <Link key={section.id} data-nav-item="true" href={href} aria-current={active ? 'location' : undefined} onClick={closeMobile} className={`erp-section-item flex min-h-11 items-center gap-2 rounded-lg px-3 text-right text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${active ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'}`}>
-                        <span className="min-w-0 flex-1 truncate">{uiLabel(section.label)}</span>
-                        <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
-                      </Link>
-                    )
-                  })}
+                  {visibleSections(workspaces.find((workspace) => workspace.id === mobileWorkspaceId)!, permissions).map((section) => renderSectionGroup(section, mobileWorkspaceId, 'mobile'))}
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -596,15 +609,9 @@ export function ErpShell() {
                     )
 
                     const flyout = iconOnly && flyoutWorkspaceId === workspace.id && flyoutPosition ? (
-                      <div style={{ top: flyoutPosition.top, left: flyoutPosition.left }} className="erp-workspace-flyout fixed z-[80] max-h-[70vh] w-60 overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-2 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b]" onMouseEnter={() => { if (flyoutCloseTimer.current != null) window.clearTimeout(flyoutCloseTimer.current) }} onMouseLeave={scheduleFlyoutClose}>
+                      <div style={{ top: flyoutPosition.top, left: flyoutPosition.left }} className="erp-workspace-flyout fixed z-[80] max-h-[85vh] w-[260px] overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-2 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b]" onMouseEnter={() => { if (flyoutCloseTimer.current != null) window.clearTimeout(flyoutCloseTimer.current) }} onMouseLeave={scheduleFlyoutClose}>
                         <div className="px-2 py-2 text-sm font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{uiLabel(workspace.label)}</div>
-                        {sections.map((section) => {
-                          const href = sectionEntryHref(section, permissions)
-                          if (!href) return null
-                          return <Link key={section.id} href={href} aria-current={resolved?.section?.id === section.id ? 'location' : undefined} onClick={() => { setOpenWorkspaceId(workspace.id); setFlyoutWorkspaceId(null) }} className="flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]">
-                            <span className="min-w-0 flex-1 truncate">{uiLabel(section.label)}</span><CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
-                          </Link>
-                        })}
+                        {sections.map((section) => renderSectionGroup(section, workspace.id, 'flyout'))}
                       </div>
                     ) : null
 
@@ -614,17 +621,7 @@ export function ErpShell() {
                         {iconOnly && navReady && flyout ? createPortal(flyout, document.body) : null}
                         {!iconOnly && active && !(mobileOpen && mobileWorkspaceId) ? (
                           <div className="erp-workspace-sections me-3 mt-1 space-y-0.5 border-e border-[#d1d5db] pe-2 dark:border-[#52525b]">
-                            {sections.map((section) => {
-                              const href = sectionEntryHref(section, permissions)
-                              if (!href) return null
-                              const sectionActive = resolved?.section?.id === section.id
-                              return (
-                                <Link key={section.id} data-nav-item="true" href={href} aria-current={sectionActive ? 'location' : undefined} onClick={() => { setOpenWorkspaceId(workspace.id); closeMobile() }} className={`erp-section-item flex min-h-11 items-center gap-2 rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${sectionActive ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
-                                  <span className="min-w-0 flex-1 truncate">{uiLabel(section.label)}</span>
-                                  <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
-                                </Link>
-                              )
-                            })}
+                            {sections.map((section) => renderSectionGroup(section, workspace.id, 'sidebar'))}
                           </div>
                         ) : null}
                       </div>
