@@ -1676,6 +1676,23 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'تصفية الجدول': { en: 'Filter table', hi: 'तालिका फ़िल्टर करें' },
   'تحديد كل الصفوف': { en: 'Select all rows', hi: 'सभी पंक्तियाँ चुनें' },
   'دفعات العميل: ': { en: "Customer batches: ", hi: 'ग्राहक बैच: ' },
+  'عميل ← فاتورة ← متابعة الرصيد': { en: 'Customer → invoice → balance follow-up', hi: 'ग्राहक → चालान → शेष राशि की निगरानी' },
+  'فاتورة ← تحصيل ← مرتجع': { en: 'Invoice → collection → return', hi: 'चालान → वसूली → वापसी' },
+  'تجهيز ← تسليم ← إقفال يومي': { en: 'Prepare → deliver → daily close', hi: 'तैयारी → डिलीवरी → दैनिक समापन' },
+  'تكلفة ← سعر البيع ← هامش الربح': { en: 'Cost → sale price → profit margin', hi: 'लागत → बिक्री मूल्य → लाभ मार्जिन' },
+  'مورد ← طلب شراء ← أمر شراء ← استلام': { en: 'Supplier → purchase request → purchase order → receipt', hi: 'आपूर्तिकर्ता → खरीद अनुरोध → खरीद आदेश → प्राप्ति' },
+  'عرض سعر ← مراسلة ← متابعة': { en: 'Quotation → correspondence → follow-up', hi: 'मूल्य उद्धरण → पत्राचार → अनुवर्ती कार्रवाई' },
+  'مواد خام ← منتجات جاهزة': { en: 'Raw materials → finished products', hi: 'कच्चा माल → तैयार उत्पाद' },
+  'رصيد ← حركة ← تسوية ← تقرير': { en: 'Balance → movement → adjustment → report', hi: 'शेष → गतिविधि → समायोजन → रिपोर्ट' },
+  'تخطيط ← أمر إنتاج ← تنفيذ ← قياس': { en: 'Plan → production order → execution → measurement', hi: 'योजना → उत्पादन आदेश → निष्पादन → मापन' },
+  'وصفة ← مكونات ← منتج': { en: 'Recipe → ingredients → product', hi: 'नुस्खा → सामग्री → उत्पाद' },
+  'عينة ← تحليل ← متابعة جودة المورد': { en: 'Sample → analysis → supplier-quality follow-up', hi: 'नमूना → विश्लेषण → आपूर्तिकर्ता गुणवत्ता अनुवर्ती' },
+  'خامة ← دفعة إنتاج ← هدر وانحراف': { en: 'Material → production batch → waste and variance', hi: 'सामग्री → उत्पादन बैच → अपशिष्ट और विचलन' },
+  'مركبة ← رحلة ← استهلاك الوقود': { en: 'Vehicle → trip → fuel consumption', hi: 'वाहन → यात्रा → ईंधन खपत' },
+  'ماكينة ← جدول صيانة ← عطل ← إصلاح': { en: 'Machine → maintenance schedule → fault → repair', hi: 'मशीन → रखरखाव अनुसूची → खराबी → मरम्मत' },
+  'حساب ← معاملة ← قيد ← تقرير': { en: 'Account → transaction → journal entry → report', hi: 'खाता → लेनदेन → जर्नल प्रविष्टि → रिपोर्ट' },
+  'مصروف ← اعتماد ← ضريبة': { en: 'Expense → approval → tax', hi: 'व्यय → अनुमोदन → कर' },
+  'موظف ← حضور ← إضافي ← راتب': { en: 'Employee → attendance → overtime → payroll', hi: 'कर्मचारी → उपस्थिति → ओवरटाइम → पेरोल' },
 }
 
 export function translateUiText(lang: Language, source: string): string {

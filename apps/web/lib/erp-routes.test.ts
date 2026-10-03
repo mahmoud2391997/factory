@@ -422,6 +422,11 @@ test('workspace and section labels match the owner information architecture exac
     ['المستخدمون والصلاحيات', 'الاعتمادات', 'الإشعارات', 'سجل العمليات', 'الإعدادات والتقارير'],
   ])
 
+  const workflowSections = NAV_CONFIG.workspaces.flatMap((workspace) => workspace.sections).filter((section) => section.workflow)
+  assert.equal(workflowSections.length, 17)
+  assert.ok(workflowSections.every((section) => section.workflow!.split('←').length >= 2), 'workflow captions show the sequence between steps')
+  assert.ok(workflowSections.flatMap((section) => section.pages).every((page) => canSeeEntity(allPagesForEveryRole, page.entityKey)))
+
   for (const workspace of NAV_CONFIG.workspaces) {
     const href = workspaceEntryHref(workspace, allPagesForEveryRole)
     assert.ok(href, `${workspace.id} has a direct entry link`)
