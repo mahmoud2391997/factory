@@ -788,8 +788,9 @@ export function ErpShell() {
               relatedLinks={relatedLinks.map((item) => ({ ...item, href: workspaces.flatMap((workspace) => workspace.sections.flatMap((section) => section.pages)).find((page) => page.entityKey === item.entityKey)?.href ?? '/' }))}
               ctx={liveCtx}
             />
-          ) : (
-            <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#525252] dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#d4d4d8]">{uiLabel(resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.')}</div>
+            </>
+            ) : (
+              <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-6 text-sm text-[#525252] dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#d4d4d8]">{uiLabel(resolved ? 'ليست لديك صلاحية لهذه الشاشة' : 'هذه الشاشة غير مربوطة بعد.')}</div>
           )}
         </div>
       </div>

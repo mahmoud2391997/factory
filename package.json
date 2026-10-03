@@ -20,6 +20,8 @@
     "test:erp": "tsx --test \"apps/web/**/*.test.ts\""
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0",
     "tsx": "^4.23.15"
   }
 }
