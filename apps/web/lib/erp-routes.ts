@@ -95,10 +95,14 @@ export function resolvePath(pathname: string, search = ''): ResolvedRoute | null
   }
 }
 
-export function canSeeEntity(permissions: string[], entityKey: string) {
-  const page = pageForEntity(entityKey)
-  if (!page) return false
+export function canSeePage(permissions: string[], page: NavPage) {
   return canAccessPage(page, permissions)
+}
+
+export function canSeeEntity(permissions: string[], entityKey: string) {
+  const pages = ALL_NAV_PAGES.filter((item) => item.entityKey === entityKey)
+  if (pages.length === 0) return false
+  return pages.some((page) => canAccessPage(page, permissions))
 }
 
 export function hrefForEntity(entityKey: string) {
@@ -116,16 +120,23 @@ export function leafMeta(entityKey: string) {
 
 export function visibleWorkspaces(permissions: string[]) {
   return NAV_CONFIG.workspaces.filter((workspace) =>
-    workspace.sections.some((section) => section.pages.some((page) => canSeeEntity(permissions, page.entityKey))),
+    workspace.sections.some((section) =>
+      section.pages.some((page) => canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey)),
+    ),
   )
 }
 
 export function visibleSections(workspace: NavWorkspace, permissions: string[]) {
-  return workspace.sections.filter((section) => section.pages.some((page) => canSeeEntity(permissions, page.entityKey)))
+  return workspace.sections.filter((section) =>
+    section.pages.some((page) => canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey)),
+  )
 }
 
 export function sectionEntryHref(section: NavSection, permissions: string[]) {
-  return section.pages.find((page) => canSeeEntity(permissions, page.entityKey))?.href ?? null
+  return (
+    section.pages.find((page) => canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey))?.href ??
+    null
+  )
 }
 
 export function workspaceEntryHref(workspace: NavWorkspace, permissions: string[]) {

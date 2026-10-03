@@ -83,6 +83,8 @@ export type Permission = (typeof PERMISSIONS)[number]
 
 export const ROLE_LABELS = {
   GM: 'المدير العام',
+  SUPER_ADMIN: 'مدير النظام',
+  ADMIN: 'المدير المسؤول',
   ACCOUNTANT: 'المحاسب والموارد البشرية',
   OPERATIONS: 'المستودع والإنتاج والمبيعات',
   QUALITY: 'مسؤول الجودة',
@@ -99,6 +101,8 @@ const ALL = [...PERMISSIONS]
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   GM: ALL,
+  SUPER_ADMIN: ALL,
+  ADMIN: ALL,
   ACCOUNTANT: [
     'users.read',
     'settings.read',

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { resolveDatabaseUrl } from '@/server/db-url'
+import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 
 export const DEMO_USER_ID = 'demo-admin-user'
 export const DEMO_EMAIL = 'admin@factory.local'
@@ -38,44 +39,7 @@ export function isDemoMode() {
   return true
 }
 
-export const DEMO_PERMISSIONS = [
-  'users.read',
-  'users.manage',
-  'roles.read',
-  'roles.manage',
-  'settings.read',
-  'settings.update',
-  'warehouses.read',
-  'warehouses.manage',
-  'inventory.read',
-  'inventory.adjust',
-  'inventory.transfer.create',
-  'inventory.ledger.read',
-  'purchasing.read',
-  'purchasing.po.create',
-  'purchasing.gr.create',
-  'production.read',
-  'production.create',
-  'production.complete',
-  'sales.read',
-  'sales.create',
-  'sales.confirm',
-  'accounting.read',
-  'accounting.manage',
-  'tax.read',
-  'tax.manage',
-  'employees.read',
-  'employees.manage',
-  'attendance.read',
-  'attendance.manage',
-  'overtime.read',
-  'overtime.manage',
-  'reports.read',
-  'audit.read',
-  'notifications.read',
-  'documents.read',
-  'documents.manage',
-] as const
+export const DEMO_PERMISSIONS = [...PERMISSIONS]
 
 export function getDemoSessionUser() {
   return {
@@ -83,8 +47,11 @@ export function getDemoSessionUser() {
     email: DEMO_EMAIL,
     fullName: DEMO_FULL_NAME,
     isActive: true,
-    roles: [{ key: 'SUPER_ADMIN', nameAr: 'مدير النظام (تجريبي)' }],
-    permissions: [...DEMO_PERMISSIONS] as string[],
+    roles: [
+      { key: 'GM', nameAr: 'المدير العام' },
+      { key: 'SUPER_ADMIN', nameAr: 'مدير النظام' },
+    ],
+    permissions: [...PERMISSIONS] as string[],
     mustChangePassword: false,
   }
 }
