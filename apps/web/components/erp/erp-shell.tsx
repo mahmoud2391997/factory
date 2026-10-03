@@ -156,6 +156,11 @@ export function ErpShell() {
   const allowed = resolved ? canSeeEntity(permissions, resolved.page.entityKey) : false
   const meta = resolved ? { label: uiLabel(resolved.page.label), description: uiLabel(resolved.page.description) } : null
   const tabs = resolved && allowed ? pageTabs(resolved, permissions) : null
+  const tabWorkspace = resolved?.workspace ?? openWorkspace
+  const tabSections = tabWorkspace ? visibleSections(tabWorkspace, permissions) : []
+  const tabPages = resolved?.section
+    ? resolved.section.pages.filter((page) => canSeeEntity(permissions, page.entityKey))
+    : []
   const crumbs = resolved && allowed
     ? breadcrumbs(resolved, permissions).map((crumb) => ({ ...crumb, label: uiLabel(crumb.label) }))
     : []
@@ -743,15 +748,43 @@ export function ErpShell() {
               <div className="h-72 rounded-[12px] bg-[#f3f4f6]" />
             </div>
           ) : resolved && allowed && meta ? (
-            <LiveWorkspace
+            <>
+              {tabWorkspace && tabSections.length > 0 ? (
+                <nav aria-label={uiLabel('تبويبات النظام')} className="mb-6 overflow-hidden rounded-xl border border-[#d1d5db] bg-white shadow-sm dark:border-[#3f3f46] dark:bg-[#18181b]">
+                  <div className="flex gap-1 overflow-x-auto border-b border-[#e5e7eb] p-2 dark:border-[#3f3f46]" role="tablist" aria-label={uiLabel('الأقسام الرئيسية')}>
+                    {tabSections.map((section) => {
+                      const active = section.id === resolved.section?.id
+                      const href = section.pages.find((page) => canSeeEntity(permissions, page.entityKey))?.href ?? '/'
+                      return (
+                        <Link key={section.id} href={href} role="tab" aria-selected={active} className={`min-h-10 shrink-0 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${active ? 'bg-[#134e4a] text-white' : 'text-[#4b5563] hover:bg-[#f0fdfa] hover:text-[#134e4a] dark:text-[#d4d4d8] dark:hover:bg-[#193b37] dark:hover:text-[#ccfbf1]'}`}>
+                          {uiLabel(section.label)}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                  {tabPages.length > 1 ? (
+                    <div className="flex gap-1 overflow-x-auto bg-[#f9fafb] p-2 dark:bg-[#202023]" role="tablist" aria-label={uiLabel('الشاشات الفرعية')}>
+                      {tabPages.map((page) => {
+                        const active = page.id === resolved.page.id
+                        return (
+                          <Link key={page.id} href={page.href} role="tab" aria-selected={active} className={`min-h-9 shrink-0 rounded-md px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${active ? 'bg-white text-[#134e4a] shadow-sm dark:bg-[#18181b] dark:text-[#ccfbf1]' : 'text-[#6b7280] hover:text-[#134e4a] dark:text-[#a1a1aa] dark:hover:text-[#ccfbf1]'}`}>
+                            {uiLabel(page.label)}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                </nav>
+              ) : null}
+              <LiveWorkspace
               key={`${resolved.page.id}:${searchString}`}
               entityKey={resolved.page.entityKey}
               pageId={resolved.page.id}
               title={meta.label}
               description={meta.description}
               crumbs={crumbs}
-              tabs={tabs?.primary ?? []}
-              activeTabId={tabs?.activePrimary ?? ''}
+              tabs={[]}
+              activeTabId=""
               relatedLinks={relatedLinks.map((item) => ({ ...item, href: workspaces.flatMap((workspace) => workspace.sections.flatMap((section) => section.pages)).find((page) => page.entityKey === item.entityKey)?.href ?? '/' }))}
               ctx={liveCtx}
             />
