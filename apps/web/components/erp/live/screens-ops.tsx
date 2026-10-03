@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingCountReport, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
@@ -34,11 +34,11 @@ function useLines<T>(blank: T) {
   }
 }
 
-export function InventoryScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
+export function InventoryScreens({ entityKey, ctx, viewKind }: { entityKey: string; ctx: LiveCtx; viewKind?: 'spare' | 'packaging' }) {
   if (entityKey === 'inventoryReports') return <ReportEntry ctx={ctx} section="inventory" />
   if (entityKey === 'material') return <Materials ctx={ctx} />
   if (entityKey === 'product') return <Products ctx={ctx} />
-  if (entityKey === 'inventoryExtensions') return <InventoryExtensions ctx={ctx} />
+  if (entityKey === 'inventoryExtensions') return <InventoryExtensions ctx={ctx} viewKind={viewKind} />
   if (entityKey === 'warehouse') return <Warehouses ctx={ctx} />
   if (entityKey === 'stockTransfer') return <Transfer ctx={ctx} />
   if (entityKey === 'stockAdjustment') return <Adjustment ctx={ctx} />
@@ -1689,8 +1689,11 @@ function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
   )
 }
 
-function InventoryExtensions({ ctx }: { ctx: LiveCtx }) {
-  const [activeTab, setActiveTab] = useState<'spareParts' | 'packaging' | 'counts'>('spareParts')
+function InventoryExtensions({ ctx, viewKind }: { ctx: LiveCtx; viewKind?: 'spare' | 'packaging' }) {
+  const [activeTab, setActiveTab] = useState<'spareParts' | 'packaging' | 'counts'>(viewKind === 'packaging' ? 'packaging' : 'spareParts')
+  useEffect(() => {
+    if (viewKind) setActiveTab(viewKind === 'packaging' ? 'packaging' : 'spareParts')
+  }, [viewKind])
   return (
     <div className="space-y-4">
       <div className="flex gap-2 border-b border-[#e5e7eb] pb-2">

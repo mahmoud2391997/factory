@@ -20,38 +20,49 @@
 
 الحساب `admin@factory.local` هو نفسه حساب المدير العام.
 
-## القائمة الجانبية حسب عناوين المالك
+## التنقل حسب مساحات العمل
 
-تُعرض الأقسام داخل مجموعات قابلة للطي والفتح، ويحفظ النظام حالة المجموعات المفتوحة على الجهاز. استخدم خانة البحث لتصفية عنوان القسم أو الشاشات الفرعية؛ تعمل القائمة باتجاه RTL وعلى الجوال أيضاً. المسارات القديمة محفوظة وتفتح الشاشة نفسها. يظهر في أسفل القائمة رقم commit وتاريخ البناء للمساعدة في التحقق من النشر.
+تتكون القائمة من **مساحة عمل ← قسم ← صفحة**. تعرض القائمة مساحة العمل الحالية وأقسامها فقط؛ وتظهر صفحات القسم في صف تبويبات واحد داخل المحتوى. مساحة «الرئيسية» صفحة واحدة بلا سهم، وبطاقات لوحة المالك الـ17 روابط مباشرة إلى تفاصيلها. افتح «دليل البنود» من لوحة المالك أو البحث لرؤية الفهرس المولد من إعدادات التنقل. ابحث بالمساحة أو القسم أو الصفحة أو المرادف عبر **Ctrl/⌘+K**؛ التنقل يدعم لوحة المفاتيح والجوال، ويحفظ آخر مساحة مفتوحة وحالة الطي على الجهاز.
 
-| عنوان المالك | الشاشات الفرعية والمسارات القائمة |
-| --- | --- |
-| لوحة المالك | وضع المصنع اليوم `/`؛ المخطط `/inventory/manufacturing/planned`؛ الفعلي `/inventory/manufacturing/actual`؛ نسبة التنفيذ `/inventory/manufacturing/execution`؛ مبيعات اليوم `/sales/today` والشهر `/sales/month`؛ الطلبات المفتوحة `/sales/open-orders`؛ تكلفة الطن `/accounting/cost`؛ متوسط السعر `/accounting/price`؛ الهامش `/accounting/margin`؛ قيمة المخزون `/inventory/raw-materials/value`؛ المواد منخفضة الرصيد `/inventory/raw-materials/running-out`؛ الراكدة `/inventory/raw-materials/stagnant`؛ المحجوزة `/inventory/raw-materials/reserved`؛ الهدر `/inventory/manufacturing/waste`؛ الانحراف `/inventory/manufacturing/deviation`؛ تحليل الانحراف `/inventory/manufacturing/variance`؛ التوقفات `/inventory/manufacturing/stoppages` |
-| السيارات والنقل | المركبات والصيانة الدورية `/fleet/vehicles`؛ كل تعبئة وقود `/fleet/fuel`؛ الرحلات والسائق والوجهة والمسافة والحمولة ومقارنة المتوقع بالفعلي وتوزيع التكلفة على الدفعات والفواتير `/fleet/trips` |
-| الأقساط والالتزامات المالية | جدول الالتزامات والأقساط `/accounting/obligations` |
-| البنك والحسابات | معاملات البنك والمطابقة `/accounting/financial-ops/bank-transactions`؛ سجل التدقيق المشترك (للمدير العام) `/settings/audit`؛ دليل الحسابات `/accounting`؛ القيود `/accounting/journals`؛ المصروفات `/accounting/expenses`؛ العمليات المالية `/accounting/financial-ops`؛ الضريبة `/accounting/tax`؛ إقرار الضريبة `/accounting/vat`؛ التقارير `/accounting/reports` |
-| المشتريات والموافقات | طلبات الشراء وعروضها `/sales/parties/requests`؛ أوامر الشراء `/sales/parties/orders`؛ الاستلام `/sales/parties/receipts`؛ الموردون `/sales/parties/suppliers` |
-| مخزن قطع الغيار | المخزون الإضافي (قطع الغيار ومواد التعبئة) `/inventory/extensions` |
-| مخزن مواد التعبئة والتشغيل | المخزون الإضافي والجرد والاستهلاك `/inventory/extensions` |
-| التواصل مع الموردين | القوالب `/sales/parties/templates`؛ سجل المراسلات `/sales/parties/communications`؛ علاقات الموردين `/sales/parties/relations` |
-| التصنيع والميزان | أوامر التصنيع `/inventory/manufacturing/orders`؛ قراءات الميزان `/inventory/manufacturing/scale`؛ الدفعات `/inventory/manufacturing/lots`؛ تقارير الإنتاج `/inventory/manufacturing/reports` |
-| الخلطات والأوزان | الوصفات `/inventory/manufacturing`؛ مكونات الوصفة `/inventory/manufacturing/recipe-items`؛ بطاقة المنتج وتكلفته `/inventory/products` |
-| خلطات العملاء | الوصفات الخاصة `/inventory/manufacturing/customer-recipes` |
-| نقاط التوزيع | التوزيع `/sales/distribution`؛ النقاط `/sales/distribution/points`؛ مسح الباركود `/inventory/warehouses/barcode`؛ الإقفال `/sales/distribution/closing` |
-| دورة الفاتورة والتسليم | مراحل التسليم `/sales/delivery` |
-| الكهرباء والماء والغاز | قراءات المرافق `/accounting/financial-ops/utilities` |
-| التصاريح والعقود والوثائق | مركز الوثائق والتنبيهات `/accounting/documents` |
-| الموظفون | الملفات `/hr`؛ الحضور والإجازات `/hr/attendance`؛ الإضافي `/hr/overtime`؛ الرواتب `/hr/payroll` |
-| تحليل أسعار المواد الخام | تحليل الأسعار والتكلفة الواصلة `/inventory/raw-materials/price-analysis` |
-| الصيانة | مركز الصيانة `/inventory/manufacturing/maintenance`؛ الماكينات `/inventory/manufacturing/maintenance/machines`؛ الجداول `/inventory/manufacturing/maintenance/schedules`؛ السجلات `/inventory/manufacturing/maintenance/records` |
-| الجودة والتحليل الغذائي | العينات `/inventory/manufacturing/quality`؛ جودة المورد `/inventory/manufacturing/supplier-quality` |
-| تتبع الدفعات والهدر | تتبع الدفعات `/inventory/manufacturing/lot-trace`؛ الهدر `/inventory/manufacturing/waste`؛ الانحراف `/inventory/manufacturing/deviation`؛ التقرير `/inventory/manufacturing/variance`؛ تتبع الخامة `/tasks/material` |
-| الربحية | التحليل `/sales/profitability`؛ تكلفة الطن `/accounting/cost`؛ الهامش `/accounting/margin`؛ متوسط سعر البيع `/accounting/price` |
-| المبيعات | العملاء `/sales/parties`؛ الطلبات والفواتير `/sales`؛ التحصيل `/sales/collections`؛ السحوبات `/sales/withdrawals`؛ تقارير المبيعات `/sales/reports` |
-| المخزون العام | الخام `/inventory/raw-materials`؛ المنتجات `/inventory/products`؛ المستودعات `/inventory/warehouses`؛ التحويلات `/inventory/warehouses/transfers`؛ التسويات `/inventory/warehouses/adjustments`؛ الباركود `/inventory/warehouses/barcode`؛ الدفعات والأرصدة والدفتر `/inventory/raw-materials/batches`, `/inventory/raw-materials/balances`, `/inventory/raw-materials/ledger`؛ التقارير `/inventory/reports` |
-| النظام | المستخدمون `/settings/users`؛ سجل العمليات `/settings/audit`؛ الإعدادات `/settings`؛ التقارير `/tasks/reports`؛ الاعتمادات `/tasks/approvals`؛ الإشعارات `/notifications` |
+| مساحة العمل | القسم | الصفحات وروابطها |
+| --- | --- | --- |
+| الرئيسية | لوحة المالك | [لوحة المالك](/) `dashboard` |
+| المبيعات والتوزيع | العملاء والفواتير | [مبيعات اليوم](/sales/today) `factorySalesToday`؛ [مبيعات الشهر](/sales/month) `factorySalesMonth`؛ [طلبات مفتوحة](/sales/open-orders) `factoryOpenOrders`؛ [العملاء](/sales/parties) `customer`؛ [الفواتير](/sales) `salesInvoice`؛ [تقارير المبيعات](/sales/reports) `salesReports` |
+| المبيعات والتوزيع | التحصيل والمرتجعات | [السحوبات والمرتجعات](/sales/withdrawals) `withdrawal`؛ [التحصيل](/sales/collections) `salesPayment` |
+| المبيعات والتوزيع | نقاط التوزيع | [التوزيع](/sales/distribution) `distribution`؛ [نقاط التوزيع](/sales/distribution/points) `distributionPoint`؛ [الإقفال اليومي](/sales/distribution/closing) `distributionClosing` |
+| المبيعات والتوزيع | دورة الفاتورة والتسليم | [التسليم](/sales/delivery) `invoiceDelivery` |
+| المبيعات والتوزيع | الربحية | [تكلفة الطن](/accounting/cost) `factoryCostPerTon`؛ [متوسط السعر](/accounting/price) `factoryAvgPrice`؛ [هامش الربح](/accounting/margin) `factoryMargin`؛ [الربحية](/sales/profitability) `profitability` |
+| المشتريات والموردون | المشتريات والموافقات | [الموردون](/sales/parties/suppliers) `supplier`؛ [طلبات الشراء](/sales/parties/requests) `purchaseRequest`؛ [أوامر الشراء](/sales/parties/orders) `purchaseOrder`؛ [استلام البضاعة](/sales/parties/receipts) `goodsReceipt` |
+| المشتريات والموردون | التواصل مع الموردين | [علاقات الموردين](/sales/parties/relations) `supplierRelations`؛ [قوالب الرسائل](/sales/parties/templates) `supplierTemplate`؛ [مراسلات الموردين](/sales/parties/communications) `supplierCommunication` |
+| المشتريات والموردون | تحليل أسعار المواد الخام | [أسعار الخام](/inventory/raw-materials/price-analysis) `materialPriceAnalysis` |
+| المخازن | المواد الخام والمنتجات | [المواد الخام](/inventory/raw-materials) `material`؛ [المنتجات](/inventory/products) `product` |
+| المخازن | مخزن قطع الغيار | [قطع الغيار](/inventory/extensions?kind=spare) `inventoryExtensions` |
+| المخازن | مخزن مواد التعبئة والتشغيل | [مواد التعبئة](/inventory/extensions?kind=packaging) `inventoryExtensions` |
+| المخازن | الحركات والجرد والتقارير | [قيمة المخزون](/inventory/raw-materials/value) `factoryStockValue`؛ [مواد قاربت النفاد](/inventory/raw-materials/running-out) `factoryRunningOut`؛ [مواد راكدة](/inventory/raw-materials/stagnant) `factoryStagnant`؛ [مواد محجوزة](/inventory/raw-materials/reserved) `factoryReserved`؛ [المستودعات](/inventory/warehouses) `warehouse`؛ [تحويل المخزون](/inventory/warehouses/transfers) `stockTransfer`؛ [تسوية المخزون](/inventory/warehouses/adjustments) `stockAdjustment`؛ [الباركود](/inventory/warehouses/barcode) `barcode`؛ [دفعات المواد](/inventory/raw-materials/batches) `materialBatch`؛ [أرصدة المخزون](/inventory/raw-materials/balances) `inventoryBalance`؛ [دفتر الحركات](/inventory/raw-materials/ledger) `inventoryTransaction`؛ [تقارير المخزون](/inventory/reports) `inventoryReports` |
+| الإنتاج والجودة | التصنيع والميزان | [المخطط اليوم](/inventory/manufacturing/planned) `factoryPlanned`؛ [الفعلي](/inventory/manufacturing/actual) `factoryActual`؛ [نسبة التنفيذ](/inventory/manufacturing/execution) `factoryExecution`؛ [توقفات المصنع](/inventory/manufacturing/stoppages) `factoryStoppages`؛ [أوامر التصنيع](/inventory/manufacturing/orders) `productionOrder`؛ [الميزان](/inventory/manufacturing/scale) `scaleReading`؛ [دفعات الإنتاج](/inventory/manufacturing/lots) `productionLot`؛ [تقارير الإنتاج](/inventory/manufacturing/reports) `productionReports` |
+| الإنتاج والجودة | الخلطات والأوزان | [الوصفات](/inventory/manufacturing) `recipe`؛ [مكونات الوصفة](/inventory/manufacturing/recipe-items) `recipeItem` |
+| الإنتاج والجودة | خلطات العملاء | [خلطات العملاء](/inventory/manufacturing/customer-recipes) `customerRecipe` |
+| الإنتاج والجودة | الجودة والتحليل الغذائي | [عينات الجودة](/inventory/manufacturing/quality) `qualitySample`؛ [جودة الموردين](/inventory/manufacturing/supplier-quality) `supplierQuality` |
+| الإنتاج والجودة | تتبع الدفعات والهدر | [الهدر](/inventory/manufacturing/waste) `factoryWaste`؛ [الانحراف](/inventory/manufacturing/deviation) `factoryDeviation`؛ [تحليل الانحراف](/inventory/manufacturing/variance) `varianceReport`؛ [تتبع الدفعات](/inventory/manufacturing/lot-trace) `lotTrace`؛ [تتبع الخامة](/tasks/material) `materialTrace` |
+| الأسطول والصيانة | السيارات والنقل | [المركبات](/fleet/vehicles) `fleet`؛ [الوقود](/fleet/fuel) `fleetFuel`؛ [الرحلات](/fleet/trips) `fleetTrips` |
+| الأسطول والصيانة | الصيانة | [مركز الصيانة](/inventory/manufacturing/maintenance) `maintenance`؛ [الماكينات](/inventory/manufacturing/maintenance/machines) `machine`؛ [جداول الصيانة](/inventory/manufacturing/maintenance/schedules) `maintenanceSchedule`؛ [سجلات الأعطال](/inventory/manufacturing/maintenance/records) `maintenanceRecord` |
+| المالية | الأقساط والالتزامات المالية | [الالتزامات](/accounting/obligations) `obligation` |
+| المالية | البنك والحسابات | [دليل الحسابات](/accounting) `account`؛ [القيود اليومية](/accounting/journals) `journalEntry`؛ [معاملات البنك](/accounting/financial-ops/bank-transactions) `bankTransaction`؛ [تقارير المحاسبة](/accounting/reports) `accountingReports` |
+| المالية | المصروفات والضرائب | [المصروفات](/accounting/expenses) `expense`؛ [الضرائب](/accounting/tax) `taxSettings`؛ [إقرار الضريبة](/accounting/vat) `vatReport`؛ [العمليات المالية](/accounting/financial-ops) `financialOps` |
+| المالية | الكهرباء والماء والغاز | [المرافق](/accounting/financial-ops/utilities) `utilitiesReading` |
+| الموظفون والوثائق | الموظفون | [ملفات الموظفين](/hr) `employee`؛ [الحضور والإجازات](/hr/attendance) `attendance`؛ [الإضافي](/hr/overtime) `overtime`؛ [الرواتب](/hr/payroll) `payroll` |
+| الموظفون والوثائق | التصاريح والعقود والوثائق | [الوثائق](/accounting/documents) `documents` |
+| الإدارة | المستخدمون والصلاحيات | [المستخدمون](/settings/users) `users` |
+| الإدارة | الاعتمادات | [الاعتمادات](/tasks/approvals) `approvals` |
+| الإدارة | الإشعارات | [الإشعارات](/notifications) `notification` |
+| الإدارة | سجل العمليات | [سجل العمليات](/settings/audit) `auditLog` |
+| الإدارة | الإعدادات والتقارير | [التقارير](/tasks/reports) `report`؛ [الإعدادات](/settings) `companySettings` |
 
-**حدود الشاشات الحالية:** لا توجد شاشة مستقلة لمرتجعات المبيعات؛ أقرب مساراتها الفاتورة والسحب. مقارنة الوقود المتوقع بالفعلي موجودة في سجل الرحلات، وتكلفة الرحلة يمكن توزيعها على الدفعات والفواتير، لكن لا يوجد تقرير تجميعي مستقل لتكلفة النقل لكل طن/طلبية/عميل. إثبات التسليم يحفظ اسم ورقم وموقع المستلم ووقت التسليم، دون إرفاق صورة. سجل النظام يوثق تعديلات وصفات العملاء، لكن لا توجد شاشة تاريخ أسعار مخصصة أو بوابة عميل وضبط لإظهار وصفة لعميل آخر.
+**بطاقات لوحة المالك (17):** [المخطط اليوم](/inventory/manufacturing/planned) `factoryPlanned`؛ [الفعلي](/inventory/manufacturing/actual) `factoryActual`؛ [نسبة التنفيذ](/inventory/manufacturing/execution) `factoryExecution`؛ [مبيعات اليوم](/sales/today) `factorySalesToday`؛ [مبيعات الشهر](/sales/month) `factorySalesMonth`؛ [طلبات مفتوحة](/sales/open-orders) `factoryOpenOrders`؛ [تكلفة الطن](/accounting/cost) `factoryCostPerTon`؛ [متوسط السعر](/accounting/price) `factoryAvgPrice`؛ [هامش الربح](/accounting/margin) `factoryMargin`؛ [قيمة المخزون](/inventory/raw-materials/value) `factoryStockValue`؛ [مواد قاربت النفاد](/inventory/raw-materials/running-out) `factoryRunningOut`؛ [مواد راكدة](/inventory/raw-materials/stagnant) `factoryStagnant`؛ [مواد محجوزة](/inventory/raw-materials/reserved) `factoryReserved`؛ [الهدر](/inventory/manufacturing/waste) `factoryWaste`؛ [الانحراف](/inventory/manufacturing/deviation) `factoryDeviation`؛ [تحليل الانحراف](/inventory/manufacturing/variance) `varianceReport`؛ [توقفات المصنع](/inventory/manufacturing/stoppages) `factoryStoppages`.
+
+**مسارات خاصة:** «قطع الغيار» يفتح `/inventory/extensions?kind=spare`؛ و«مواد التعبئة والتشغيل» يفتح `/inventory/extensions?kind=packaging` على شاشة المخزون الإضافي نفسها مع تبويب مختلف. المسار القديم `/inventory/extensions` يعيد التوجيه إلى عرض قطع الغيار. دليل التنقل: `/guide`.
+
+**حدود الشاشات الحالية:** لا توجد شاشة مستقلة لمرتجعات المبيعات؛ أقرب شاشة هي السحوبات والفواتير. مقارنة الوقود المتوقع والفعلي موجودة في سجل الرحلات، وتُوزع تكلفة الرحلة على الدفعات والفواتير، لكن لا يوجد تقرير تجميعي مستقل لتكلفة النقل لكل طن/طلبية/عميل. إثبات التسليم يحفظ بيانات المستلم ووقت التسليم دون صورة. لا توجد شاشة تاريخ أسعار مخصصة لخلطات العملاء أو بوابة عميل لضبط إظهار خلطة لعميل آخر.
 
 ## المسار اليومي للمصنع
 

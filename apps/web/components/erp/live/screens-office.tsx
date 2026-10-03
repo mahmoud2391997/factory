@@ -1,8 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 
-import { canSeeEntity } from '@/lib/erp-routes'
+import { canSeeEntity, hrefForEntity, leafMeta } from '@/lib/erp-routes'
 import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
@@ -1831,16 +1832,20 @@ function Metric({
   value,
   hint,
   tone,
+  entityKey,
+  ctx,
 }: {
   label: string
   value: string
   hint?: string
   tone?: 'good' | 'warn' | 'bad'
+  entityKey?: string
+  ctx?: LiveCtx
 }) {
   const toneClass = tone === 'good' ? 'text-[#0a825d]' : tone === 'warn' ? 'text-[#d97706]' : tone === 'bad' ? 'text-[#dc2626]' : 'text-[#1f1f1f]'
   const barClass = tone === 'good' ? 'bg-[#10b981]' : tone === 'warn' ? 'bg-[#f59e0b]' : tone === 'bad' ? 'bg-[#ef4444]' : 'bg-[#0d9488]'
   const { language } = useLanguage()
-  return (
+  const card = (
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
       <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
@@ -1848,6 +1853,12 @@ function Metric({
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
     </div>
   )
+  const href = entityKey ? hrefForEntity(entityKey) : null
+  if (entityKey && ctx && href && canSeeEntity(ctx.permissions, entityKey)) {
+    const meta = leafMeta(entityKey)
+    return <Link href={href} title={translateUiText(language, meta.description)} aria-label={`${translateUiText(language, meta.label)}: ${translateUiText(language, value)}`} className="group block rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] [&>div]:transition-[border-color,box-shadow] hover:[&>div]:border-[#7cc9bd] hover:[&>div]:shadow-md motion-reduce:[&>div]:transition-none">{card}</Link>
+  }
+  return card
 }
 
 function NameList({ rows, empty }: { rows: string[]; empty: string }) {
@@ -1890,20 +1901,21 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
   return (
     <LocalizedContent>
     <div className="space-y-5">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-3xl font-bold">وضع المصنع اليوم</h2>
         <p className="mt-2 text-[#788983]">
           {status.shifted ? <>{'لا يوجد تشغيل بتاريخ اليوم. الأرقام لآخر يوم تشغيل: '}{dateLabel}</> : dateLabel}
           {' · '}
           {ctx.state.company.nameAr}
         </p>
+        <Link href="/guide" className="inline-flex min-h-11 items-center rounded-lg border border-[#99d4cb] bg-[#f0fdfa] px-4 text-sm font-semibold text-[#134e4a] hover:bg-[#ccfbf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#285c56] dark:bg-[#193b37] dark:text-[#ccfbf1] dark:hover:bg-[#134e4a]">دليل البنود</Link>
       </div>
 
       {access.production ? <Card title="الإنتاج" hint="المخطط مقابل ما خرج فعلياً من خط الإنتاج.">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Metric label="المخطط اليوم" value={tonsFmt(status.production.plannedKg)} />
-          <Metric label="الفعلي" value={tonsFmt(status.production.actualKg)} />
-          <Metric label="نسبة التنفيذ" value={pctFmt(status.production.executionPct)} tone={status.production.plannedKg > 0 ? executionTone : undefined} />
+          <Metric entityKey="factoryPlanned" ctx={ctx} label="المخطط اليوم" value={tonsFmt(status.production.plannedKg)} />
+          <Metric entityKey="factoryActual" ctx={ctx} label="الفعلي" value={tonsFmt(status.production.actualKg)} />
+          <Metric entityKey="factoryExecution" ctx={ctx} label="نسبة التنفيذ" value={pctFmt(status.production.executionPct)} tone={status.production.plannedKg > 0 ? executionTone : undefined} />
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#e7eeeb]">
           <div
@@ -1915,9 +1927,9 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
 
       {access.sales ? <Card title="المبيعات" hint="صافي الفواتير المؤكدة قبل الضريبة.">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Metric label="مبيعات اليوم" value={moneyFmt(status.sales.today)} hint={status.sales.todayCount ? `${status.sales.todayCount} فاتورة` : 'لا توجد فواتير'} />
-          <Metric label="مبيعات الشهر" value={moneyFmt(status.sales.month)} hint={status.sales.monthCount ? `${status.sales.monthCount} فاتورة` : 'لا توجد فواتير'} />
-          <Metric label="الطلبات المفتوحة" value={String(status.sales.openCount)} hint={status.sales.openCount ? `المتبقي ${moneyFmt(status.sales.openOutstanding)}` : 'لا توجد طلبات مفتوحة'} />
+          <Metric entityKey="factorySalesToday" ctx={ctx} label="مبيعات اليوم" value={moneyFmt(status.sales.today)} hint={status.sales.todayCount ? `${status.sales.todayCount} فاتورة` : 'لا توجد فواتير'} />
+          <Metric entityKey="factorySalesMonth" ctx={ctx} label="مبيعات الشهر" value={moneyFmt(status.sales.month)} hint={status.sales.monthCount ? `${status.sales.monthCount} فاتورة` : 'لا توجد فواتير'} />
+          <Metric entityKey="factoryOpenOrders" ctx={ctx} label="الطلبات المفتوحة" value={String(status.sales.openCount)} hint={status.sales.openCount ? `المتبقي ${moneyFmt(status.sales.openOutstanding)}` : 'لا توجد طلبات مفتوحة'} />
         </div>
         {status.sales.openOrders.length > 0 ? (
           <div className="mt-4">
@@ -1932,17 +1944,17 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
       {access.profitability || access.inventory ? <div className="grid gap-4 lg:grid-cols-2">
         {access.profitability ? <Card title="الربحية" hint="متوسط سعر البيع ناقص تكلفة الطن المنتج في هذا اليوم.">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Metric label="تكلفة الطن" value={moneyFmt(status.profit.costPerTon)} />
-            <Metric label="متوسط سعر البيع" value={moneyFmt(status.profit.avgPricePerTon)} />
-            <Metric label="هامش الربح/طن" value={moneyFmt(status.profit.marginPerTon)} tone={marginTone} />
+            <Metric entityKey="factoryCostPerTon" ctx={ctx} label="تكلفة الطن" value={moneyFmt(status.profit.costPerTon)} />
+            <Metric entityKey="factoryAvgPrice" ctx={ctx} label="متوسط سعر البيع" value={moneyFmt(status.profit.avgPricePerTon)} />
+            <Metric entityKey="factoryMargin" ctx={ctx} label="هامش الربح/طن" value={moneyFmt(status.profit.marginPerTon)} tone={marginTone} />
           </div>
         </Card> : null}
         {access.inventory ? <Card title="المخزون">
           <div className="grid grid-cols-2 gap-3">
-            {access.profitability ? <Metric label="قيمة المخزون" value={moneyFmt(status.inventory.value)} /> : null}
-            <Metric label="المواد التي ستنفد" value={String(status.inventory.runningOut.length)} tone={status.inventory.runningOut.length ? 'bad' : 'good'} />
-            <Metric label="المواد الراكدة" value={String(status.inventory.stagnant.length)} tone={status.inventory.stagnant.length ? 'warn' : 'good'} />
-            <Metric label="المواد المحجوزة" value={String(status.inventory.reserved.length)} />
+            {access.profitability ? <Metric entityKey="factoryStockValue" ctx={ctx} label="قيمة المخزون" value={moneyFmt(status.inventory.value)} /> : null}
+            <Metric entityKey="factoryRunningOut" ctx={ctx} label="المواد التي ستنفد" value={String(status.inventory.runningOut.length)} tone={status.inventory.runningOut.length ? 'bad' : 'good'} />
+            <Metric entityKey="factoryStagnant" ctx={ctx} label="المواد الراكدة" value={String(status.inventory.stagnant.length)} tone={status.inventory.stagnant.length ? 'warn' : 'good'} />
+            <Metric entityKey="factoryReserved" ctx={ctx} label="المواد المحجوزة" value={String(status.inventory.reserved.length)} />
           </div>
         </Card> : null}
       </div> : null}
@@ -1999,19 +2011,26 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
 
       {access.production ? <Card title="الإنتاج" hint="الهدر، الانحراف عن الوصفة، وتوقفات المصنع في يوم التشغيل.">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Metric label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} ${translateUiText(language, 'من الكمية المصروفة')}`} />
+          <Metric entityKey="factoryWaste" ctx={ctx} label="الهدر" value={`${qtyFmt(status.operations.wasteKg)} كجم`} hint={`${pctFmt(status.operations.wastePct)} ${translateUiText(language, 'من الكمية المصروفة')}`} />
           <Metric
+            entityKey="factoryDeviation"
+            ctx={ctx}
             label="الانحراف عن الوصفة"
             value={status.operations.deviations[0] ? pctFmt(status.operations.deviations[0].diffPct) : pctFmt(0)}
             tone={status.operations.deviations.length ? 'warn' : 'good'}
             hint={status.operations.deviations.length ? `${status.operations.deviations.length} مواد` : 'ضمن الوصفة'}
           />
           <Metric
+            entityKey="factoryStoppages"
+            ctx={ctx}
             label="توقفات المصنع"
             value={status.operations.stoppageMinutes ? `${status.operations.stoppageMinutes} د` : 'لا توجد'}
             tone={status.operations.stoppageMinutes ? 'bad' : 'good'}
             hint={status.operations.stoppages.length ? `${status.operations.stoppages.length} توقف` : 'الخط يعمل'}
           />
+        </div>
+        <div className="mt-4 max-w-sm">
+          <Metric entityKey="varianceReport" ctx={ctx} label="تحليل الانحراف" value={String(status.operations.deviations.length)} hint="تفصيل حسب المنتج والوردية والمشغّل والخط والشهر" />
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div>

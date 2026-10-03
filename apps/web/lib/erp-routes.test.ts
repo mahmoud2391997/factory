@@ -9,9 +9,11 @@ import {
   hrefForPageId,
   pageTabs,
   resolvePath,
+  sectionEntryHref,
   searchNavigation,
   visibleSections,
   visibleWorkspaces,
+  workspaceEntryHref,
 } from './erp-routes'
 import { ALL_NAV_PAGES, MAX_VISIBLE_PAGE_TABS, NAV_CONFIG, canonicalPages } from './nav/config'
 
@@ -401,6 +403,38 @@ test('navigation has nine workspaces, a single-page home, and bounded page label
   assert.ok(ALL_NAV_PAGES.every((page) => page.label.length <= 24 && page.label.trim().split(/\s+/).length <= 3), 'labels stay within three words and about 24 characters')
   assert.ok(NAV_CONFIG.workspaces.some((workspace) => workspace.sections.some((section) => section.pages.length > MAX_VISIBLE_PAGE_TABS)), 'at least one section exercises the overflow tab menu')
   assert.ok(NAV_CONFIG.workspaces.flatMap((workspace) => workspace.sections).some((section) => section.pages.length === 1), 'single-page sections are represented without extra page levels')
+})
+
+test('workspace and section labels match the owner information architecture exactly', () => {
+  assert.deepEqual(NAV_CONFIG.workspaces.map((workspace) => workspace.label), [
+    'الرئيسية', 'المبيعات والتوزيع', 'المشتريات والموردون', 'المخازن', 'الإنتاج والجودة',
+    'الأسطول والصيانة', 'المالية', 'الموظفون والوثائق', 'الإدارة',
+  ])
+  assert.deepEqual(NAV_CONFIG.workspaces.map((workspace) => workspace.sections.map((section) => section.label)), [
+    ['لوحة المالك'],
+    ['العملاء والفواتير', 'التحصيل والمرتجعات', 'نقاط التوزيع', 'دورة الفاتورة والتسليم', 'الربحية'],
+    ['المشتريات والموافقات', 'التواصل مع الموردين', 'تحليل أسعار المواد الخام'],
+    ['المواد الخام والمنتجات', 'مخزن قطع الغيار', 'مخزن مواد التعبئة والتشغيل', 'الحركات والجرد والتقارير'],
+    ['التصنيع والميزان', 'الخلطات والأوزان', 'خلطات العملاء', 'الجودة والتحليل الغذائي', 'تتبع الدفعات والهدر'],
+    ['السيارات والنقل', 'الصيانة'],
+    ['الأقساط والالتزامات المالية', 'البنك والحسابات', 'المصروفات والضرائب', 'الكهرباء والماء والغاز'],
+    ['الموظفون', 'التصاريح والعقود والوثائق'],
+    ['المستخدمون والصلاحيات', 'الاعتمادات', 'الإشعارات', 'سجل العمليات', 'الإعدادات والتقارير'],
+  ])
+
+  for (const workspace of NAV_CONFIG.workspaces) {
+    const href = workspaceEntryHref(workspace, allPagesForEveryRole)
+    assert.ok(href, `${workspace.id} has a direct entry link`)
+    if (workspace.sections.length === 1 && workspace.sections[0]!.pages.length === 1) {
+      assert.equal(NAV_CONFIG.workspaces.find((item) => item.id === workspace.id)!.sections[0]!.pages.length, 1)
+    }
+    for (const section of workspace.sections.filter((item) => item.pages.length === 1)) {
+      assert.ok(sectionEntryHref(section, allPagesForEveryRole), `${section.id} is a direct link, not a disclosure`)
+    }
+  }
+
+  assert.equal(NAV_CONFIG.homeWidgetEntityKeys.length, 17)
+  assert.ok(NAV_CONFIG.homeWidgetEntityKeys.every((entityKey) => hrefForEntity(entityKey)), 'every owner widget has a direct detail route')
 })
 
 test('the general manager sees every workspace; the driver only sees trip and fuel pages', () => {

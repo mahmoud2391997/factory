@@ -442,36 +442,36 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   background-color: #3a2420;
 }
 
-/* GitHub-inspired reference treatment: crisp borders, neutral canvas, blue links, compact surfaces. */
+/* Workspace shell: neutral surfaces, calm teal emphasis, and high-contrast active navigation. */
 :root {
-  --erp-bg: #f6f8fa;
-  --erp-fg: #1f2328;
-  --erp-muted: #656d76;
+  --erp-bg: #f9fafb;
+  --erp-fg: #1f1f1f;
+  --erp-muted: #6b7280;
   --erp-card: #ffffff;
-  --erp-border: #d0d7de;
-  --erp-link: #0969da;
-  --erp-accent: #1f883d;
+  --erp-border: #e5e7eb;
+  --erp-link: #0f766e;
+  --erp-accent: #0d9488;
 }
 
 .erp-app {
-  background: #f6f8fa !important;
-  color: #1f2328 !important;
+  background: #f9fafb !important;
+  color: #1f1f1f !important;
 }
 
 .erp-sidebar {
   border-color: #d0d7de;
-  border-radius: 6px;
+  border-radius: 12px;
   box-shadow: 0 1px 3px rgb(31 35 40 / 0.08);
-  background: #fff !important;
+  background: #f9fafb !important;
 }
 
 .erp-sidebar > div:first-child {
-  background: #fff;
-  border-bottom-color: #d0d7de;
+  background: #f9fafb;
+  border-bottom-color: #e5e7eb;
 }
 
 .erp-sidebar-nav {
-  background: #fff;
+  background: #f9fafb;
 }
 
 .erp-nav-item {
@@ -481,52 +481,66 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
 
 .erp-nav-item:hover {
   transform: none;
-  background: #f6f8fa !important;
-  color: #0969da !important;
+  background: #f3f4f6 !important;
+  color: #134e4a !important;
   box-shadow: none !important;
 }
 
 .erp-nav-item-active {
-  border-color: #d0d7de !important;
-  background: #ddf4ff !important;
-  color: #0969da !important;
+  border-color: #99d4cb !important;
+  background: #e9f7f4 !important;
+  color: #134e4a !important;
   box-shadow: none !important;
 }
 
 .erp-nav-item-active::before {
-  background: #0969da;
+  background: #0d9488;
+}
+
+.erp-workspace-active {
+  position: relative;
+}
+
+.erp-workspace-active::before {
+  position: absolute;
+  inset-block: 10px;
+  inset-inline-start: -1px;
+  width: 3px;
+  border-radius: 999px;
+  background: #0d9488;
+  content: '';
+}
+
+.erp-workspace-sections {
+  animation: erp-nav-expand 180ms ease-out;
+}
+
+@keyframes erp-nav-expand {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .erp-sidebar-footer {
   background: #fff !important;
-  border-top-color: #d0d7de !important;
+  border-top-color: #e5e7eb !important;
   box-shadow: none;
 }
 
 .erp-content {
-  border-radius: 6px !important;
-  border-color: #d0d7de !important;
+  border-radius: 12px !important;
+  border-color: #e5e7eb !important;
   background: #fff !important;
   box-shadow: 0 1px 3px rgb(31 35 40 / 0.08);
 }
 
 .erp-content header {
   background: #fff !important;
-  border-bottom-color: #d0d7de !important;
-}
-
-.erp-content a:not(.erp-nav-item) {
-  color: #0969da;
+  border-bottom-color: #e5e7eb !important;
 }
 
 .erp-content button,
 .erp-sidebar button {
   border-radius: 6px;
-}
-
-.erp-content [class*='rounded-[12px]'],
-.erp-content [class*='rounded-xl'] {
-  border-radius: 6px !important;
 }
 
 @media (max-width: 767px) {
@@ -544,7 +558,8 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   margin-left: auto !important;
 }
 
-.erp-app[dir='ltr'] .erp-nav-item-active::before {
+.erp-app[dir='ltr'] .erp-nav-item-active::before,
+.erp-app[dir='ltr'] .erp-workspace-active::before {
   right: auto;
   left: -1px;
   border-radius: 0 999px 999px 0;
@@ -586,7 +601,7 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   --erp-muted: #8b949e;
   --erp-card: #161b22;
   --erp-border: #30363d;
-  --erp-link: #58a6ff;
+  --erp-link: #5eead4;
 }
 
 .dark .erp-app,
@@ -605,16 +620,26 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
 }
 
 .dark .erp-nav-item:hover {
-  background: #21262d !important;
-  color: #58a6ff !important;
+  background: #27272a !important;
+  color: #ccfbf1 !important;
 }
 
 .dark .erp-nav-item-active {
-  background: #1f6feb33 !important;
-  border-color: #1f6feb66 !important;
-  color: #58a6ff !important;
+  background: #193b37 !important;
+  border-color: #285c56 !important;
+  color: #ccfbf1 !important;
 }
 
-.dark .erp-content a:not(.erp-nav-item) {
-  color: #58a6ff;
+.dark .erp-workspace-active::before {
+  background: #5eead4;
+}
+
+.dark .erp-workspace-sections {
+  animation-name: erp-nav-expand;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp-workspace-sections {
+    animation: none;
+  }
 }
