@@ -156,11 +156,6 @@ export default function LoginPage() {
               </div>
               <div className="space-y-2">
                 <StatusRow
-                  ok={health.bootstrapped}
-                  label="تهيئة النظام"
-                  detail={health.bootstrapped ? 'مكتمل' : 'نفّذ /api/setup/bootstrap مرة واحدة (مع x-setup-token) لإنشاء أول مستخدم'}
-                />
-                <StatusRow
                   ok={health.databaseConfigured}
                   label="متغير قاعدة البيانات"
                   detail={
