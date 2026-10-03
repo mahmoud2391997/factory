@@ -1,23 +1,23 @@
 {
   "name": "erp",
   "private": true,
+  "packageManager": "pnpm@10.12.4",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=@erp/web",
-    "predev": "npm run generate --workspace=@erp/database",
-    "dev:web": "npm run dev --workspace=@erp/web",
-    "prebuild": "npm run generate --workspace=@erp/database",
-    "build": "npm run build --workspace=@erp/web",
-    "build:web": "npm run build --workspace=@erp/web",
+    "dev": "pnpm --filter @erp/web dev",
+    "predev": "pnpm --filter @erp/database generate",
+    "dev:web": "pnpm --filter @erp/web dev",
+    "prebuild": "pnpm --filter @erp/database generate",
+    "build": "pnpm --filter @erp/web build",
     "vercel-build": "bash scripts/vercel-build.sh",
-    "db:deploy": "npm run migrate:deploy --workspace=@erp/database",
-    "start": "npm run start --workspace=@erp/web",
-    "start:web": "npm run start --workspace=@erp/web",
-    "lint": "npm run lint --workspace=@erp/web",
-    "typecheck": "npm run lint --workspace=@erp/web",
+    "db:deploy": "pnpm --filter @erp/database migrate:deploy",
+    "start": "pnpm --filter @erp/web start",
+    "start:web": "pnpm --filter @erp/web start",
+    "lint": "pnpm --filter @erp/web lint",
+    "typecheck": "pnpm --filter @erp/web lint",
     "test:erp": "tsx --test \"apps/web/**/*.test.ts\""
   },
   "devDependencies": {
