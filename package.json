@@ -6,12 +6,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "pnpm --filter @erp/web run dev",
-    "predev": "pnpm --filter @erp/database run generate",
-    "dev:web": "pnpm --filter @erp/web run dev",
-    "prebuild": "pnpm --filter @erp/database run generate",
-    "build": "pnpm --filter @erp/web run build",
-    "build:web": "pnpm --filter @erp/web run build",
+    "dev": "npm run dev --workspace=@erp/web",
+    "predev": "npm run generate --workspace=@erp/database",
+    "dev:web": "npm run dev --workspace=@erp/web",
+    "prebuild": "npm run generate --workspace=@erp/database",
+    "build": "npm run build --workspace=@erp/web",
+    "build:web": "npm run build --workspace=@erp/web",
     "vercel-build": "bash scripts/vercel-build.sh",
     "db:deploy": "npm run migrate:deploy --workspace=@erp/database",
     "start": "npm run start --workspace=@erp/web",
