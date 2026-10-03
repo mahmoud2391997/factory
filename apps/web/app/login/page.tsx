@@ -49,6 +49,12 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const [health, setHealth] = useState<HealthData | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
+  const [setupOpen, setSetupOpen] = useState(false)
+  const [setupName, setSetupName] = useState('')
+  const [setupEmail, setSetupEmail] = useState('')
+  const [setupPassword, setSetupPassword] = useState('')
+  const [setupToken, setSetupToken] = useState('')
+  const [setupSubmitting, setSetupSubmitting] = useState(false)
 
   useEffect(() => {
     if (!loading && user) router.replace(user.mustChangePassword ? '/account/password' : '/')
@@ -90,6 +96,29 @@ export default function LoginPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
     await signIn(email, password)
+  }
+
+  const bootstrap = async (event: FormEvent) => {
+    event.preventDefault()
+    setSetupSubmitting(true)
+    setMessage('')
+    try {
+      const response = await fetch('/api/setup/bootstrap', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-setup-token': setupToken },
+        body: JSON.stringify({ email: setupEmail, fullName: setupName, password: setupPassword }),
+      })
+      const result = (await response.json()) as { success?: boolean; message?: string; data?: { user?: { mustChangePassword?: boolean } } }
+      if (!response.ok || !result.success) {
+        setMessage(result.message ?? 'تعذر تهيئة النظام')
+        return
+      }
+      router.replace(result.data?.user?.mustChangePassword ? '/account/password' : '/')
+    } catch {
+      setMessage('تعذر الاتصال بالخادم')
+    } finally {
+      setSetupSubmitting(false)
+    }
   }
 
   if (loading || user) {
@@ -147,6 +176,26 @@ export default function LoginPage() {
                   detail={health.databaseReachable ? 'متصل' : health.databaseError ?? 'غير متصل'}
                 />
               </div>
+            </div>
+          ) : null}
+
+          {!healthLoading && health && !health.demoMode && health.databaseConfigured && health.jwtConfigured && health.databaseReachable && !health.bootstrapped ? (
+            <div className="mb-5 rounded-2xl border border-[#d8e8e2] bg-[#f5fbf8] p-4">
+              <button type="button" onClick={() => setSetupOpen((open) => !open)} className="w-full text-right text-sm font-bold text-[#19725f]">
+                {setupOpen ? 'إخفاء تهيئة حساب المدير العام' : 'إنشاء حساب المدير العام'}
+              </button>
+              {setupOpen ? (
+                <form onSubmit={bootstrap} className="mt-4 space-y-3">
+                  <input required value={setupName} onChange={(event) => setSetupName(event.target.value)} placeholder="اسم المدير العام" className="h-10 w-full rounded-md border border-[#d8e8e2] px-3 text-sm" />
+                  <input required type="email" value={setupEmail} onChange={(event) => setSetupEmail(event.target.value)} placeholder="البريد الإلكتروني" className="h-10 w-full rounded-md border border-[#d8e8e2] px-3 text-sm" />
+                  <input required minLength={8} type="password" value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} placeholder="كلمة المرور (8 أحرف على الأقل)" className="h-10 w-full rounded-md border border-[#d8e8e2] px-3 text-sm" />
+                  <input required type="password" value={setupToken} onChange={(event) => setSetupToken(event.target.value)} placeholder="رمز التهيئة" className="h-10 w-full rounded-md border border-[#d8e8e2] px-3 text-sm" />
+                  <button type="submit" disabled={setupSubmitting} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#19725f] text-sm font-semibold text-white disabled:opacity-60">
+                    {setupSubmitting ? <Loader2 className="animate-spin" size={16} /> : null}
+                    تهيئة النظام وتسجيل الدخول
+                  </button>
+                </form>
+              ) : null}
             </div>
           ) : null}
 
