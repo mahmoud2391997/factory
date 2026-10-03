@@ -14,7 +14,21 @@ export type PageTab = {
   label: string
 }
 
-export function PageTabs({ label, tabs, activeId }: { label: string; tabs: PageTab[]; activeId: string }) {
+export function PageTabs({
+  label,
+  primaryTabs,
+  secondaryTabs,
+  activePrimaryId,
+  activeSecondaryId,
+}: {
+  label: string
+  primaryTabs: PageTab[]
+  secondaryTabs: PageTab[]
+  activePrimaryId: string
+  activeSecondaryId: string
+}) {
+  const tabs = primaryTabs
+  const activeId = activePrimaryId
   const { language } = useLanguage()
   const [moreOpen, setMoreOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -39,7 +53,7 @@ export function PageTabs({ label, tabs, activeId }: { label: string; tabs: PageT
     }
   }, [moreOpen])
 
-  if (tabs.length < 2) return null
+  if (tabs.length < 2 && secondaryTabs.length < 2) return null
   const hasOverflow = tabs.length > MAX_VISIBLE_PAGE_TABS
   let visibleTabs = hasOverflow ? tabs.slice(0, MAX_VISIBLE_PAGE_TABS - 1) : tabs
   const activeTab = tabs.find((tab) => tab.id === activeId)
@@ -87,6 +101,27 @@ export function PageTabs({ label, tabs, activeId }: { label: string; tabs: PageT
           ) : null}
         </div>
       </div>
+      {secondaryTabs.length > 1 ? (
+        <div className="mt-2 overflow-x-auto">
+          <div role="tablist" aria-label={translateUiText(language, 'صفحات القسم')} className="inline-flex min-w-max items-center gap-1 border-s border-[#d1d5db] ps-3 dark:border-[#3f3f46]">
+            {secondaryTabs.map((tab) => {
+              const active = tab.id === activeSecondaryId
+              return (
+                <Link
+                  key={tab.id}
+                  href={tab.href}
+                  role="tab"
+                  aria-selected={active}
+                  aria-current={active ? 'page' : undefined}
+                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] motion-reduce:transition-none ${active ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#134e4a] dark:text-[#a1a1aa] dark:hover:bg-[#27272a] dark:hover:text-[#ccfbf1]'}`}
+                >
+                  {translateUiText(language, tab.label)}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -783,8 +783,10 @@ export function ErpShell() {
               title={meta.label}
               description={meta.description}
               crumbs={crumbs}
-              tabs={[]}
-              activeTabId=""
+              tabs={tabs?.primary ?? []}
+              activeTabId={tabs?.activePrimary ?? ''}
+              secondaryTabs={tabs?.secondary ?? []}
+              activeSecondaryId={tabs?.activeSecondary ?? ''}
               relatedLinks={relatedLinks.map((item) => ({ ...item, href: workspaces.flatMap((workspace) => workspace.sections.flatMap((section) => section.pages)).find((page) => page.entityKey === item.entityKey)?.href ?? '/' }))}
               ctx={liveCtx}
             />
