@@ -1,0 +1,676 @@
+{
+  "createdAt": "2026-10-03T04:51:26.897Z",
+  "appBaseUrl": "http://127.0.0.1:3000",
+  "appHealthHttpStatus": 200,
+  "appHealth": {
+    "success": true,
+    "data": {
+      "status": "ok",
+      "demoMode": false,
+      "databaseConfigured": true,
+      "databaseEnvKey": "DATABASE_URL",
+      "jwtConfigured": true,
+      "databaseReachable": true,
+      "bootstrapped": true,
+      "databaseError": null,
+      "demoCredentials": null
+    },
+    "message": "OK"
+  },
+  "databaseBoundary": "Disposable, local-only PostgreSQL validation database; synthetic seeded records; not a production database.",
+  "dataMutations": [
+    "approved synthetic purchase order PO-2026-009; confirmed status changed to معتمد in the local UI"
+  ],
+  "loginAccount": "gm@factory.local",
+  "recording": {
+    "finalVideo": "factory-erp-all-dataflows-ar.mp4",
+    "rawVideo": "factory-erp-all-dataflows-action-raw.webm",
+    "alignedVoiceTrack": "factory-erp-all-dataflows-arabic-narration-aligned.wav",
+    "output": "MP4 H.264 + AAC, 1600x900, Arabic female narration, human-like visible pointer and chapter captions",
+    "videoDuration": 745.08,
+    "audioDuration": 742.65,
+    "totalDuration": 746.33
+  },
+  "routeCoverage": {
+    "expected": 45,
+    "successfullyLoadedExactRoutes": 45,
+    "chapters": 21
+  },
+  "chapters": [
+    {
+      "id": "01-dashboard",
+      "title": "لوحة المالك",
+      "startMs": 4788,
+      "durationSec": 46,
+      "routes": [
+        {
+          "id": "dashboard",
+          "label": "لوحة المالك",
+          "href": "/",
+          "navigation": "already-on-route",
+          "actualUrl": "/",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "scrolled owner KPI cards and alerts while dashboard narration played"
+      ],
+      "warnings": [],
+      "endMs": 50868
+    },
+    {
+      "id": "02-fleet",
+      "title": "السيارات والنقل",
+      "startMs": 51037,
+      "durationSec": 38.64,
+      "routes": [
+        {
+          "id": "fleet",
+          "label": "المركبات",
+          "href": "/fleet/vehicles",
+          "navigation": "search-result-click",
+          "actualUrl": "/fleet/vehicles",
+          "loaded": true
+        },
+        {
+          "id": "fleetFuel",
+          "label": "الوقود",
+          "href": "/fleet/fuel",
+          "navigation": "search-result-click",
+          "actualUrl": "/fleet/fuel",
+          "loaded": true
+        },
+        {
+          "id": "fleetTrips",
+          "label": "الرحلات",
+          "href": "/fleet/trips",
+          "navigation": "search-result-click",
+          "actualUrl": "/fleet/trips",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving",
+        "highlighted the trip record fields for driver, route, distance, load and fuel"
+      ],
+      "warnings": [],
+      "endMs": 89745
+    },
+    {
+      "id": "03-obligations",
+      "title": "الأقساط والالتزامات المالية",
+      "startMs": 90099,
+      "durationSec": 32.08,
+      "routes": [
+        {
+          "id": "obligation",
+          "label": "الالتزامات",
+          "href": "/accounting/obligations",
+          "navigation": "search-result-click",
+          "actualUrl": "/accounting/obligations",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 122244
+    },
+    {
+      "id": "04-bank",
+      "title": "البنك والحسابات",
+      "startMs": 122431,
+      "durationSec": 28.24,
+      "routes": [
+        {
+          "id": "bankTransaction",
+          "label": "معاملات البنك",
+          "href": "/accounting/financial-ops/bank-transactions",
+          "navigation": "search-result-click",
+          "actualUrl": "/accounting/financial-ops/bank-transactions",
+          "loaded": true
+        },
+        {
+          "id": "expense",
+          "label": "المصروفات",
+          "href": "/accounting/expenses",
+          "navigation": "search-result-click",
+          "actualUrl": "/accounting/expenses",
+          "loaded": true
+        },
+        {
+          "id": "auditLog",
+          "label": "سجل العمليات",
+          "href": "/settings/audit",
+          "navigation": "search-result-click",
+          "actualUrl": "/settings/audit",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "highlighted the first bank transaction for manual review"
+      ],
+      "warnings": [],
+      "endMs": 150725
+    },
+    {
+      "id": "05-purchasing",
+      "title": "المشتريات والموافقات",
+      "startMs": 151043,
+      "durationSec": 38.6,
+      "routes": [
+        {
+          "id": "purchaseRequest",
+          "label": "طلبات الشراء",
+          "href": "/sales/parties/requests",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/parties/requests",
+          "loaded": true
+        },
+        {
+          "id": "purchaseOrder",
+          "label": "أوامر الشراء",
+          "href": "/sales/parties/orders",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/parties/orders",
+          "loaded": true
+        },
+        {
+          "id": "goodsReceipt",
+          "label": "استلام البضاعة",
+          "href": "/sales/parties/receipts",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/parties/receipts",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "reviewed a purchase request and its supplier quotation comparison",
+        "approved synthetic purchase order PO-2026-009; confirmed status changed to معتمد in the local UI",
+        "dismissed the local approval confirmation toast after verifying the status change"
+      ],
+      "warnings": [],
+      "endMs": 189741
+    },
+    {
+      "id": "06-stores",
+      "title": "قطع الغيار ومواد التعبئة",
+      "startMs": 190049,
+      "durationSec": 39.8,
+      "routes": [
+        {
+          "id": "inventoryExtensions",
+          "label": "قطع الغيار",
+          "href": "/inventory/extensions?kind=spare",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/extensions?kind=spare",
+          "loaded": true
+        },
+        {
+          "id": "inventoryExtensions-packaging",
+          "label": "مواد التعبئة",
+          "href": "/inventory/extensions?kind=packaging",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/extensions?kind=packaging",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 229906
+    },
+    {
+      "id": "07-supplier-comms",
+      "title": "التواصل مع الموردين",
+      "startMs": 230142,
+      "durationSec": 26.4,
+      "routes": [
+        {
+          "id": "supplierTemplate",
+          "label": "قوالب الرسائل",
+          "href": "/sales/parties/templates",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/parties/templates",
+          "loaded": true
+        },
+        {
+          "id": "supplierCommunication",
+          "label": "مراسلات الموردين",
+          "href": "/sales/parties/communications",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/parties/communications",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 256637
+    },
+    {
+      "id": "08-production-scale",
+      "title": "التصنيع والميزان والهدر",
+      "startMs": 256842,
+      "durationSec": 37.84,
+      "routes": [
+        {
+          "id": "productionOrder",
+          "label": "أوامر التصنيع",
+          "href": "/inventory/manufacturing/orders",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/orders",
+          "loaded": true
+        },
+        {
+          "id": "scaleReading",
+          "label": "الميزان",
+          "href": "/inventory/manufacturing/scale",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/scale",
+          "loaded": true
+        },
+        {
+          "id": "factoryWaste",
+          "label": "الهدر",
+          "href": "/inventory/manufacturing/waste",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/waste",
+          "loaded": true
+        },
+        {
+          "id": "varianceReport",
+          "label": "تحليل الانحراف",
+          "href": "/inventory/manufacturing/variance",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/variance",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "highlighted a scale-reading field without submitting a weight"
+      ],
+      "warnings": [],
+      "endMs": 294785
+    },
+    {
+      "id": "09-recipes",
+      "title": "الخلطات وأوزان الأكياس",
+      "startMs": 294999,
+      "durationSec": 33.2,
+      "routes": [
+        {
+          "id": "recipe",
+          "label": "الوصفات",
+          "href": "/inventory/manufacturing",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing",
+          "loaded": true
+        },
+        {
+          "id": "recipeItem",
+          "label": "مكونات الوصفة",
+          "href": "/inventory/manufacturing/recipe-items",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/recipe-items",
+          "loaded": true
+        },
+        {
+          "id": "product",
+          "label": "المنتجات",
+          "href": "/inventory/products",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/products",
+          "loaded": true
+        }
+      ],
+      "actions": [],
+      "warnings": [],
+      "endMs": 328268
+    },
+    {
+      "id": "10-customer-recipes",
+      "title": "خلطات العملاء",
+      "startMs": 328571,
+      "durationSec": 37.56,
+      "routes": [
+        {
+          "id": "customerRecipe",
+          "label": "خلطات العملاء",
+          "href": "/inventory/manufacturing/customer-recipes",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/customer-recipes",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 366234
+    },
+    {
+      "id": "11-distribution",
+      "title": "نقاط التوزيع والمبيعات",
+      "startMs": 366401,
+      "durationSec": 36.08,
+      "routes": [
+        {
+          "id": "distributionPoint",
+          "label": "نقاط التوزيع",
+          "href": "/sales/distribution/points",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/distribution/points",
+          "loaded": true
+        },
+        {
+          "id": "barcode",
+          "label": "الباركود",
+          "href": "/inventory/warehouses/barcode",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/warehouses/barcode",
+          "loaded": true
+        },
+        {
+          "id": "distributionClosing",
+          "label": "الإقفال اليومي",
+          "href": "/sales/distribution/closing",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/distribution/closing",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 402548
+    },
+    {
+      "id": "12-delivery",
+      "title": "الفاتورة والتسليم والتحصيل",
+      "startMs": 402806,
+      "durationSec": 26.04,
+      "routes": [
+        {
+          "id": "invoiceDelivery",
+          "label": "التسليم",
+          "href": "/sales/delivery",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/delivery",
+          "loaded": true
+        },
+        {
+          "id": "salesPayment",
+          "label": "التحصيل",
+          "href": "/sales/collections",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/collections",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "highlighted the next delivery-stage action without advancing a real-world delivery"
+      ],
+      "warnings": [],
+      "endMs": 428914
+    },
+    {
+      "id": "13-utilities",
+      "title": "الكهرباء والماء والغاز",
+      "startMs": 429106,
+      "durationSec": 26.24,
+      "routes": [
+        {
+          "id": "utilitiesReading",
+          "label": "المرافق",
+          "href": "/accounting/financial-ops/utilities",
+          "navigation": "search-result-click",
+          "actualUrl": "/accounting/financial-ops/utilities",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 455429
+    },
+    {
+      "id": "14-documents",
+      "title": "التصاريح والعقود والوثائق",
+      "startMs": 455688,
+      "durationSec": 30.04,
+      "routes": [
+        {
+          "id": "documents",
+          "label": "الوثائق",
+          "href": "/accounting/documents",
+          "navigation": "search-result-click",
+          "actualUrl": "/accounting/documents",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 485796
+    },
+    {
+      "id": "15-people",
+      "title": "الموظفون والحضور والرواتب",
+      "startMs": 485964,
+      "durationSec": 30.72,
+      "routes": [
+        {
+          "id": "employee",
+          "label": "ملفات الموظفين",
+          "href": "/hr",
+          "navigation": "search-result-click",
+          "actualUrl": "/hr",
+          "loaded": true
+        },
+        {
+          "id": "attendance",
+          "label": "الحضور والإجازات",
+          "href": "/hr/attendance",
+          "navigation": "search-result-click",
+          "actualUrl": "/hr/attendance",
+          "loaded": true
+        },
+        {
+          "id": "overtime",
+          "label": "الإضافي",
+          "href": "/hr/overtime",
+          "navigation": "search-result-click",
+          "actualUrl": "/hr/overtime",
+          "loaded": true
+        },
+        {
+          "id": "payroll",
+          "label": "الرواتب",
+          "href": "/hr/payroll",
+          "navigation": "search-result-click",
+          "actualUrl": "/hr/payroll",
+          "loaded": true
+        }
+      ],
+      "actions": [],
+      "warnings": [],
+      "endMs": 516761
+    },
+    {
+      "id": "16-raw-prices",
+      "title": "تحليل أسعار المواد الخام",
+      "startMs": 517021,
+      "durationSec": 31,
+      "routes": [
+        {
+          "id": "materialPriceAnalysis",
+          "label": "أسعار الخام",
+          "href": "/inventory/raw-materials/price-analysis",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/raw-materials/price-analysis",
+          "loaded": true
+        }
+      ],
+      "actions": [],
+      "warnings": [],
+      "endMs": 548143
+    },
+    {
+      "id": "17-maintenance",
+      "title": "الصيانة والماكينات",
+      "startMs": 548305,
+      "durationSec": 29.56,
+      "routes": [
+        {
+          "id": "machine",
+          "label": "الماكينات",
+          "href": "/inventory/manufacturing/maintenance/machines",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/maintenance/machines",
+          "loaded": true
+        },
+        {
+          "id": "maintenanceSchedule",
+          "label": "جداول الصيانة",
+          "href": "/inventory/manufacturing/maintenance/schedules",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/maintenance/schedules",
+          "loaded": true
+        },
+        {
+          "id": "maintenanceRecord",
+          "label": "سجلات الأعطال",
+          "href": "/inventory/manufacturing/maintenance/records",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/maintenance/records",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened add form and canceled without saving"
+      ],
+      "warnings": [],
+      "endMs": 577974
+    },
+    {
+      "id": "18-roles-languages",
+      "title": "اللغة والصلاحيات",
+      "startMs": 578188,
+      "durationSec": 31.52,
+      "routes": [
+        {
+          "id": "users",
+          "label": "المستخدمون",
+          "href": "/settings/users",
+          "navigation": "search-result-click",
+          "actualUrl": "/settings/users",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "opened the language menu and hovered Arabic, English and Hindi options without changing user settings"
+      ],
+      "warnings": [],
+      "endMs": 609773
+    },
+    {
+      "id": "19-trace-profit",
+      "title": "تتبع الدفعات والربحية",
+      "startMs": 609947,
+      "durationSec": 34,
+      "routes": [
+        {
+          "id": "productionLot",
+          "label": "دفعات الإنتاج",
+          "href": "/inventory/manufacturing/lots",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/lots",
+          "loaded": true
+        },
+        {
+          "id": "lotTrace",
+          "label": "تتبع الدفعات",
+          "href": "/inventory/manufacturing/lot-trace",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/lot-trace",
+          "loaded": true
+        },
+        {
+          "id": "profitability",
+          "label": "الربحية",
+          "href": "/sales/profitability",
+          "navigation": "search-result-click",
+          "actualUrl": "/sales/profitability",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "reviewed productionLot trace/cost data",
+        "reviewed lotTrace trace/cost data",
+        "reviewed profitability trace/cost data"
+      ],
+      "warnings": [],
+      "endMs": 644055
+    },
+    {
+      "id": "20-nutrition-qc",
+      "title": "التحليل الغذائي ومقارنة الجودة",
+      "startMs": 644383,
+      "durationSec": 53.76,
+      "routes": [
+        {
+          "id": "qualitySample",
+          "label": "عينات الجودة",
+          "href": "/inventory/manufacturing/quality",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/quality",
+          "loaded": true
+        },
+        {
+          "id": "supplierQuality",
+          "label": "جودة الموردين",
+          "href": "/inventory/manufacturing/supplier-quality",
+          "navigation": "search-result-click",
+          "actualUrl": "/inventory/manufacturing/supplier-quality",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "highlighted an existing held synthetic QC sample; no sample status changed",
+        "highlighted an existing rejected synthetic QC sample; no sample status changed",
+        "showed the calculated-versus-lab nutrient comparison"
+      ],
+      "warnings": [],
+      "endMs": 698203
+    },
+    {
+      "id": "21-outro",
+      "title": "الختام وحدود الاتصال",
+      "startMs": 698530,
+      "durationSec": 44.12,
+      "routes": [
+        {
+          "id": "dashboard",
+          "label": "لوحة المالك",
+          "href": "/",
+          "navigation": "search-result-click",
+          "actualUrl": "/",
+          "loaded": true
+        }
+      ],
+      "actions": [
+        "scrolled owner KPI cards and alerts while dashboard narration played"
+      ],
+      "warnings": [],
+      "endMs": 742773
+    }
+  ],
+  "browserErrors": []
+}
