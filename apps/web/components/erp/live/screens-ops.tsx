@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Trash2 } from 'lucide-react'
 
 import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingCountReport, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
@@ -2452,7 +2454,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
                     </label>
                   ))}
                 </div>
-                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.create')}>حفظ الوصفة</PrimaryButton>
+                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.create')}>��فظ الوصفة</PrimaryButton>
               </form>
             )}
           </FormDialog>
