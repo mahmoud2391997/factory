@@ -1,55 +1,25 @@
-# إعداد قاعدة البيانات على Vercel (مطلوب للدخول)
+# إعداد قاعدة البيانات على Vercel
 
-الخطأ:
+هذا الملف ملخص مختصر؛ الإجراء الكامل والآمن للاختبار اليدوي موجود في [TEST-ON-VERCEL.md](./TEST-ON-VERCEL.md). استخدمه مرجعًا أساسيًا لتجهيز Neon، التهيئة، smoke، seed، وحدود Vercel.
 
-> إعداد قاعدة البيانات ناقص: عيّن DATABASE_URL ...
+## الإعداد المختصر
 
-يعني **لا يوجد connection string** في Environment Variables على Vercel. هذا إعداد حسابك، وليس باگ في الكود.
+- اضبط **Root Directory** على جذر المستودع (`.`). يوجد ملف `vercel.json` واحد في الجذر.
+- استخدم `DATABASE_URL` المجمع/pooled لتشغيل التطبيق و`DATABASE_URL_UNPOOLED` المباشر/unpooled لتطبيق migrations متى توفر.
+- أضف `sslmode=require` إلى الرابطين إذا لم يضفه مزوّد قاعدة البيانات.
+- اضبط `JWT_SECRET` و`SETUP_TOKEN` على قيم عشوائية قوية ومختلفة. لا تضع الأسرار في Git ولا تشاركها في طلبات الدعم.
+- اترك `APP_MODE` فارغًا أو `production`. لا تجمع وضع demo مع قاعدة بيانات.
+- لا يحتوي Prisma schema على `directUrl`؛ `scripts/vercel-build.sh` يمرّر رابط الاتصال المباشر إلى migration عند توفره.
 
-## الطريقة الأسهل (مستحسنة)
-
-1. افتح [vercel.com](https://vercel.com) → مشروع `factory` / `factory-web`
-2. من الشريط الجانبي: **Storage**
-3. **Create Database** → **Postgres**
-4. اربطه بالمشروع (Connect to Project) لبيئات **Production** و **Preview**
-5. Vercel سيضيف تلقائيًا مثل:
-   - `POSTGRES_URL`
-   - `POSTGRES_PRISMA_URL`
-6. اذهب **Deployments** → **Redeploy** لآخر deployment (بدون Cache إن أمكن)
-7. افتح موقعك على `/login` — يجب أن تتحول علامات التشخيص للأخضر
-8. افتح أيضًا `/api/health` وتأكد:
-
-```json
-{
-  "data": {
-    "databaseConfigured": true,
-    "databaseReachable": true,
-    "jwtConfigured": true
-  }
-}
-```
-
-## الطريقة اليدوية
-
-**Settings → Environment Variables** أضف لـ Production + Preview:
-
-| Name | Value |
-|------|--------|
-| `DATABASE_URL` | `postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require` |
-| `JWT_SECRET` | أي نص عشوائي طويل |
-| `SETUP_TOKEN` | توكن سري للتهيئة |
-
-مصادر مجانية للرابط: [Neon](https://neon.tech) أو [Supabase](https://supabase.com) أو Vercel Postgres.
-
-بعد الحفظ: **Redeploy**.
-
-## تهيئة أول مستخدم (بعد ما الـ DB تشتغل)
+## التحقق
 
 ```bash
-curl -X POST https://YOUR-DOMAIN/api/setup/bootstrap \
-  -H 'Content-Type: application/json' \
-  -H "x-setup-token: YOUR_SETUP_TOKEN" \
-  -d '{"email":"admin@factory.local","password":"Admin123!","fullName":"مدير النظام"}'
+BASE_URL='https://<your-vercel-domain>'
+curl -i "$BASE_URL/api/health"
 ```
 
-ثم ادخل بنفس البريد وكلمة المرور على `/login`.
+في الإنتاج، حقل `data` في الصحة يحتوي فقط `status` و`bootstrapped` و`demoMode`. الجاهزية تعيد `status="ok"` ورمز 200؛ عدم الجاهزية يعيد `status="degraded"` ورمز 503. لا تعتمد على حقول `databaseConfigured` أو `databaseReachable` أو `jwtConfigured`؛ لا تُعرض في استجابة الإنتاج.
+
+لتهيئة أول مسؤول، أرسل `POST /api/setup/bootstrap` على قاعدة فارغة فقط مع ترويسة `x-setup-token` وJSON يحوي `email`, `password`, `fullName`. لا تستخدم بيانات اعتماد افتراضية مشتركة. معاني 200 و400 و401 و410 و500، والأوامر الدقيقة، موثقة في [TEST-ON-VERCEL.md](./TEST-ON-VERCEL.md).
+
+**تنبيه:** لا تشغّل `scripts/seed-test-data.mjs` إلا على قاعدة اختبار معزولة ومع `--confirm-test-db`. لا تنفّذ `prisma db push`.

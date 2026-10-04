@@ -12,6 +12,7 @@
   - إذا لم يتوفر رابط direct، يمكن للسكربت محاولة migration على `DATABASE_URL` pooled؛ إن رفضه المزود، نفّذ migration محليًا بالرابط direct كما في القسم 2.
 - أضف `JWT_SECRET` بطول 32 حرفًا على الأقل، و`SETUP_TOKEN` بطول 16 حرفًا على الأقل. استخدم قيمًا عشوائية مختلفة، لا كلمات المثال.
 - اترك `APP_MODE` فارغًا أو `production`. لا تستخدم `APP_MODE=demo` مع أي رابط قاعدة بيانات.
+- لا يحتوي `packages/database/prisma/schema.prisma` على `directUrl`. يتولى `scripts/vercel-build.sh` استخدام `DATABASE_URL_UNPOOLED` (أو أحد أسماء رابط Neon/Vercel المباشر المدعومة) مؤقتًا عند تشغيل `prisma migrate deploy`؛ ويبقى `DATABASE_URL` المجمع لاتصالات التطبيق.
 - احذف **كل** متغيرات `SUPABASE_*` و`NEXT_PUBLIC_SUPABASE_*` من إعدادات Vercel لهذا الاختبار؛ وجود URL ومفتاح Supabase يجعل تسجيل الدخول يمر عبر Supabase Auth بالإضافة إلى حساب ERP.
 - بعد الحفظ، نفّذ Deploy. يعرض شريط النظام `Build <commit> · <UTC build date>` لإثبات النسخة المنشورة.
 
@@ -52,7 +53,15 @@ curl -i -c /tmp/factory-cookies.txt \
   --data '{"email":"owner@example.com","password":"<temporary-password-8-chars-or-more>","fullName":"Test Owner"}'
 ```
 
-النجاح المتوقع: `200`, إنشاء حساب GM مع `mustChangePassword=true` وإرجاع cookies. غيّر كلمة المرور المؤقتة فورًا. إعادة الطلب بعد التهيئة يجب أن تعيد `410`. كما يجب ألا يفوز أكثر من طلب واحد إذا أُرسل طلبان بالتزامن.
+رموز bootstrap المتوقعة:
+
+- `200`: نجاح التهيئة وإنشاء GM مع `mustChangePassword=true` وإرجاع cookies. غيّر كلمة المرور المؤقتة فورًا.
+- `401`: قيمة `x-setup-token` مفقودة أو غير مطابقة لـ `SETUP_TOKEN`.
+- `500`: `SETUP_TOKEN` غير مضبوط على الخادم، أو وقع خطأ داخلي/اتصال أثناء التهيئة؛ افحص إعداد النشر والسجلات الخاصة دون نشر الأسرار.
+- `400`: JSON غير صالح أو بريد/اسم/كلمة مرور لا تطابق التحقق (كلمة المرور 8 أحرف على الأقل).
+- `410`: سبق تهيئة النظام، أو خسر طلب متزامن السباق لإنشاء المستند. لا تحاول إعادة bootstrap على قاعدة مستخدمة.
+
+يجب ألا يفوز أكثر من طلب واحد إذا أُرسل طلبان بالتزامن.
 
 بعدها:
 
@@ -60,7 +69,13 @@ curl -i -c /tmp/factory-cookies.txt \
 curl -sS "$BASE_URL/api/health"
 ```
 
-المتوقع في وضع الإنتاج: استجابة JSON بحالة مجملة فقط: `status: "ok"` عند جاهزية النظام (أو `"degraded"` ورمز 503 عند تعذر الاتصال)، `demoMode=false`, و`bootstrapped=true` (أو `false` قبل الـ bootstrap). لا تظهر أي متغيرات بيئة، ولا `databaseConfigured`/`jwtConfigured`/`databaseReachable`، ولا توجد `demoCredentials` أو رسائل أخطاء اتصال داخلية.
+المتوقع في وضع الإنتاج: استجابة HTTP 200 بعد جاهزية النظام، وبنية البيانات داخل `data` لا تحتوي إلا `status`, `bootstrapped`, `demoMode`، مثل:
+
+```json
+{"success":true,"data":{"status":"ok","bootstrapped":true,"demoMode":false}}
+```
+
+قبل اكتمال الإعداد/عند تعذر قاعدة البيانات تكون الحالة `status="degraded"` ورمز HTTP 503، مع الحقول الثلاثة نفسها. لا تظهر أي متغيرات بيئة، ولا `databaseConfigured`/`jwtConfigured`/`databaseReachable`، ولا `demoCredentials` أو رسائل أخطاء اتصال داخلية في الإنتاج. وضع demo فقط يعرض بيانات دخوله التجريبية.
 
 ## 3) اختبارات smoke
 
@@ -75,7 +90,7 @@ node scripts/smoke-test.mjs "$BASE_URL" --public-only
 ```bash
 SMOKE_EMAIL='owner@example.com' \
 SMOKE_PASSWORD='<current-password>' \
-node scripts/smoke-test.mjs "$BASE_URL" --expect-prod
+node scripts/smoke-test.mjs https://<your-vercel-domain> --expect-prod
 ```
 
 يشمل `--expect-prod` التحقق من الخروج من demo، health، الجلسة، الحالة، مجموعة صفحات، CSV وExcel، backup JSON، رفض الإجراء المجهول، ورفض `resetDemo` في الإنتاج (`400`). يعيد `--mutate` إنشاء عميل اختباري بالمفتاح نفسه مرتين، يتحقق من عدم التكرار، ثم يحذفه:

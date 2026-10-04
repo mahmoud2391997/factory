@@ -66,7 +66,8 @@ try {
   check('health endpoint returns JSON', healthJson && (health.response.status === 200 || health.response.status === 503))
   if (healthJson) {
     check('health payload has a coarse status', typeof health.body.data?.status === 'string')
-    check('health does not expose database diagnostics', !('databaseError' in health.body.data) && !('databaseEnvKey' in health.body.data))
+    const privateHealthKeys = ['databaseError', 'databaseEnvKey', 'databaseConfigured', 'jwtConfigured', 'databaseReachable']
+    check('health does not expose database or auth diagnostics', privateHealthKeys.every((key) => !(key in (health.body.data || {}))))
   }
 
   const loginPage = await request('/login')
@@ -104,6 +105,8 @@ try {
     check('production health status is ok', health.body?.data?.status === 'ok')
     check('production health is not demo mode', health.body?.data?.demoMode === false)
     check('production health omits demo credentials', !health.body?.data || !('demoCredentials' in health.body.data))
+    const productionHealthKeys = Object.keys(health.body?.data || {}).sort()
+    check('production health exposes only status, bootstrapped, and demoMode', productionHealthKeys.join(',') === 'bootstrapped,demoMode,status')
     check('production ERP is bootstrapped', health.body?.data?.bootstrapped === true)
 
     if (!process.env.SMOKE_EMAIL || !process.env.SMOKE_PASSWORD) {

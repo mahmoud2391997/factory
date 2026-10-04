@@ -1,37 +1,33 @@
 # Vercel Deployment (Monorepo)
 
-هذا المستودع يحتوي تطبيق Next.js واحداً (الواجهة وواجهات API) داخل `apps/web`.
+يحتوي المستودع تطبيق Next.js واحدًا داخل `apps/web`، لكن إعداد Vercel الوحيد موجود في جذر المستودع.
 
-## إعدادات مشروع Vercel
+## إعداد مشروع Vercel
 
-- **Root Directory**: جذر المستودع (`.`)، وليس `apps/web`.
-- **Framework Preset**: Next.js.
-- **Install Command**: `pnpm install --frozen-lockfile` (من `vercel.json`).
-- **Build Command**: `pnpm vercel-build` (من `vercel.json`).
-- **Output Directory**: اتركه افتراضياً لـ Next.js؛ لا تضبط مساراً يدوياً.
+- **Root Directory:** جذر المستودع (`.`)، وليس `apps/web`.
+- **Framework Preset:** Next.js.
+- **Install Command:** `pnpm install --frozen-lockfile`.
+- **Build Command:** `pnpm vercel-build`، وهو يستدعي `scripts/vercel-build.sh`.
+- **Output Directory:** القيمة المصرّح بها في `vercel.json` هي `apps/web/.next`؛ لا تنشئ إعدادًا ثانيًا داخل التطبيق.
 
-يوجد ملف إعداد Vercel واحد فقط في جذر المستودع. اختيار الجذر ضروري لاكتشاف
-`pnpm-workspace.yaml` و`packages/database` وملف القفل الموحد. أمر البناء يشغّل
-فحص البيئة وتوليد Prisma، ثم يطبق migrations عند وجود اتصال قاعدة بيانات، ثم يبني الواجهة.
+اختيار جذر المستودع ضروري لاكتشاف `pnpm-workspace.yaml` و`packages/database` وملف القفل الموحد. سكربت البناء يتحقق من البيئة، ويولّد Prisma، ويطبّق migrations عند توافر قاعدة البيانات، ثم يبني تطبيق الويب.
 
-## متغيرات البيئة المطلوبة (Project → Settings → Environment Variables)
+## متغيرات البيئة
 
-| Variable | مطلوب | ملاحظات |
-|----------|--------|---------|
-| `DATABASE_URL` **أو** `POSTGRES_URL_NON_POOLING` / `POSTGRES_PRISMA_URL` / `PRISMA_DATABASE_URL` / `POSTGRES_URL` / `DATABASE_URL_UNPOOLED` | ✅ | أي واحد يكفي — سكربت النشر يطبع المتغير إلى `DATABASE_URL` قبل تشغيل Prisma، ويفضل الرابط غير المجمع للـ migrations |
-| `JWT_SECRET` | ✅ | جلسات الدخول |
-| `SETUP_TOKEN` | ✅ | تهيئة أول Admin عبر `/api/setup/bootstrap` |
+راجع [TEST-ON-VERCEL.md](./TEST-ON-VERCEL.md) للإعداد الكامل على Neon والتحقق اليدوي. باختصار:
 
-### لو عندك Vercel Postgres
-Storage → Postgres عادةً يضيف `POSTGRES_URL` و`POSTGRES_PRISMA_URL` تلقائيًا؛ أضف `DATABASE_URL` أو `POSTGRES_URL_NON_POOLING` إذا كانت المنصة توفر رابط اتصال مباشر خاصاً بالـ migrations.  
-بعد الربط: **Redeploy**، ثم افتح `/api/health` وتأكد أن `databaseReachable: true`.
+- `DATABASE_URL`: رابط اتصال مجمع/pooled لتشغيل التطبيق.
+- `DATABASE_URL_UNPOOLED` أو اسم Neon/Vercel مباشر مدعوم: رابط direct/unpooled لتطبيق migrations.
+- أضف `sslmode=require` إلى الرابطين إذا لم يضفه المزوّد.
+- `JWT_SECRET` و`SETUP_TOKEN`: قيم عشوائية قوية، مختلفة، وغير ملتزمة إلى Git.
+- لا تستخدم `APP_MODE=demo` مع قاعدة بيانات.
 
-إذا ظهر خطأ Prisma `DATABASE_URL resolved to an empty string` فهذا يعني أن كل متغيرات قاعدة البيانات فاضية — اربط Postgres أو الصق connection string يدويًا.
+لا يحتوي `packages/database/prisma/schema.prisma` على `directUrl`. يتولى `scripts/vercel-build.sh` اختيار رابط direct وتمريره إلى `prisma migrate deploy`؛ يظل `DATABASE_URL` رابط تشغيل التطبيق.
 
-## سلوك `pnpm vercel-build`
+## الصحة والتهيئة
 
-1. `prisma generate` لتجهيز عميل قاعدة البيانات.
-2. يطبق migrations عبر `prisma migrate deploy` فقط عند وجود `DATABASE_URL_UNPOOLED` أو `DATABASE_URL`؛ استخدم الرابط المباشر غير المجمع للمigrations عند توفره.
-3. يُحقن `NEXT_PUBLIC_GIT_COMMIT_SHA` وتاريخ UTC للبناء، ثم يُنفّذ `next build`.
+في الإنتاج يعيد `/api/health` داخل `data` الحقول العامة فقط `status`, `bootstrapped`, `demoMode`. الحالة الجاهزة تكون HTTP 200 و`status="ok"`; الحالة غير الجاهزة تكون HTTP 503 و`status="degraded"`. لا تعتمد على `databaseReachable` أو `jwtConfigured` أو غيرها من حقول التشخيص غير المعروضة.
 
-ملف `packages/database/prisma/seed.ts` لا ينشئ بيانات ERP. عند إنشاء حالة التطبيق لأول مرة، ينشئ مخزن ERP الحالة الأولية من `buildSeedState` بما فيها مستخدم المدير العام وصلاحيات GM الافتراضية الكاملة. لذلك لا تستخدم `prisma db seed` كخطوة تهيئة بيانات المستخدمين.
+لتهيئة أول GM، استخدم `POST /api/setup/bootstrap` مع `x-setup-token` وJSON يحتوي `email`, `password`, `fullName` على قاعدة اختبار فارغة فقط. أكمل تغيير كلمة مرور المسؤول بعد نجاح التهيئة. معاني رموز HTTP وحماية seed موضحة في الدليل الشامل [TEST-ON-VERCEL.md](./TEST-ON-VERCEL.md).
+
+ملف `packages/database/prisma/seed.ts` لا يزرع بيانات ERP. تُنشأ حالة التطبيق الأولى عبر bootstrap؛ بيانات الاختبار الإضافية تُنشأ يدويًا وبحذر باستخدام `scripts/seed-test-data.mjs` على قاعدة اختبار معزولة فقط.
