@@ -496,3 +496,18 @@ test('the navigation guide resolves as a searchable page and breadcrumbs are cli
     { href: '/', label: 'لوحة المالك' },
   ])
 })
+
+
+test('Sales customers navigation keeps six routes in three responsive sidebar groups', () => {
+  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'sales')!.sections.find((item) => item.id === 'customers')!
+  const resolved = resolvePath('/sales/today')!
+  const tabs = pageTabs(resolved, allPagesForEveryRole)
+  assert.equal(section.tabLayout, 'sidebar')
+  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(tabs.primary.length, 6)
+  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
+    'sales-overview',
+    'customer-invoices',
+    'sales-insights',
+  ])
+})

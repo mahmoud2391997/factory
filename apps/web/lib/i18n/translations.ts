@@ -318,6 +318,7 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'الرئيسية': { en: 'Home', hi: 'मुखपृष्ठ' },
   'لوحة المالك': { en: 'Owner dashboard', hi: 'मालिक डैशबोर्ड' },
   'المبيعات والتوزيع': { en: 'Sales & distribution', hi: 'बिक्री और वितरण' },
+  'نظرة عامة على المبيعات': { en: 'Sales overview', hi: 'बिक्री का सारांश' },
   'المشتريات والموردون': { en: 'Purchasing & suppliers', hi: 'खरीद और आपूर्तिकर्ता' },
   'المخازن': { en: 'Warehouses', hi: 'गोदाम' },
   'الإنتاج والجودة': { en: 'Production & quality', hi: 'उत्पादन और गुणवत्ता' },
