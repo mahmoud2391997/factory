@@ -16,7 +16,7 @@
     "start": "pnpm --filter @erp/web start",
     "start:web": "pnpm --filter @erp/web start",
     "lint": "pnpm --filter @erp/web lint",
-    "typecheck": "pnpm --filter @erp/web lint",
+    "typecheck": "pnpm --filter @erp/web exec tsc --noEmit",
     "test:erp": "tsx --tsconfig apps/web/tsconfig.json --test \"apps/web/**/*.test.ts\""
   },
   "devDependencies": {
