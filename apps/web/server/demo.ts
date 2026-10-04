@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 
-import { resolveDatabaseUrl } from '@/server/db-url'
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 
 export const DEMO_USER_ID = 'demo-admin-user'
@@ -25,20 +24,10 @@ export function getDemoSecrets() {
   return generatedDemoSecrets
 }
 
-/** Demo mode works out of the box when no production configuration is present. */
+/** Demo mode is the default unless APP_MODE explicitly selects production. */
 export function isDemoMode() {
   const configuredMode = process.env.APP_MODE?.trim().toLowerCase()
-  const hasDatabase = Boolean(resolveDatabaseUrl())
-
-  // Demo mode is an explicit opt-in, so it can be enabled for previews even
-  // when a PostgreSQL integration is also configured. Production remains the
-  // default whenever APP_MODE is not set to demo.
-  if (configuredMode === 'demo') return true
-  if (hasDatabase) return false
-  if (configuredMode === 'production' || configuredMode === 'prod') return false
-  if (process.env.NODE_ENV === 'production') return false
-
-  return true
+  return configuredMode !== 'production' && configuredMode !== 'prod'
 }
 
 export function canResetDemoData() {
