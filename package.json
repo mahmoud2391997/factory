@@ -10,7 +10,7 @@
     "dev": "npm run dev --workspace=apps/web",
     "prebuild": "npm run generate --workspace=packages/database",
     "build": "npm run build --workspace=apps/web",
-    "vercel-build": "pnpm --filter @erp/web vercel-build",
+    "vercel-build": "pnpm --filter @erp/database generate && pnpm --filter @erp/web vercel-build",
     "start": "npm run start --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web",
     "typecheck": "npm run lint --workspace=apps/web",
