@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 
 import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingCountReport, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
@@ -992,7 +993,7 @@ function Products({ ctx }: { ctx: LiveCtx }) {
       title="المنتجات"
       extra={
         <div className="flex flex-wrap items-center gap-3">
-          <a className="text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank">طباعة ملصقات الباركود</a>
+          <Link className="text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank">طباعة ملصقات الباركود</Link>
           <FormDialog title="منتج نهائي" hint="سعر البيع للكيلوغرام بالريال العُماني، غير شامل الضريبة." openLabel="إضافة منتج">
             {(close) => (
               <form
@@ -1345,7 +1346,7 @@ function BarcodeStation({ ctx }: { ctx: LiveCtx }) {
       </form>
       {found ? <p className="mt-4 text-lg font-bold">{found}</p> : null}
       <p className="mt-4 text-sm text-[#788983]">لطباعة الملصق استخدم طابعة الباركود أو أي طابعة ورق من صفحة الملصقات.</p>
-      <a className="mt-3 inline-flex text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank" rel="noreferrer">فتح ملصقات الطباعة</a>
+      <Link className="mt-3 inline-flex text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank" rel="noreferrer">فتح ملصقات الطباعة</Link>
     </Card>
   )
 }
@@ -1853,7 +1854,7 @@ function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
             partyName(ctx.state.suppliers, order.supplierId),
             <Badge key={order.id} tone={toneForStatus(order.status)}>{statusLabel(order.status)}</Badge>,
             <span key={`${order.id}-p`} className="flex flex-wrap items-center justify-center gap-2">
-              <a className="text-sm font-bold text-[#1d7f72]" href={`/print/po/${order.id}`} target="_blank" rel="noreferrer">طباعة</a>
+              <Link className="text-sm font-bold text-[#1d7f72]" href={`/print/po/${order.id}`} target="_blank" rel="noreferrer">طباعة</Link>
               {order.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'purchasing.po.approve') ? (
                 <GhostButton type="button" onClick={() => ctx.act('decidePurchaseOrder', { id: order.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
               ) : null}
@@ -3239,7 +3240,7 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(invoice.paidAmount),
             <Badge key={invoice.id} tone={toneForStatus(invoice.status)}>{statusLabel(invoice.status)}</Badge>,
             <span key={`${invoice.id}-a`} className="flex flex-wrap gap-2">
-              <a className="text-sm font-bold text-[#1d7f72]" href={`/print/invoice/${invoice.id}`} target="_blank" rel="noreferrer">طباعة</a>
+              <Link className="text-sm font-bold text-[#1d7f72]" href={`/print/invoice/${invoice.id}`} target="_blank" rel="noreferrer">طباعة</Link>
               {invoice.status === 'DRAFT' && can(ctx.permissions, 'sales.confirm') ? (
                 <GhostButton type="button" onClick={async () => {
                   const result = await ctx.act('confirmInvoice', { id: invoice.id })
@@ -3634,7 +3635,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
               ) : isCompleted ? (
                 <Badge key={`done-${item.id}`} tone="good">تم التسليم بنجاح</Badge>
               ) : null,
-              <a
+              <Link
                 key={`delivery-print-${item.id}`}
                 className="font-semibold text-[#0d9488] hover:underline"
                 href={`/print/delivery/${encodeURIComponent(item.id)}`}
@@ -3642,7 +3643,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
                 rel="noreferrer"
               >
                 أمر التسليم
-              </a>,
+              </Link>,
             ]
           })}
         />
@@ -4249,9 +4250,9 @@ function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
     <Card title="التقارير" hint="اختر التقرير المطلوب">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
-          <a key={item.href} href={item.href} className="rounded-xl border border-[#e5e7eb] bg-white p-4 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-neutral-200/50">
+          <Link key={item.href} href={item.href} className="rounded-xl border border-[#e5e7eb] bg-white p-4 text-sm font-medium text-[#1f1f1f] shadow-sm hover:bg-neutral-200/50">
             {item.label}
-          </a>
+          </Link>
         ))}
       </div>
     </Card>
