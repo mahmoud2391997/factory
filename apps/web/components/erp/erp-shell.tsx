@@ -85,7 +85,7 @@ export function ErpShell() {
   const searchParams = useSearchParams()
   const searchString = searchParams.toString()
   const { user, loading: authLoading, logout, refresh } = useAuth()
-  const erp = useErp(Boolean(user))
+  const erp = useErp(Boolean(user), user?.id === 'demo-admin-user')
   const { language, setLanguage } = useLanguage()
   const uiLabel = (value: string) => translateUiText(language, value)
   const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
