@@ -526,3 +526,18 @@ test('Inventory movement navigation keeps twelve routes in three responsive side
     'traceability-reports',
   ])
 })
+
+
+test('Production manufacturing navigation keeps eight routes in three responsive sidebar groups', () => {
+  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'production')!.sections.find((item) => item.id === 'manufacturing')!
+  const resolved = resolvePath('/inventory/manufacturing/planned')!
+  const tabs = pageTabs(resolved, allPagesForEveryRole)
+  assert.equal(section.tabLayout, 'sidebar')
+  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(tabs.primary.length, 8)
+  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
+    'manufacturing-status',
+    'production-operations',
+    'production-insights',
+  ])
+})
