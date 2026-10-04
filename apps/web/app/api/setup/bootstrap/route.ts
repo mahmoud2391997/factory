@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { emptyState } from '@/lib/erp/domain/seed'
 import { issueAccessToken, issueRefreshToken, setAuthCookies } from '@/server/auth/jwt'
 import { getDb } from '@/server/db'
+import { createBootstrapDocument } from '@/server/bootstrap'
 
 export const runtime = 'nodejs'
 const DOC_ID = 'main'
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
   state.users = [{ id: 'user-admin', email, fullName: parsed.data.fullName.trim(), role: 'GM', passwordHash, active: true, mustChangePassword: true, tokenVersion: 1 }]
   state.company.notifyEmail = email
   state.revision = 1
-  await db.erpDocument.create({ data: { id: DOC_ID, version: 1, payload: JSON.parse(JSON.stringify(state)) } })
+  const created = await createBootstrapDocument(() =>
+    db.erpDocument.create({ data: { id: DOC_ID, version: 1, payload: JSON.parse(JSON.stringify(state)) } }),
+  )
+  if (!created) return NextResponse.json({ success: false, message: 'تمت تهيئة النظام مسبقًا' }, { status: 410 })
 
   // Bootstrap is the first authenticated action. Issue the same session cookies
   // as normal login so the administrator can continue directly to the password-change flow.
