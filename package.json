@@ -1,6 +1,7 @@
 {
   "name": "erp",
   "private": true,
+  "packageManager": "pnpm@10.12.4",
   "scripts": {
     "dev": "pnpm --filter @erp/web dev",
     "predev": "pnpm --filter @erp/database generate",
@@ -20,7 +21,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "next": "16.3.8",
     "playwright": "^1.63.0",
     "tsx": "^4.23.15"
   }
