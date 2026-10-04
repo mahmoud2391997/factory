@@ -1499,11 +1499,11 @@ function Notifications({ ctx }: { ctx: LiveCtx }) {
         {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">لا توجد إشعارات</p> : null}
         {ctx.state.notifications.slice(0, 40).map((item) => (
           <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-[#edf2ef] p-3 sm:flex-row sm:items-center sm:justify-between">
-            <a href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+            <Link href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
               <div className="font-bold">{item.title}</div>
               <div className="text-sm text-[#788983]">{item.body}</div>
               <div className="mt-1 text-xs text-[#97a49f]">{statusLabel(item.kind)} — بريد: {item.emailStatus === 'sent' ? 'أُرسل' : item.emailStatus === 'pending' ? 'بانتظار الإرسال' : 'لم يُضبط البريد'}</div>
-            </a>
+            </Link>
             {!item.read ? <GhostButton type="button" onClick={() => ctx.act('markNotificationRead', { id: item.id })}>تمت القراءة</GhostButton> : <Badge tone="good">مقروء</Badge>}
           </div>
         ))}

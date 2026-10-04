@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 import { COST_LABEL, lotEconomics } from '@/lib/erp/domain/costing'
 import { filterLots, operatorLabel, recallReport, traceLot } from '@/lib/erp/domain/reports'
@@ -130,7 +131,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
           {batchRecall ? <>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold">{batchRecall.lots.length} دفعة إنتاج، {batchRecall.affectedCustomers.length} عميل متأثر</p>
-              <a className="text-sm font-semibold text-[#0d9488]" href={`/print/recall?${new URLSearchParams({ materialId: searchMaterialId, batchNo: searchBatchNo.trim() }).toString()}`} target="_blank" rel="noreferrer">طباعة تقرير التتبع</a>
+              <Link className="text-sm font-semibold text-[#0d9488]" href={`/print/recall?${new URLSearchParams({ materialId: searchMaterialId, batchNo: searchBatchNo.trim() }).toString()}`} target="_blank" rel="noreferrer">طباعة تقرير التتبع</Link>
             </div>
             <DataTable columns={['دفعة الإنتاج', 'المنتج', 'العميل', 'الكمية كجم', 'الفاتورة', 'التاريخ']} rows={batchRecall.deliveries.map((delivery) => [
               delivery.lotNo, delivery.product, delivery.customer, qtyFmt(delivery.quantityKg), delivery.invoiceNo ?? '—', delivery.date,
@@ -142,7 +143,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
         <Card
           title={`${translateUiText(language, 'تتبع')} ${trace.lot.lotNo}`}
           hint={detail ? 'من الدفعة إلى خامات الموردين ثم إلى العملاء.' : 'تفاصيل الدفعة المختارة.'}
-          extra={<a className="text-sm font-semibold text-[#0d9488]" href={`/print/lot/${encodeURIComponent(trace.lot.lotNo)}`} target="_blank" rel="noreferrer">طباعة الشهادة</a>}
+          extra={<Link className="text-sm font-semibold text-[#0d9488]" href={`/print/lot/${encodeURIComponent(trace.lot.lotNo)}`} target="_blank" rel="noreferrer">طباعة الشهادة</Link>}
         >
           <div className="mb-4 grid gap-2 text-sm leading-7 text-[#30453d] sm:grid-cols-2">
             <div>المنتج: {trace.product?.nameAr ?? '—'}</div>
@@ -159,7 +160,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
             {latestLotHold?.status === 'HELD' && can(ctx.permissions, 'qc.release') ? <QualityHoldAction ctx={ctx} lotNo={trace.lot.lotNo} release /> : null}
             {latestLotHold?.status !== 'HELD' && latestLotHold?.status !== 'RECALLED' && can(ctx.permissions, 'qc.manage') ? <QualityHoldAction ctx={ctx} lotNo={trace.lot.lotNo} /> : null}
             {latestLotHold?.status !== 'RECALLED' && can(ctx.permissions, 'qc.release') ? <QualityHoldAction ctx={ctx} lotNo={trace.lot.lotNo} recall /> : null}
-            <a className="rounded-md border border-[#e5e7eb] px-3 py-2 text-sm font-medium" href={`/print/recall?${new URLSearchParams({ lotNo: trace.lot.lotNo }).toString()}`} target="_blank" rel="noreferrer">تقرير الاستدعاء</a>
+            <Link className="rounded-md border border-[#e5e7eb] px-3 py-2 text-sm font-medium" href={`/print/recall?${new URLSearchParams({ lotNo: trace.lot.lotNo }).toString()}`} target="_blank" rel="noreferrer">تقرير الاستدعاء</Link>
           </div>
           {(ctx.state.qualityHolds ?? []).filter((hold) => hold.targetType === 'LOT' && hold.lotNo === trace.lot.lotNo).map((hold) => (
             <p key={hold.id} className="mb-2 text-sm text-[#6b7280]">

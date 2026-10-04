@@ -150,12 +150,13 @@ export function workspaceEntryHref(workspace: NavWorkspace, permissions: string[
 export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
   const primary = (resolved.section?.pages ?? [])
     .filter((page) => page.tab && canSeeEntity(permissions, page.entityKey))
-    .map((page) => ({ id: page.id, href: page.href, label: page.label }))
+    .map((page) => ({ id: page.id, href: page.href, label: page.label, group: page.tabGroup, groupLabel: page.tabGroupLabel }))
   return {
     primary,
     secondary: [],
     activePrimary: resolved.page.id,
     activeSecondary: '',
+    layout: resolved.section?.tabLayout ?? 'tabs',
   }
 }
 

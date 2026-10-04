@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
 
 import { DEFAULT_ROLE_PERMISSIONS } from './erp/domain/permissions'
 import {
@@ -495,4 +496,76 @@ test('the navigation guide resolves as a searchable page and breadcrumbs are cli
     { href: '/', label: 'الرئيسية' },
     { href: '/', label: 'لوحة المالك' },
   ])
+})
+
+
+test('Sales customers navigation keeps six routes in three responsive sidebar groups', () => {
+  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'sales')!.sections.find((item) => item.id === 'customers')!
+  const resolved = resolvePath('/sales/today')!
+  const tabs = pageTabs(resolved, allPagesForEveryRole)
+  assert.equal(section.tabLayout, 'sidebar')
+  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(tabs.primary.length, 6)
+  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
+    'sales-overview',
+    'customer-invoices',
+    'sales-insights',
+  ])
+})
+
+
+test('Inventory movement navigation keeps twelve routes in three responsive sidebar groups', () => {
+  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'movement')!
+  const resolved = resolvePath('/inventory/raw-materials/value')!
+  const tabs = pageTabs(resolved, allPagesForEveryRole)
+  assert.equal(section.tabLayout, 'sidebar')
+  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(tabs.primary.length, 12)
+  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
+    'stock-status',
+    'warehouse-operations',
+    'traceability-reports',
+  ])
+})
+
+
+test('Production manufacturing navigation keeps eight routes in three responsive sidebar groups', () => {
+  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'production')!.sections.find((item) => item.id === 'manufacturing')!
+  const resolved = resolvePath('/inventory/manufacturing/planned')!
+  const tabs = pageTabs(resolved, allPagesForEveryRole)
+  assert.equal(section.tabLayout, 'sidebar')
+  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(tabs.primary.length, 8)
+  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
+    'manufacturing-status',
+    'production-operations',
+    'production-insights',
+  ])
+})
+
+test('every inventory and receiving route resolves to a screen, and permission denial is not a login redirect', () => {
+  const workspaceSource = readFileSync(new URL('../components/erp/live/workspace.tsx', import.meta.url), 'utf8')
+  const screenMap = workspaceSource.match(/const SCREEN_MAP:[\s\S]*?=\s*\{([\s\S]*?)\n\}/)
+  assert.ok(screenMap, 'LiveWorkspace declares its entity-to-screen registry')
+  const registeredScreenKeys = new Set(
+    [...screenMap[1]!.matchAll(/^\s+([A-Za-z_$][\w$]*):\s*(?:FactoryScreens|QualityScreens|InventoryScreens|PurchasingScreens|ProductionScreens|SalesScreens|OfficeScreens),/gm)]
+      .map((match) => match[1]!),
+  )
+  const pages = ALL_NAV_PAGES.filter((page) => {
+    const path = new URL(page.href, 'https://nav.invalid').pathname
+    return path.startsWith('/inventory/') || path === '/sales/parties/receipts'
+  })
+  assert.ok(pages.some((page) => page.href === '/sales/parties/receipts'), 'cross-workspace goods receipt is covered')
+
+  for (const page of pages) {
+    const resolved = resolvePath(page.href)
+    assert.ok(resolved, `${page.href} resolves from navigation config`)
+    assert.equal(resolved.page.id, page.id, `${page.href} resolves to its configured page`)
+    assert.ok(registeredScreenKeys.has(resolved.page.entityKey), `${page.href} maps to a live screen`)
+  }
+
+  const restricted = resolvePath('/inventory/reports')
+  assert.ok(restricted, 'the restricted reports route remains resolvable')
+  assert.equal(canSeeEntity([], restricted.page.entityKey), false, 'a user without permissions is denied the screen')
+  assert.equal(restricted.redirectTo, undefined, 'authorization denial does not redirect the user to login')
 })

@@ -9,7 +9,7 @@ import {
   verifyRefreshToken,
 } from '@/server/auth/jwt'
 import { getSessionUserById } from '@/server/auth/session'
-import { isDemoMode } from '@/server/demo'
+import { isDemoMode, isDemoUserId } from '@/server/demo'
 import { assertAuthEnv, toApiError } from '@/server/env'
 import { loadState } from '@/server/erp/store'
 
@@ -51,13 +51,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
     }
 
-    const { state } = await loadState()
-    const erpUser = state.users.find((item) => item.id === userId && item.active)
-    if (!erpUser) {
+    const demoSession = isDemoMode() && isDemoUserId(userId)
+    if (demoSession && tokenVersion !== 1) {
       return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
     }
-    if ((erpUser.tokenVersion ?? 1) !== tokenVersion) {
-      return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+    if (!demoSession) {
+      const { state } = await loadState()
+      const erpUser = state.users.find((item) => item.id === userId && item.active)
+      if (!erpUser) {
+        return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+      }
+      if ((erpUser.tokenVersion ?? 1) !== tokenVersion) {
+        return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
+      }
     }
 
     const user = await getSessionUserById(userId)
