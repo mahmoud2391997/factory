@@ -823,6 +823,7 @@ export function ErpShell() {
               activeTabId={tabs?.activePrimary ?? ''}
               secondaryTabs={tabs?.secondary ?? []}
               activeSecondaryId={tabs?.activeSecondary ?? ''}
+              tabLayout={tabs?.layout ?? 'tabs'}
               relatedLinks={relatedLinks.map((item) => ({ ...item, href: workspaces.flatMap((workspace) => workspace.sections.flatMap((section) => section.pages)).find((page) => page.entityKey === item.entityKey)?.href ?? '/' }))}
               ctx={liveCtx}
             />

@@ -2,8 +2,8 @@ import type { LucideIcon } from 'lucide-react'
 import { CarFront, Factory, Landmark, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
 
 export type NavRelatedLink = { entityKey: string; label: string }
-export type NavPage = { id: string; entityKey: string; href: string; label: string; description: string; keywords: string[]; permission: string[]; accessPaths: Array<{ mainPermission: string[]; pagePermission: string[] }>; tab: boolean; canonical?: boolean; queryView?: { param: string; value: string }; relatedLinks?: NavRelatedLink[] }
-export type NavSection = { id: string; label: string; keywords: string[]; workflow?: string; pages: NavPage[] }
+export type NavPage = { id: string; entityKey: string; href: string; label: string; description: string; keywords: string[]; permission: string[]; accessPaths: Array<{ mainPermission: string[]; pagePermission: string[] }>; tab: boolean; tabGroup?: string; tabGroupLabel?: string; canonical?: boolean; queryView?: { param: string; value: string }; relatedLinks?: NavRelatedLink[] }
+export type NavSection = { id: string; label: string; keywords: string[]; workflow?: string; tabLayout?: 'tabs' | 'sidebar'; pages: NavPage[] }
 export type NavWorkspace = { id: string; label: string; icon: LucideIcon; keywords: string[]; sections: NavSection[] }
 export type NavRedirect = { from: string; to: string }
 

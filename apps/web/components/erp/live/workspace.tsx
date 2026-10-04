@@ -130,6 +130,7 @@ export function LiveWorkspace({
   activeTabId,
   secondaryTabs,
   activeSecondaryId,
+  tabLayout,
   relatedLinks,
   ctx,
 }: {
@@ -142,6 +143,7 @@ export function LiveWorkspace({
   activeTabId: string
   secondaryTabs: PageTab[]
   activeSecondaryId: string
+  tabLayout: 'tabs' | 'sidebar'
   relatedLinks: RelatedLink[]
   ctx: LiveCtx
 }) {
@@ -172,29 +174,32 @@ export function LiveWorkspace({
         </ol>
       </nav>
 
-      <PageTabs
-        label="الأقسام الرئيسية"
-        primaryTabs={tabs}
-        secondaryTabs={secondaryTabs}
-        activePrimaryId={activeTabId}
-        activeSecondaryId={activeSecondaryId}
-      />
-
-      <header className="space-y-2">
-        <h2 className="text-2xl font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{title}</h2>
-        {description ? <p className="text-[#4b5563] dark:text-[#d4d4d8]">{description}</p> : null}
-        {relatedLinks.length ? (
-          <div className="flex flex-wrap items-center gap-2 pt-1" aria-label={translateUiText(language, 'روابط ذات صلة')}>
-            {relatedLinks.map((link) => (
-              <Link key={link.entityKey} href={link.href} className="inline-flex min-h-10 items-center rounded-full border border-[#99d4cb] bg-[#f0fdfa] px-3 text-sm font-medium text-[#134e4a] hover:bg-[#ccfbf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#285c56] dark:bg-[#193b37] dark:text-[#ccfbf1] dark:hover:bg-[#134e4a]">
-                {translateUiText(language, link.label)}
-              </Link>
-            ))}
-          </div>
-        ) : null}
-      </header>
-
-      {body}
+      <div className={tabLayout === 'sidebar' ? 'grid min-w-0 items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]' : 'min-w-0 space-y-4'}>
+        <PageTabs
+          label="الأقسام الرئيسية"
+          primaryTabs={tabs}
+          secondaryTabs={secondaryTabs}
+          activePrimaryId={activeTabId}
+          activeSecondaryId={activeSecondaryId}
+          layout={tabLayout}
+        />
+        <div className="min-w-0 space-y-4">
+          <header className="space-y-2">
+            <h2 className="text-2xl font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{title}</h2>
+            {description ? <p className="text-[#4b5563] dark:text-[#d4d4d8]">{description}</p> : null}
+            {relatedLinks.length ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1" aria-label={translateUiText(language, 'روابط ذات صلة')}>
+                {relatedLinks.map((link) => (
+                  <Link key={link.entityKey} href={link.href} className="inline-flex min-h-10 items-center rounded-full border border-[#99d4cb] bg-[#f0fdfa] px-3 text-sm font-medium text-[#134e4a] hover:bg-[#ccfbf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#285c56] dark:bg-[#193b37] dark:text-[#ccfbf1] dark:hover:bg-[#134e4a]">
+                    {translateUiText(language, link.label)}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </header>
+          {body}
+        </div>
+      </div>
     </div>
   )
 }
