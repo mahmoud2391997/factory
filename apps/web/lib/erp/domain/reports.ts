@@ -1039,7 +1039,7 @@ export function packagingVarianceSummary(state: ReportState) {
   })
 }
 
-export function utilitiesPerTon(state: ReportState) {
+export function utilitiesPerTon(state: Pick<ErpState, 'utilitiesReadings'>) {
   return state.utilitiesReadings.map((reading) => ({
     readingId: reading.id,
     month: reading.readingDate.slice(0, 7),
