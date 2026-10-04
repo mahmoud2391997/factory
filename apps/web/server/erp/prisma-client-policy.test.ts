@@ -8,9 +8,11 @@ test('a configured production database never permits the no-op Prisma fallback',
   assert.equal(shouldUseNoopPrismaFallback('postgresql://db.example.test/erp', 'production'), false)
   assert.equal(shouldUseNoopPrismaFallback('postgres://user:pass@host:5432/db?sslmode=require', 'production'), false)
 
-  // Missing or empty database URL in production allows demo fallback
-  assert.equal(shouldUseNoopPrismaFallback(null, 'production'), true)
-  assert.equal(shouldUseNoopPrismaFallback('', 'production'), true)
+  // Production without a database fails closed unless demo mode is explicitly enabled.
+  assert.equal(shouldUseNoopPrismaFallback(null, 'production'), false)
+  assert.equal(shouldUseNoopPrismaFallback('', 'production'), false)
+  assert.equal(shouldUseNoopPrismaFallback(null, 'production', 'demo'), true)
+  assert.equal(shouldUseNoopPrismaFallback('', 'production', 'demo'), true)
 
   // Non-production environments permit developer/demo fallback
   assert.equal(shouldUseNoopPrismaFallback('postgresql://db.example.test/erp', 'development'), true)

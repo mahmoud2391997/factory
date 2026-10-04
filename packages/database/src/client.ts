@@ -4,6 +4,9 @@ import { ensureDatabaseUrlEnv } from './env'
 import { shouldUseNoopPrismaFallback } from './client-policy'
 
 const databaseUrl = ensureDatabaseUrlEnv()
+const appMode = process.env.APP_MODE
+const isProductionBuild = process.env.NEXT_PHASE === 'phase-production-build'
+const allowNoopFallback = shouldUseNoopPrismaFallback(databaseUrl, process.env.NODE_ENV, appMode)
 
 // Route handlers can be imported during `next build` even when a deployment
 // intentionally runs in demo mode without database variables. Keep the client
@@ -46,6 +49,9 @@ function createNoopPrisma(): PrismaClient {
 let prismaInstance: PrismaClient
 
 if (!databaseUrl) {
+  if (!allowNoopFallback && !isProductionBuild) {
+    throw new Error('DATABASE_URL is required in production unless APP_MODE=demo.')
+  }
   prismaInstance = createNoopPrisma()
 } else {
   try {
@@ -56,7 +62,7 @@ if (!databaseUrl) {
         log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
       })
   } catch (error) {
-    if (!shouldUseNoopPrismaFallback(databaseUrl, process.env.NODE_ENV)) throw error
+    if (!allowNoopFallback) throw error
     prismaInstance = createNoopPrisma()
   }
 }
