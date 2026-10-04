@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
-    "@erp/database": "*",
+    "@erp/database": "workspace:*",
     "@prisma/client": "^6.19.3",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",

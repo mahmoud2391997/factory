@@ -2,16 +2,15 @@
   "name": "erp",
   "private": true,
   "packageManager": "pnpm@10.12.4",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "dev": "pnpm --filter @erp/web dev",
     "predev": "pnpm --filter @erp/database generate",
     "dev:web": "pnpm --filter @erp/web dev",
     "prebuild": "pnpm --filter @erp/database generate",
     "build": "pnpm --filter @erp/web build",
+    "build:web": "pnpm --filter @erp/web build",
+    "test": "pnpm test:erp",
+    "test:smoke": "node scripts/smoke-test.mjs",
     "vercel-build": "bash scripts/vercel-build.sh",
     "db:deploy": "pnpm --filter @erp/database migrate:deploy",
     "start": "pnpm --filter @erp/web start",
