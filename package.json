@@ -17,9 +17,11 @@
     "test": "npm run test:erp",
     "test:erp": "tsx --tsconfig apps/web/tsconfig.json --test \"apps/web/**/*.test.ts\""
   },
+  "dependencies": {
+    "next": "16.3.8"
+  },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "next": "16.3.8",
     "playwright": "^1.63.0",
     "tsx": "^4.23.15"
   }
