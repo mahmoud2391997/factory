@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Vercel runs the Next.js adapter; standalone output is for self-hosted servers.
+  output: 'standalone',
   poweredByHeader: false,
   env: {
     NEXT_PUBLIC_GIT_COMMIT_SHA:

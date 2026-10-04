@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { canSeePage } from '../../erp-routes'
+import { pageForId } from '../../nav/config'
 import { actorFromUser, applyCommand, defaultClock, publicState } from './engine'
 import { emptyState } from './seed'
 import type { Command, ErpState } from './types'
@@ -368,6 +370,32 @@ test('DRIVER role can only see own trips and fuel logs', () => {
     input: { vehicleId: vehicle.id, driverId: driver2.id, date: '2026-09-30', destination: 'مسقط', km: 200, loadKg: 3000, fuelLiters: 25 },
   })
   
+  state = must(state, clock, {
+    action: 'addVehicleService',
+    input: {
+      vehicleId: vehicle.id,
+      date: '2026-09-29',
+      kind: 'TIRES',
+      description: 'تبديل إطارات الشاحنة',
+      cost: 250,
+      odometer: 1500,
+    },
+  })
+
+  // Add dummy journal to verify financial data isolation
+  state.journals.push({
+    id: 'journal-test-fleet',
+    number: 'J-TEST',
+    at: '2026-09-29',
+    memo: 'تكلفة خدمات النقل',
+    refType: 'FLEET',
+    refId: vehicle.id,
+    lines: [
+      { accountCode: '5100', debit: 250, credit: 0 },
+      { accountCode: '1010', debit: 0, credit: 250 },
+    ],
+  })
+
   // Add DRIVER user
   state.users.push({
     id: 'user-driver',
@@ -378,21 +406,40 @@ test('DRIVER role can only see own trips and fuel logs', () => {
     active: true,
   })
   
-  const driverView = publicState(state, state.rolePermissions.DRIVER, driver1.id)
+  const driverPermissions = state.rolePermissions.DRIVER
+  const driverView = publicState(state, driverPermissions, driver1.id)
   assert.equal(driverView.trips.length, 1)
   assert.equal(driverView.trips[0]?.driverId, driver1.id)
   assert.equal(driverView.fuelLogs.length, 1)
   assert.equal(driverView.fuelLogs[0]?.driverId, driver1.id)
-  assert.deepEqual(driverView.vehicles, [])
-  assert.deepEqual(driverView.vehicleServices, [])
-  assert.deepEqual(driverView.journals, [])
+  assert.deepEqual(driverView.vehicles, [], 'DRIVER must not see vehicles list')
+  assert.deepEqual(driverView.vehicleServices, [], 'DRIVER must not leak vehicleServices costs')
+  assert.deepEqual(driverView.journals, [], 'DRIVER must not see financial journals')
   
+  // Navigation check: DRIVER cannot access vehicles page, but can access fuel and trips
+  const vehiclesPage = pageForId('fleet')
+  const fuelPage = pageForId('fleetFuel')
+  const tripsPage = pageForId('fleetTrips')
+  assert.ok(vehiclesPage, 'fleet page exists')
+  assert.ok(fuelPage, 'fleetFuel page exists')
+  assert.ok(tripsPage, 'fleetTrips page exists')
+  assert.equal(canSeePage(driverPermissions, vehiclesPage), false, 'DRIVER cannot see vehicles nav page')
+  assert.equal(canSeePage(driverPermissions, fuelPage), true, 'DRIVER can see fleetFuel nav page')
+  assert.equal(canSeePage(driverPermissions, tripsPage), true, 'DRIVER can see fleetTrips nav page')
+
   const gmView = publicState(state, state.rolePermissions.GM)
   assert.equal(gmView.trips.length, 2)
   assert.equal(gmView.fuelLogs.length, 2)
+  assert.equal(gmView.vehicles.length, 1)
+  assert.equal(gmView.vehicleServices.length, 1)
+
+  const opsView = publicState(state, state.rolePermissions.OPERATIONS)
+  assert.equal(opsView.vehicles.length, 1)
+  assert.equal(opsView.vehicleServices.length, 1, 'Fleet manager (OPERATIONS) must see vehicleServices')
 
   const maintenanceView = publicState(state, state.rolePermissions.MAINTENANCE)
   assert.equal(maintenanceView.vehicles.length, 1)
+  assert.equal(maintenanceView.vehicleServices.length, 1)
   assert.equal(maintenanceView.trips.length, 0)
   assert.equal(maintenanceView.fuelLogs.length, 0)
 })

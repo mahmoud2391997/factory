@@ -7,12 +7,9 @@ import { AlertTriangle, CheckCircle2, Factory, Loader2, Lock, Mail, XCircle } fr
 import { useAuth } from '@/components/providers/auth-provider'
 
 type HealthData = {
-  status: string
-  demoMode: boolean
-  databaseConfigured: boolean
-  jwtConfigured: boolean
-  databaseReachable: boolean
+  status: 'ok' | 'degraded' | 'demo'
   bootstrapped: boolean
+  demoMode: boolean
   demoCredentials?: { email: string; password: string } | null
 }
 
@@ -20,22 +17,6 @@ type HealthResponse = {
   success: boolean
   data?: HealthData
   message?: string
-}
-
-function StatusRow({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
-  return (
-    <div className="flex items-start gap-2 text-[11px] leading-5">
-      {ok ? (
-        <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[#19725f]" />
-      ) : (
-        <XCircle size={14} className="mt-0.5 shrink-0 text-[#ad5e46]" />
-      )}
-      <div>
-        <div className={`font-semibold ${ok ? 'text-[#19725f]' : 'text-[#ad5e46]'}`}>{label}</div>
-        {detail ? <div className="text-[#71817c]">{detail}</div> : null}
-      </div>
-    </div>
-  )
 }
 
 export default function LoginPage() {
@@ -102,7 +83,7 @@ export default function LoginPage() {
   }
 
   const setupBlocked = health
-    ? !health.demoMode && (!health.databaseConfigured || !health.jwtConfigured || !health.databaseReachable || !health.bootstrapped)
+    ? !health.demoMode && (health.status !== 'ok' || !health.bootstrapped)
     : false
 
   return (
@@ -119,23 +100,13 @@ export default function LoginPage() {
 
           {!healthLoading && health && setupBlocked ? (
             <div className="mb-5 rounded-2xl border border-[#f0d0c8] bg-[#fff8f5] p-4">
-              <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#ad5e46]">
+              <div className="mb-2 flex items-center gap-2 text-xs font-bold text-[#ad5e46]">
                 <AlertTriangle size={15} />
-                إعداد السيرفر غير مكتمل
+                الخدمة غير جاهزة للتشغيل
               </div>
-              <div className="space-y-2">
-                <StatusRow
-                  ok={health.databaseConfigured}
-                  label="متغير قاعدة البيانات"
-                  detail={health.databaseConfigured ? 'موجود' : 'أضف اتصال PostgreSQL في إعدادات البيئة'}
-                />
-                <StatusRow ok={health.jwtConfigured} label="JWT_SECRET" detail={health.jwtConfigured ? 'موجود' : 'ناقص'} />
-                <StatusRow
-                  ok={health.databaseReachable}
-                  label="الاتصال بقاعدة البيانات"
-                  detail={health.databaseReachable ? 'متصل' : 'غير متصل'}
-                />
-              </div>
+              <p className="text-xs text-[#71817c]">
+                النظام في وضع الإنتاج ولم تكتمل تهيئة قاعدة البيانات بعد. يرجى تهيئة النظام والتحقق من إعدادات الاتصال.
+              </p>
             </div>
           ) : null}
 

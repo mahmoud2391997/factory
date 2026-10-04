@@ -60,7 +60,7 @@ curl -i -c /tmp/factory-cookies.txt \
 curl -sS "$BASE_URL/api/health"
 ```
 
-المتوقع في وضع الإنتاج: JSON، `demoMode=false`, `databaseReachable=true`, `bootstrapped=true`، ولا توجد `demoCredentials` أو رسائل أخطاء اتصال داخلية.
+المتوقع في وضع الإنتاج: استجابة JSON بحالة مجملة فقط: `status: "ok"` عند جاهزية النظام (أو `"degraded"` ورمز 503 عند تعذر الاتصال)، `demoMode=false`, و`bootstrapped=true` (أو `false` قبل الـ bootstrap). لا تظهر أي متغيرات بيئة، ولا `databaseConfigured`/`jwtConfigured`/`databaseReachable`، ولا توجد `demoCredentials` أو رسائل أخطاء اتصال داخلية.
 
 ## 3) اختبارات smoke
 

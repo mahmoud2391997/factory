@@ -16,17 +16,7 @@ declare global {
   var __erpPrisma: PrismaClient | undefined
 }
 
-let prismaInstance: PrismaClient
-
-try {
-  prismaInstance =
-    global.__erpPrisma ??
-    new PrismaClient({
-      datasources: { db: { url: prismaUrl } },
-      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    })
-} catch (error) {
-  if (!shouldUseNoopPrismaFallback(databaseUrl, process.env.NODE_ENV)) throw error
+function createNoopPrisma(): PrismaClient {
   console.warn('[AI Studio] Database not connected — using mock')
   const noOp = {
     findMany: async () => [],
@@ -34,9 +24,41 @@ try {
     findUnique: async () => null,
     create: async (d: any) => d?.data ?? {},
     update: async (d: any) => d?.data ?? {},
+    updateMany: async () => ({ count: 0 }),
     delete: async () => ({}),
+    deleteMany: async () => ({ count: 0 }),
+    count: async () => 0,
+    upsert: async (d: any) => d?.create ?? {},
   }
-  prismaInstance = new Proxy({}, { get: () => noOp }) as unknown as PrismaClient
+  const handler: ProxyHandler<any> = {
+    get: (_target, prop) => {
+      if (prop === '$connect' || prop === '$disconnect') return async () => {}
+      if (prop === '$queryRaw' || prop === '$queryRawUnsafe') return async () => []
+      if (prop === '$executeRaw' || prop === '$executeRawUnsafe') return async () => 0
+      if (prop === '$transaction') return async (fn: any) => (typeof fn === 'function' ? fn(proxy) : Promise.all(fn))
+      return noOp
+    },
+  }
+  const proxy = new Proxy({}, handler)
+  return proxy as unknown as PrismaClient
+}
+
+let prismaInstance: PrismaClient
+
+if (!databaseUrl) {
+  prismaInstance = createNoopPrisma()
+} else {
+  try {
+    prismaInstance =
+      global.__erpPrisma ??
+      new PrismaClient({
+        datasources: { db: { url: databaseUrl } },
+        log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+      })
+  } catch (error) {
+    if (!shouldUseNoopPrismaFallback(databaseUrl, process.env.NODE_ENV)) throw error
+    prismaInstance = createNoopPrisma()
+  }
 }
 
 export const prisma = prismaInstance

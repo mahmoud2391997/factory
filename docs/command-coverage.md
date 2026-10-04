@@ -124,6 +124,20 @@
 
 **قدرات غير متاحة كشاشات مستقلة:** لا توجد شاشة مرتجعات مستقلة (الأقرب السحوبات/الفواتير)، ولا تقرير تجميعي لتكلفة النقل لكل طن أو طلبية أو عميل، ولا إرفاق صورة لإثبات التسليم، ولا شاشة تاريخ أسعار مخصصة لخلطات العملاء أو بوابة عميل. تظل روابط هذه الوظائف قريبة من الشاشات الحالية ولا تضيف سلوكاً تجارياً جديداً.
 
+## سلاسل التدفقات الشاملة (7 End-to-End Flow Audit Chains)
+
+تخضع جميع التدفقات الأساسية لاختبارات تكامل دورية وشاملة داخل `apps/web/lib/erp/domain/flow-audit.test.ts` وتتحقق من صحة القيود المزدوجة وتوازن ميزان المراجعة `trialBalance(state).balanced === true`:
+
+| السلسلة | العمليات الأساسية المغطاة | ملف الاختبار | حالة التحقق |
+|---|---|---|---|
+| **1. الشراء والاستلام (Procure-to-Pay)** | طلب الشراء (`createPurchaseRequest`) → عروض الموردين والمقارنة (`addSupplierQuotation`) → اختيار العرض الأفضل (`selectSupplierQuotation`) → اعتماد الطلب والتحويل لأمر شراء (`convertRequestToPurchaseOrder`) → اعتماد أمر الشراء (`decidePurchaseOrder`) → استلام البضاعة في المستودع الخام (`receiveGoods`) → قيد الموردين في اليومية وتحديث رصيد الدفعات. | `flow-audit.test.ts` (Chain 1) | ✅ مجاز |
+| **2. المستودعات والجرد (Inventory & Warehousing)** | تحويل المخزون بين مستودعي الخام والتشغيل (`transferStock`) → طلب تسوية الجرد الفعلي مع الفوارق (`requestAdjustment`) → اعتماد التسوية من الإدارة (`decideAdjustment`) → مسح وتتبع الباركود المباشر (`scanBarcode`) وتحديث سجل التدقيق. | `flow-audit.test.ts` (Chain 2) | ✅ مجاز |
+| **3. التصنيع والتكاليف (Production & Manufacturing)** | أمر التصنيع (`createProductionOrder`) → قراءات الميزان مع معرّف الحدث لضمان عدم التكرار Idempotency (`recordScaleReading`) → إكمال الإنتاج واستهلاك المواد الخام وفق FIFO (`completeProduction`) → إضافة بنود الغاز/العمالة → اعتماد التكاليف من المحاسبة (`decideProductionCost`). | `flow-audit.test.ts` (Chain 3) | ✅ مجاز |
+| **4. الجودة والاستدعاء والتتبع (Quality & Traceability)** | فحص عينات المواد الخام وحدود المواصفات (`setQcLimits`, `createQualitySample`) → حجر الدفعة المرفوضة ومنع تحويلها للتشغيل → فحص المنتج النهائي → استدعاء دفعة الإنتاج (`recallLot`) → التتبع الأمامي لعملاء الدفعة والتتبع العكسي لمورديها (`traceLot`, `traceCustomer`). | `flow-audit.test.ts` (Chain 4) | ✅ مجاز |
+| **5. دورة المبيعات والتحصيل (Order-to-Cash)** | إنشاء الفاتورة (`createInvoice`) → اعتماد الفاتورة وصرف المخزون آلياً بـ FIFO وقيود تكلفة المبيعات (`confirmInvoice`) → ترقية مراحل التسليم المستودعي وسائق النقل والعميل (`advanceInvoiceDelivery`) → تسجيل التحصيل البنكي (`recordPayment`) → السحب الداخلي للعينات الترويجية (`createWithdrawal`). | `flow-audit.test.ts` (Chain 5) | ✅ مجاز |
+| **6. الأسطول وتوزيع تكاليف النقل (Fleet & Cost Allocation)** | تعريف الشاحنات وسجلات استهلاك الوقود (`createVehicle`, `addFuelLog`) → إنشاء رحلة تسليم مرتبطة بفاتورة معينة (`createTrip`) → طلب توزيع تكلفة الشحن والوقود على دفعات الفاتورة (`requestTripCostAllocation`) → اعتماد المحاسب المستقل وتحميل التكلفة على الدفعة مباشرة (`decideTripCostAllocation`). | `flow-audit.test.ts` (Chain 6) | ✅ مجاز |
+| **7. الالتزامات والمالية والرواتب (Financial Ops & Payroll)** | إنشاء الالتزامات البنكية وجداول الأقساط (`createObligation`) → سداد القسط وقيود البنك (`payObligationInstallment`) → تسجيل المعاملات البنكية ومطابقتها بالمصروفات (`recordBankTransaction`, `matchBankTransaction`) → دورة المصروفات والاعتماد (`createExpense`, `decideExpense`) → الإجازات والرواتب والاعتماد والصرف (`createLeaveRequest`, `createPayroll`, `decidePayroll`, `payPayroll`). | `flow-audit.test.ts` (Chain 7) | ✅ مجاز |
+
 ## التحقق من الربط
 
 - واجهة `Command` هي قائمة الأوامر المرجعية، وخريطة الشاشات في `apps/web/components/erp/live/workspace.tsx` تربط مفاتيح الصفحات بمكوّناتها.

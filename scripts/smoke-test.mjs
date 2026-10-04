@@ -101,9 +101,9 @@ try {
   check('invalid login credentials return 401', wrongPassword.response.status === 401, `received ${wrongPassword.response.status}`)
 
   if (expectProd) {
+    check('production health status is ok', health.body?.data?.status === 'ok')
     check('production health is not demo mode', health.body?.data?.demoMode === false)
     check('production health omits demo credentials', !health.body?.data || !('demoCredentials' in health.body.data))
-    check('production database is reachable', health.body?.data?.databaseReachable === true)
     check('production ERP is bootstrapped', health.body?.data?.bootstrapped === true)
 
     if (!process.env.SMOKE_EMAIL || !process.env.SMOKE_PASSWORD) {
