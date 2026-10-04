@@ -96,8 +96,16 @@ test('Flow Chain 1: Procure-to-Pay lifecycle', () => {
   const balance = state.balances.find((b) => b.itemId === corn.id && b.warehouse === 'WH_RAW')
   assert.ok(balance)
   assert.equal(balance.qty, 5000)
+  assert.equal(balance.unitCost, 0.11)
+  assert.equal(state.goodsReceipts[0]!.lines[0]!.batchNo, 'CORN-B2026-01')
+  assert.equal(state.goodsReceipts[0]!.lines[0]!.qty, 5000)
 
-  // Verify accounts payable journal exists and balanced
+  // Verify the supplier payable is concrete and the receipt journal balances.
+  const receiptJournal = state.journals.find((entry) => entry.refType === 'goodsReceipt' && entry.refId === state.goodsReceipts[0]!.id)
+  assert.ok(receiptJournal)
+  assert.equal(receiptJournal.lines.find((line) => line.accountCode === '2100')?.credit, 550)
+  assert.equal(trialBalance(state).debit, 550)
+  assert.equal(trialBalance(state).credit, 550)
   assert.equal(trialBalance(state).balanced, true)
 })
 
@@ -154,6 +162,10 @@ test('Flow Chain 2: Inventory transfers, stock adjustments, and barcode scanning
   state = must(state, clock, { action: 'decideAdjustment', input: { id: adj.id, decision: 'APPROVED' } })
   assert.equal(state.adjustments[0]!.status, 'APPROVED')
   assert.equal(state.balances.find((b) => b.warehouse === 'WH_RAW' && b.itemId === soy.id)?.qty, 480)
+  assert.equal(state.transfers[0]!.lines[0]!.qty, 1500)
+  assert.equal(state.goodsReceipts[0]!.lines[0]!.batchNo, 'SOY-LOT-01')
+  assert.equal(state.goodsReceipts[0]!.lines[0]!.qty, 2000)
+  assert.equal(state.adjustments[0]!.qtyDelta, -20)
 
   // 4. Barcode scanning verification
   const scanResult = applyCommand(state, actor(state), {
@@ -212,6 +224,9 @@ test('Flow Chain 3: Production manufacturing, scale hopper idempotency, and cost
     input: { eventId: 'scale-evt-101', scaleId: 'hopper-main', productionOrderId: order.id, materialId: barley.id, actualQty: 2010 },
   }, 'user-production')
 
+  assert.equal(state.scaleReadings.filter((reading) => reading.eventId === 'scale-evt-101').length, 1)
+  assert.equal(state.scaleReadings[0]!.actualQty, 2010)
+
   // Re-transmitting same eventId must be idempotent
   state = must(state, clock, {
     action: 'recordScaleReading',
@@ -233,6 +248,10 @@ test('Flow Chain 3: Production manufacturing, scale hopper idempotency, and cost
   const lot = state.lots[0]!
   assert.ok(lot)
   assert.equal(lot.actualOutputKg, 2000)
+  assert.equal(lot.inputKg, 2010)
+  assert.equal(lot.expectedOutputKg, 2010)
+  assert.equal(lot.varianceKg, -10)
+  assert.equal(lot.variancePct, -0.5)
   assert.equal(lot.pendingCostLines?.[0]?.amount, 25)
 
   // 4. Cost approval by accountant
@@ -243,7 +262,25 @@ test('Flow Chain 3: Production manufacturing, scale hopper idempotency, and cost
 
   const updatedLot = state.lots.find((l) => l.id === lot.id)!
   assert.equal(updatedLot.costLines.find((c) => c.type === 'GAS')?.amount, 25)
+  assert.equal(updatedLot.totalCost, 185.8)
+  assert.equal(updatedLot.costPerTon, 92.9)
+  assert.equal(state.balances.find((row) => row.warehouse === 'WH_MFG' && row.itemId === barley.id)?.qty, 7990)
+  assert.equal(state.balances.find((row) => row.warehouse === 'WH_FG' && row.itemId === product.id)?.qty, 2000)
   assert.equal(trialBalance(state).balanced, true)
+
+  state = must(state, clock, {
+    action: 'createPackagingMaterial',
+    input: { code: 'BAG-50-FLOW', nameAr: 'كيس 50 كجم', category: 'BAG', quantity: 100, unit: 'كيس', unitCost: 0.2, minStock: 10 },
+  })
+  const bags = state.packagingMaterials[0]!
+  state = must(state, clock, {
+    action: 'recordPackagingConsumption',
+    input: { packagingMaterialId: bags.id, productionOrderId: order.id, lotNo: lot.lotNo, quantity: 40 },
+  })
+  assert.equal(state.packagingMaterials[0]!.quantity, 60)
+  assert.equal(state.packagingConsumption[0]!.calculatedQty, 40)
+  assert.equal(state.packagingConsumption[0]!.cost, 8)
+  assert.equal(state.packagingConsumption[0]!.variance, 0)
 })
 
 // -----------------------------------------------------------------------------
@@ -316,12 +353,19 @@ test('Flow Chain 4: Quality controls, raw quarantine, finished lot recall, and f
   state = must(state, clock, { action: 'createInvoice', input: { customerId: customer.id, lines: [{ productId: product.id, qty: 50, unitPrice: 0.35 }] } })
   const invoiceId = state.invoices[0]!.id
   state = must(state, clock, { action: 'confirmInvoice', input: { id: invoiceId } })
+  assert.equal(state.balances.find((row) => row.warehouse === 'WH_FG' && row.itemId === product.id)?.qty, 50)
 
   // 4. Recall the lot
   state = must(state, clock, { action: 'recallLot', input: { lotNo: lot.lotNo, reason: 'اشتباه تلوث مايكوتوكسين' } })
   const hold = state.qualityHolds.find((h) => h.lotNo === lot.lotNo && h.status === 'RECALLED')
   assert.ok(hold, 'Quality hold must be created for recalled lot')
   assert.equal(hold.status, 'RECALLED')
+  const stockAtRecall = state.balances.find((row) => row.warehouse === 'WH_FG' && row.itemId === product.id)?.qty
+  assert.equal(stockAtRecall, 50)
+  state = must(state, clock, { action: 'createInvoice', input: { customerId: customer.id, lines: [{ productId: product.id, qty: 10, unitPrice: 0.35 }] } })
+  const recalledSale = applyCommand(state, actor(state), { action: 'confirmInvoice', input: { id: state.invoices[0]!.id } }, clock)
+  assert.equal(recalledSale.ok, false, 'a recalled lot must not be sold')
+  assert.equal(state.balances.find((row) => row.warehouse === 'WH_FG' && row.itemId === product.id)?.qty, stockAtRecall)
 
   // 5. Trace verifies lot and customer delivery are connected
   const traced = traceLot(state, lot.lotNo)
@@ -385,6 +429,9 @@ test('Flow Chain 5: Order-to-Cash, delivery stages, and customer payment collect
   state = must(state, clock, { action: 'recordPayment', input: { invoiceId: invoice.id, amount: 200, method: 'BANK_TRANSFER' } })
   assert.equal(state.invoices[0]!.paidAmount, 200)
   assert.equal(state.invoices[0]!.status, 'PAID')
+  assert.equal(state.invoices[0]!.vatAmount, 0)
+  assert.equal(state.invoices[0]!.total - state.invoices[0]!.paidAmount, 0)
+  assert.equal(state.balances.find((row) => row.warehouse === 'WH_FG' && row.itemId === product.id)?.qty, 600)
 
   // 4. Sample withdrawal
   state = must(state, clock, {
@@ -395,6 +442,11 @@ test('Flow Chain 5: Order-to-Cash, delivery stages, and customer payment collect
     },
   })
   assert.equal(state.withdrawals.length, 1)
+  assert.equal(state.balances.find((row) => row.warehouse === 'WH_FG' && row.itemId === product.id)?.qty, 550)
+  const soldLot = state.lots[0]!
+  assert.equal(soldLot.salePricePerTon, 500)
+  assert.equal(soldLot.costPerTon, 100)
+  assert.equal(soldLot.marginPerTon, 400)
   assert.equal(trialBalance(state).balanced, true)
 })
 
@@ -433,6 +485,8 @@ test('Flow Chain 6: Fleet management and trip delivery cost allocation to produc
   state = must(state, clock, { action: 'createVehicle', input: { code: 'TRK-01', plateNo: '9988-AA', type: 'TRUCK', nameAr: 'شاحنة مارسيدس' } })
   const vehicle = state.vehicles[0]!
   state = must(state, clock, { action: 'addFuelLog', input: { vehicleId: vehicle.id, driverId: driver.id, date: '2026-10-01', liters: 50, cost: 12, odometer: 1050 } })
+  assert.equal(state.fuelLogs[0]!.liters, 50)
+  assert.equal(state.fuelLogs[0]!.cost, 12)
 
   // 2. Create Trip linked to invoice
   state = must(state, clock, {
@@ -450,6 +504,7 @@ test('Flow Chain 6: Fleet management and trip delivery cost allocation to produc
     },
   })
   const trip = state.trips[0]!
+  assert.equal(trip.cost, 33.6)
 
   // 3. Request Trip Cost Allocation
   state = must(state, clock, { action: 'requestTripCostAllocation', input: { tripId: trip.id } })
@@ -464,7 +519,30 @@ test('Flow Chain 6: Fleet management and trip delivery cost allocation to produc
   const updatedLot = state.lots[0]!
   const transportLine = updatedLot.costLines.find((l) => l.type === 'TRANSPORT')
   assert.ok(transportLine, 'Transport cost line must be added to lot')
+  assert.equal(transportLine.amount, 33.6)
+  assert.equal(updatedLot.costPerTon, 116.8)
   assert.equal(trialBalance(state).balanced, true)
+
+  state = must(state, clock, { action: 'createMachine', input: { code: 'M-FLOW', nameAr: 'مكبس التدقيق', type: 'PRESS', location: 'الخط 1' } })
+  const machine = state.machines[0]!
+  state = must(state, clock, { action: 'createSparePart', input: { code: 'SP-FLOW', nameAr: 'فلتر', quantity: 10, unitCost: 5, minStock: 1, machineIds: [machine.id] } })
+  const sparePart = state.spareParts[0]!
+  state = must(state, clock, {
+    action: 'createMaintenanceSchedule',
+    input: { machineId: machine.id, type: 'MONTHLY', description: 'صيانة دورية', interval: 1, sparePartIds: [sparePart.id], estimatedCost: 25, assignedTo: operator.id },
+  })
+  const schedule = state.maintenanceSchedules[0]!
+  state = must(state, clock, {
+    action: 'recordMaintenance',
+    input: { machineId: machine.id, scheduleId: schedule.id, type: 'PREVENTIVE', startDate: '2026-10-01T12:00:00.000Z', endDate: '2026-10-01T12:30:00.000Z', description: 'استبدال فلاتر', cost: 25, sparePartsUsed: [{ sparePartId: sparePart.id, quantity: 2, cost: 0 }], operatingMinutes: 120 },
+  })
+  assert.equal(state.maintenanceRecords[0]!.cost, 35)
+  assert.equal(state.maintenanceRecords[0]!.downtimeMinutes, 30)
+  assert.equal(state.machines[0]!.operatingHours, 2)
+  assert.equal(state.spareParts[0]!.quantity, 8)
+  state = must(state, clock, { action: 'recordSparePartUsage', input: { sparePartId: sparePart.id, machineId: machine.id, quantity: 1, reason: 'استبدال سير' } })
+  assert.equal(state.spareParts[0]!.quantity, 7)
+  assert.equal(state.sparePartUsages[0]!.cost, 5)
 })
 
 // -----------------------------------------------------------------------------
@@ -478,6 +556,8 @@ test('Flow Chain 7: Financial obligations, bank reconciliation, expense approval
   state = must(state, clock, { action: 'fundBank', input: { amount: 50000, memo: 'تمويل رأس المال المبدئي' } })
   state = must(state, clock, { action: 'createEmployee', input: { nameAr: 'أحمد المحاسب', department: 'المالية', jobTitle: 'محاسب عام', basicSalary: 600 } })
   const employee = state.employees[0]!
+  state = must(state, clock, { action: 'recordAttendance', input: { employeeId: employee.id, date: '2026-10-01', checkIn: '08:00', checkOut: '17:00' } })
+  state = must(state, clock, { action: 'recordUtilitiesReading', input: { utility: 'ELECTRICITY', readingDate: '2026-10-01', previousReading: 100, currentReading: 145, cost: 24, productionTon: 10, notes: 'اختبار تدقيق' } })
 
   // 1. Create company obligation & pay installment
   state = must(state, clock, {
@@ -511,6 +591,7 @@ test('Flow Chain 7: Financial obligations, bank reconciliation, expense approval
   })
   assert.equal(state.obligationPayments.length, 1)
   assert.equal(state.obligationPayments[0]!.amount, 1000)
+  assert.equal(state.obligationScheduleLines.find((line) => line.id === scheduleLine.id)?.paidAmount, 1000)
 
   // 2. Expense lifecycle
   state = must(state, clock, {
@@ -561,6 +642,7 @@ test('Flow Chain 7: Financial obligations, bank reconciliation, expense approval
   const leave = state.leaveRequests[0]!
   state = must(state, clock, { action: 'decideLeaveRequest', input: { id: leave.id, decision: 'APPROVED' } })
   assert.equal(state.leaveRequests[0]!.status, 'APPROVED')
+  assert.equal(state.attendance[0]!.checkOut, '17:00')
 
   // 5. Payroll creation, approval, and disbursement
   state = must(state, clock, {
@@ -572,12 +654,15 @@ test('Flow Chain 7: Financial obligations, bank reconciliation, expense approval
   })
   const payroll = state.payrolls[0]!
   assert.equal(payroll.status, 'PENDING_APPROVAL')
+  assert.equal(payroll.totalNet, 665.625)
 
   state = must(state, clock, { action: 'decidePayroll', input: { id: payroll.id, decision: 'APPROVED' } })
   assert.equal(state.payrolls[0]!.status, 'APPROVED')
 
   state = must(state, clock, { action: 'payPayroll', input: { id: payroll.id } })
   assert.equal(state.payrolls[0]!.status, 'PAID')
+  assert.equal(state.utilitiesReadings[0]!.consumption, 45)
+  assert.equal(state.utilitiesReadings[0]!.costPerTon, 2.4)
 
   // Final check: All double-entry journals generated throughout this chain remain balanced
   assert.equal(trialBalance(state).balanced, true)
