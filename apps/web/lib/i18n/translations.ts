@@ -1694,6 +1694,14 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'حساب ← معاملة ← قيد ← تقرير': { en: 'Account → transaction → journal entry → report', hi: 'खाता → लेनदेन → जर्नल प्रविष्टि → रिपोर्ट' },
   'مصروف ← اعتماد ← ضريبة': { en: 'Expense → approval → tax', hi: 'व्यय → अनुमोदन → कर' },
   'موظف ← حضور ← إضافي ← راتب': { en: 'Employee → attendance → overtime → payroll', hi: 'कर्मचारी → उपस्थिति → ओवरटाइम → पेरोल' },
+  'تم تحديد': { en: 'Selected', hi: 'चयनित' },
+  'من أصل': { en: 'of', hi: 'में से' },
+  'إلغاء التحديد': { en: 'Deselect all', hi: 'सभी अचयनित करें' },
+  'تحديد جميع النتائج': { en: 'Select all results', hi: 'सभी परिणाम चुनें' },
+  'حذف المحدد': { en: 'Delete selected', hi: 'चयनित हटाएं' },
+  'هل أنت متأكد من حذف العناصر المحددة؟': { en: 'Are you sure you want to delete the selected items?', hi: 'क्या आप निश्चित रूप से चयनित आइटम हटाना चाहते हैं?' },
+  'تم الحذف بنجاح': { en: 'Deleted successfully', hi: 'सफलतापूर्वक हटा दिया गया' },
+  'فشل حذف بعض العناصر': { en: 'Failed to delete some items', hi: 'कुछ आइटम हटाने में विफल' },
 }
 
 export function translateUiText(lang: Language, source: string): string {

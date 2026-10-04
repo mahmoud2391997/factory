@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prisma": "prisma",
-    "generate": "prisma generate",
+    "generate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/erp}\" prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed"
