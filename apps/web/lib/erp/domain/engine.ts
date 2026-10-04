@@ -4498,7 +4498,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   const seeQuality = canAny(permissions, ['qc.read', 'qc.manage', 'qc.release'])
   const seeScale = canAny(permissions, ['scale.read', 'scale.manage'])
   const seeFleet = canAny(permissions, ['fleet.read', 'fleet.manage'])
-  const seeVehicleServices = canAny(permissions, ['fleet.read', 'fleet.manage', 'fleet.service.manage'])
+  const seeVehicleServices = canAny(permissions, ['fleet.manage', 'fleet.service.manage'])
   const isDriver = permissions.includes('fleet.read') && !permissions.includes('fleet.manage')
   
   // DRIVER role filtering: only see own trips and fuel logs, no financial data

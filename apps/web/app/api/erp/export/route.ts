@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { lotExportRows, profitAndLoss, stockRows, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
 import { getSessionUser } from '@/server/auth/session'
 import { spreadsheetXml } from '@/server/erp/excel'
-import { canExport, canExportCosts, csvSpreadsheet, exportRowsForPermissions, isExportKind } from '@/server/erp/export'
+import { canExportCosts, csvSpreadsheet, exportPermissionStatus, exportRowsForPermissions, isExportKind } from '@/server/erp/export'
 import { loadState } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
@@ -23,8 +23,9 @@ export async function GET(req: NextRequest) {
   if (kind === 'stock' && itemType && itemType !== 'MATERIAL' && itemType !== 'PRODUCT') {
     return NextResponse.json({ success: false, message: 'نوع صنف المخزون غير صحيح' }, { status: 400 })
   }
-  if (!canExport(kind, user.permissions)) {
-    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: 403 })
+  const permissionStatus = exportPermissionStatus(kind, user.permissions)
+  if (permissionStatus === 403) {
+    return NextResponse.json({ success: false, message: 'ليست لديك صلاحية التصدير' }, { status: permissionStatus })
   }
 
   const { state } = await loadState()

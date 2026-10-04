@@ -5,7 +5,7 @@ import path from 'node:path'
 
 import bcrypt from 'bcryptjs'
 
-import { getDemoSecrets, isDemoMode } from '@/server/demo'
+import { canResetDemoData, getDemoSecrets, isDemoMode } from '@/server/demo'
 
 import { planArchive } from '@/lib/erp/domain/archive'
 import { commitWithRetry, REVISION_CONFLICT } from '@/lib/erp/domain/commit'
@@ -358,6 +358,7 @@ export async function runCommand(
 
       if (action === 'resetDemo') {
         if (!actor.permissions.includes('settings.update')) return { ok: false as const, error: 'ليست لديك صلاحية لهذا الإجراء' }
+        if (!canResetDemoData()) return { ok: false as const, error: 'إعادة الضبط متاحة في الوضع التجريبي فقط' }
         resetLoginThrottle()
         const fresh = await createInitialState()
         fresh.revision = loaded.state.revision

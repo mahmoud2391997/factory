@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { DEFAULT_ROLE_PERMISSIONS } from '../../lib/erp/domain/permissions'
 
 import { spreadsheetXml } from './excel'
-import { canExport, csvSpreadsheet, exportRowsForPermissions } from './export'
+import { canExport, csvSpreadsheet, exportPermissionStatus, exportRowsForPermissions } from './export'
 
 test('exports enforce domain-specific read permissions instead of generic reports access', () => {
   const operations = DEFAULT_ROLE_PERMISSIONS.OPERATIONS
@@ -21,6 +21,10 @@ test('exports enforce domain-specific read permissions instead of generic report
   assert.equal(canExport('invoices', accountant), true)
   assert.equal(canExport('payroll', accountant), true)
   assert.equal(canExport('documents', accountant), true)
+})
+
+test('driver journal export is forbidden with HTTP 403', () => {
+  assert.equal(exportPermissionStatus('journals', DEFAULT_ROLE_PERMISSIONS.DRIVER), 403)
 })
 
 test('stock and lot exports redact cost columns for users without cost permissions', () => {

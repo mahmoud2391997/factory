@@ -33,10 +33,15 @@ export function isDemoMode() {
   // A configured PostgreSQL connection always takes precedence so Vercel
   // cannot silently serve demo data when the database integration is present.
   if (hasDatabase) return false
-  if (configuredMode === 'production' || configuredMode === 'prod') return false
   if (configuredMode === 'demo') return true
+  if (configuredMode === 'production' || configuredMode === 'prod') return false
+  if (process.env.NODE_ENV === 'production') return false
 
   return true
+}
+
+export function canResetDemoData() {
+  return isDemoMode()
 }
 
 export const DEMO_PERMISSIONS = [...PERMISSIONS]

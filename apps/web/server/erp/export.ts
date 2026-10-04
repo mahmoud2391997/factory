@@ -29,6 +29,10 @@ export function canExport(kind: ExportKind, permissions: readonly string[]) {
   return hasAny(permissions, ['accounting.read', 'accounting.manage'])
 }
 
+export function exportPermissionStatus(kind: ExportKind, permissions: readonly string[]): 200 | 403 {
+  return canExport(kind, permissions) ? 200 : 403
+}
+
 export function canExportCosts(permissions: readonly string[]) {
   return hasAny(permissions, ['accounting.read', 'accounting.manage', 'production.cost.approve'])
 }

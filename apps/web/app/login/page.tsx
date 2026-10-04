@@ -10,11 +10,9 @@ type HealthData = {
   status: string
   demoMode: boolean
   databaseConfigured: boolean
-  databaseEnvKey: string | null
   jwtConfigured: boolean
   databaseReachable: boolean
   bootstrapped: boolean
-  databaseError: string | null
   demoCredentials?: { email: string; password: string } | null
 }
 
@@ -129,17 +127,13 @@ export default function LoginPage() {
                 <StatusRow
                   ok={health.databaseConfigured}
                   label="متغير قاعدة البيانات"
-                  detail={
-                    health.databaseConfigured
-                      ? `موجود: ${health.databaseEnvKey}`
-                      : 'اربط Supabase أو أضف اتصال PostgreSQL في Vercel'
-                  }
+                  detail={health.databaseConfigured ? 'موجود' : 'أضف اتصال PostgreSQL في إعدادات البيئة'}
                 />
                 <StatusRow ok={health.jwtConfigured} label="JWT_SECRET" detail={health.jwtConfigured ? 'موجود' : 'ناقص'} />
                 <StatusRow
                   ok={health.databaseReachable}
                   label="الاتصال بقاعدة البيانات"
-                  detail={health.databaseReachable ? 'متصل' : health.databaseError ?? 'غير متصل'}
+                  detail={health.databaseReachable ? 'متصل' : 'غير متصل'}
                 />
               </div>
             </div>

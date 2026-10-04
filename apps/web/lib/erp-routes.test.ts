@@ -415,7 +415,7 @@ test('workspace and section labels match the owner information architecture exac
     ['العملاء والفواتير', 'التحصيل والمرتجعات', 'نقاط التوزيع', 'دورة الفاتورة والتسليم', 'الربحية'],
     ['المشتريات والموافقات', 'التواصل مع الموردين', 'تحليل أسعار المواد الخام'],
     ['المواد الخام والمنتجات', 'مخزن قطع الغيار', 'مخزن مواد التعبئة والتشغيل', 'الحركات والجرد والتقارير'],
-    ['التصنيع والميزان', 'الخلطات والأوزان', 'خلطات العملاء', 'الجودة والتحليل الغذائي', 'تتبع الدفعات والهدر'],
+    ['التصنيع والميزان', 'الخلطات والأوزان', 'خلطات العملاء', 'الجودة والتحليل الغذائي', 'تتبع الدفعات والهدر', 'تتبع الدفعات والهدر'],
     ['السيارات والنقل', 'الصيانة'],
     ['الأقساط والالتزامات المالية', 'البنك والحسابات', 'المصروفات والضرائب', 'الكهرباء والماء والغاز'],
     ['الموظفون', 'التصاريح والعقود والوثائق'],
@@ -423,7 +423,7 @@ test('workspace and section labels match the owner information architecture exac
   ])
 
   const workflowSections = NAV_CONFIG.workspaces.flatMap((workspace) => workspace.sections).filter((section) => section.workflow)
-  assert.equal(workflowSections.length, 17)
+  assert.equal(workflowSections.length, 18)
   assert.ok(workflowSections.every((section) => section.workflow!.split('←').length >= 2), 'workflow captions show the sequence between steps')
   assert.ok(workflowSections.flatMap((section) => section.pages).every((page) => canSeeEntity(allPagesForEveryRole, page.entityKey)))
 
@@ -449,6 +449,7 @@ test('the general manager sees every workspace; the driver only sees trip and fu
   const vehicleSections = visibleSections(driverWorkspaces[0]!, DEFAULT_ROLE_PERMISSIONS.DRIVER)
   assert.deepEqual(vehicleSections.map((section) => section.id), ['vehicles'])
   assert.deepEqual(vehicleSections[0]!.pages.filter((page) => canSeeEntity(DEFAULT_ROLE_PERMISSIONS.DRIVER, page.entityKey)).map((page) => page.entityKey).sort(), ['fleetFuel', 'fleetTrips'])
+  assert.equal(canSeeEntity(DEFAULT_ROLE_PERMISSIONS.DRIVER, 'fleet'), false, 'drivers cannot navigate to vehicle management')
 })
 
 test('quality roles can access the quality pages without granting unrelated restricted pages', () => {

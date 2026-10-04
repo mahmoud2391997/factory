@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
 import { ensureDatabaseUrlEnv } from './env'
+import { shouldUseNoopPrismaFallback } from './client-policy'
 
 const databaseUrl = ensureDatabaseUrlEnv()
 
@@ -24,7 +25,8 @@ try {
       datasources: { db: { url: prismaUrl } },
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     })
-} catch {
+} catch (error) {
+  if (!shouldUseNoopPrismaFallback(databaseUrl, process.env.NODE_ENV)) throw error
   console.warn('[AI Studio] Database not connected — using mock')
   const noOp = {
     findMany: async () => [],

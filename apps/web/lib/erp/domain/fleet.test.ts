@@ -383,6 +383,9 @@ test('DRIVER role can only see own trips and fuel logs', () => {
   assert.equal(driverView.trips[0]?.driverId, driver1.id)
   assert.equal(driverView.fuelLogs.length, 1)
   assert.equal(driverView.fuelLogs[0]?.driverId, driver1.id)
+  assert.deepEqual(driverView.vehicles, [])
+  assert.deepEqual(driverView.vehicleServices, [])
+  assert.deepEqual(driverView.journals, [])
   
   const gmView = publicState(state, state.rolePermissions.GM)
   assert.equal(gmView.trips.length, 2)
