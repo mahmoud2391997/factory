@@ -1123,6 +1123,20 @@ function deleteMaterial(state: ErpState, actor: Actor, input: Extract<Command, {
   const index = state.materials.findIndex((m) => m.id === input.id)
   if (index < 0) return fail('المادة غير موجودة')
   const item = state.materials[index]!
+  const referenced =
+    state.balances.some((row) => row.itemId === item.id) ||
+    state.ledger.some((row) => row.itemId === item.id) ||
+    state.ledgerBaselines?.some((row) => row.itemId === item.id) ||
+    state.recipes.some((recipe) => recipe.items.some((line) => line.materialId === item.id)) ||
+    state.purchaseRequests.some((request) => request.lines.some((line) => line.materialId === item.id)) ||
+    state.supplierQuotations.some((quote) => quote.lines.some((line) => line.materialId === item.id)) ||
+    state.purchaseOrders.some((order) => order.lines.some((line) => line.materialId === item.id)) ||
+    state.goodsReceipts.some((receipt) => receipt.lines.some((line) => line.materialId === item.id)) ||
+    state.productionOrders.some((order) => order.expected.some((line) => line.materialId === item.id)) ||
+    state.qualitySamples.some((sample) => sample.materialId === item.id) ||
+    state.qualityHolds.some((hold) => hold.materialId === item.id) ||
+    state.scaleReadings.some((reading) => reading.materialId === item.id)
+  if (referenced) return fail('لا يمكن حذف مادة مرتبطة بسجلات المخزون أو الشراء أو الإنتاج')
   state.materials.splice(index, 1)
   audit(state, actor, clock, 'حذف مادة خام', 'material', item.id, item.nameAr)
   return ok(state, 'تم حذف المادة الخام بنجاح')

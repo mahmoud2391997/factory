@@ -421,6 +421,42 @@ test('day 4: goods receipt posts purchase ledger lines that match WH_RAW balance
   assert.equal(inventoryIntegrity(state).ok, true)
 })
 
+test('a material referenced by a recipe cannot be deleted', () => {
+  const clock = createClock('2026-09-22T10:00:00.000Z')
+  let state = emptyState('delete-reference')
+  const gm = actor(state, 'user-gm')
+  state = must(state, gm, clock, {
+    action: 'createMaterial',
+    input: { code: 'RM-REFERENCED', nameAr: 'مادة مرتبطة', category: 'اختبار', minQty: 0 },
+  })
+  state = must(state, gm, clock, {
+    action: 'createProduct',
+    input: { code: 'FG-REFERENCE', nameAr: 'منتج اختبار', salePrice: 1, bagKg: 50 },
+  })
+  const materialId = state.materials[0]!.id
+  state = must(state, gm, clock, {
+    action: 'createRecipe',
+    input: { productId: state.products[0]!.id, nameAr: 'وصفة مرتبطة', baseOutputQty: 100, items: [{ materialId, qty: 100 }] },
+  })
+
+  const result = applyCommand(state, gm, { action: 'deleteMaterial', input: { id: materialId } }, clock)
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.match(result.error, /مرتبطة|مستخدمة|حذف/)
+  assert.ok(state.materials.some((item) => item.id === materialId), 'failed command must not mutate source state')
+})
+
+test('inventory permissions are enforced inside applyCommand', () => {
+  const state = buildSeedState()
+  const driver = actor(state, 'user-driver')
+  const material = state.materials[0]!
+  const denied = applyCommand(state, driver, {
+    action: 'transferStock',
+    input: { from: 'WH_RAW', to: 'WH_MFG', lines: [{ itemType: 'MATERIAL', itemId: material.id, batchNo: 'B-CORN-0901', qty: 1 }] },
+  })
+  assert.equal(denied.ok, false)
+  if (!denied.ok) assert.match(denied.error, /صلاحية/)
+})
+
 test('publicState hides salaries, payroll, journals, and audit logs from operations', () => {
   const state = buildSeedState()
   const ops = actor(state, 'user-ops')
@@ -469,6 +505,13 @@ test('two commands that start from the same revision both commit', async () => {
   assert.ok(db.materials.some((item) => item.code === 'RM-RACE-A'))
   assert.ok(db.materials.some((item) => item.code === 'RM-RACE-B'))
   assert.equal(db.revision, 5)
+})
+
+test('an exhausted revision retry returns the clean retryable conflict message', async () => {
+  await assert.rejects(
+    () => commitWithRetry(async () => { throw new Error(REVISION_CONFLICT) }, 1),
+    (error: unknown) => error instanceof Error && error.message === 'تعارض في حفظ البيانات. أعد المحاولة.',
+  )
 })
 
 test('publicState keeps payroll, journals, and salaries for the general manager', () => {
