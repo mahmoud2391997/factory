@@ -29,6 +29,8 @@ if [[ -n "$DIRECT_DATABASE_URL" ]]; then
   DATABASE_URL="$DIRECT_DATABASE_URL" pnpm --filter @erp/database migrate:deploy
 elif [[ -n "${DATABASE_URL:-}" ]]; then
   pnpm --filter @erp/database migrate:deploy
+else
+  echo '[vercel-build] DATABASE_URL not set; skipping Prisma migrations.'
 fi
 
 pnpm --filter @erp/web build

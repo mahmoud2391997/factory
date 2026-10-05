@@ -1,10 +1,10 @@
 {
   "name": "erp",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.12.4",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "pnpm --filter @erp/web dev",
     "predev": "pnpm --filter @erp/database generate",
@@ -21,9 +21,6 @@
     "lint": "pnpm --filter @erp/web lint",
     "typecheck": "pnpm --filter @erp/web exec tsc --noEmit",
     "test:erp": "tsx --tsconfig apps/web/tsconfig.json --test \"apps/web/**/*.test.ts\""
-  },
-  "dependencies": {
-    "next": "16.3.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

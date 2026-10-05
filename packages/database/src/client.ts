@@ -46,29 +46,26 @@ function createNoopPrisma(): PrismaClient {
   return proxy as unknown as PrismaClient
 }
 
-let prismaInstance: PrismaClient
+let prismaInstance = global.__erpPrisma
 
-if (!databaseUrl) {
-  if (!allowNoopFallback && !isProductionBuild) {
-    throw new Error('DATABASE_URL is required in production unless APP_MODE=demo.')
-  }
-  prismaInstance = createNoopPrisma()
-} else {
-  try {
-    prismaInstance =
-      global.__erpPrisma ??
-      new PrismaClient({
+if (!prismaInstance) {
+  if (!databaseUrl) {
+    if (!allowNoopFallback && !isProductionBuild) {
+      throw new Error('DATABASE_URL is required in production unless APP_MODE=demo.')
+    }
+    prismaInstance = createNoopPrisma()
+  } else {
+    try {
+      prismaInstance = new PrismaClient({
         datasources: { db: { url: databaseUrl } },
         log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
       })
-  } catch (error) {
-    if (!allowNoopFallback) throw error
-    prismaInstance = createNoopPrisma()
+    } catch (error) {
+      if (!allowNoopFallback) throw error
+      prismaInstance = createNoopPrisma()
+    }
   }
+  global.__erpPrisma = prismaInstance
 }
 
 export const prisma = prismaInstance
-
-if (process.env.NODE_ENV !== 'production') {
-  global.__erpPrisma = prisma
-}

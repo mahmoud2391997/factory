@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -883,4 +884,3 @@ model SupplierCommunication {
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
-
