@@ -1,6 +1,6 @@
 'use client'
 
-import { isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { isValidElement, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 
 import { LocalizedContent } from '@/lib/i18n/localized-content'
@@ -62,11 +62,19 @@ export function ExportLinks({ href }: { href: string }) {
 export function DataTable({
   columns,
   rows,
+  rowIds,
   rowActions,
+  bulkActions,
+  selectedIds: externalSelectedIds,
+  onSelectionChange,
 }: {
   columns: string[]
   rows: ReactNode[][]
+  rowIds?: string[]
   rowActions?: (row: ReactNode[], rowIndex: number) => ReactNode
+  bulkActions?: (selectedIds: string[], clearSelection: () => void) => ReactNode
+  selectedIds?: string[]
+  onSelectionChange?: (selectedIds: string[]) => void
 }) {
   const { language } = useLanguage()
   const filterId = useId()
@@ -74,7 +82,19 @@ export function DataTable({
   const [sort, setSort] = useState<{ index: number; dir: 'asc' | 'desc' } | null>(null)
   const [page, setPage] = useState(0)
   const [query, setQuery] = useState('')
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
+  const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([])
+
+  const selectedIds = externalSelectedIds ?? internalSelectedIds
+  const updateSelected = (next: string[]) => {
+    if (onSelectionChange) onSelectionChange(next)
+    else setInternalSelectedIds(next)
+  }
+
+  const effectiveIds = useMemo(
+    () => rowIds ?? rows.map((_, i) => String(i)),
+    [rowIds, rows],
+  )
+
   const filtered = query.trim()
     ? rows.filter((row) => row.some((cell) => cellText(cell).toLocaleLowerCase('ar').includes(query.trim().toLocaleLowerCase('ar'))))
     : rows
@@ -87,7 +107,27 @@ export function DataTable({
   const safePage = Math.min(page, pageCount - 1)
   const visible = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
   const visibleIndexes = visible.map((row) => rows.indexOf(row))
-  const allVisibleSelected = visibleIndexes.length > 0 && visibleIndexes.every((index) => selectedRows.has(index))
+  const visibleIds = visibleIndexes.map((idx) => effectiveIds[idx]!).filter(Boolean)
+  const allFilteredIds = sorted.map((row) => effectiveIds[rows.indexOf(row)]!).filter(Boolean)
+
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id))
+
+  const toggleSelectAllVisible = () => {
+    const nextSet = new Set(selectedIds)
+    if (allVisibleSelected) {
+      visibleIds.forEach((id) => nextSet.delete(id))
+    } else {
+      visibleIds.forEach((id) => nextSet.add(id))
+    }
+    updateSelected(Array.from(nextSet))
+  }
+
+  const toggleSelectRow = (id: string) => {
+    const nextSet = new Set(selectedIds)
+    if (nextSet.has(id)) nextSet.delete(id)
+    else nextSet.add(id)
+    updateSelected(Array.from(nextSet))
+  }
 
   return (
     <div className="space-y-3">
@@ -102,6 +142,38 @@ export function DataTable({
         />
         <span className="text-xs text-[#6b7280]">{sorted.length} {translateUiText(language, 'سجل')}</span>
       </div>
+
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#ccfbf1] bg-[#f0fdf4] px-4 py-2 text-sm text-[#134e4a] shadow-xs dark:border-[#134e4a] dark:bg-[#134e4a]/20 dark:text-[#ccfbf1]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">
+              {translateUiText(language, 'تم تحديد')} {selectedIds.length} {translateUiText(language, 'من أصل')} {allFilteredIds.length} {translateUiText(language, 'سجل')}
+            </span>
+            {allVisibleSelected && selectedIds.length < allFilteredIds.length ? (
+              <button
+                type="button"
+                onClick={() => updateSelected(allFilteredIds)}
+                className="text-xs font-semibold text-[#0d9488] underline hover:text-[#0f766e]"
+              >
+                {translateUiText(language, 'تحديد جميع النتائج')} ({allFilteredIds.length})
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => updateSelected([])}
+              className="text-xs text-[#6b7280] underline hover:text-[#1f1f1f] dark:text-[#a1a1aa] dark:hover:text-[#f4f4f5]"
+            >
+              {translateUiText(language, 'إلغاء التحديد')}
+            </button>
+          </div>
+          {bulkActions ? (
+            <div className="flex items-center gap-2">
+              {bulkActions(selectedIds, () => updateSelected([]))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-center text-sm">
           <thead>
@@ -113,12 +185,7 @@ export function DataTable({
                   type="checkbox"
                   checked={allVisibleSelected}
                   aria-label={translateUiText(language, 'تحديد كل الصفوف')}
-                  onChange={() => setSelectedRows((current) => {
-                    const next = new Set(current)
-                    if (allVisibleSelected) visibleIndexes.forEach((index) => next.delete(index))
-                    else visibleIndexes.forEach((index) => next.add(index))
-                    return next
-                  })}
+                  onChange={toggleSelectAllVisible}
                 />
               </th>
               {columns.map((column, index) => {
@@ -154,29 +221,32 @@ export function DataTable({
                 </td>
               </tr>
             ) : (
-                  visible.map((row, index) => {
+              visible.map((row, index) => {
                 const originalIndex = visibleIndexes[index] ?? -1
-                return <tr key={`${safePage}-${index}`} className="border-b border-[#f3f4f6] last:border-0">
-                  <td className="w-12 px-2 py-3 text-center align-middle">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(originalIndex)}
-                      aria-label={`${translateUiText(language, 'تحديد الصف')} ${index + 1}`}
-                      onChange={() => setSelectedRows((current) => {
-                        const next = new Set(current)
-                        if (next.has(originalIndex)) next.delete(originalIndex)
-                        else next.add(originalIndex)
-                        return next
-                      })}
-                    />
-                  </td>
-                  {row.map((cell, cellIndex) => (
-                    <td key={cellIndex} className="px-2 py-3 text-center align-middle">
-                      <LocalizedContent>{cell}</LocalizedContent>
+                const rowId = effectiveIds[originalIndex] ?? `${safePage}-${index}`
+                const isSelected = selectedIds.includes(rowId)
+                return (
+                  <tr key={rowId} className={`border-b border-[#f3f4f6] last:border-0 ${isSelected ? 'bg-[#f0fdf4]/50 dark:bg-[#134e4a]/10' : ''}`}>
+                    <td className="w-12 px-2 py-3 text-center align-middle">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        aria-label={`${translateUiText(language, 'تحديد الصف')} ${index + 1}`}
+                        onChange={() => toggleSelectRow(rowId)}
+                      />
                     </td>
-                  ))}
-                  {rowActions ? <td className="px-2 py-3 text-center align-middle"><LocalizedContent>{rowActions(row, originalIndex)}</LocalizedContent></td> : null}
-                </tr>
+                    {row.map((cell, cellIndex) => (
+                      <td key={cellIndex} className="px-2 py-3 text-center align-middle">
+                        <LocalizedContent>{cell}</LocalizedContent>
+                      </td>
+                    ))}
+                    {rowActions ? (
+                      <td className="px-2 py-3 text-center align-middle">
+                        <LocalizedContent>{rowActions(row, originalIndex)}</LocalizedContent>
+                      </td>
+                    ) : null}
+                  </tr>
+                )
               })
             )}
           </tbody>

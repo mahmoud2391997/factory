@@ -34,6 +34,10 @@ export function EntityPage({
   const [values, setValues] = useState<Record<string, unknown>>(() => emptyValuesFromFields(schema.fields))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false)
+  const [bulkError, setBulkError] = useState('')
+
   const columns = useMemo(() => schema.fields.filter((f) => f.column), [schema.fields])
 
   const filtered = useMemo(() => {
@@ -43,6 +47,41 @@ export function EntityPage({
       JSON.stringify(row.values).includes(q) || row.id.includes(q),
     )
   }, [records, search])
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((row) => selectedIds.includes(row.id))
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filtered.map((row) => row.id))
+    }
+  }
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    )
+  }
+
+  const handleBulkDelete = async () => {
+    setBulkError('')
+    const failedIds: string[] = []
+    for (const id of selectedIds) {
+      try {
+        await onDelete(id)
+      } catch (err) {
+        failedIds.push(id)
+      }
+    }
+    if (failedIds.length > 0) {
+      setBulkError(`تعذر حذف ${failedIds.length} عنصر لارتباطها بسجلات أخرى`)
+      setSelectedIds(failedIds)
+    } else {
+      setSelectedIds([])
+    }
+    setConfirmBulkDeleteOpen(false)
+  }
 
   const openCreate = () => {
     setEditing(null)
@@ -124,10 +163,49 @@ export function EntityPage({
           </div>
         </div>
 
+        {bulkError ? (
+          <div className="mb-3 rounded-lg border border-[#f0d0c8] bg-[#fff5f2] p-3 text-sm font-semibold text-[#ad5e46]">
+            {bulkError}
+          </div>
+        ) : null}
+
+        {selectedIds.length > 0 ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ccfbf1] bg-[#f0fdf4] p-3 text-sm text-[#134e4a] shadow-xs">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold">
+                تم تحديد {selectedIds.length} من أصل {filtered.length} سجل
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="text-xs text-[#6b7280] underline hover:text-[#1f1f1f]"
+              >
+                إلغاء التحديد
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setConfirmBulkDeleteOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-[#ad5e46] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#8f4733]"
+            >
+              <Trash2 size={14} />
+              حذف المحدد ({selectedIds.length})
+            </button>
+          </div>
+        ) : null}
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-right">
             <thead>
               <tr className="border-b border-[#edf2ef] text-base text-[#97a49f]">
+                <th className="w-12 pb-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    aria-label="تحديد كل السجلات"
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="pb-3 font-medium">المعرّف</th>
                 {columns.map((col) => (
                   <th key={col.key} className="pb-3 font-medium">
@@ -140,46 +218,84 @@ export function EntityPage({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 2} className="py-10 text-center text-lg text-[#899892]">
+                  <td colSpan={columns.length + 3} className="py-10 text-center text-lg text-[#899892]">
                     لا توجد سجلات — أضف أول سجل من النموذج
                   </td>
                 </tr>
               ) : (
-                filtered.map((row) => (
-                  <tr key={row.id} className="border-b border-[#f0f4f2] transition-colors duration-200 last:border-0 hover:bg-[#fcfdfd]">
-                    <td className="py-4 text-base font-semibold text-[#50635b]">{row.id}</td>
-                    {columns.map((col) => (
-                      <td key={col.key} className="py-4 text-base text-[#53655e]">
-                        {formatCell(row.values[col.key])}
+                filtered.map((row) => {
+                  const isSelected = selectedIds.includes(row.id)
+                  return (
+                    <tr key={row.id} className={`border-b border-[#f0f4f2] transition-colors duration-200 last:border-0 hover:bg-[#fcfdfd] ${isSelected ? 'bg-[#f0fdf4]' : ''}`}>
+                      <td className="w-12 py-4 text-center align-middle">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          aria-label={`تحديد ${row.id}`}
+                          onChange={() => toggleSelectRow(row.id)}
+                        />
                       </td>
-                    ))}
-                    <td className="py-3.5">
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          aria-label="تعديل"
-                          onClick={() => openEdit(row)}
-                          className="rounded-lg border border-[#dfe7e3] p-2 text-[#53655e] hover:bg-[#f8faf9]"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="حذف"
-                          onClick={() => onDelete(row.id)}
-                          className="rounded-lg border border-[#f0d0c8] p-2 text-[#ad5e46] hover:bg-[#fff5f2]"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      <td className="py-4 text-base font-semibold text-[#50635b]">{row.id}</td>
+                      {columns.map((col) => (
+                        <td key={col.key} className="py-4 text-base text-[#53655e]">
+                          {formatCell(row.values[col.key])}
+                        </td>
+                      ))}
+                      <td className="py-3.5">
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            aria-label="تعديل"
+                            onClick={() => openEdit(row)}
+                            className="rounded-lg border border-[#dfe7e3] p-2 text-[#53655e] hover:bg-[#f8faf9]"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="حذف"
+                            onClick={() => onDelete(row.id)}
+                            className="rounded-lg border border-[#f0d0c8] p-2 text-[#ad5e46] hover:bg-[#fff5f2]"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
         </div>
       </section>
+
+      {confirmBulkDeleteOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-[#1f1f1f]">تأكيد الحذف الجماعي</h3>
+            <p className="mt-2 text-sm text-[#6b7280]">
+              هل أنت متأكد من حذف {selectedIds.length} سجل محدد؟ لن يمكن التراجع عن هذا الإجراء وسيتم رفض حذف السجلات المرتبطة بعمليات أخرى.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmBulkDeleteOpen(false)}
+                className="rounded-lg border border-[#e5e7eb] px-4 py-2 text-sm font-semibold text-[#53655e] hover:bg-[#f9fafb]"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="rounded-lg bg-[#ad5e46] px-4 py-2 text-sm font-bold text-white hover:bg-[#8f4733]"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {dialogOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">

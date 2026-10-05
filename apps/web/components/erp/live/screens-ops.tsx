@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Trash2 } from 'lucide-react'
 
 import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packagingCountReport, packagingVarianceSummary, profitabilityReport, stockRows, traceSupplierBatch } from '@/lib/erp/domain/reports'
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
@@ -947,6 +948,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
     >
       <DataTable
         columns={['الكود', 'الاسم', 'التصنيف', 'الحد الأدنى', 'الضريبة', 'الباركود', 'الحالة']}
+        rowIds={ctx.state.materials.map((item) => item.id)}
         rows={ctx.state.materials.map((item) => [
           item.code,
           item.nameAr,
@@ -956,6 +958,29 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
           item.barcode,
           <Badge key={item.id} tone={item.active ? 'good' : 'neutral'}>{item.active ? 'نشطة' : 'معطلة'}</Badge>,
         ])}
+        bulkActions={(selectedIds, clearSelection) => {
+          if (!can(ctx.permissions, 'inventory.adjust')) return null
+          return (
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md bg-[#ad5e46] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#8f4733]"
+              onClick={async () => {
+                if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} مادة خام محددة؟`)) return
+                let failedCount = 0
+                for (const id of selectedIds) {
+                  const res = await ctx.act('deleteMaterial', { id })
+                  if (!res.ok) failedCount += 1
+                }
+                if (failedCount === 0) {
+                  clearSelection()
+                }
+              }}
+            >
+              <Trash2 size={13} />
+              حذف المحدد ({selectedIds.length})
+            </button>
+          )
+        }}
         rowActions={(_, index) => {
           const item = ctx.state.materials[index]
           if (!item) return null
@@ -2429,7 +2454,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
                     </label>
                   ))}
                 </div>
-                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.create')}>حفظ الوصفة</PrimaryButton>
+                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.create')}>��فظ الوصفة</PrimaryButton>
               </form>
             )}
           </FormDialog>
@@ -3155,7 +3180,31 @@ function Customers({ ctx }: { ctx: LiveCtx }) {
       >
         <DataTable
           columns={['الكود', 'الاسم', 'الرقم الضريبي', 'العنوان']}
+          rowIds={ctx.state.customers.map((item) => item.id)}
           rows={ctx.state.customers.map((item) => [item.code, item.nameAr, item.vatNumber || '—', item.address || '—'])}
+          bulkActions={(selectedIds, clearSelection) => {
+            if (!can(ctx.permissions, 'sales.create')) return null
+            return (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-md bg-[#ad5e46] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#8f4733]"
+                onClick={async () => {
+                  if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} عميل محدد؟`)) return
+                  let failedCount = 0
+                  for (const id of selectedIds) {
+                    const res = await ctx.act('deleteCustomer', { id })
+                    if (!res.ok) failedCount += 1
+                  }
+                  if (failedCount === 0) {
+                    clearSelection()
+                  }
+                }}
+              >
+                <Trash2 size={13} />
+                حذف المحدد ({selectedIds.length})
+              </button>
+            )
+          }}
           rowActions={(_, index) => {
             const item = ctx.state.customers[index]
             if (!item) return null
@@ -3677,7 +3726,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
             <Field label="المرحلة المستهدفة">
               <SelectInput value={nextStep} onChange={(e) => setNextStep(e.target.value as typeof nextStep)}>
                 <option value="LOADER">2. التحميل (جاهزية البضاعة في المستودع)</option>
-                <option value="DRIVER">3. السائق (خروج البضاعة على الشاحنة)</option>
+                <option value="DRIVER">3. السائق (خروج البضاعة على ا��شاحنة)</option>
                 <option value="CUSTOMER">4. العميل (تأكيد وصول وتسليم البضاعة)</option>
               </SelectInput>
             </Field>
@@ -4237,7 +4286,7 @@ function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
     production: [
       { href: '/inventory/manufacturing/planned', label: 'المخطط' },
       { href: '/inventory/manufacturing/actual', label: 'الفعلي' },
-      { href: '/inventory/manufacturing/execution', label: 'نسبة التنفيذ' },
+      { href: '/inventory/manufacturing/execution', label: 'ن��بة التنفيذ' },
     ],
     sales: [
       { href: '/sales/today', label: 'مبيعات اليوم' },

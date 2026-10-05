@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 
-import { resolveDatabaseUrl } from '@/server/db-url'
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
 
 export const DEMO_USER_ID = 'demo-admin-user'
@@ -25,19 +24,10 @@ export function getDemoSecrets() {
   return generatedDemoSecrets
 }
 
-/** Demo mode works out of the box when no production configuration is present. */
+/** Demo mode is the default unless APP_MODE explicitly selects production. */
 export function isDemoMode() {
   const configuredMode = process.env.APP_MODE?.trim().toLowerCase()
-  const hasDatabase = Boolean(resolveDatabaseUrl())
-
-  // A configured PostgreSQL connection always takes precedence so Vercel
-  // cannot silently serve demo data when the database integration is present.
-  if (hasDatabase) return false
-  if (configuredMode === 'demo') return true
-  if (configuredMode === 'production' || configuredMode === 'prod') return false
-  if (process.env.NODE_ENV === 'production') return false
-
-  return true
+  return configuredMode !== 'production' && configuredMode !== 'prod'
 }
 
 export function canResetDemoData() {
