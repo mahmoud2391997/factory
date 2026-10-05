@@ -526,7 +526,7 @@ export function ErpShell() {
             <Layers3 size={17} aria-hidden strokeWidth={2.2} />
           </Link>
           <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
-            <div className="truncate text-lg font-semibold leading-tight">مصنع الخليج للأعلاف</div>
+            <div className="truncate text-lg font-semibold leading-tight">{uiLabel('مصنع الخليج للأعلاف')}</div>
           </div>
           <button
             type="button"
@@ -590,8 +590,8 @@ export function ErpShell() {
               </label>
               {searchOpen ? (
                 <div id="erp-navigation-search-results" role="region" aria-label={uiLabel('نتائج البحث')} className="erp-search-results absolute inset-x-0 top-[calc(100%+6px)] z-50 max-h-[min(60vh,34rem)] overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-2 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b]" aria-live="polite">
-                  {!navSearch.trim() ? <p className="px-3 py-4 text-center text-sm text-[#6b7280]">اكتب اسم مساحة أو قسم أو شاشة</p> : null}
-                  {navSearch.trim() && searchResults.length === 0 ? <p className="px-3 py-5 text-center text-sm text-[#525252] dark:text-[#d4d4d8]">لا توجد نتائج</p> : null}
+                  {!navSearch.trim() ? <p className="px-3 py-4 text-center text-sm text-[#6b7280]">{uiLabel('اكتب اسم مساحة أو قسم أو شاشة')}</p> : null}
+                  {navSearch.trim() && searchResults.length === 0 ? <p className="px-3 py-5 text-center text-sm text-[#525252] dark:text-[#d4d4d8]">{uiLabel('لا توجد نتائج')}</p> : null}
                   {searchGroups.map((group) => (
                     <section key={group.id} className="mb-2 last:mb-0">
                       <h2 className="px-2 py-1.5 text-xs font-semibold text-[#6b7280] dark:text-[#a1a1aa]">{uiLabel(group.label)}</h2>
@@ -612,7 +612,7 @@ export function ErpShell() {
                               >
                                 {ResultIcon ? <ResultIcon size={16} aria-hidden className="shrink-0" /> : null}
                                 <span className="min-w-0 flex-1 truncate font-medium"><SearchHighlight text={uiLabel(result.label)} query={navSearch} /></span>
-                                {result.type === 'page' && !result.label.toLocaleLowerCase('ar').includes(navSearch.trim().toLocaleLowerCase('ar')) ? <span className="shrink-0 text-[11px] text-[#6b7280]">مطابقة: <mark className="bg-[#ccfbf1] text-[#134e4a] dark:bg-[#134e4a] dark:text-[#ccfbf1]">{navSearch.trim()}</mark></span> : null}
+                                {result.type === 'page' && !result.label.toLocaleLowerCase('ar').includes(navSearch.trim().toLocaleLowerCase('ar')) ? <span className="shrink-0 text-[11px] text-[#6b7280]">{uiLabel('مطابقة')}: <mark className="bg-[#ccfbf1] text-[#134e4a] dark:bg-[#134e4a] dark:text-[#ccfbf1]">{navSearch.trim()}</mark></span> : null}
                               </Link>
                               {result.description ? <p className="truncate px-9 pb-1 text-xs text-[#6b7280]">{uiLabel(result.description)}</p> : null}
                             </li>

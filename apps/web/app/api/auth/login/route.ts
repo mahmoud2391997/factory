@@ -20,6 +20,7 @@ export const runtime = 'nodejs'
 const bodySchema = z.object({
   email: z.string().email('البريد الإلكتروني غير صحيح'),
   password: z.string().min(1, 'كلمة المرور مطلوبة'),
+  demo: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
     const password = parsed.data.password
     const ip = clientIp(req)
 
-    if (isDemoMode()) {
+    if (parsed.data.demo === true && isDemoMode()) {
       const demo = getDemoSecrets()
       const demoEmails = new Set(['admin@factory.local'])
       if (demoEmails.has(email) && password === demo.password) {
@@ -103,8 +104,8 @@ export async function POST(req: NextRequest) {
         const sessionUser = await getSessionUserById(erpUser.id)
         const res = NextResponse.json({
           success: true,
-          data: { user: sessionUser, demoMode: isDemoMode(), storage },
-          message: isDemoMode() ? 'تم تسجيل الدخول' : 'تم تسجيل الدخول بنجاح',
+          data: { user: sessionUser, demoMode: false, storage },
+          message: 'تم تسجيل الدخول بنجاح',
         })
         setAuthCookies(res, { accessToken, refreshToken })
         return res

@@ -10,7 +10,7 @@ type AuthContextValue = {
   user: AuthUser | null
   loading: boolean
   error: string
-  login: (email: string, password: string) => Promise<{ ok: boolean; message: string; mustChangePassword?: boolean }>
+  login: (email: string, password: string, demo?: boolean) => Promise<{ ok: boolean; message: string; mustChangePassword?: boolean }>
   logout: () => Promise<void>
   refresh: () => Promise<void>
   hasPermission: (permission: string | string[]) => boolean
@@ -58,9 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, demo = false) => {
     setError('')
-    const result = await apiLogin(email, password)
+    const result = await apiLogin(email, password, demo)
     if (result.success && result.data?.user) {
       setUser(result.data.user)
       return {

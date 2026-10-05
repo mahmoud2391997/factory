@@ -15,9 +15,10 @@ import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
 
-import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus, DependencyLink } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
+import { SystemMap } from '@/components/erp/system-map'
 
 const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = (Object.entries(ROLE_LABELS) as Array<[RoleKey, string]>).map(
   ([value, label]) => ({ value, label }),
@@ -63,6 +64,7 @@ function VehicleEditor({ ctx, vehicle, onClose }: { ctx: LiveCtx; vehicle: (type
   const [type, setType] = useState(vehicle.type)
   const [active, setActive] = useState(vehicle.active)
   return (
+    <LocalizedContent>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
         <h3 className="text-lg font-bold">تعديل بيانات المركبة</h3>
@@ -88,6 +90,7 @@ function VehicleEditor({ ctx, vehicle, onClose }: { ctx: LiveCtx; vehicle: (type
         </form>
       </div>
     </div>
+    </LocalizedContent>
   )
 }
 
@@ -120,7 +123,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   if (mode === 'fleetFuel') return (
     <Card title="سجل الوقود" hint="كل تعبئة مرتبطة بالمركبة والعداد والسائق لتظهر كلفة الكيلومتر والانحراف.">
       <div className="grid gap-3 md:grid-cols-2">
-        <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput></Field>
+        <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput> <DependencyLink field="vehicles" /></Field>
         <Field label="اللترات"><TextInput type="number" min="0.001" step="0.001" value={liters} onChange={(event) => setLiters(event.target.value)} /></Field>
         <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={fuelCost} onChange={(event) => setFuelCost(event.target.value)} /></Field>
         <Field label="العداد"><TextInput type="number" min={selectedVehicle?.currentOdometer ?? 0} value={odometer} onChange={(event) => setOdometer(event.target.value)} /></Field>
@@ -150,9 +153,9 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   if (mode === 'fleetTrips') return (
     <Card title="رحلات التوزيع" hint="تُحسب التكلفة من الوقود والمسافة والسائق. رحلة الفاتورة يمكن توزيع تكلفتها على دفعاتها حسب الكمية ثم إرسالها للمحاسبة للاعتماد.">
       <div className="grid gap-3 md:grid-cols-2">
-        <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr}</option>)}</SelectInput></Field>
-        <Field label="السائق"><SelectInput value={driverId} onChange={(event) => setDriverId(event.target.value)}>{ctx.state.employees.filter((employee) => employee.active).map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput></Field>
-        <Field label="فاتورة التوصيل"><SelectInput value={tripInvoiceId} onChange={(event) => setTripInvoiceId(event.target.value)}><option value="">بدون ربط بفاتورة</option>{ctx.state.invoices.filter((invoice) => invoice.status !== 'DRAFT').map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} — {partyName(ctx.state.customers, invoice.customerId)}</option>)}</SelectInput></Field>
+        <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr}</option>)}</SelectInput> <DependencyLink field="vehicles" /></Field>
+        <Field label="السائق"><SelectInput value={driverId} onChange={(event) => setDriverId(event.target.value)}>{ctx.state.employees.filter((employee) => employee.active).map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput> <DependencyLink field="employees" /></Field>
+        <Field label="فاتورة التوصيل"><SelectInput value={tripInvoiceId} onChange={(event) => setTripInvoiceId(event.target.value)}><option value="">بدون ربط بفاتورة</option>{ctx.state.invoices.filter((invoice) => invoice.status !== 'DRAFT').map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} — {partyName(ctx.state.customers, invoice.customerId)}</option>)}</SelectInput> <DependencyLink field="invoices" /></Field>
         <Field label="الوجهة"><TextInput value={destination} onChange={(event) => setDestination(event.target.value)} /></Field>
         <Field label="الكيلومترات"><TextInput type="number" min="0.1" value={km} onChange={(event) => setKm(event.target.value)} /></Field>
         <Field label="حمولة كجم"><TextInput type="number" min="0" value={loadKg} onChange={(event) => setLoadKg(event.target.value)} /></Field>
@@ -243,7 +246,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
                 setNextDueDate(''); setNextDueKm(''); setServiceSupplierId(''); close()
               }
             }}>
-              <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.filter((vehicle) => vehicle.active).map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput></Field>
+              <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.filter((vehicle) => vehicle.active).map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput> <DependencyLink field="vehicles" /></Field>
               <Field label="نوع الخدمة"><SelectInput value={serviceKind} onChange={(event) => setServiceKind(event.target.value as typeof serviceKind)}><option value="PERIODIC">دورية</option><option value="TIRES">إطارات</option><option value="OIL">زيوت</option><option value="PARTS">قطع</option><option value="REPAIR">إصلاح</option></SelectInput></Field>
               <Field label="التاريخ"><TextInput type="date" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} required /></Field>
               <Field label="الوصف"><TextInput value={serviceDescription} onChange={(event) => setServiceDescription(event.target.value)} required /></Field>
@@ -251,7 +254,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
               <Field label="قراءة العداد"><TextInput type="number" min="0" step="1" value={serviceOdometer} onChange={(event) => setServiceOdometer(event.target.value)} required /></Field>
               <Field label="موعد الصيانة التالية"><TextInput type="date" value={nextDueDate} onChange={(event) => setNextDueDate(event.target.value)} /></Field>
               <Field label="العداد عند الصيانة التالية"><TextInput type="number" min="0" step="1" value={nextDueKm} onChange={(event) => setNextDueKm(event.target.value)} /></Field>
-              <Field label="المورد"><SelectInput value={serviceSupplierId} onChange={(event) => setServiceSupplierId(event.target.value)}><option value="">بدون</option>{ctx.state.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.nameAr}</option>)}</SelectInput></Field>
+              <Field label="المورد"><SelectInput value={serviceSupplierId} onChange={(event) => setServiceSupplierId(event.target.value)}><option value="">بدون</option>{ctx.state.suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.nameAr}</option>)}</SelectInput> <DependencyLink field="suppliers" /></Field>
               <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !vehicleId}>حفظ</PrimaryButton></div>
             </form>}
           </FormDialog>
@@ -305,6 +308,7 @@ function CompanyDocumentEditor({ ctx, document, onClose }: { ctx: LiveCtx; docum
   const [cost, setCost] = useState(document.cost === undefined ? '' : String(document.cost))
   const [notes, setNotes] = useState(document.notes ?? '')
   return (
+    <LocalizedContent>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
         <h3 className="text-lg font-bold">تعديل الوثيقة</h3>
@@ -346,6 +350,7 @@ function CompanyDocumentEditor({ ctx, document, onClose }: { ctx: LiveCtx; docum
         </form>
       </div>
     </div>
+    </LocalizedContent>
   )
 }
 
@@ -417,7 +422,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
               <Field label="تاريخ الإصدار"><TextInput type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} required /></Field>
               <Field label="تاريخ الانتهاء"><TextInput type="date" value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>
               <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(event) => setCost(event.target.value)} /></Field>
-              <Field label="مسؤول التجديد"><SelectInput value={renewalOwnerId} onChange={(event) => setRenewalOwnerId(event.target.value)}><option value="">غير محدد</option>{ctx.state.users.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}{ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput></Field>
+              <Field label="مسؤول التجديد"><SelectInput value={renewalOwnerId} onChange={(event) => setRenewalOwnerId(event.target.value)}><option value="">غير محدد</option>{ctx.state.users.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}{ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}</SelectInput> <DependencyLink field="users" /></Field>
               <Field label="ملاحظات"><TextInput value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
               <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
             </form>}
@@ -591,6 +596,7 @@ function ExpenseEditor({ ctx, expense, onClose }: { ctx: LiveCtx; expense: (type
   const [description, setDescription] = useState(expense.description)
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>(expense.vatTreatment)
   return (
+    <LocalizedContent>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
         <h3 className="text-lg font-bold">تعديل المصروف {expense.number}</h3>
@@ -622,6 +628,7 @@ function ExpenseEditor({ ctx, expense, onClose }: { ctx: LiveCtx; expense: (type
         </form>
       </div>
     </div>
+    </LocalizedContent>
   )
 }
 
@@ -895,6 +902,7 @@ function ObligationEditor({ ctx, obligation, onClose }: { ctx: LiveCtx; obligati
   const [kind, setKind] = useState(obligation.kind)
   const [total, setTotal] = useState(String(obligation.total))
   return (
+    <LocalizedContent>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
         <h3 className="text-lg font-bold">تعديل الالتزام</h3>
@@ -927,6 +935,7 @@ function ObligationEditor({ ctx, obligation, onClose }: { ctx: LiveCtx; obligati
         </form>
       </div>
     </div>
+    </LocalizedContent>
   )
 }
 
@@ -1169,6 +1178,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
       {editingEmployee ? (
+        <LocalizedContent>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <h3 className="text-lg font-bold">تحديث بيانات الموظف</h3>
@@ -1178,6 +1188,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
             </div>
           </div>
         </div>
+        </LocalizedContent>
       ) : null}
 
       <Card title="الإجازات" hint={`رصيد السنوي = ${entitlement} − المعتمد في السنة. الإجازة غير المدفوعة تخصم من المسير عند الإنشاء.`}>
@@ -1187,7 +1198,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
               <Field label="الموظف">
                 <SelectInput value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
                   {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="employees" />
               </Field>
               <div className="rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm">
                 <div className="font-semibold">{selected.nameAr}</div>
@@ -1315,7 +1326,7 @@ function Attendance({ ctx }: { ctx: LiveCtx }) {
                   <Field label="الموظف">
                     <SelectInput value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
                       {ctx.state.employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="employees" />
                   </Field>
                   <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
                   <Field label="حضور"><TextInput value={checkIn} onChange={(e) => setCheckIn(e.target.value)} /></Field>
@@ -1467,12 +1478,12 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
           <Field label="الدفعة">
             <SelectInput value={lotNo} onChange={(e) => setLotNo(e.target.value)}>
               {(ctx.state.lots ?? []).map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="lots" />
           </Field>
           <Field label="العميل">
             <SelectInput value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               {ctx.state.customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.nameAr}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="customers" />
           </Field>
         </div>
         {trace?.lot ? (
@@ -1561,7 +1572,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
           <SelectInput value={form.packagingMaterialId} onChange={(e) => setForm({ ...form, packagingMaterialId: e.target.value })}>
             <option value="">استخدم تكلفة الكيس</option>
             {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-          </SelectInput>
+          </SelectInput> <DependencyLink field="materials" />
         </Field>
         {([
           ['ELECTRICITY', 'كهرباء / طن'],
@@ -1692,6 +1703,7 @@ function UserEditor({ ctx, user, onClose }: { ctx: LiveCtx; user: (typeof ctx.st
   const [role, setRole] = useState(user.role)
   const [active, setActive] = useState(user.active)
   return (
+    <LocalizedContent>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
         <h3 className="text-lg font-bold">تعديل بيانات المستخدم</h3>
@@ -1720,6 +1732,7 @@ function UserEditor({ ctx, user, onClose }: { ctx: LiveCtx; user: (typeof ctx.st
         </form>
       </div>
     </div>
+    </LocalizedContent>
   )
 }
 
@@ -1762,7 +1775,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
                 <Field label="المستخدم">
                   <SelectInput value={userId} onChange={(e) => setUserId(e.target.value)}>
                     {ctx.state.users.map((user) => <option key={user.id} value={user.id}>{user.fullName}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="users" />
                 </Field>
                 <Field label="كلمة مرور جديدة"><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></Field>
                 <PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton>
@@ -1808,7 +1821,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
               setSelected(ctx.state.rolePermissions[next])
             }}>
               {ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="rolePermissions" />
           </Field>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {PERMISSIONS.map((permission) => (
@@ -1867,7 +1880,7 @@ function NameList({ rows, empty }: { rows: string[]; empty: string }) {
   return (
     <ul className="space-y-1.5 text-sm text-[#30453d]">
       {rows.map((row) => (
-        <li key={row}>{row}</li>
+        <li key={row}>{translateUiText(language, row)}</li>
       ))}
     </ul>
   )
@@ -1910,6 +1923,8 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </p>
         <Link href="/guide" className="inline-flex min-h-11 items-center rounded-lg border border-[#99d4cb] bg-[#f0fdfa] px-4 text-sm font-semibold text-[#134e4a] hover:bg-[#ccfbf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#285c56] dark:bg-[#193b37] dark:text-[#ccfbf1] dark:hover:bg-[#134e4a]">دليل البنود</Link>
       </div>
+
+      <SystemMap permissions={ctx.permissions} language={language} />
 
       {access.production ? <Card title="الإنتاج" hint="المخطط مقابل ما خرج فعلياً من خط الإنتاج.">
         <div className="grid gap-3 sm:grid-cols-3">

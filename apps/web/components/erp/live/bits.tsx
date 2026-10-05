@@ -3,6 +3,8 @@
 import { isValidElement, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 
+import Link from 'next/link'
+
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
@@ -36,7 +38,7 @@ export function Card({
           <h3 className="text-lg font-medium">{translateUiText(language, title)}</h3>
           {hint ? <p className="mt-1 text-sm text-[#6b7280]">{translateUiText(language, hint)}</p> : null}
         </div>
-        {extra}
+        {extra ? <LocalizedContent>{extra}</LocalizedContent> : null}
       </div>
       <LocalizedContent>{children}</LocalizedContent>
     </section>
@@ -297,8 +299,85 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} placeholder={props.placeholder ? translateUiText(language, props.placeholder) : undefined} className={controlClass} />
 }
 
-export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={controlClass}><LocalizedContent>{props.children}</LocalizedContent></select>
+const CONTROL_LINK_TARGETS: Record<string, { href: string; label: string }> = {
+  suppliers: { href: '/sales/parties/suppliers', label: 'الموردين' },
+  materials: { href: '/inventory/raw-materials', label: 'المواد الخام' },
+  products: { href: '/inventory/products', label: 'المنتجات' },
+  employees: { href: '/admin/employees', label: 'الموظفين' },
+  customers: { href: '/sales/parties', label: 'العملاء' },
+  machines: { href: '/inventory/machines', label: 'الماكينات' },
+  vehicles: { href: '/fleet/vehicles', label: 'المركبات' },
+  productionOrders: { href: '/inventory/manufacturing/orders', label: 'أوامر التصنيع' },
+  users: { href: '/admin/users', label: 'المستخدمين' },
+  invoices: { href: '/sales', label: 'الفواتير' },
+  recipes: { href: '/inventory/manufacturing', label: 'الوصفات' },
+  packagingMaterials: { href: '/inventory/extensions?kind=packaging', label: 'مواد التعبئة' },
+  spareParts: { href: '/inventory/extensions?kind=spare', label: 'قطع الغيار' },
+  lots: { href: '/inventory/manufacturing/lots', label: 'دفعات الإنتاج' },
+  distributionPoints: { href: '/sales/distribution/points', label: 'نقاط التوزيع' },
+  supplierTemplates: { href: '/sales/parties/templates', label: 'قوالب الرسائل' },
+  expenses: { href: '/accounting/expenses', label: 'المصروفات' },
+  purchaseOrders: { href: '/sales/parties/orders', label: 'أوامر الشراء' },
+  maintenanceSchedules: { href: '/fleet/maintenance', label: 'جدول الصيانة' },
+  purchaseRequests: { href: '/sales/parties/requests', label: 'طلبات الشراء' },
+  obligations: { href: '/accounting/obligations', label: 'الالتزامات' },
+  maintenanceRecords: { href: '/fleet/maintenance', label: 'سجلات الصيانة' },
+  warehouses: { href: '/inventory/warehouses', label: 'المستودعات' },
+  customerRecipes: { href: '/inventory/manufacturing/customer-recipes', label: 'خلطات العملاء' },
+  payrolls: { href: '/admin/payroll', label: 'الرواتب' },
+  attendance: { href: '/admin/attendance', label: 'الحضور' },
+  adjustments: { href: '/inventory/warehouses/adjustments', label: 'تسويات المخزون' },
+  vehicleServices: { href: '/fleet/vehicles/services', label: 'خدمات المركبات' },
+  supplierCommunications: { href: '/sales/parties/communications', label: 'مراسلات الموردين' },
+  qualitySamples: { href: '/inventory/manufacturing/quality', label: 'عينات الجودة' },
+  notifications: { href: '/admin/notifications', label: 'الإشعارات' },
+  leaveRequests: { href: '/admin/leaves', label: 'الإجازات' },
+  fuelLogs: { href: '/fleet/fuel', label: 'تعبئات الوقود' },
+  distributionClosings: { href: '/sales/distribution/closing', label: 'الإقفال اليومي' },
+  scaleReadings: { href: '/inventory/manufacturing/scale', label: 'قراءات الميزان' },
+  utilitiesReadings: { href: '/accounting/utilities', label: 'قراءات المرافق' },
+}
+
+export function DependencyLink({ field }: { field: string }) {
+  const { language } = useLanguage()
+  const target = CONTROL_LINK_TARGETS[field]
+  if (!target) return null
+  return (
+    <Link href={target.href} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1d7f72] underline-offset-2 hover:underline" target="_blank">
+      {translateUiText(language, `أضف ${target.label} ${translateUiText(language, 'أولاً')}`)} ↗
+    </Link>
+  )
+}
+
+export function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement> & { dependencyField?: string }) {
+  const { dependencyField, ...selectProps } = props
+  const { language } = useLanguage()
+  const hasOptions = (() => {
+    let found = false
+    const walk = (node: React.ReactNode) => {
+      if (found || node == null) return
+      if (Array.isArray(node)) { node.forEach(walk); return }
+      if (typeof node === 'object' && 'type' in node) {
+        const el = node as React.ReactElement
+        if (el.type === 'option') { found = true; return }
+        const children = (el.props as { children?: React.ReactNode }).children
+        if (children) walk(children)
+      }
+    }
+    walk(selectProps.children)
+    return found
+  })()
+  return (
+    <>
+      <select {...selectProps} className={controlClass}><LocalizedContent>{selectProps.children}</LocalizedContent></select>
+      {!hasOptions ? (
+        <div className="mt-1">
+          <p className="text-xs font-semibold text-[#ad5e46]">{translateUiText(language, '— لا توجد بيانات مرتبطة —')} {translateUiText(language, 'أضف عناصرها')} {translateUiText(language, 'أولاً')} {translateUiText(language, 'حتى يمكن اختيارها')}</p>
+          {dependencyField && <DependencyLink field={dependencyField} />}
+        </div>
+      ) : null}
+    </>
+  )
 }
 
 export function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -480,7 +559,7 @@ export function RowActions({
           </button>
           {confirmOpen ? (
             <Dialog
-              title={deleteTitle}
+              title={translateUiText(language, deleteTitle)}
               onClose={() => !submitting && setConfirmOpen(false)}
             >
               <div className="space-y-4 text-right" dir="rtl">

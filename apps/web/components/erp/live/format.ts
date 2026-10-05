@@ -54,29 +54,43 @@ export const STATUS_LABEL: Record<string, string> = {
   OTHER: 'أخرى',
 }
 
+function uiLang(): 'ar' | 'en' | 'hi' {
+  try {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem('erp-language') : null
+    return v === 'en' || v === 'hi' ? v : 'ar'
+  } catch {
+    return 'ar'
+  }
+}
+
+function uiLocale() {
+  const lang = uiLang()
+  return lang === 'hi' ? 'hi-IN' : lang === 'en' ? 'en-GB' : 'ar-OM'
+}
+
 export function moneyFmt(value: number) {
-  return `${new Intl.NumberFormat('ar-OM', {
+  return `${new Intl.NumberFormat(uiLocale(), {
     numberingSystem: 'latn',
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
-  }).format(value)} ر.ع.`
+  }).format(value)} ${uiLang() === 'en' ? 'OMR' : uiLang() === 'hi' ? 'ओमानी रियाल' : 'ر.ع.'}`
 }
 
 export function qtyFmt(value: number) {
-  return new Intl.NumberFormat('ar-OM', { numberingSystem: 'latn', maximumFractionDigits: 3 }).format(value)
+  return new Intl.NumberFormat(uiLocale(), { numberingSystem: 'latn', maximumFractionDigits: 3 }).format(value)
 }
 
 export function tonsFmt(kg: number) {
-  return `${new Intl.NumberFormat('ar-OM', {
+  return `${new Intl.NumberFormat(uiLocale(), {
     numberingSystem: 'latn',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(kg / 1000)} طن`
+  }).format(kg / 1000)} ${uiLang() === 'en' ? 't' : uiLang() === 'hi' ? 'टन' : 'طن'}`
 }
 
 export function pctFmt(value: number) {
   const digits = Math.abs(value - Math.round(value)) < 0.05 ? 0 : 1
-  return `${new Intl.NumberFormat('ar-OM', {
+  return `${new Intl.NumberFormat(uiLocale(), {
     numberingSystem: 'latn',
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -85,7 +99,7 @@ export function pctFmt(value: number) {
 
 export function dayFmt(day: string) {
   const [year, month, date] = day.split('-').map(Number)
-  return new Intl.DateTimeFormat('ar-OM', {
+  return new Intl.DateTimeFormat(uiLocale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

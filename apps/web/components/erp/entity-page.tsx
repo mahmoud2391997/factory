@@ -6,6 +6,8 @@ import { Plus, Search, Trash2, Pencil } from 'lucide-react'
 import { emptyValuesFromFields, SchemaForm, validateSchemaFields } from '@/components/erp/schema-form'
 import type { EntitySchema } from '@/lib/erp-schema'
 import { downloadCsv } from '@/lib/csv'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
 
 export type EntityRecord = {
   id: string
@@ -28,6 +30,8 @@ export function EntityPage({
   onDelete: (id: string) => void
   mainLabel: string
 }) {
+  const { language } = useLanguage()
+  const t = (text: string) => translateUiText(language, text)
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<EntityRecord | null>(null)
@@ -98,7 +102,7 @@ export function EntityPage({
   }
 
   const save = () => {
-    const nextErrors = validateSchemaFields(schema.fields, values)
+    const nextErrors = validateSchemaFields(schema.fields, values, t)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
     if (editing) onUpdate(editing.id, values)
@@ -107,7 +111,7 @@ export function EntityPage({
   }
 
   const exportCsv = () => {
-    const header = ['المعرّف', ...columns.map((c) => c.label)]
+    const header = [t('المعرّف'), ...columns.map((c) => c.label)]
     const rows = filtered.map((row) => [
       row.id,
       ...columns.map((c) => formatCell(row.values[c.key])),
@@ -133,7 +137,7 @@ export function EntityPage({
             onClick={exportCsv}
             className="rounded-xl border border-[#dfe7e3] bg-white px-4 py-3 text-base font-semibold text-[#53655e] hover:bg-[#f8faf9]"
           >
-            تصدير CSV
+            {t('تصدير CSV')}
           </button>
           <button
             type="button"
@@ -141,7 +145,7 @@ export function EntityPage({
             className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-3 text-base font-bold text-white hover:bg-[#1d594d]"
           >
             <Plus size={18} />
-            إضافة جديد
+            {t('إضافة جديد')}
           </button>
         </div>
       </div>
@@ -149,15 +153,15 @@ export function EntityPage({
       <section className="rounded-2xl border border-[#e1e9e5] bg-white p-5 shadow-[0_4px_22px_rgba(31,65,53,0.04)]">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-xl font-bold">السجلات</h3>
-            <p className="mt-1 text-base text-[#899892]">{filtered.length} سجل — الحقول مطابقة لنموذج البيانات</p>
+            <h3 className="text-xl font-bold">{t('السجلات')}</h3>
+            <p className="mt-1 text-base text-[#899892]">{filtered.length} {t('سجل — الحقول مطابقة لنموذج البيانات')}</p>
           </div>
           <div className="relative">
             <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aa9a3]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث..."
+              placeholder={t('بحث...')}
               className="h-11 rounded-lg border border-[#dfe7e3] pr-10 pl-3 text-base outline-none focus:border-[#1d7f72]"
             />
           </div>
@@ -173,14 +177,14 @@ export function EntityPage({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ccfbf1] bg-[#f0fdf4] p-3 text-sm text-[#134e4a] shadow-xs">
             <div className="flex items-center gap-3">
               <span className="font-semibold">
-                تم تحديد {selectedIds.length} من أصل {filtered.length} سجل
+                {t('تم تحديد')} {selectedIds.length} {t('من أصل')} {filtered.length} {t('سجل')}
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
                 className="text-xs text-[#6b7280] underline hover:text-[#1f1f1f]"
               >
-                إلغاء التحديد
+                {t('إلغاء التحديد')}
               </button>
             </div>
             <button
@@ -189,7 +193,7 @@ export function EntityPage({
               className="flex items-center gap-1.5 rounded-lg bg-[#ad5e46] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#8f4733]"
             >
               <Trash2 size={14} />
-              حذف المحدد ({selectedIds.length})
+              {t('حذف المحدد')} ({selectedIds.length})
             </button>
           </div>
         ) : null}
@@ -202,24 +206,24 @@ export function EntityPage({
                   <input
                     type="checkbox"
                     checked={allFilteredSelected}
-                    aria-label="تحديد كل السجلات"
+                    aria-label={t('تحديد كل السجلات')}
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="pb-3 font-medium">المعرّف</th>
+                <th className="pb-3 font-medium">{t('المعرّف')}</th>
                 {columns.map((col) => (
                   <th key={col.key} className="pb-3 font-medium">
                     {col.label}
                   </th>
                 ))}
-                <th className="pb-3 font-medium">إجراءات</th>
+                <th className="pb-3 font-medium">{t('إجراءات')}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + 3} className="py-10 text-center text-lg text-[#899892]">
-                    لا توجد سجلات — أضف أول سجل من النموذج
+                    {t('لا توجد سجلات — أضف أول سجل من النموذج')}
                   </td>
                 </tr>
               ) : (
@@ -231,7 +235,7 @@ export function EntityPage({
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          aria-label={`تحديد ${row.id}`}
+                          aria-label={`${t('تحديد')} ${row.id}`}
                           onChange={() => toggleSelectRow(row.id)}
                         />
                       </td>
@@ -245,7 +249,7 @@ export function EntityPage({
                         <div className="flex gap-1">
                           <button
                             type="button"
-                            aria-label="تعديل"
+                            aria-label={t('تعديل')}
                             onClick={() => openEdit(row)}
                             className="rounded-lg border border-[#dfe7e3] p-2 text-[#53655e] hover:bg-[#f8faf9]"
                           >
@@ -253,7 +257,7 @@ export function EntityPage({
                           </button>
                           <button
                             type="button"
-                            aria-label="حذف"
+                            aria-label={t('حذف')}
                             onClick={() => onDelete(row.id)}
                             className="rounded-lg border border-[#f0d0c8] p-2 text-[#ad5e46] hover:bg-[#fff5f2]"
                           >
@@ -273,9 +277,9 @@ export function EntityPage({
       {confirmBulkDeleteOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-[#1f1f1f]">تأكيد الحذف الجماعي</h3>
+            <h3 className="text-lg font-bold text-[#1f1f1f]">{t('تأكيد الحذف الجماعي')}</h3>
             <p className="mt-2 text-sm text-[#6b7280]">
-              هل أنت متأكد من حذف {selectedIds.length} سجل محدد؟ لن يمكن التراجع عن هذا الإجراء وسيتم رفض حذف السجلات المرتبطة بعمليات أخرى.
+              {t('هل أنت متأكد من حذف')} {selectedIds.length} {t('سجل محدد؟ لن يمكن التراجع عن هذا الإجراء وسيتم رفض حذف السجلات المرتبطة بعمليات أخرى.')}
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -283,14 +287,14 @@ export function EntityPage({
                 onClick={() => setConfirmBulkDeleteOpen(false)}
                 className="rounded-lg border border-[#e5e7eb] px-4 py-2 text-sm font-semibold text-[#53655e] hover:bg-[#f9fafb]"
               >
-                إلغاء
+                {t('إلغاء')}
               </button>
               <button
                 type="button"
                 onClick={handleBulkDelete}
                 className="rounded-lg bg-[#ad5e46] px-4 py-2 text-sm font-bold text-white hover:bg-[#8f4733]"
               >
-                تأكيد الحذف
+                {t('تأكيد الحذف')}
               </button>
             </div>
           </div>
@@ -303,12 +307,12 @@ export function EntityPage({
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-[#123c35]">
-                  {editing ? 'تعديل سجل' : 'إضافة سجل جديد'}
+                  {editing ? t('تعديل سجل') : t('إضافة سجل جديد')}
                 </h3>
                 <p className="mt-1 text-sm text-[#899892]">{schema.title} — حقول النموذج من الـ Schema</p>
               </div>
               <button type="button" onClick={() => setDialogOpen(false)} className="text-sm text-[#899892] hover:text-[#123c35]">
-                إغلاق
+                {t('إغلاق')}
               </button>
             </div>
 
@@ -332,7 +336,7 @@ export function EntityPage({
                 onClick={save}
                 className="rounded-xl bg-[#123c35] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1d594d]"
               >
-                حفظ
+                {t('حفظ')}
               </button>
             </div>
           </div>
@@ -342,8 +346,8 @@ export function EntityPage({
   )
 }
 
-function formatCell(value: unknown) {
+function formatCell(value: unknown, t: (text: string) => string = (text) => text) {
   if (value === undefined || value === null || value === '') return '—'
-  if (typeof value === 'boolean') return value ? 'نعم' : 'لا'
+  if (typeof value === 'boolean') return value ? t('نعم') : t('لا')
   return String(value)
 }

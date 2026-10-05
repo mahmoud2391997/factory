@@ -8,8 +8,9 @@ import { machineCostsByMachine, materialPriceAnalysis, materialStatement, packag
 import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, PurchasePurpose, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
 
-import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus, DependencyLink } from './bits'
 import { QcLimitsEditor } from './screens-qc'
 import type { LiveCtx } from './ctx'
 import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, qtyFmt, statusLabel, WAREHOUSE_LABEL } from './format'
@@ -72,25 +73,27 @@ function busiestMaterialId(ctx: LiveCtx) {
 }
 
 function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
+  const t = (text: string) => translateUiText(language, text)
   const [materialId, setMaterialId] = useState(() => busiestMaterialId(ctx))
   const batches = [...new Set(ctx.state.balances.filter((row) => row.itemType === 'MATERIAL' && row.itemId === materialId).map((row) => row.batchNo))]
   const [batchNo, setBatchNo] = useState(batches[0] ?? '')
   const activeBatch = batches.includes(batchNo) ? batchNo : (batches[0] ?? '')
   const supplierTrace = activeBatch ? traceSupplierBatch(ctx.state, materialId, activeBatch) : null
   const statement = materialStatement(ctx.state, materialId)
-  const productLabel = statement?.lines.map((line) => `${line.productName} ${qtyFmt(line.outputQty)} كجم`).join('، ')
+  const productLabel = statement?.lines.map((line) => `${line.productName} ${qtyFmt(line.outputQty)} ${t('كجم')}`).join('، ')
   return (
     <div className="space-y-4">
-      <Card title="اختر الخامة" hint="نفس الأسئلة على أي مادة: ماذا دخل، ماذا استُهلك، ماذا تبقّى، وماذا نُتج وبيع، وهل يوجد فرق ولماذا.">
+      <Card title={t('اختر الخامة')} hint={t('نفس الأسئلة على أي مادة: ماذا دخل، ماذا استُهلك، ماذا تبقّى، وماذا نُتج وبيع، وهل يوجد فرق ولماذا.')}>
         <div className="grid gap-3 md:grid-cols-2">
-          <Field label="الخامة">
+          <Field label={t('الخامة')}>
             <SelectInput value={materialId} onChange={(e) => { setMaterialId(e.target.value); setBatchNo('') }}>
               {ctx.state.materials.map((material) => (
                 <option key={material.id} value={material.id}>{material.nameAr}</option>
               ))}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="materials" />
           </Field>
-          <Field label="دفعة الخام">
+          <Field label={t('دفعة الخام')}>
             <SelectInput value={activeBatch} onChange={(e) => setBatchNo(e.target.value)}>
               {batches.map((batch) => <option key={batch} value={batch}>{batch}</option>)}
             </SelectInput>
@@ -99,14 +102,14 @@ function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
         {supplierTrace && supplierTrace.lots.length > 0 ? (
           <div className="mt-4">
             <p className="mb-2 text-sm text-[#53655e]">
-              المورد: {supplierTrace.suppliers.map((item) => item.nameAr).join('، ') || '—'} — الدفعات المتأثرة: {supplierTrace.lots.map((lot) => lot.lotNo).join('، ')}
+              {t('المورد:')} {supplierTrace.suppliers.map((item) => item.nameAr).join(t('،')) || '—'} {t('— الدفعات المتأثرة:')} {supplierTrace.lots.map((lot) => lot.lotNo).join(t('،'))}
             </p>
             <DataTable
-              columns={['الدفعة', 'المنتج', 'العملاء']}
+              columns={[t('الدفعة'), t('المنتج'), t('العملاء')]}
               rows={supplierTrace.lots.map((lot) => [
                 lot.lotNo,
                 productName(ctx.state, lot.productId),
-                lot.deliveries.map((delivery) => ctx.state.customers.find((item) => item.id === delivery.customerId)?.nameAr ?? 'سحب').join('، ') || '—',
+                lot.deliveries.map((delivery) => ctx.state.customers.find((item) => item.id === delivery.customerId)?.nameAr ?? t('سحب')).join(t('،')) || '—',
               ])}
             />
           </div>
@@ -115,34 +118,34 @@ function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
       {statement ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title={statement.material.nameAr}>
-            <Answer label="كمية الخام التي دخلت المخزن" value={`${qtyFmt(statement.receivedQty)} ${statement.material.unit}`} />
-            <Answer label="الكمية المستخدمة في التصنيع" value={`${qtyFmt(statement.consumedQty)} ${statement.material.unit}`} />
-            <Answer label="الكمية المتبقية" value={`${qtyFmt(statement.onHand)} ${statement.material.unit}`} />
-            <Answer label="عدد المنتجات التي تم تصنيعها" value={statement.productCount ? `${statement.productCount} أمر — ${productLabel}` : 'لا يوجد إنتاج مكتمل'} />
-            <Answer label="الكمية التي تم سحبها أو بيعها" value={`بيع ${qtyFmt(statement.soldQty)} كجم — سحب ${qtyFmt(statement.withdrawnQty)} كجم`} />
+            <Answer label={t('كمية الخام التي دخلت المخزن')} value={`${qtyFmt(statement.receivedQty)} ${statement.material.unit}`} />
+            <Answer label={t('الكمية المستخدمة في التصنيع')} value={`${qtyFmt(statement.consumedQty)} ${statement.material.unit}`} />
+            <Answer label={t('الكمية المتبقية')} value={`${qtyFmt(statement.onHand)} ${statement.material.unit}`} />
+            <Answer label={t('عدد المنتجات التي تم تصنيعها')} value={statement.productCount ? `${statement.productCount} ${t('أمر')} — ${productLabel}` : t('لا يوجد إنتاج مكتمل')} />
+            <Answer label={t('الكمية التي تم سحبها أو بيعها')} value={`${t('بيع')} ${qtyFmt(statement.soldQty)} ${t('كجم')} — ${t('سحب')} ${qtyFmt(statement.withdrawnQty)} ${t('كجم')}`} />
             <Answer
-              label="الكمية الموجودة حالياً"
+              label={t('الكمية الموجودة حالياً')}
               value={
                 statement.warehouses.length
                   ? statement.warehouses.map((row) => `${WAREHOUSE_LABEL[row.warehouse] ?? row.warehouse}: ${qtyFmt(row.qty)}`).join(' · ')
-                  : 'لا يوجد رصيد'
+                  : t('لا يوجد رصيد')
               }
             />
             <Answer
-              label="هل الإنتاج متوافق مع كمية المواد الخام المستخدمة؟"
-              value={statement.lines.length === 0 ? 'لا يوجد إنتاج مكتمل للمقارنة' : statement.aligned ? 'نعم، المصروف يطابق الوصفة للناتج الفعلي' : `لا، الفرق ${pctFmt(statement.gapPct)} عن الوصفة`}
+              label={t('هل الإنتاج متوافق مع كمية المواد الخام المستخدمة؟')}
+              value={statement.lines.length === 0 ? t('لا يوجد إنتاج مكتمل للمقارنة') : statement.aligned ? t('نعم، المصروف يطابق الوصفة للناتج الفعلي') : `${t('لا، الفرق')} ${pctFmt(statement.gapPct)} ${t('عن الوصفة')}`}
             />
             <Answer
-              label="هل هناك عجز أو فاقد؟"
+              label={t('هل هناك عجز أو فاقد؟')}
               value={[
-                statement.wasteQty > 0 ? `فاقد ${qtyFmt(statement.wasteQty)} ${statement.material.unit}` : 'لا يوجد فاقد مسجّل',
-                statement.shortfallKg > 0 ? `عجز عن المخطط ${qtyFmt(statement.shortfallKg)} كجم` : 'لا يوجد عجز عن المخطط',
-                statement.belowMin ? 'الرصيد عند الحد الأدنى أو دونه' : '',
+                statement.wasteQty > 0 ? `${t('فاقد')} ${qtyFmt(statement.wasteQty)} ${statement.material.unit}` : t('لا يوجد فاقد مسجّل'),
+                statement.shortfallKg > 0 ? `${t('عجز عن المخطط')} ${qtyFmt(statement.shortfallKg)} ${t('كجم')}` : t('لا يوجد عجز عن المخطط'),
+                statement.belowMin ? t('الرصيد عند الحد الأدنى أو دونه') : '',
               ].filter(Boolean).join(' — ')}
             />
             <Answer
-              label="سبب وجود فرق أو تأخير"
-              value={[...statement.reasons, ...statement.stoppages.map((item) => `${item.area}: ${item.reason} (${item.minutes} د)`)].join(' — ') || 'لا يوجد فرق يستدعي سبباً'}
+              label={t('سبب وجود فرق أو تأخير')}
+              value={[...statement.reasons, ...statement.stoppages.map((item) => `${item.area}: ${item.reason} (${item.minutes} ${t('د')})`)].join(' — ') || t('لا يوجد فرق يستدعي سبباً')}
             />
           </Card>
           <Card title="أوامر الإنتاج التي استهلكت الخامة">
@@ -161,7 +164,7 @@ function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
               {statement.balanceMatches
                 ? 'رصيد الخامة يساوي ما دخل المخزن ناقص ما استُهلك في التصنيع.'
                 : 'يوجد فرق بين الدخول والاستهلاك والرصيد الحالي. راجع التعديلات والتحويلات.'}
-              {statement.productOnHand > 0 ? ` رصيد المنتج النهائي المرتبط: ${qtyFmt(statement.productOnHand)} كجم.` : ''}
+              {statement.productOnHand > 0 ? ` ${t('رصيد المنتج النهائي المرتبط')}: ${qtyFmt(statement.productOnHand)} كجم.` : ''}
             </p>
           </Card>
         </div>
@@ -770,7 +773,7 @@ function MaintenanceScheduleEditor({
         <Field label="الآلة">
           <SelectInput value={machineId} onChange={(e) => setMachineId(e.target.value)}>
             {(ctx.state.machines ?? []).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-          </SelectInput>
+          </SelectInput> <DependencyLink field="machines" />
         </Field>
         <Field label="النوع">
           <SelectInput value={type} onChange={(e) => setType(e.target.value as typeof type)}>
@@ -883,7 +886,7 @@ function DistributionPointEditor({
         <Field label="المدير">
           <SelectInput value={managerId} onChange={(e) => setManagerId(e.target.value)}>
             {ctx.state.employees.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-          </SelectInput>
+          </SelectInput> <DependencyLink field="employees" />
         </Field>
         <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} required /></Field>
         <Field label="الحالة">
@@ -902,6 +905,8 @@ function DistributionPointEditor({
 }
 
 function Materials({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
+  const t = (text: string) => translateUiText(language, text)
   const [code, setCode] = useState('')
   const [nameAr, setNameAr] = useState('')
   const [category, setCategory] = useState('حبوب')
@@ -966,7 +971,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
               type="button"
               className="flex items-center gap-1.5 rounded-md bg-[#ad5e46] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#8f4733]"
               onClick={async () => {
-                if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} مادة خام محددة؟`)) return
+                if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} ${t('مادة خام محددة')}؟`)) return
                 let failedCount = 0
                 for (const id of selectedIds) {
                   const res = await ctx.act('deleteMaterial', { id })
@@ -1008,6 +1013,8 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Products({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
+  const t = (text: string) => translateUiText(language, text)
   const [code, setCode] = useState('')
   const [nameAr, setNameAr] = useState('')
   const [salePrice, setSalePrice] = useState('0.180')
@@ -1052,7 +1059,7 @@ function Products({ ctx }: { ctx: LiveCtx }) {
           moneyFmt(item.salePrice),
           statusLabel(item.vatTreatment),
           `${item.bagKg} كجم`,
-          <Badge key={item.id} tone={item.active ? 'good' : 'neutral'}>{item.active ? 'نشط' : 'معطل'}</Badge>,
+          <Badge key={item.id} tone={item.active ? 'good' : 'neutral'}>{item.active ? t('نشط') : t('معطل')}</Badge>,
         ])}
         rowActions={(_, index) => {
           const item = ctx.state.products[index]
@@ -1108,13 +1115,17 @@ function VarianceThresholdsEditor({ ctx }: { ctx: LiveCtx }) {
         </Field>
         <Field label={targetType === 'PRODUCT' ? 'المنتج' : 'الوصفة'}>
           {targetType === 'PRODUCT' ? (
+            <>
             <SelectInput value={productId} onChange={(e) => { setProductId(e.target.value); setWarning(''); setCritical(''); setFormError('') }}>
               {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="products" />
+            </>
           ) : (
+            <>
             <SelectInput value={recipeId} onChange={(e) => { setRecipeId(e.target.value); setWarning(''); setCritical(''); setFormError('') }}>
               {ctx.state.recipes.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="recipes" />
+            </>
           )}
         </Field>
         <Field label="حد التحذير %">
@@ -1294,17 +1305,17 @@ function Transfer({ ctx }: { ctx: LiveCtx }) {
               <Field label="من">
                 <SelectInput value={from} onChange={(e) => setFrom(e.target.value as WarehouseKey)}>
                   {ctx.state.warehouses.map((warehouse) => <option key={warehouse.key} value={warehouse.key}>{warehouse.nameAr}</option>)}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="warehouses" />
               </Field>
               <Field label="إلى">
                 <SelectInput value={to} onChange={(e) => setTo(e.target.value as WarehouseKey)}>
                   {ctx.state.warehouses.map((warehouse) => <option key={warehouse.key} value={warehouse.key}>{warehouse.nameAr}</option>)}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="warehouses" />
               </Field>
               <Field label="المادة">
                 <SelectInput value={itemId} onChange={(e) => setItemId(e.target.value)}>
                   {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="materials" />
               </Field>
               <Field label="الدفعة">
                 <SelectInput value={batchNo} onChange={(e) => setBatchNo(e.target.value)} required>
@@ -1358,12 +1369,12 @@ function Adjustment({ ctx }: { ctx: LiveCtx }) {
                 <Field label="المستودع">
                   <SelectInput value={warehouse} onChange={(e) => setWarehouse(e.target.value as WarehouseKey)}>
                     {ctx.state.warehouses.map((item) => <option key={item.key} value={item.key}>{item.nameAr}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="warehouses" />
                 </Field>
                 <Field label="المادة">
                   <SelectInput value={itemId} onChange={(e) => setItemId(e.target.value)}>
                     {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="materials" />
                 </Field>
                 <Field label="الدفعة"><TextInput value={batchNo} onChange={(e) => setBatchNo(e.target.value)} required /></Field>
                 <Field label="الفرق (+/-)"><TextInput type="number" step="0.001" value={qtyDelta} onChange={(e) => setQtyDelta(e.target.value)} required /></Field>
@@ -1439,8 +1450,8 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
             const result = await ctx.act('recordSparePartUsage', { sparePartId: usagePartId, machineId: usageMachineId, quantity: Number(usageQuantity), reason: usageReason })
             if (result.ok) { setUsageQuantity(''); setUsageReason(''); close() }
           }}>
-            <Field label="القطعة"><SelectInput value={usagePartId} onChange={(event) => setUsagePartId(event.target.value)}>{(ctx.state.spareParts ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr} — الرصيد {qtyFmt(item.quantity)}</option>)}</SelectInput></Field>
-            <Field label="الماكينة"><SelectInput value={usageMachineId} onChange={(event) => setUsageMachineId(event.target.value)}>{(ctx.state.machines ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput></Field>
+            <Field label="القطعة"><SelectInput value={usagePartId} onChange={(event) => setUsagePartId(event.target.value)}>{(ctx.state.spareParts ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr} — الرصيد {qtyFmt(item.quantity)}</option>)}</SelectInput> <DependencyLink field="spareParts" /></Field>
+            <Field label="الماكينة"><SelectInput value={usageMachineId} onChange={(event) => setUsageMachineId(event.target.value)}>{(ctx.state.machines ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput> <DependencyLink field="machines" /></Field>
             <Field label="الكمية"><TextInput type="number" min="0.001" step="0.001" max={ctx.state.spareParts.find((item) => item.id === usagePartId)?.quantity ?? 0} value={usageQuantity} onChange={(event) => setUsageQuantity(event.target.value)} required /></Field>
             <Field label="سبب الصرف"><TextInput value={usageReason} onChange={(event) => setUsageReason(event.target.value)} required /></Field>
             <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !usagePartId || !usageMachineId}>تسجيل الصرف</PrimaryButton></div>
@@ -1493,7 +1504,7 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
                     <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                       <option value="">بدون</option>
                       {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="suppliers" />
                   </Field>
                   <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
                 </form>
@@ -1617,7 +1628,7 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
                     <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                       <option value="">بدون</option>
                       {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="suppliers" />
                   </Field>
                   <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
                 </form>
@@ -1630,8 +1641,8 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
               const result = await ctx.act('recordPackagingConsumption', { packagingMaterialId: consumptionMaterialId, productionOrderId, lotNo, quantity: Number(consumptionQuantity) })
               if (result.ok) { setConsumptionQuantity(''); close() }
             }}>
-              <Field label="مادة التعبئة"><SelectInput value={consumptionMaterialId} onChange={(event) => setConsumptionMaterialId(event.target.value)}>{ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput></Field>
-              <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { setProductionOrderId(event.target.value); setLotNo(ctx.state.lots.find((lot) => lot.productionOrderId === event.target.value)?.lotNo ?? '') }}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput></Field>
+              <Field label="مادة التعبئة"><SelectInput value={consumptionMaterialId} onChange={(event) => setConsumptionMaterialId(event.target.value)}>{ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput> <DependencyLink field="packagingMaterials" /></Field>
+              <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { setProductionOrderId(event.target.value); setLotNo(ctx.state.lots.find((lot) => lot.productionOrderId === event.target.value)?.lotNo ?? '') }}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput> <DependencyLink field="lots" /></Field>
               <Field label="دفعة الإنتاج"><SelectInput value={lotNo} onChange={(event) => setLotNo(event.target.value)}>{availableLots.map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}</SelectInput></Field>
               <Field label="الكمية الفعلية المصروفة"><TextInput type="number" min="0.001" step="0.001" value={consumptionQuantity} onChange={(event) => setConsumptionQuantity(event.target.value)} required /></Field>
               <p className="text-sm text-[#6b7280]">المتوقع: {expectedQuantity == null ? 'لا يوجد معدل محدد' : qtyFmt(expectedQuantity)} {consumptionVariance == null ? '' : ` — الفارق/الهدر: ${qtyFmt(consumptionVariance)}`}</p>
@@ -1705,7 +1716,7 @@ function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
                   <Field label="مادة التعبئة">
                     <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
                       {ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="packagingMaterials" />
                   </Field>
                   <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
                   <Field label="الكمية المجرودة"><TextInput type="number" min="0" step="1" value={countedQty} onChange={(e) => setCountedQty(e.target.value)} required /></Field>
@@ -1890,7 +1901,7 @@ function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
                     <Field label="المورد">
                       <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                         {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                      </SelectInput>
+                      </SelectInput> <DependencyLink field="suppliers" />
                     </Field>
                     <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
                   </div>
@@ -1898,7 +1909,7 @@ function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
                     <div key={index} className="grid gap-3 md:grid-cols-3">
                       <SelectInput value={line.materialId} onChange={(e) => editor.update(index, { materialId: e.target.value })}>
                         {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                      </SelectInput>
+                      </SelectInput> <DependencyLink field="materials" />
                       <TextInput type="number" min="0.001" step="0.001" placeholder="الكمية" value={line.qty} onChange={(e) => editor.update(index, { qty: e.target.value })} required />
                       <TextInput type="number" min="0" step="0.001" placeholder="سعر الوحدة" value={line.unitCost} onChange={(e) => editor.update(index, { unitCost: e.target.value })} required />
                     </div>
@@ -2078,7 +2089,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
                     <div key={index} className="grid gap-3 md:grid-cols-2">
                       <SelectInput value={line.materialId} onChange={(e) => editor.update(index, { materialId: e.target.value })}>
                         {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                      </SelectInput>
+                      </SelectInput> <DependencyLink field="materials" />
                       <TextInput type="number" min="0.001" step="0.001" placeholder="الكمية" value={line.qty} onChange={(e) => editor.update(index, { qty: e.target.value })} required />
                     </div>
                   ))}
@@ -2179,7 +2190,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
                       <Field label="المورد">
                         <SelectInput value={quoteSupplier} onChange={(e) => setQuoteSupplier(e.target.value)}>
                           {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                        </SelectInput>
+                        </SelectInput> <DependencyLink field="suppliers" />
                       </Field>
                       <Field label="تكلفة التوصيل"><TextInput type="number" min="0" step="0.001" value={quoteDelivery} onChange={(e) => setQuoteDelivery(e.target.value)} /></Field>
                       <Field label="صالح حتى"><TextInput type="date" value={quoteValid} onChange={(e) => setQuoteValid(e.target.value)} /></Field>
@@ -2380,13 +2391,13 @@ function SupplierCommunications({ ctx }: { ctx: LiveCtx }) {
                   <Field label="المورد">
                     <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                       {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="suppliers" />
                   </Field>
                   <Field label="القالب">
                     <SelectInput value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
                       <option value="">بدون قالب</option>
                       {(ctx.state.supplierTemplates ?? []).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="supplierTemplates" />
                   </Field>
                   <Field label="الموضوع"><TextInput value={subject} onChange={(e) => setSubject(e.target.value)} required /></Field>
                   <Field label="المحتوى"><textarea className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm" value={body} onChange={(e) => setBody(e.target.value)} required /></Field>
@@ -2437,15 +2448,16 @@ export function ProductionScreens({ entityKey, ctx }: { entityKey: string; ctx: 
 }
 
 function MaintenanceHub({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <Card title="الآلات" hint={`${(ctx.state.machines ?? []).length} آلة مسجلة`}>
+      <Card title="الآلات" hint={`${(ctx.state.machines ?? []).length} ${translateUiText(language, 'آلة مسجلة')}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('machine')}>فتح سجل الآلات</PrimaryButton>
       </Card>
-      <Card title="جداول الصيانة" hint={`${(ctx.state.maintenanceSchedules ?? []).length} جدول صيانة`}>
+      <Card title="جداول الصيانة" hint={`${(ctx.state.maintenanceSchedules ?? []).length} ${translateUiText(language, 'جدول صيانة')}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('maintenanceSchedule')}>فتح الجداول</PrimaryButton>
       </Card>
-      <Card title="سجلات الصيانة" hint={`${(ctx.state.maintenanceRecords ?? []).length} سجل منفذ`}>
+      <Card title="سجلات الصيانة" hint={`${(ctx.state.maintenanceRecords ?? []).length} ${translateUiText(language, 'سجل منفذ')}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('maintenanceRecord')}>فتح السجلات</PrimaryButton>
       </Card>
     </div>
@@ -2482,7 +2494,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
                   <Field label="المنتج">
                     <SelectInput value={productId} onChange={(e) => setProductId(e.target.value)}>
                       {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="products" />
                   </Field>
                   <Field label="اسم الوصفة"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} /></Field>
                   <Field label="أساس المخرجات (كجم)"><TextInput type="number" min="0.001" step="0.001" value={baseOutputQty} onChange={(e) => setBaseOutputQty(e.target.value)} /></Field>
@@ -2582,7 +2594,7 @@ function Production({ ctx }: { ctx: LiveCtx }) {
                 <Field label="المنتج">
                   <SelectInput value={productId} onChange={(e) => { setProductId(e.target.value); setRecipeId('') }}>
                     {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="products" />
                 </Field>
                 <Field label="الوصفة">
                   <SelectInput value={recipeId || recipes[0]?.id || ''} onChange={(e) => setRecipeId(e.target.value)}>
@@ -2595,7 +2607,7 @@ function Production({ ctx }: { ctx: LiveCtx }) {
                     <SelectInput value={machineId} onChange={(e) => setMachineId(e.target.value)}>
                       <option value="">— بدون —</option>
                       {(ctx.state.machines ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="machines" />
                   </Field>
                   <Field label="الوردية (اختياري)">
                     <SelectInput value={shift} onChange={(e) => setShift(e.target.value)}>
@@ -2793,17 +2805,17 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
                   <Field label="العميل">
                     <SelectInput value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
                       {ctx.state.customers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="customers" />
                   </Field>
                   <Field label="المنتج">
                     <SelectInput value={productId} onChange={(e) => setProductId(e.target.value)}>
                       {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="products" />
                   </Field>
                   <Field label="الوصفة الأساسية">
                     <SelectInput value={recipeId} onChange={(e) => setRecipeId(e.target.value)}>
                       {ctx.state.recipes.filter((r) => r.productId === productId).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="recipes" />
                   </Field>
                   <Field label="اسم الوصفة"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                   <Field label="أساس المخرجات (كجم)"><TextInput type="number" min="0.001" step="0.001" value={baseOutputQty} onChange={(e) => setBaseOutputQty(e.target.value)} required /></Field>
@@ -2850,6 +2862,7 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
 }
 
 function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const firstOpenOrder = ctx.state.productionOrders.find((item) => item.status === 'RELEASED')
   const [materialId, setMaterialId] = useState(firstOpenOrder?.expected[0]?.materialId ?? '')
   const [productionOrderId, setProductionOrderId] = useState(firstOpenOrder?.id ?? '')
@@ -2859,13 +2872,13 @@ function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
   const expected = productionOrder?.expected.find((item) => item.materialId === materialId)
   return (
     <Card title="قراءات الميزان" hint="تُحسب الكمية المتوقعة من وصفة أمر الإنتاج. قراءة الميزان الأخيرة لكل مادة تُستخدم تلقائياً عند إكمال الأمر.">
-      {can(ctx.permissions, 'scale.manage') ? <FormDialog title="تسجيل قراءة ميزان" openLabel="قراءة جديدة">
+      {can(ctx.permissions, 'scale.manage') ? <FormDialog title="تسجيل قراءة ميزان" openLabel={translateUiText(language, 'قراءة جديدة')}>
         {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
           event.preventDefault()
           const result = await ctx.act('recordScaleReading', { materialId, productionOrderId, actualQty: Number(actualQty), scaleId })
           if (result.ok) { setActualQty(''); close() }
         }}>
-          <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { const id = event.target.value; setProductionOrderId(id); setMaterialId(ctx.state.productionOrders.find((order) => order.id === id)?.expected[0]?.materialId ?? '') }}>{ctx.state.productionOrders.filter((item) => item.status === 'RELEASED').map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput></Field>
+          <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { const id = event.target.value; setProductionOrderId(id); setMaterialId(ctx.state.productionOrders.find((order) => order.id === id)?.expected[0]?.materialId ?? '') }}>{ctx.state.productionOrders.filter((item) => item.status === 'RELEASED').map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput> <DependencyLink field="productionOrders" /></Field>
           <Field label="المادة الخام"><SelectInput value={materialId} onChange={(event) => setMaterialId(event.target.value)}>{(productionOrder?.expected ?? []).map((line) => <option key={line.materialId} value={line.materialId}>{materialName(ctx.state, line.materialId)}</option>)}</SelectInput></Field>
           <Field label="الوزن المتوقع من الوصفة (كجم)"><TextInput value={expected ? qtyFmt(expected.expectedQty) : ''} readOnly /></Field>
           <Field label="الوزن الفعلي (كجم)"><TextInput type="number" min="0" step="0.001" value={actualQty} onChange={(event) => setActualQty(event.target.value)} required /></Field>
@@ -2988,7 +3001,7 @@ function MaintenanceSchedules({ ctx }: { ctx: LiveCtx }) {
                   <Field label="الآلة">
                     <SelectInput value={machineId} onChange={(e) => setMachineId(e.target.value)}>
                       {(ctx.state.machines ?? []).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="machines" />
                   </Field>
                   <Field label="النوع">
                     <SelectInput value={type} onChange={(e) => setType(e.target.value as 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'HOURS_BASED')}>
@@ -3096,7 +3109,7 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
                   <Field label="الآلة">
                     <SelectInput value={machineId} onChange={(e) => setMachineId(e.target.value)}>
                       {(ctx.state.machines ?? []).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="machines" />
                   </Field>
                   <Field label="النوع">
                     <SelectInput value={type} onChange={(e) => setType(e.target.value as 'ROUTINE' | 'EMERGENCY' | 'PREVENTIVE')}>
@@ -3109,9 +3122,9 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
                   <Field label="تاريخ الانتهاء"><TextInput type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required /></Field>
                   <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} required /></Field>
                   <Field label="التكلفة"><TextInput type="number" min="0" step="0.001" value={cost} onChange={(e) => setCost(e.target.value)} required /></Field>
-                  <Field label="جدول الصيانة المرتبط"><SelectInput value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">بدون جدول</option>{(ctx.state.maintenanceSchedules ?? []).filter((item) => item.machineId === machineId).map((item) => <option key={item.id} value={item.id}>{item.description} — {item.nextDue.slice(0, 10)}</option>)}</SelectInput></Field>
+                  <Field label="جدول الصيانة المرتبط"><SelectInput value={scheduleId} onChange={(e) => setScheduleId(e.target.value)}><option value="">بدون جدول</option>{(ctx.state.maintenanceSchedules ?? []).filter((item) => item.machineId === machineId).map((item) => <option key={item.id} value={item.id}>{item.description} — {item.nextDue.slice(0, 10)}</option>)}</SelectInput> <DependencyLink field="maintenanceSchedules" /></Field>
                   <Field label="دقائق التشغيل المسجلة"><TextInput type="number" min="0" step="1" value={operatingMinutes} onChange={(e) => setOperatingMinutes(e.target.value)} /></Field>
-                  <Field label="قطعة غيار (اختياري)"><SelectInput value={sparePartId} onChange={(e) => setSparePartId(e.target.value)}><option value="">بدون</option>{(ctx.state.spareParts ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr} — {qtyFmt(item.quantity)}</option>)}</SelectInput></Field>
+                  <Field label="قطعة غيار (اختياري)"><SelectInput value={sparePartId} onChange={(e) => setSparePartId(e.target.value)}><option value="">بدون</option>{(ctx.state.spareParts ?? []).filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{item.nameAr} — {qtyFmt(item.quantity)}</option>)}</SelectInput> <DependencyLink field="spareParts" /></Field>
                   <Field label="كمية القطعة"><TextInput type="number" min="0" step="0.001" value={sparePartQuantity} onChange={(e) => setSparePartQuantity(e.target.value)} /></Field>
                   <Field label="ملاحظات"><TextInput value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
                   <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
@@ -3174,12 +3187,13 @@ export function SalesScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveC
 function DistributionHub({ ctx }: { ctx: LiveCtx }) {
   const points = ctx.state.distributionPoints ?? []
   const closings = ctx.state.distributionClosings ?? []
+  const { language } = useLanguage()
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Card title="نقاط التوزيع" hint={`${points.filter((point) => point.active).length} نقطة نشطة من أصل ${points.length}`}>
+      <Card title="نقاط التوزيع" hint={`${points.filter((point) => point.active).length} ${translateUiText(language, 'نقطة نشطة من أصل')} ${points.length}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('distributionPoint')}>إدارة نقاط التوزيع</PrimaryButton>
       </Card>
-      <Card title="إقفال التوزيع" hint={`${closings.length} عملية إقفال مسجلة`}>
+      <Card title="إقفال التوزيع" hint={`${closings.length} ${translateUiText(language, 'عملية إقفال مسجلة')}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('distributionClosing')}>فتح الإقفال اليومي</PrimaryButton>
       </Card>
     </div>
@@ -3299,13 +3313,13 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
                     <Field label="العميل">
                       <SelectInput value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
                         {ctx.state.customers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                      </SelectInput>
+                      </SelectInput> <DependencyLink field="customers" />
                     </Field>
                     {editor.lines.map((line, index) => (
                       <div key={index} className="grid gap-3 md:grid-cols-2">
                         <SelectInput value={line.productId} onChange={(e) => editor.update(index, { productId: e.target.value })}>
                           {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr} — {moneyFmt(item.salePrice)}</option>)}
-                        </SelectInput>
+                        </SelectInput> <DependencyLink field="products" />
                         <TextInput type="number" min="0.001" step="0.001" placeholder="الكمية كجم" value={line.qty} onChange={(e) => editor.update(index, { qty: e.target.value })} required />
                       </div>
                     ))}
@@ -3421,7 +3435,7 @@ function Withdrawals({ ctx }: { ctx: LiveCtx }) {
                 <Field label="المنتج">
                   <SelectInput value={productId} onChange={(e) => setProductId(e.target.value)}>
                     {ctx.state.products.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="products" />
                 </Field>
                 <Field label="الكمية"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
                 <Field label="السبب"><TextInput value={reason} onChange={(e) => setReason(e.target.value)} required /></Field>
@@ -3476,7 +3490,7 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
                   <Field label="المدير">
                     <SelectInput value={managerId} onChange={(e) => setManagerId(e.target.value)}>
                       {ctx.state.employees.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="employees" />
                   </Field>
                   <Field label="الهاتف"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} required /></Field>
                   <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
@@ -3552,7 +3566,7 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
                   <Field label="نقطة التوزيع">
                     <SelectInput value={pointId} onChange={(e) => setPointId(e.target.value)}>
                       {(ctx.state.distributionPoints ?? []).map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="distributionPoints" />
                   </Field>
                   <Field label="التاريخ"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
                   <div className="md:col-span-2">
@@ -3651,7 +3665,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
                             {inv.number} — {partyName(ctx.state.customers, inv.customerId)} ({moneyFmt(inv.total)})
                           </option>
                         ))}
-                    </SelectInput>
+                    </SelectInput> <DependencyLink field="invoices" />
                   </Field>
                   <PrimaryButton disabled={ctx.pending || !selectedInvoiceId}>بدء التسليم</PrimaryButton>
                 </form>
@@ -4015,7 +4029,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
                       {s.nameAr} {s.phone ? `(${s.phone})` : ''}
                     </option>
                   ))}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="suppliers" />
               </Field>
 
               <Field label="قالب جاهز (اختياري)">

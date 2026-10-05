@@ -6,7 +6,7 @@ import { supplierQuality } from '@/lib/erp/domain/reports'
 import { calculateLotNutrition, compareNutrition } from '@/lib/erp/domain/nutrition'
 import type { QcResult, QualitySample } from '@/lib/erp/domain/types'
 
-import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput } from './bits'
+import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, DependencyLink } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, pctFmt, qtyFmt, statusLabel } from './format'
 
@@ -202,27 +202,27 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
                   <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
                     <option value="">اختر</option>
                     {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="materials" />
                 </Field>
                 <Field label="دفعة الخام"><TextInput value={batchNo} onChange={(e) => setBatchNo(e.target.value)} required /></Field>
                 <Field label="المورد">
                   <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                     <option value="">بدون</option>
                     {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-                  </SelectInput>
+                  </SelectInput> <DependencyLink field="suppliers" />
                 </Field>
               </>
             ) : type === 'IN_PROCESS' ? (
               <Field label="أمر الإنتاج">
                 <SelectInput value={productionOrderId} onChange={(e) => setProductionOrderId(e.target.value)} required>
                   {ctx.state.productionOrders.filter((order) => order.status === 'RELEASED').map((order) => <option key={order.id} value={order.id}>{order.number}</option>)}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="productionOrders" />
               </Field>
             ) : (
               <Field label="دفعة الإنتاج">
                 <SelectInput value={lotNo} onChange={(e) => setLotNo(e.target.value)}>
                   {(ctx.state.lots ?? []).map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}
-                </SelectInput>
+                </SelectInput> <DependencyLink field="lots" />
               </Field>
             )}
             <Field label="رطوبة %"><TextInput type="number" min="0" max="100" step="0.001" value={moisture} onChange={(e) => setMoisture(e.target.value)} /></Field>
@@ -255,19 +255,19 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
             <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
               <option value="">الكل</option>
               {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="suppliers" />
           </Field>
           <Field label="المادة">
             <SelectInput value={materialId} onChange={(e) => setMaterialId(e.target.value)}>
               <option value="">الكل</option>
               {ctx.state.materials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="materials" />
           </Field>
           <Field label="الدفعة">
             <SelectInput value={lotNo} onChange={(e) => setLotNo(e.target.value)}>
               <option value="">الكل</option>
               {(ctx.state.lots ?? []).map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="lots" />
           </Field>
           <Field label="النتيجة">
             <SelectInput value={result} onChange={(e) => setResult(e.target.value)}>
@@ -456,7 +456,7 @@ function SupplierQuality({ ctx }: { ctx: LiveCtx }) {
         <Field label="المورد">
           <SelectInput value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             {ctx.state.suppliers.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}
-          </SelectInput>
+          </SelectInput> <DependencyLink field="suppliers" />
         </Field>
         {summary ? (
           <>

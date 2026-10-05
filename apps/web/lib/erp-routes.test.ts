@@ -415,7 +415,7 @@ test('workspace and section labels match the owner information architecture exac
     ['لوحة المالك'],
     ['العملاء والفواتير', 'التحصيل والمرتجعات', 'نقاط التوزيع', 'دورة الفاتورة والتسليم', 'الربحية'],
     ['المشتريات والموافقات', 'التواصل مع الموردين', 'تحليل أسعار المواد الخام'],
-    ['المواد الخام والمنتجات', 'مخزن قطع الغيار', 'مخزن مواد التعبئة والتشغيل', 'الحركات والجرد والتقارير'],
+    ['المخزون', 'المستودعات والحركات'],
     ['التصنيع والميزان', 'الخلطات والأوزان', 'خلطات العملاء', 'الجودة والتحليل الغذائي', 'تتبع الدفعات والهدر', 'تتبع الدفعات والهدر'],
     ['السيارات والنقل', 'الصيانة'],
     ['الأقساط والالتزامات المالية', 'البنك والحسابات', 'المصروفات والضرائب', 'الكهرباء والماء والغاز'],
@@ -503,8 +503,8 @@ test('Sales customers navigation keeps six routes in three responsive sidebar gr
   const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'sales')!.sections.find((item) => item.id === 'customers')!
   const resolved = resolvePath('/sales/today')!
   const tabs = pageTabs(resolved, allPagesForEveryRole)
-  assert.equal(section.tabLayout, 'sidebar')
-  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(section.tabLayout, 'tabs')
+  assert.equal(tabs.layout, 'tabs')
   assert.equal(tabs.primary.length, 6)
   assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
     'sales-overview',
@@ -514,18 +514,24 @@ test('Sales customers navigation keeps six routes in three responsive sidebar gr
 })
 
 
-test('Inventory movement navigation keeps all routes in four responsive sidebar groups', () => {
-  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'movement')!
+test('Inventory and warehouse movements are separate tabbed sections', () => {
+  const invSection = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'inventory')!
+  assert.equal(invSection.tabLayout, 'tabs')
+  const movSection = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'warehouse-operations')!
+  assert.equal(movSection.tabLayout, 'tabs')
   const resolved = resolvePath('/inventory/raw-materials/value')!
   const tabs = pageTabs(resolved, allPagesForEveryRole)
-  assert.equal(section.tabLayout, 'sidebar')
-  assert.equal(tabs.layout, 'sidebar')
-  assert.equal(tabs.primary.length, 13)
+  assert.equal(tabs.layout, 'tabs')
   assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
     'inventory-overview',
+    'materials-products',
     'stock-status',
-    'warehouse-operations',
     'traceability-reports',
+  ])
+  const movResolved = resolvePath('/inventory/warehouses/transfers')!
+  const movTabs = pageTabs(movResolved, allPagesForEveryRole)
+  assert.deepEqual([...new Set(movTabs.primary.map((tab) => tab.group))], [
+    'warehouse-operations',
   ])
 })
 
@@ -534,8 +540,8 @@ test('Production manufacturing navigation keeps eight routes in three responsive
   const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'production')!.sections.find((item) => item.id === 'manufacturing')!
   const resolved = resolvePath('/inventory/manufacturing/planned')!
   const tabs = pageTabs(resolved, allPagesForEveryRole)
-  assert.equal(section.tabLayout, 'sidebar')
-  assert.equal(tabs.layout, 'sidebar')
+  assert.equal(section.tabLayout, 'tabs')
+  assert.equal(tabs.layout, 'tabs')
   assert.equal(tabs.primary.length, 8)
   assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
     'manufacturing-status',

@@ -52,12 +52,12 @@ export default function LoginPage() {
     }
   }, [])
 
-  const signIn = async (account: string, secret: string) => {
+  const signIn = async (account: string, secret: string, demo = false) => {
     setEmail(account)
     setPassword(secret)
     setSubmitting(true)
     setMessage('')
-    const result = await login(account.trim(), secret)
+    const result = await login(account.trim(), secret, demo)
     setSubmitting(false)
     if (result.ok) {
       router.replace(result.mustChangePassword ? '/account/password' : '/')
@@ -166,6 +166,7 @@ export default function LoginPage() {
                   signIn(
                     health.demoCredentials?.email ?? 'admin@factory.local',
                     health.demoCredentials?.password ?? 'Admin123!',
+                    true,
                   )
                 }
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#19725f] bg-[#f0faf7] text-sm font-semibold text-[#19725f] transition hover:bg-[#e3f5ef] disabled:opacity-60"

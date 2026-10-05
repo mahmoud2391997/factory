@@ -1,6 +1,8 @@
 'use client'
 
 import type { SchemaField } from '@/lib/erp-schema'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { translateUiText } from '@/lib/i18n/translations'
 
 type Values = Record<string, unknown>
 
@@ -15,6 +17,8 @@ export function SchemaForm({
   errors: Record<string, string>
   onChange: (key: string, value: unknown) => void
 }) {
+  const { language } = useLanguage()
+  const t = (text: string) => translateUiText(language, text)
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {fields.map((field) => {
@@ -48,7 +52,7 @@ export function SchemaForm({
                 value={String(value ?? field.defaultValue ?? '')}
                 onChange={(e) => onChange(field.key, e.target.value)}
               >
-                <option value="">— اختر —</option>
+                <option value="">{t('— اختر —')}</option>
                 {(field.options ?? []).map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -63,7 +67,7 @@ export function SchemaForm({
                   onChange={(e) => onChange(field.key, e.target.checked)}
                   className="size-4 accent-[#123c35]"
                 />
-                <span className="text-sm text-[#53655e]">تفعيل</span>
+                <span className="text-sm text-[#53655e]">{t('تفعيل')}</span>
               </div>
             ) : field.type === 'number' ? (
               <input
@@ -94,6 +98,9 @@ export function SchemaForm({
             )}
 
             {error ? <span className="text-xs font-semibold text-[#ad5e46]">{error}</span> : null}
+            {!error && field.type === 'select' && field.required && (field.options?.length ?? 0) === 0 ? (
+              <span className="text-xs font-semibold text-[#ad5e46]">{t('— لا توجد بيانات مرتبطة — أضف عناصرها أولاً حتى يمكن اختيارها')}</span>
+            ) : null}
           </label>
         )
       })}
@@ -111,21 +118,21 @@ export function emptyValuesFromFields(fields: SchemaField[]): Values {
   return values
 }
 
-export function validateSchemaFields(fields: SchemaField[], values: Values) {
+export function validateSchemaFields(fields: SchemaField[], values: Values, t: (text: string) => string = (text) => text) {
   const errors: Record<string, string> = {}
   for (const field of fields) {
     const raw = values[field.key]
     if (field.required) {
       if (raw === undefined || raw === null || raw === '') {
-        errors[field.key] = 'هذا الحقل مطلوب'
+        errors[field.key] = field.type === 'select' ? t('يجب اختيار قيمة من القائمة') : t('هذا الحقل مطلوب')
         continue
       }
     }
     if (field.type === 'number' && raw !== '' && raw !== undefined && raw !== null) {
       const n = Number(raw)
-      if (Number.isNaN(n)) errors[field.key] = 'رقم غير صالح'
-      else if (field.min !== undefined && n < field.min) errors[field.key] = `الحد الأدنى ${field.min}`
-      else if (field.max !== undefined && n > field.max) errors[field.key] = `الحد الأقصى ${field.max}`
+      if (Number.isNaN(n)) errors[field.key] = t('رقم غير صالح')
+      else if (field.min !== undefined && n < field.min) errors[field.key] = t(`الحد الأدنى ${field.min}`)
+      else if (field.max !== undefined && n > field.max) errors[field.key] = t(`الحد الأقصى ${field.max}`)
     }
   }
   return errors

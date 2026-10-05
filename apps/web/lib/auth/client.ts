@@ -8,12 +8,12 @@ async function parseJson<T>(res: Response): Promise<AuthApiResponse<T>> {
   }
 }
 
-export async function apiLogin(email: string, password: string) {
+export async function apiLogin(email: string, password: string, demo = false) {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, demo }),
   })
   return parseJson<{ user: AuthUser }>(res)
 }

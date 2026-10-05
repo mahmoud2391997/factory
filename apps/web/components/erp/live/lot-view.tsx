@@ -9,7 +9,7 @@ import { useLanguage } from '@/lib/i18n/language-provider'
 import type { TranslationKey } from '@/lib/i18n/translations'
 import { translateUiText } from '@/lib/i18n/translations'
 
-import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus } from './bits'
+import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, SelectInput, TextInput, toneForStatus, DependencyLink } from './bits'
 import type { LiveCtx } from './ctx'
 import { can, moneyFmt, pctFmt, productName, qtyFmt, statusLabel } from './format'
 
@@ -84,7 +84,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
             <SelectInput value={productId} onChange={(event) => setProductId(event.target.value)}>
               <option value="">الكل</option>
               {ctx.state.products.map((product) => <option key={product.id} value={product.id}>{product.nameAr}</option>)}
-            </SelectInput>
+            </SelectInput> <DependencyLink field="products" />
           </Field>
           <Field label="من"><TextInput type="date" value={fromDay} onChange={(event) => setFromDay(event.target.value)} /></Field>
           <Field label="إلى"><TextInput type="date" value={toDay} onChange={(event) => setToDay(event.target.value)} /></Field>
@@ -125,7 +125,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
       {detail ? (
         <Card title="تتبع أمامي لدفعة الخام" hint="ابحث برقم دفعة المورد لمعرفة دفعات الإنتاج والعملاء والفواتير المتأثرة.">
           <div className="grid gap-3 md:grid-cols-3">
-            <Field label="المادة الخام"><SelectInput value={searchMaterialId} onChange={(event) => setSearchMaterialId(event.target.value)}>{ctx.state.materials.map((material) => <option key={material.id} value={material.id}>{material.nameAr}</option>)}</SelectInput></Field>
+            <Field label="المادة الخام"><SelectInput value={searchMaterialId} onChange={(event) => setSearchMaterialId(event.target.value)}>{ctx.state.materials.map((material) => <option key={material.id} value={material.id}>{material.nameAr}</option>)}</SelectInput> <DependencyLink field="materials" /></Field>
             <Field label="رقم دفعة المورد"><TextInput value={searchBatchNo} onChange={(event) => setSearchBatchNo(event.target.value)} /></Field>
           </div>
           {batchRecall ? <>
