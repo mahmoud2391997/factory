@@ -25,3 +25,14 @@ test('Vercel attachment storage warnings are available in Arabic, English, and H
   assert.ok(messages.every((message) => message.trim().length > 20))
   assert.equal(new Set(messages).size, 3)
 })
+
+test('missing Vercel attachment bytes have localized recovery messages', async () => {
+  const { attachmentDownloadUnavailableMessage } = await import(policyModule) as {
+    attachmentDownloadUnavailableMessage: (language: 'ar' | 'en' | 'hi') => string
+  }
+  const messages = (['ar', 'en', 'hi'] as const).map(attachmentDownloadUnavailableMessage)
+  assert.ok(messages.every((message) => message.trim().length > 30))
+  assert.ok(messages[0]?.includes('Vercel'))
+  assert.ok(messages[1]?.includes('Vercel'))
+  assert.ok(messages[2]?.includes('Vercel'))
+})
