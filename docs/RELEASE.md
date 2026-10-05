@@ -31,3 +31,19 @@ bash scripts/vercel-build.sh # run under isolated envs; migration command interc
 ```
 
 The test-only wrapper and logs lived under `/tmp` and were not added to the repository.
+
+## V1.3 — Prisma tracing and Neon URLs / تتبع Prisma وروابط Neon
+
+### Trace verification / التحقق من ملفات التتبع
+
+- `apps/web/next.config.mjs` does not currently set `outputFileTracingRoot` or `outputFileTracingIncludes`.
+- After a real local production build, both `apps/web/.next/server/app/api/erp/route.js.nft.json` and `apps/web/.next/server/app/api/auth/me/route.js.nft.json` listed the generated Prisma client's `default.js`, `schema.prisma`, and `libquery_engine-rhel-openssl-3.0.x.so.node`. Resolving each listed path from its manifest directory confirmed that the file exists. The RHEL engine itself was generated for the Prisma client.
+- The trace manifests point outside `apps/web` into the repository's root pnpm installation. This demonstrates that the current Next.js monorepo trace includes the generated client and required engine without an extra include rule. **No tracing configuration was added** because the built artifacts provide direct evidence that none is needed for these routes. Recheck these manifests after Prisma/Next upgrades.
+- `packages/database/src/client.ts` stores its Prisma client on Node's process-global `global.__erpPrisma` slot, reused across module reloads in a warm process. It is per process/instance, not shared across serverless instances.
+
+### Neon connection contract / إعداد اتصال Neon
+
+- Set `DATABASE_URL` to the Neon **pooled** connection URL (the hostname includes `-pooler`) for application runtime traffic, with `?sslmode=require&pgbouncer=true&connect_timeout=15`.
+- Set `DATABASE_URL_UNPOOLED` to Neon’s **direct/unpooled** URL for migrations. `scripts/vercel-build.sh` passes that direct URL only to `prisma migrate deploy` when present; otherwise it migrates using `DATABASE_URL`.
+- `packages/database/prisma/schema.prisma` defines only `url = env("DATABASE_URL")`; it has no Prisma `directUrl`. `packages/database/src/env.ts` resolves `DATABASE_URL` first, so configure the pooled URL there for normal runtime.
+- These are configuration instructions only. No Neon URL, database credential, or live connection was used during this validation.
