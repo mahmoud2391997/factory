@@ -7,6 +7,7 @@ import { canExportCosts, csvSpreadsheet, exportPermissionStatus, exportRowsForPe
 import { loadState } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
