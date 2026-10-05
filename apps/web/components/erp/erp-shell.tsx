@@ -43,6 +43,7 @@ import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { getSupportedLanguages, translateUiText } from '@/lib/i18n/translations'
 import type { Language } from '@/lib/i18n/translations'
 import { directionFor, useLanguage } from '@/lib/i18n/language-provider'
+import { unreadNotificationCount } from '@/lib/erp/notification-list'
 import { useErp } from '@/lib/use-erp'
 
 const COMPACT_KEY = 'erp-sidebar-compact'
@@ -112,6 +113,7 @@ export function ErpShell() {
   const [dark, setDark] = useState(false)
   const [themeReady, setThemeReady] = useState(false)
   const [noticesOpen, setNoticesOpen] = useState(false)
+  const [notificationFeedback, setNotificationFeedback] = useState<{ id: string; ok: boolean; message: string } | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openWorkspaceIds, setOpenWorkspaceIds] = useState<string[]>(() => [
     'home',
@@ -182,7 +184,7 @@ export function ErpShell() {
     : 0
 
   const notices = erp.state?.notifications.filter((item) => item.roles.includes(roleKey)) ?? []
-  const unread = notices.filter((item) => !item.read).length
+  const unread = unreadNotificationCount(notices)
   const showNotices = canSeeEntity(permissions, 'notification')
   const allowed = resolved ? canSeeEntity(permissions, resolved.page.entityKey) : false
   const meta = resolved ? { label: uiLabel(resolved.page.label), description: uiLabel(resolved.page.description) } : null
@@ -790,7 +792,8 @@ export function ErpShell() {
                             <div className="font-medium">{uiLabel(item.title)}</div>
                             <div className="text-sm text-[#6b7280]">{uiLabel(item.body)}</div>
                           </Link>
-                          {!item.read && liveCtx ? <button type="button" className="mt-2 min-h-10 text-sm font-medium text-[#0f766e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]" onClick={() => liveCtx.act('markNotificationRead', { id: item.id })}>{uiLabel('تمت القراءة')}</button> : null}
+                          {!item.read && liveCtx ? <button type="button" disabled={erp.pending} aria-label={`${uiLabel('تمت القراءة')}: ${uiLabel(item.title)}`} className="mt-2 min-h-10 text-sm font-medium text-[#0f766e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] disabled:cursor-not-allowed disabled:opacity-50" onClick={async () => { setNotificationFeedback(null); const result = await liveCtx.act('markNotificationRead', { id: item.id }); setNotificationFeedback({ id: item.id, ok: result.ok, message: uiLabel(result.message) }) }}>{uiLabel('تمت القراءة')}</button> : null}
+                          {notificationFeedback?.id === item.id ? <p role={notificationFeedback.ok ? 'status' : 'alert'} aria-live={notificationFeedback.ok ? 'polite' : 'assertive'} className={`mt-1 text-sm ${notificationFeedback.ok ? 'text-[#0f766e]' : 'text-[#b91c1c]'}`}>{notificationFeedback.message}</p> : null}
                         </div>
                       ))}
                     </div>
