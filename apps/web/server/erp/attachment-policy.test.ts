@@ -36,3 +36,16 @@ test('missing Vercel attachment bytes have localized recovery messages', async (
   assert.ok(messages[1]?.includes('Vercel'))
   assert.ok(messages[2]?.includes('Vercel'))
 })
+
+test('Vercel backup failures and download-only guidance are localized', async () => {
+  const { backupUnavailableMessage, backupDownloadNotice } = await import(policyModule) as {
+    backupUnavailableMessage: (language: 'ar' | 'en' | 'hi') => string
+    backupDownloadNotice: (language: 'ar' | 'en' | 'hi') => string
+  }
+  for (const language of ['ar', 'en', 'hi'] as const) {
+    assert.ok(backupUnavailableMessage(language).trim().length > 30)
+    assert.ok(backupDownloadNotice(language).trim().length > 30)
+  }
+  assert.equal(new Set((['ar', 'en', 'hi'] as const).map(backupUnavailableMessage)).size, 3)
+  assert.equal(new Set((['ar', 'en', 'hi'] as const).map(backupDownloadNotice)).size, 3)
+})
