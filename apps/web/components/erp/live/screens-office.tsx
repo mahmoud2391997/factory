@@ -14,7 +14,7 @@ import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
-import { attachmentTooLargeMessage, getAttachmentUploadLimits } from '@/server/erp/attachment-policy'
+import { attachmentTooLargeMessage, backupDownloadNotice, getAttachmentUploadLimits } from '@/server/erp/attachment-policy'
 
 import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
@@ -1531,6 +1531,8 @@ function Audit({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Settings({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
+  const isVercelBuild = process.env.NEXT_PUBLIC_APP_ENV === 'vercel'
   const company = ctx.state.company
   const [form, setForm] = useState({
     ...company,
@@ -1609,6 +1611,9 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
           {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('archiveHistory', { olderThanDays: 90 })}>أرشفة السجلات الأقدم من 90 يوماً</GhostButton> : null}
           {can(ctx.permissions, 'settings.read') ? <a className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3 text-sm font-semibold" href="/api/erp/backup">تنزيل نسخة احتياطية</a> : null}
         </div>
+        {isVercelBuild && can(ctx.permissions, 'settings.read') ? (
+          <p role="note" className="text-xs leading-5 text-[#7c8c86]">{backupDownloadNotice(language)}</p>
+        ) : null}
       </form>
     </Card>
   )
