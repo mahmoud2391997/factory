@@ -14,6 +14,7 @@ import type { CompanyDocument, VatTreatment } from '@/lib/erp/domain/types'
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
+import { attachmentTooLargeMessage, getAttachmentUploadLimits } from '@/server/erp/attachment-policy'
 
 import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus } from './bits'
 import type { LiveCtx } from './ctx'
@@ -489,6 +490,8 @@ function documentEntityName(ctx: LiveCtx, document: CompanyDocument) {
 
 function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDocument }) {
   const { language } = useLanguage()
+  const isVercelBuild = process.env.NEXT_PUBLIC_APP_ENV === 'vercel'
+  const maxAttachmentBytes = getAttachmentUploadLimits(isVercelBuild).maxFileBytes
   const [issueDate, setIssueDate] = useState(document.issueDate)
   const [expiryDate, setExpiryDate] = useState(document.expiryDate ?? '')
   const [cost, setCost] = useState(document.cost === undefined ? '' : String(document.cost))
@@ -533,8 +536,8 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
           setValidationError('الملف مطلوب')
           return
         }
-        if (file.size > 10 * 1024 * 1024) {
-          setValidationError('حجم الملف يتجاوز 10 ميجابايت')
+        if (file.size > maxAttachmentBytes) {
+          setValidationError(attachmentTooLargeMessage(language, isVercelBuild))
           return
         }
         if (fileName.trim()) {
@@ -564,7 +567,7 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
       }}>
         <Field label="إرفاق ملف"><TextInput name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(event) => { const f = event.target.files?.[0]; if (f) setFileName(f.name) }} /></Field>
         <Field label="اسم الملف"><TextInput value={fileName} onChange={(event) => setFileName(event.target.value)} placeholder="اختياري — الاسم الظاهر في القائمة" /></Field>
-        <p className="text-xs text-[#7c8c86]">PDF أو صورة PNG/JPEG — حتى 10 ميغابايت</p>
+        <p className="text-xs text-[#7c8c86]">{attachmentTooLargeMessage(language, isVercelBuild)}</p>
         {validationError ? <p role="alert" className="text-sm text-red-700">{validationError}</p> : null}
         {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
         <PrimaryButton disabled={uploading}>{uploading ? 'جارٍ الرفع…' : 'رفع المرفق'}</PrimaryButton>
