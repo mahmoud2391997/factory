@@ -56,3 +56,21 @@ export function attachmentDownloadUnavailableMessage(language: AttachmentLanguag
   }
   return messages[language]
 }
+
+export function backupUnavailableMessage(language: AttachmentLanguage) {
+  const messages: Record<AttachmentLanguage, string> = {
+    ar: 'تعذر إنشاء نسخة الاحتياطية على Vercel مؤقتاً. لم يتم إنشاء ملف؛ تحقق من اتصال قاعدة البيانات ثم أعد المحاولة.',
+    en: 'The backup could not be generated on Vercel. No file was created; check the database connection and try again.',
+    hi: 'Vercel पर बैकअप नहीं बन सका। कोई फ़ाइल नहीं बनाई गई; डेटाबेस कनेक्शन जाँचें और फिर प्रयास करें।',
+  }
+  return messages[language]
+}
+
+export function backupDownloadNotice(language: AttachmentLanguage) {
+  const messages: Record<AttachmentLanguage, string> = {
+    ar: 'احفظ ملف JSON الذي تم تنزيله؛ قرص Vercel المحلي مؤقت ولا يُعد نسخة احتياطية دائمة.',
+    en: 'Save the downloaded JSON file; Vercel’s local disk is temporary and is not a durable backup.',
+    hi: 'डाउनलोड की गई JSON फ़ाइल सुरक्षित रखें; Vercel की स्थानीय डिस्क अस्थायी है और स्थायी बैकअप नहीं है।',
+  }
+  return messages[language]
+}
