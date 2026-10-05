@@ -25,6 +25,7 @@ async function getErpDocuments() {
 }
 
 import { writeDatabaseArchive, writeFileArchive } from './archive-store'
+import { resolveErpDataDir } from './data-dir'
 import { deliverPendingEmails } from './mailer'
 
 const DOC_ID = 'main'
@@ -41,14 +42,15 @@ export type StorageKind = 'postgresql' | 'file'
 let memoryState: ErpState | null = null
 
 function dataDir() {
-  const configured = process.env.ERP_DATA_DIR?.trim()
-  if (configured) return configured
-  // Vercel / Lambda: only /tmp is writable. Writing under process.cwd() throws EROFS
-  // and previously broke demo login with AUTH_INTERNAL_ERROR.
-  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    return path.join(os.tmpdir(), 'erp-data')
-  }
-  return path.join(process.cwd(), 'data')
+  // Serverless deployments ignore ERP_DATA_DIR: only /tmp is writable and durable
+  // storage must be supplied by Postgres or a dedicated object-storage backend.
+  return resolveErpDataDir({
+    vercel: Boolean(process.env.VERCEL),
+    lambda: Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME),
+    configured: process.env.ERP_DATA_DIR,
+    tmpDir: os.tmpdir(),
+    cwd: process.cwd(),
+  })
 }
 
 function statePath() {

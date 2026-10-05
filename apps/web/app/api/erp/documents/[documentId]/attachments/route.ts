@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { inspectDocumentAttachment, MAX_DOCUMENT_ATTACHMENT_BYTES } from '@/lib/erp/domain/document-attachments'
+import { inspectDocumentAttachment } from '@/lib/erp/domain/document-attachments'
+import {
+  attachmentRequestTooLargeMessage,
+  attachmentStorageUnavailableMessage,
+  attachmentTooLargeMessage,
+  getAttachmentRequestLanguage,
+  getAttachmentUploadLimits,
+} from '@/server/erp/attachment-policy'
 import { getSessionUser } from '@/server/auth/session'
 import { removePrivateAttachment, writePrivateAttachment, loadState, runCommand } from '@/server/erp/store'
 import { toApiError } from '@/server/env'
@@ -14,9 +21,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ do
   if (!user.permissions.includes('documents.manage')) {
     return NextResponse.json({ success: false, message: 'ليست لديك صلاحية إدارة الوثائق' }, { status: 403 })
   }
+  const isVercel = Boolean(process.env.VERCEL)
+  const limits = getAttachmentUploadLimits(isVercel)
+  const language = getAttachmentRequestLanguage(request.headers)
   const contentLength = Number(request.headers.get('content-length'))
-  if (Number.isFinite(contentLength) && contentLength > MAX_DOCUMENT_ATTACHMENT_BYTES + 1024 * 1024) {
-    return NextResponse.json({ success: false, message: 'يجب ألا يتجاوز حجم طلب الرفع 11 ميغابايت' }, { status: 413 })
+  if (Number.isFinite(contentLength) && contentLength > limits.maxRequestBytes) {
+    const message = isVercel
+      ? attachmentRequestTooLargeMessage(language)
+      : attachmentTooLargeMessage(language, false)
+    return NextResponse.json({ success: false, message, code: 'ATTACHMENT_TOO_LARGE' }, { status: 413 })
   }
 
   try {
@@ -30,6 +43,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ do
     const value = form.get('file')
     if (!(value instanceof File)) {
       return NextResponse.json({ success: false, message: 'اختر ملف PDF أو صورة PNG/JPEG' }, { status: 400 })
+    }
+    if (value.size > limits.maxFileBytes) {
+      return NextResponse.json({
+        success: false,
+        message: attachmentTooLargeMessage(language, isVercel),
+        code: 'ATTACHMENT_TOO_LARGE',
+      }, { status: 413 })
+    }
+    if (isVercel) {
+      return NextResponse.json({
+        success: false,
+        message: attachmentStorageUnavailableMessage(language),
+        code: 'ATTACHMENT_STORAGE_UNAVAILABLE',
+      }, { status: 503 })
     }
     const bytes = new Uint8Array(await value.arrayBuffer())
     const inspected = inspectDocumentAttachment(value.name, bytes)
