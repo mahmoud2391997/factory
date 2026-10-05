@@ -47,3 +47,12 @@ export function attachmentStorageUnavailableMessage(language: AttachmentLanguage
   }
   return messages[language]
 }
+
+export function attachmentDownloadUnavailableMessage(language: AttachmentLanguage) {
+  const messages: Record<AttachmentLanguage, string> = {
+    ar: 'سجل المرفق موجود، لكن ملفه غير متاح لأن ملفات Vercel مؤقتة. اضبط تخزيناً دائماً للمرفقات ثم أعد المحاولة.',
+    en: 'The attachment record exists, but its file is unavailable because Vercel storage is temporary. Configure durable attachment storage and try again.',
+    hi: 'अटैचमेंट का रिकॉर्ड मौजूद है, लेकिन Vercel का स्टोरेज अस्थायी होने के कारण फ़ाइल उपलब्ध नहीं है। स्थायी अटैचमेंट स्टोरेज कॉन्फ़िगर करके फिर प्रयास करें।',
+  }
+  return messages[language]
+}
