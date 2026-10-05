@@ -542,7 +542,11 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
         }
         setUploading(true)
         try {
-          const response = await fetch(`/api/erp/documents/${document.id}/attachments`, { method: 'POST', body: formData })
+          const response = await fetch(`/api/erp/documents/${document.id}/attachments`, {
+            method: 'POST',
+            body: formData,
+            headers: { 'x-erp-language': language },
+          })
           const payload = await response.json() as { success?: boolean; message?: string }
           if (!response.ok || !payload.success) {
             setUploadError(payload.message || 'تعذر رفع الملف')
