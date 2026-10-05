@@ -118,6 +118,7 @@ export function migrateErpState(state: ErpState): ErpState {
   state.qualityHolds ??= []
   state.tripCostAllocations ??= []
   state.leaveRequests ??= []
+  state.notifications ??= []
   if (!state.accounts?.some((account) => account.code === '2600')) {
     state.accounts = state.accounts ?? []
     state.accounts.push({ code: '2600', nameAr: 'مستحقات تكاليف الإنتاج', type: 'LIABILITY' })
@@ -136,7 +137,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 8 &&
     state.schemaVersion !== 9 &&
     state.schemaVersion !== 10 &&
-    state.schemaVersion !== 11
+    state.schemaVersion !== 11 &&
+    state.schemaVersion !== 12
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -321,6 +323,13 @@ export function migrateErpState(state: ErpState): ErpState {
       if (quote.deliveryCost == null) quote.deliveryCost = 0
     }
     state.schemaVersion = 12
+  }
+
+  // v12 -> v13: add per-user notification reads. Preserve legacy `read` values so
+  // notifications already read globally stay read, and unread ones stay unread.
+  if (state.schemaVersion === 12) {
+    for (const notification of state.notifications) notification.readBy ??= []
+    state.schemaVersion = 13
   }
 
   return mergeRolePermissions(state)

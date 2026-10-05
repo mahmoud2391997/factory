@@ -281,6 +281,7 @@ function notify(
     body,
     dedupeKey,
     roles,
+    readBy: [],
     read: false,
     emailStatus: 'pending',
     at: clock.now(),

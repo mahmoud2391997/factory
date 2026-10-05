@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'
@@ -624,6 +624,8 @@ export type Notification = {
   body: string
   dedupeKey: string
   roles: RoleKey[]
+  /** Legacy `read: true` means read globally; new reads are tracked per user here. */
+  readBy?: string[]
   read: boolean
   emailStatus: 'pending' | 'sent' | 'skipped'
   at: string
