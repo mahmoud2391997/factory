@@ -1,5 +1,9 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { LanguageSelect } from '@/lib/i18n/language-select'
+
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Lock } from 'lucide-react'
@@ -8,6 +12,7 @@ import { useAuth } from '@/components/providers/auth-provider'
 
 export default function ChangePasswordPage() {
   const router = useRouter()
+  const { dir } = useLanguage()
   const { user, loading, refresh, logout } = useAuth()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -53,18 +58,18 @@ export default function ChangePasswordPage() {
   }
 
   if (loading || !user) {
-    return (
-      <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
+    return (<LocalizedContent>{(
+      <main dir={dir} className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
         <div className="flex items-center gap-3 text-sm text-[#6b7280]">
           <Loader2 className="animate-spin" size={18} />
           جاري التحميل...
         </div>
       </main>
-    )
+    )}</LocalizedContent>)
   }
 
-  return (
-    <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f9fafb] px-5 text-[#1f1f1f]">
+  return (<LocalizedContent>{(
+    <main dir={dir} className="grid min-h-screen place-items-center bg-[#f9fafb] px-5 text-[#1f1f1f]">
       <form onSubmit={onSubmit} className="w-full max-w-md rounded-[12px] border border-[#e5e7eb] bg-white p-7 shadow-sm">
         <div className="mb-6 text-center">
           <div className="mx-auto mb-4 grid size-10 place-items-center rounded-lg bg-[#1f1f1f] text-white">
@@ -104,5 +109,5 @@ export default function ChangePasswordPage() {
         </button>
       </form>
     </main>
-  )
+  )}</LocalizedContent>)
 }

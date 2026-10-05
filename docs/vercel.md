@@ -5,6 +5,8 @@
 ## إعداد مشروع Vercel
 
 - **Root Directory:** جذر المستودع (`.`)، وليس `apps/web`.
+- اضبط Root Directory من إعدادات المشروع؛ لا تُضف `rootDirectory` إلى `vercel.json` لأن مخطط Vercel لا يدعم هذا الحقل.
+- **Node.js Version:** `22.x`، مطابق لـ `.nvmrc` و`package.json`.
 - **Framework Preset:** Next.js.
 - **Install Command:** `pnpm install --frozen-lockfile`.
 - **Build Command:** `pnpm vercel-build`، وهو يستدعي `scripts/vercel-build.sh`.
@@ -23,6 +25,13 @@
 - لا تستخدم `APP_MODE=demo` مع قاعدة بيانات.
 
 لا يحتوي `packages/database/prisma/schema.prisma` على `directUrl`. يتولى `scripts/vercel-build.sh` اختيار رابط direct وتمريره إلى `prisma migrate deploy`؛ يظل `DATABASE_URL` رابط تشغيل التطبيق.
+
+يضبط `next.config.mjs` جذر تتبع ملفات الإنتاج على جذر المستودع، لتضمين حزمة قاعدة البيانات وPrisma خارج `apps/web` في وظائف Vercel.
+يعتمد جذر المستودع على نفس إصدار Next.js الموجود في تطبيق الويب، حتى يكتشف Vercel إطار العمل عند استخدام Root Directory = `.`. حدّث الإصدارين معًا.
+
+اربط فرع الإنتاج بـ `main` وأضف متغيرات البيئة لكل بيئة نشر تستخدمها. استخدم قاعدة منفصلة للمعاينات؛ سكربت البناء يطبق migrations على قاعدة البيئة المختارة. قاعدة PostgreSQL المحلية `127.0.0.1` لا يمكن استخدامها من Vercel؛ يلزم رابط قاعدة مستضافة مثل Neon.
+
+المرفقات تحتاج تخزينًا دائمًا منفصلًا: واجهات رفع مرفقات الوثائق والجودة تعيد حاليًا `ATTACHMENT_STORAGE_UNAVAILABLE` على Vercel، بدل حفظ ملفات مؤقتة تُفقد عند انتهاء الوظيفة. عمليات ERP الأساسية تحفظ الحالة في PostgreSQL.
 
 ## الصحة والتهيئة
 

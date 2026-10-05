@@ -415,7 +415,7 @@ test('workspace and section labels match the owner information architecture exac
     ['لوحة المالك'],
     ['العملاء والفواتير', 'التحصيل والمرتجعات', 'نقاط التوزيع', 'دورة الفاتورة والتسليم', 'الربحية'],
     ['المشتريات والموافقات', 'التواصل مع الموردين', 'تحليل أسعار المواد الخام'],
-    ['المخزون', 'المستودعات والحركات'],
+    ['المواد', 'تحليلات المخزون', 'المستودعات'],
     ['التصنيع والميزان', 'الخلطات والأوزان', 'خلطات العملاء', 'الجودة والتحليل الغذائي', 'تتبع الدفعات والهدر', 'تتبع الدفعات والهدر'],
     ['السيارات والنقل', 'الصيانة'],
     ['الأقساط والالتزامات المالية', 'البنك والحسابات', 'المصروفات والضرائب', 'الكهرباء والماء والغاز'],
@@ -424,7 +424,7 @@ test('workspace and section labels match the owner information architecture exac
   ])
 
   const workflowSections = NAV_CONFIG.workspaces.flatMap((workspace) => workspace.sections).filter((section) => section.workflow)
-  assert.equal(workflowSections.length, 18)
+  assert.equal(workflowSections.length, 19)
   assert.ok(workflowSections.every((section) => section.workflow!.split('←').length >= 2), 'workflow captions show the sequence between steps')
   assert.ok(workflowSections.flatMap((section) => section.pages).every((page) => canSeeEntity(allPagesForEveryRole, page.entityKey)))
 
@@ -514,25 +514,19 @@ test('Sales customers navigation keeps six routes in three responsive sidebar gr
 })
 
 
-test('Inventory and warehouse movements are separate tabbed sections', () => {
-  const invSection = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'inventory')!
-  assert.equal(invSection.tabLayout, 'tabs')
-  const movSection = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'warehouse-operations')!
-  assert.equal(movSection.tabLayout, 'tabs')
-  const resolved = resolvePath('/inventory/raw-materials/value')!
-  const tabs = pageTabs(resolved, allPagesForEveryRole)
-  assert.equal(tabs.layout, 'tabs')
-  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
-    'inventory-overview',
-    'materials-products',
-    'stock-status',
-    'traceability-reports',
-  ])
-  const movResolved = resolvePath('/inventory/warehouses/transfers')!
-  const movTabs = pageTabs(movResolved, allPagesForEveryRole)
-  assert.deepEqual([...new Set(movTabs.primary.map((tab) => tab.group))], [
-    'warehouse-operations',
-  ])
+test('Inventory separates materials, stock analytics, and warehouse movements', () => {
+  const inventory = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!
+  assert.deepEqual(inventory.sections.map((section) => section.id), ['materials', 'stock-analytics', 'warehouses'])
+  for (const section of inventory.sections) assert.equal(section.tabLayout, 'tabs')
+  const materials = pageTabs(resolvePath('/inventory/raw-materials')!, allPagesForEveryRole)
+  assert.equal(materials.layout, 'tabs')
+  assert.deepEqual([...new Set(materials.primary.map((tab) => tab.group))], ['inventory-overview', 'materials-products'])
+  const analytics = pageTabs(resolvePath('/inventory/raw-materials/value')!, allPagesForEveryRole)
+  assert.equal(analytics.layout, 'tabs')
+  assert.deepEqual([...new Set(analytics.primary.map((tab) => tab.group))], ['traceability-reports', 'stock-status'])
+  const movements = pageTabs(resolvePath('/inventory/warehouses/transfers')!, allPagesForEveryRole)
+  assert.deepEqual([...new Set(movements.primary.map((tab) => tab.group))], ['warehouse-operations'])
+  assert.equal(new Set(ALL_NAV_PAGES.map((page) => page.id)).size, ALL_NAV_PAGES.length, 'navigation page IDs are unique')
 })
 
 

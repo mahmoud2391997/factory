@@ -1,5 +1,8 @@
+import { fileURLToPath } from 'node:url'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: fileURLToPath(new URL('../..', import.meta.url)),
   poweredByHeader: false,
   env: {
     NEXT_PUBLIC_GIT_COMMIT_SHA:

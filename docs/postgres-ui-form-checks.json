@@ -1,0 +1,1283 @@
+[
+  {
+    "path": "/sales/parties",
+    "action": "Add customer",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Tax number",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Address",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "New customer",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/sales/parties/suppliers",
+    "action": "Add supplier",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Tax number",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Phone",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "New supplier",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/sales/parties/requests",
+    "action": "Purchase request",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Other item",
+        "type": "button"
+      },
+      {
+        "text": "Create request",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "PurposeRaw materialsRaw materialpackagingSpare partsmaintenanceServiceOther",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Notes",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Quantity",
+        "required": true,
+        "type": "number",
+        "valid": false
+      }
+    ],
+    "title": "New purchase request",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/sales/withdrawals",
+    "action": "New withdrawal",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Execute withdrawal",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Productعلف اختبار تشغيلي Add Products first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Quantity",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Reason",
+        "required": true,
+        "type": "text",
+        "valid": false
+      }
+    ],
+    "title": "Internal withdrawal",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/sales/distribution/points",
+    "action": "Add distribution point",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Location",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "ManagerQA Production Operator Add Employees first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Phone",
+        "required": true,
+        "type": "text",
+        "valid": false
+      }
+    ],
+    "title": "New distribution point",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/sales/distribution/closing",
+    "action": "Add closing",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Distribution pointنقطة توزيع اختبارية Add Distribution points first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Date",
+        "required": true,
+        "type": "date",
+        "valid": true
+      },
+      {
+        "label": "Opening stock",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Sold",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Returned",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Closing stocktake",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Cash received",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Transfers received",
+        "required": true,
+        "type": "number",
+        "valid": false
+      }
+    ],
+    "title": "New daily closing",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/sales/delivery",
+    "action": "Start delivery",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Start delivery",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "InvoiceSelect invoice...INV-2026-001 — عميل اختبارات المصنع 02 (50.000 OMR) Add Invoices first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      }
+    ],
+    "title": "Start invoice delivery"
+  },
+  {
+    "path": "/inventory/raw-materials",
+    "action": "Add material",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Category",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Minimum quantity (kg)",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "TaxZero-ratedTaxableExempt",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      }
+    ],
+    "title": "New raw material",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/products",
+    "action": "Add product",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Sale price / kg",
+        "required": false,
+        "type": "number",
+        "valid": true
+      }
+    ],
+    "title": "Finished product",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/manufacturing",
+    "action": "New recipe",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save recipe",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Productعلف اختبار تشغيلي Add Products first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Recipe name",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Output base (kg)",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "مادة خام اختبارية 4",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "مادة خام اختبارية 3",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "مادة خام اختبارية 2",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "مادة خام اختبارية 1",
+        "required": false,
+        "type": "number",
+        "valid": true
+      }
+    ],
+    "title": "BOM recipe"
+  },
+  {
+    "path": "/inventory/manufacturing/customer-recipes",
+    "action": "Add customer recipe",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Customerعميل اختبارات المصنع 02عميل اختبارات المصنع 01 Add Customers first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Productعلف اختبار تشغيلي Add Products first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Base recipeوصفة تشغيل اختبارية Add Recipes first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Recipe name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Output base (kg)",
+        "required": true,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Sale price / kg",
+        "required": true,
+        "type": "number",
+        "valid": false
+      }
+    ],
+    "title": "New customer recipe",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/extensions?kind=spare",
+    "action": "Add spare part",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Description",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Quantity",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Unit cost",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Minimum stock",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Supplierwithoutمورد اختبارات المصنع 02مورد اختبارات المصنع 01 Add Suppliers first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      }
+    ],
+    "title": "New spare part",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/extensions?kind=packaging",
+    "action": "Add packaging material",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "CategorybagsThreadsInkPaperlabelsOther",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Quantity",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Unit",
+        "required": true,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Unit cost",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Minimum stock",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Expected consumption per ton (optional)",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Supplierwithoutمورد اختبارات المصنع 02مورد اختبارات المصنع 01 Add Suppliers first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      }
+    ],
+    "title": "New packaging material",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/warehouses/adjustments",
+    "action": "Request adjustment",
+    "buttons": [
+      {
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "text": "Send for approval",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "WarehouseRaw materials warehouseManufacturing warehouseFinished goods warehouse Add Warehouses first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Materialمادة خام اختبارية 4مادة خام اختبارية 3مادة خام اختبارية 2مادة خام اختبارية 1 Add Raw materials first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Batch",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Difference (+/-)",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Reason",
+        "required": true,
+        "type": "text",
+        "valid": false
+      }
+    ],
+    "title": "Request inventory adjustment",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/manufacturing/scale",
+    "action": "New reading",
+    "emptySubmit": "disabled: no open production order"
+  },
+  {
+    "path": "/fleet/vehicles",
+    "action": "Add vehicle",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Plate number",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Type",
+        "required": true,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      }
+    ],
+    "title": "New vehicle",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/fleet/fuel",
+    "action": "Record refueling",
+    "inline": true,
+    "emptySubmit": "rejected: Fuel quantity is invalid"
+  },
+  {
+    "path": "/inventory/manufacturing/maintenance/machines",
+    "action": "Add machine",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Code",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Name",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Type",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Location",
+        "required": true,
+        "type": "text",
+        "valid": false
+      }
+    ],
+    "title": "New machine",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/manufacturing/maintenance/schedules",
+    "action": "Add schedule",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Machineخط إنتاج اختباري Add Machines first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "TypeDailyWeeklyMonthlyannualBy operating hours",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Description",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Period",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Responsible",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "New maintenance schedule",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/inventory/manufacturing/maintenance/records",
+    "action": "Add record",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Machineخط إنتاج اختباري Add Machines first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "TypeRoutineEmergencyPreventive",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Start date",
+        "required": true,
+        "type": "date",
+        "valid": false
+      },
+      {
+        "label": "Expiry date",
+        "required": true,
+        "type": "date",
+        "valid": false
+      },
+      {
+        "label": "Description",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Cost",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Linked maintenance scheduleNo schedule Add Maintenance schedule first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Recorded downtime minutes",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Spare part (optional)without Add Spare Parts first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Part quantity",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Notes",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "New maintenance record",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/accounting/obligations",
+    "action": "Add obligation",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Beneficiary",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Description",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "TypeLoaninstallmentLeaseOther",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Total amount",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Installment value",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "First due date",
+        "required": true,
+        "type": "date",
+        "valid": false
+      },
+      {
+        "label": "FrequencyMonthlyQuarterlyannualOne-time",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Number of installments",
+        "required": false,
+        "type": "number",
+        "valid": true
+      }
+    ],
+    "title": "New financial obligation",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/accounting/financial-ops/bank-transactions",
+    "action": "Add transaction",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "record",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Bank account",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Transaction number",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Date",
+        "required": true,
+        "type": "date",
+        "valid": true
+      },
+      {
+        "label": "Amount",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "TypeIncomingOutgoing",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Description",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "Reference",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "Record bank transaction",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/accounting/expenses",
+    "action": "New expense",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Send for approval",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Category",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Amount excluding tax",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Description",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "TaxTaxableZero-ratedExempt",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      }
+    ],
+    "title": "New expense",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/accounting/financial-ops/utilities",
+    "action": "Add reading",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "UtilitieselectricityWatergas",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Reading date",
+        "required": true,
+        "type": "date",
+        "valid": true
+      },
+      {
+        "label": "Previous reading",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Current reading",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Cost",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Production (tons)",
+        "required": true,
+        "type": "number",
+        "valid": false
+      },
+      {
+        "label": "Notes",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "New utility reading",
+    "emptySubmit": "blocked by required fields"
+  },
+  {
+    "path": "/hr/attendance",
+    "action": "Record attendance",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "EmployeeQA Production Operator Add Employees first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Date",
+        "required": false,
+        "type": "date",
+        "valid": true
+      },
+      {
+        "label": "Check-in",
+        "required": false,
+        "type": "text",
+        "valid": true
+      },
+      {
+        "label": "Check-out",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "Record attendance"
+  },
+  {
+    "path": "/hr/payroll",
+    "action": "New payroll run",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Send for approval",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Month",
+        "required": false,
+        "type": "month",
+        "valid": true
+      },
+      {
+        "label": "QA Production Operator — 400.000 OMR",
+        "required": false,
+        "type": "number",
+        "valid": true
+      }
+    ],
+    "title": "Payroll run"
+  },
+  {
+    "path": "/accounting/documents",
+    "action": "Add document",
+    "buttons": [
+      {
+        "disabled": false,
+        "text": "Close",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "text": "Save",
+        "type": "submit"
+      }
+    ],
+    "fields": [
+      {
+        "label": "Address",
+        "required": true,
+        "type": "text",
+        "valid": false
+      },
+      {
+        "label": "TypeLicenseOwnershipInsuranceContractLeaseGovernment permitCertificatePeriodic inspectionOther",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Partythe companyvehicleemployeesuppliercustomerMachine",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Issue date",
+        "required": true,
+        "type": "date",
+        "valid": true
+      },
+      {
+        "label": "Expiry date",
+        "required": false,
+        "type": "date",
+        "valid": true
+      },
+      {
+        "label": "Cost",
+        "required": false,
+        "type": "number",
+        "valid": true
+      },
+      {
+        "label": "Renewal ownerUnspecifiedTest SalesTest DriverTest StorekeeperTest QualityTest OperationsTest AccountantLocal QA AdministratorQA Production Operator Add Users first ↗",
+        "required": false,
+        "type": "select-one",
+        "valid": true
+      },
+      {
+        "label": "Notes",
+        "required": false,
+        "type": "text",
+        "valid": true
+      }
+    ],
+    "title": "New document",
+    "emptySubmit": "blocked by required fields"
+  }
+]

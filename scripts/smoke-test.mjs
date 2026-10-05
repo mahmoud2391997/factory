@@ -148,8 +148,11 @@ try {
       }
       const backup = await request('/api/erp/backup')
       let backupValid = false
-      if (backup.response.status === 200 && typeof backup.body === 'string') {
-        try { JSON.parse(backup.body); backupValid = true } catch {}
+      if (backup.response.status === 200) {
+        try {
+          const document = typeof backup.body === 'string' ? JSON.parse(backup.body) : backup.body
+          backupValid = Boolean(document && typeof document === 'object' && Array.isArray(document.users) && Number.isInteger(document.revision))
+        } catch {}
       }
       check('authenticated backup is valid JSON', backupValid, `received ${backup.response.status}`)
 

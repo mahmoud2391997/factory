@@ -48,6 +48,8 @@ test("pnpm workspace and package manifests retain the expected deployment config
   }
 
   const web = readJson<PackageManifest>("apps/web/package.json");
+  const root = readJson<PackageManifest>("package.json");
+  assert.equal(root.dependencies?.next, web.dependencies?.next, "Vercel framework detection at the repository root must match the web app's Next.js version");
   assert.equal(web.dependencies?.["@erp/database"], "workspace:*");
   const start = web.scripts?.start ?? "";
   assert.equal(start, "next start", "Vercel production start must use Next.js defaults, not Docker host/port flags");
@@ -73,7 +75,8 @@ test("Next.js config has the required headers and Vercel build stamp without sta
 test("exactly one Vercel config delegates builds to the root script, and the pnpm lockfile exists", () => {
   const vercelConfigs = findFilesNamed(repoRoot, "vercel.json");
   assert.equal(vercelConfigs.length, 1, `expected one vercel.json, found: ${vercelConfigs.join(", ")}`);
-  const vercel = JSON.parse(readFileSync(vercelConfigs[0], "utf8")) as { buildCommand?: string };
+  const vercel = JSON.parse(readFileSync(vercelConfigs[0], "utf8")) as { buildCommand?: string; rootDirectory?: string };
+  assert.equal(vercel.rootDirectory, undefined, "Root Directory belongs in Vercel project settings, not vercel.json");
   const rootScripts = readJson<PackageManifest>("package.json").scripts ?? {};
   const rootScriptName = (vercel.buildCommand ?? "").match(/^pnpm\s+([\w:-]+)$/)?.[1];
   assert.ok(rootScriptName, `Vercel buildCommand must invoke a root pnpm script, got: ${vercel.buildCommand}`);

@@ -1,5 +1,9 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+import { useLanguage } from '@/lib/i18n/language-provider'
+import { LanguageSelect } from '@/lib/i18n/language-select'
+
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, Factory, Loader2, Lock, Mail, XCircle } from 'lucide-react'
@@ -21,6 +25,7 @@ type HealthResponse = {
 
 export default function LoginPage() {
   const router = useRouter()
+  const { dir } = useLanguage()
   const { user, loading, login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -60,7 +65,7 @@ export default function LoginPage() {
     const result = await login(account.trim(), secret, demo)
     setSubmitting(false)
     if (result.ok) {
-      router.replace(result.mustChangePassword ? '/account/password' : '/')
+      // The user-change effect above owns navigation after successful login.
       return
     }
     setMessage(result.message)
@@ -72,22 +77,23 @@ export default function LoginPage() {
   }
 
   if (loading || user) {
-    return (
-      <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
+    return (<LocalizedContent>{(
+      <main dir={dir} className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
         <div className="flex items-center gap-3 text-sm text-[#6b7280]">
           <Loader2 className="animate-spin" size={18} />
           جاري التحميل...
         </div>
       </main>
-    )
+    )}</LocalizedContent>)
   }
 
   const setupBlocked = health
     ? !health.demoMode && (health.status !== 'ok' || !health.bootstrapped)
     : false
 
-  return (
-    <main dir="rtl" className="min-h-screen bg-[#f9fafb] text-[#1f1f1f]">
+  return (<LocalizedContent>{(
+    <main dir={dir} className="min-h-screen bg-[#f9fafb] text-[#1f1f1f]">
+      <div className="absolute end-5 top-5"><LanguageSelect /></div>
       <div className="mx-auto flex min-h-screen w-full max-w-md items-center px-5 py-10">
         <div className="w-full rounded-[12px] border border-[#e5e7eb] bg-white p-7 shadow-sm">
           <div className="mb-7 text-center">
@@ -183,5 +189,5 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
-  )
+  )}</LocalizedContent>)
 }

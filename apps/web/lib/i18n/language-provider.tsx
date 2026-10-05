@@ -54,7 +54,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   }, [ready, language])
 
-  const setLanguage = useCallback((next: Language) => setLanguageState(next), [])
+  const setLanguage = useCallback((next: Language) => {
+    // Formatters read this preference during render, so update it before React renders.
+    try { localStorage.setItem(STORAGE_KEY, next) } catch { /* keep in-memory preference */ }
+    document.documentElement.lang = next
+    document.documentElement.dir = directionFor(next)
+    setLanguageState(next)
+  }, [])
   const t = useCallback((key: TranslationKey) => translate(language, key), [language])
 
   const value = useMemo<LanguageContextValue>(

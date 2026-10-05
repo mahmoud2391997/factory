@@ -1,5 +1,7 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
@@ -17,7 +19,7 @@ import { can, itemName, materialName, moneyFmt, partyName, pctFmt, productName, 
 
 function InlineError({ message }: { message: string }) {
   if (!message) return null
-  return <p role="alert" className="rounded-xl border border-[#fecaca] bg-[#fee2e2] px-3 py-2 text-sm font-medium text-[#dc2626]">{message}</p>
+  return (<LocalizedContent>{<p role="alert" className="rounded-xl border border-[#fecaca] bg-[#fee2e2] px-3 py-2 text-sm font-medium text-[#dc2626]">{message}</p>}</LocalizedContent>)
 }
 
 function useLines<T>(blank: T) {
@@ -38,29 +40,29 @@ function useLines<T>(blank: T) {
 }
 
 export function InventoryScreens({ entityKey, ctx, viewKind }: { entityKey: string; ctx: LiveCtx; viewKind?: 'spare' | 'packaging' }) {
-  if (entityKey === 'inventoryOverview') return <InventoryOverview ctx={ctx} />
-  if (entityKey === 'inventoryReports') return <ReportEntry ctx={ctx} section="inventory" />
-  if (entityKey === 'material') return <Materials ctx={ctx} />
-  if (entityKey === 'product') return <Products ctx={ctx} />
-  if (entityKey === 'inventoryExtensions') return <InventoryExtensions ctx={ctx} viewKind={viewKind} />
-  if (entityKey === 'warehouse') return <Warehouses ctx={ctx} />
-  if (entityKey === 'stockTransfer') return <Transfer ctx={ctx} />
-  if (entityKey === 'stockAdjustment') return <Adjustment ctx={ctx} />
-  if (entityKey === 'barcode') return <BarcodeStation ctx={ctx} />
-  if (entityKey === 'materialBatch' || entityKey === 'inventoryBalance') return <Balances ctx={ctx} materialsOnly={entityKey === 'materialBatch'} />
-  if (entityKey === 'inventoryTransaction') return <Ledger ctx={ctx} />
-  if (entityKey === 'materialTrace') return <MaterialTrace ctx={ctx} />
-  if (entityKey === 'materialPriceAnalysis') return <MaterialPriceAnalysisScreen ctx={ctx} />
+  if (entityKey === 'inventoryOverview') return (<LocalizedContent>{<InventoryOverview ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'inventoryReports') return (<LocalizedContent>{<ReportEntry ctx={ctx} section="inventory" />}</LocalizedContent>)
+  if (entityKey === 'material') return (<LocalizedContent>{<Materials ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'product') return (<LocalizedContent>{<Products ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'inventoryExtensions') return (<LocalizedContent>{<InventoryExtensions ctx={ctx} viewKind={viewKind} />}</LocalizedContent>)
+  if (entityKey === 'warehouse') return (<LocalizedContent>{<Warehouses ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'stockTransfer') return (<LocalizedContent>{<Transfer ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'stockAdjustment') return (<LocalizedContent>{<Adjustment ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'barcode') return (<LocalizedContent>{<BarcodeStation ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'materialBatch' || entityKey === 'inventoryBalance') return (<LocalizedContent>{<Balances ctx={ctx} materialsOnly={entityKey === 'materialBatch'} />}</LocalizedContent>)
+  if (entityKey === 'inventoryTransaction') return (<LocalizedContent>{<Ledger ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'materialTrace') return (<LocalizedContent>{<MaterialTrace ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'materialPriceAnalysis') return (<LocalizedContent>{<MaterialPriceAnalysisScreen ctx={ctx} />}</LocalizedContent>)
   return null
 }
 
 function Answer({ label, value }: { label: string; value: string }) {
-  return (
+  return (<LocalizedContent>{(
     <div className="border-b border-[#f3f6f5] py-2 last:border-0">
       <div className="text-sm text-[#6b7280]">{label}</div>
       <div className="mt-1 font-semibold text-[#1f1f1f]">{value}</div>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function busiestMaterialId(ctx: LiveCtx) {
@@ -82,7 +84,7 @@ function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
   const supplierTrace = activeBatch ? traceSupplierBatch(ctx.state, materialId, activeBatch) : null
   const statement = materialStatement(ctx.state, materialId)
   const productLabel = statement?.lines.map((line) => `${line.productName} ${qtyFmt(line.outputQty)} ${t('كجم')}`).join('، ')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title={t('اختر الخامة')} hint={t('نفس الأسئلة على أي مادة: ماذا دخل، ماذا استُهلك، ماذا تبقّى، وماذا نُتج وبيع، وهل يوجد فرق ولماذا.')}>
         <div className="grid gap-3 md:grid-cols-2">
@@ -170,7 +172,7 @@ function MaterialTrace({ ctx }: { ctx: LiveCtx }) {
         </div>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function MaterialEditor({
@@ -191,7 +193,7 @@ function MaterialEditor({
   const [active, setActive] = useState(material.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل مادة خام" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -236,7 +238,7 @@ function MaterialEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function ProductEditor({
@@ -255,7 +257,7 @@ function ProductEditor({
   const [active, setActive] = useState(product.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل منتج نهائي" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -290,7 +292,7 @@ function ProductEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function SupplierEditor({
@@ -309,7 +311,7 @@ function SupplierEditor({
   const [address, setAddress] = useState(supplier.address ?? '')
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل بيانات مورد" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -341,7 +343,7 @@ function SupplierEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function CustomerEditor({
@@ -360,7 +362,7 @@ function CustomerEditor({
   const [address, setAddress] = useState(customer.address ?? '')
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل بيانات عميل" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -392,7 +394,7 @@ function CustomerEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function SparePartEditor({
@@ -413,7 +415,7 @@ function SparePartEditor({
   const [active, setActive] = useState(part.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل قطعة غيار" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -454,7 +456,7 @@ function SparePartEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function PackagingMaterialEditor({
@@ -477,7 +479,7 @@ function PackagingMaterialEditor({
   const [active, setActive] = useState(material.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل مادة تعبئة" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -528,7 +530,7 @@ function PackagingMaterialEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function SupplierTemplateEditor({
@@ -547,7 +549,7 @@ function SupplierTemplateEditor({
   const [active, setActive] = useState(template.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل قالب التواصل" onClose={onClose}>
       <form
         className="grid gap-3"
@@ -589,7 +591,7 @@ function SupplierTemplateEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function RecipeEditor({
@@ -607,7 +609,7 @@ function RecipeEditor({
   const [criticalPct, setCriticalPct] = useState(recipe.varianceCriticalPct !== undefined ? String(recipe.varianceCriticalPct) : '')
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل وصفة الإنتاج" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -635,7 +637,7 @@ function RecipeEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function CustomerRecipeEditor({
@@ -653,7 +655,7 @@ function CustomerRecipeEditor({
   const [active, setActive] = useState(recipe.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل وصفة العميل المخصصة" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -686,7 +688,7 @@ function CustomerRecipeEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function MachineEditor({
@@ -704,7 +706,7 @@ function MachineEditor({
   const [location, setLocation] = useState(machine.location)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل بيانات الآلة" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -732,7 +734,7 @@ function MachineEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function MaintenanceScheduleEditor({
@@ -751,7 +753,7 @@ function MaintenanceScheduleEditor({
   const [assignedTo, setAssignedTo] = useState(schedule.assignedTo)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل جدول الصيانة" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -795,7 +797,7 @@ function MaintenanceScheduleEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function MaintenanceRecordEditor({
@@ -812,7 +814,7 @@ function MaintenanceRecordEditor({
   const [notes, setNotes] = useState(record.notes ?? '')
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل سجل الصيانة" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -840,7 +842,7 @@ function MaintenanceRecordEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function DistributionPointEditor({
@@ -860,7 +862,7 @@ function DistributionPointEditor({
   const [active, setActive] = useState(point.active)
   const [error, setError] = useState('')
 
-  return (
+  return (<LocalizedContent>{(
     <Dialog title="تعديل نقطة التوزيع" onClose={onClose}>
       <form
         className="grid gap-3 md:grid-cols-2"
@@ -901,7 +903,7 @@ function DistributionPointEditor({
         </div>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function Materials({ ctx }: { ctx: LiveCtx }) {
@@ -914,7 +916,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>('ZERO')
   const [editingMaterial, setEditingMaterial] = useState<(typeof ctx.state.materials)[number] | null>(null)
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
     <Card
       title="المواد الخام"
@@ -971,7 +973,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
               type="button"
               className="flex items-center gap-1.5 rounded-md bg-[#ad5e46] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#8f4733]"
               onClick={async () => {
-                if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} ${t('مادة خام محددة')}؟`)) return
+                if (!window.confirm(t(`هل أنت متأكد من حذف ${selectedIds.length} مادة خام محددة؟`))) return
                 let failedCount = 0
                 for (const id of selectedIds) {
                   const res = await ctx.act('deleteMaterial', { id })
@@ -1009,7 +1011,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
     ) : null}
     <QcLimitsEditor ctx={ctx} itemType="MATERIAL" />
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Products({ ctx }: { ctx: LiveCtx }) {
@@ -1020,7 +1022,7 @@ function Products({ ctx }: { ctx: LiveCtx }) {
   const [salePrice, setSalePrice] = useState('0.180')
   const [editingProduct, setEditingProduct] = useState<(typeof ctx.state.products)[number] | null>(null)
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
     <Card
       title="المنتجات"
@@ -1083,10 +1085,11 @@ function Products({ ctx }: { ctx: LiveCtx }) {
     ) : null}
     <QcLimitsEditor ctx={ctx} itemType="PRODUCT" />
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function VarianceThresholdsEditor({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const [targetType, setTargetType] = useState<'PRODUCT' | 'RECIPE'>('PRODUCT')
   const [productId, setProductId] = useState(ctx.state.products[0]?.id ?? '')
   const [recipeId, setRecipeId] = useState(ctx.state.recipes[0]?.id ?? '')
@@ -1101,10 +1104,10 @@ function VarianceThresholdsEditor({ ctx }: { ctx: LiveCtx }) {
   if (!can(ctx.permissions, 'production.variance.thresholds')) return null
   const targetKey = targetType === 'PRODUCT' ? productId : recipeId
   const num = (value: string) => (value.trim() === '' ? null : Number(value))
-  return (
+  return (<LocalizedContent>{(
     <Card
       title="حدود الانحراف"
-      hint={`الحد العام للشركة ${pctFmt(companyDefault)}. حدّد قيمة لكل منتج أو وصفة لتجاوز العام؛ اتركه فارغاً للرجوع إلى الحد العام.`}
+      hint={`${translateUiText(language, 'الحد العام للشركة')} ${pctFmt(companyDefault)}${translateUiText(language, '. حدّد قيمة لكل منتج أو وصفة لتجاوز العام؛ اتركه فارغاً للرجوع إلى الحد العام.')}`}
     >
       <div className="grid gap-3 md:grid-cols-4">
         <Field label="النطاق">
@@ -1170,11 +1173,11 @@ function VarianceThresholdsEditor({ ctx }: { ctx: LiveCtx }) {
         </span>
       </div>
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Warehouses({ ctx }: { ctx: LiveCtx }) {
-  return (
+  return (<LocalizedContent>{(
     <div className="grid gap-4 md:grid-cols-3">
       {ctx.state.warehouses.map((warehouse) => {
         const rows = ctx.state.balances.filter((row) => row.warehouse === warehouse.key && row.qty > 0)
@@ -1187,7 +1190,7 @@ function Warehouses({ ctx }: { ctx: LiveCtx }) {
         )
       })}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function InventoryOverview({ ctx }: { ctx: LiveCtx }) {
@@ -1209,7 +1212,7 @@ function InventoryOverview({ ctx }: { ctx: LiveCtx }) {
   ]
   const totalQty = ctx.state.balances.reduce((sum, row) => sum + Math.max(0, row.qty), 0)
   const totalValue = ctx.state.balances.reduce((sum, row) => sum + Math.max(0, row.qty) * row.unitCost, 0)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <Card title="الأصناف" hint="مواد ومنتجات مسجلة"><div className="text-2xl font-bold">{ctx.state.materials.length + ctx.state.products.length}</div></Card>
@@ -1227,13 +1230,13 @@ function InventoryOverview({ ctx }: { ctx: LiveCtx }) {
         </div>
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Balances({ ctx, materialsOnly }: { ctx: LiveCtx; materialsOnly: boolean }) {
   const rows = stockRows(ctx.state).filter((row) => (materialsOnly ? row.itemType === 'MATERIAL' : true))
   const includeCosts = can(ctx.permissions, 'accounting.read') || can(ctx.permissions, 'accounting.manage') || can(ctx.permissions, 'production.cost.approve')
-  return (
+  return (<LocalizedContent>{(
     <Card title={materialsOnly ? 'دفعات المواد' : 'أرصدة المخزون'} extra={<ExportLinks href={`/api/erp/export?kind=stock${materialsOnly ? '&itemType=MATERIAL' : ''}`} />}>
       <DataTable
         columns={['المستودع', 'الصنف', 'الدفعة', 'الكمية', ...(includeCosts ? ['التكلفة', 'القيمة'] : []), 'الصلاحية']}
@@ -1247,11 +1250,11 @@ function Balances({ ctx, materialsOnly }: { ctx: LiveCtx; materialsOnly: boolean
         ])}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Ledger({ ctx }: { ctx: LiveCtx }) {
-  return (
+  return (<LocalizedContent>{(
     <Card title="دفتر حركات المخزون" hint="لا يتغيّر رصيد بدون حركة مسجّلة — كل إضافة أو صرف يظهر هنا مع الرصيد قبل وبعد.">
       <DataTable
         columns={['الوقت', 'النوع', 'المستودع', 'الصنف', 'الدفعة', 'الكمية', 'قبل', 'بعد']}
@@ -1267,7 +1270,7 @@ function Ledger({ ctx }: { ctx: LiveCtx }) {
         ])}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Transfer({ ctx }: { ctx: LiveCtx }) {
@@ -1278,7 +1281,7 @@ function Transfer({ ctx }: { ctx: LiveCtx }) {
   const [amount, setAmount] = useState('')
   const [formError, setFormError] = useState('')
   const batches = ctx.state.balances.filter((row) => row.itemId === itemId && row.warehouse === from && row.qty > 0)
-  return (
+  return (<LocalizedContent>{(
     <Card
       title="آخر التحويلات"
       hint="المواد تُصرف للتصنيع من مستودع المواد الخام إلى مستودع التصنيع قبل إكمال أمر الإنتاج."
@@ -1336,7 +1339,7 @@ function Transfer({ ctx }: { ctx: LiveCtx }) {
         rows={ctx.state.transfers.slice(0, 20).map((row) => [row.number, WAREHOUSE_LABEL[row.from], WAREHOUSE_LABEL[row.to], row.at.slice(0, 10)])}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Adjustment({ ctx }: { ctx: LiveCtx }) {
@@ -1345,7 +1348,7 @@ function Adjustment({ ctx }: { ctx: LiveCtx }) {
   const [batchNo, setBatchNo] = useState('')
   const [qtyDelta, setQtyDelta] = useState('')
   const [reason, setReason] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="طلبات التعديل"
@@ -1402,13 +1405,13 @@ function Adjustment({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function BarcodeStation({ ctx }: { ctx: LiveCtx }) {
   const [code, setCode] = useState('')
   const [found, setFound] = useState<string>('')
-  return (
+  return (<LocalizedContent>{(
     <Card title="محطة الباركود" hint="قارئ USB يعمل كلوحة مفاتيح: وجّه المؤشر هنا وامسح. Enter يُنهي القراءة.">
       <form
         className="flex flex-col gap-3 sm:flex-row"
@@ -1425,7 +1428,7 @@ function BarcodeStation({ ctx }: { ctx: LiveCtx }) {
       <p className="mt-4 text-sm text-[#788983]">لطباعة الملصق استخدم طابعة الباركود أو أي طابعة ورق من صفحة الملصقات.</p>
       <Link className="mt-3 inline-flex text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank" rel="noreferrer">فتح ملصقات الطباعة</Link>
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function SpareParts({ ctx }: { ctx: LiveCtx }) {
@@ -1436,12 +1439,16 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
   const [unitCost, setUnitCost] = useState('')
   const [minStock, setMinStock] = useState('')
   const [supplierId, setSupplierId] = useState('')
-  const [usagePartId, setUsagePartId] = useState(ctx.state.spareParts[0]?.id ?? '')
-  const [usageMachineId, setUsageMachineId] = useState(ctx.state.machines[0]?.id ?? '')
+  const [selectedUsagePartId, setUsagePartId] = useState('')
+  const [selectedUsageMachineId, setUsageMachineId] = useState('')
+  const activeParts = ctx.state.spareParts.filter((item) => item.active)
+  const activeMachines = ctx.state.machines.filter((item) => item.active)
+  const usagePartId = activeParts.find((item) => item.id === selectedUsagePartId)?.id ?? activeParts[0]?.id ?? ''
+  const usageMachineId = activeMachines.find((item) => item.id === selectedUsageMachineId)?.id ?? activeMachines[0]?.id ?? ''
   const [usageQuantity, setUsageQuantity] = useState('')
   const [usageReason, setUsageReason] = useState('')
   const [editingPart, setEditingPart] = useState<NonNullable<typeof ctx.state.spareParts>[number] | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="صرف قطعة غيار" hint="يُخصم الصرف من الرصيد ويُسجل على الماكينة والسبب.">
         {can(ctx.permissions, 'spareparts.manage') ? <FormDialog title="تسجيل صرف قطعة" openLabel="صرف قطعة">
@@ -1545,7 +1552,7 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
         <SparePartEditor ctx={ctx} part={editingPart} onClose={() => setEditingPart(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
@@ -1570,7 +1577,7 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
   const expectedRate = selectedPackaging?.expectedPerTon ?? (selectedPackaging?.category === 'BAG' && product?.bagKg ? 1000 / product.bagKg : undefined)
   const expectedQuantity = expectedRate != null && selectedLot ? selectedLot.actualOutputKg / 1000 * expectedRate : undefined
   const consumptionVariance = expectedQuantity == null || consumptionQuantity === '' ? undefined : Number(consumptionQuantity) - expectedQuantity
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="مواد التعبئة"
@@ -1689,7 +1696,7 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
         <PackagingMaterialEditor ctx={ctx} material={editingPkg} onClose={() => setEditingPkg(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
@@ -1699,7 +1706,7 @@ function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
   const [notes, setNotes] = useState('')
   const selected = ctx.state.packagingMaterials.find((item) => item.id === materialId)
   const report = packagingCountReport(ctx.state)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الجرد الفعلي لمواد التعبئة"
@@ -1764,7 +1771,7 @@ function PackagingCounts({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function InventoryExtensions({ ctx, viewKind }: { ctx: LiveCtx; viewKind?: 'spare' | 'packaging' }) {
@@ -1772,7 +1779,7 @@ function InventoryExtensions({ ctx, viewKind }: { ctx: LiveCtx; viewKind?: 'spar
   useEffect(() => {
     if (viewKind) setActiveTab(viewKind === 'packaging' ? 'packaging' : 'spareParts')
   }, [viewKind])
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="flex gap-2 border-b border-[#e5e7eb] pb-2">
         <button
@@ -1799,15 +1806,15 @@ function InventoryExtensions({ ctx, viewKind }: { ctx: LiveCtx; viewKind?: 'spar
       </div>
       {activeTab === 'spareParts' ? <SpareParts ctx={ctx} /> : activeTab === 'packaging' ? <PackagingMaterials ctx={ctx} /> : <PackagingCounts ctx={ctx} />}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 export function PurchasingScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
-  if (entityKey === 'supplier') return <Suppliers ctx={ctx} />
-  if (entityKey === 'purchaseRequest') return <PurchaseRequests ctx={ctx} />
-  if (entityKey === 'purchaseOrder') return <PurchaseOrders ctx={ctx} />
-  if (entityKey === 'goodsReceipt') return <Receipts ctx={ctx} />
-  if (entityKey === 'supplierRelations' || entityKey === 'supplierTemplate' || entityKey === 'supplierCommunication') return <SupplierRelations entityKey={entityKey} ctx={ctx} />
+  if (entityKey === 'supplier') return (<LocalizedContent>{<Suppliers ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'purchaseRequest') return (<LocalizedContent>{<PurchaseRequests ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'purchaseOrder') return (<LocalizedContent>{<PurchaseOrders ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'goodsReceipt') return (<LocalizedContent>{<Receipts ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'supplierRelations' || entityKey === 'supplierTemplate' || entityKey === 'supplierCommunication') return (<LocalizedContent>{<SupplierRelations entityKey={entityKey} ctx={ctx} />}</LocalizedContent>)
   return null
 }
 
@@ -1816,7 +1823,7 @@ function Suppliers({ ctx }: { ctx: LiveCtx }) {
   const [vatNumber, setVatNumber] = useState('')
   const [phone, setPhone] = useState('')
   const [editingSupplier, setEditingSupplier] = useState<(typeof ctx.state.suppliers)[number] | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الموردون"
@@ -1868,14 +1875,14 @@ function Suppliers({ ctx }: { ctx: LiveCtx }) {
         <SupplierEditor ctx={ctx} supplier={editingSupplier} onClose={() => setEditingSupplier(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
   const editor = useLines({ materialId: ctx.state.materials[0]?.id ?? '', qty: '', unitCost: '' })
   const [supplierId, setSupplierId] = useState(ctx.state.suppliers[0]?.id ?? '')
   const [notes, setNotes] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="أوامر الشراء"
@@ -1954,7 +1961,7 @@ function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Receipts({ ctx }: { ctx: LiveCtx }) {
@@ -1963,7 +1970,7 @@ function Receipts({ ctx }: { ctx: LiveCtx }) {
   const order = open.find((item) => item.id === purchaseOrderId)
   const [draft, setDraft] = useState<Record<string, { qty: string; batchNo: string; expiryDate: string }>>({})
   const [formError, setFormError] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="سندات الاستلام"
@@ -2017,7 +2024,7 @@ function Receipts({ ctx }: { ctx: LiveCtx }) {
         <DataTable columns={['السند', 'أمر الشراء', 'التاريخ']} rows={ctx.state.goodsReceipts.map((row) => [row.number, ctx.state.purchaseOrders.find((order) => order.id === row.purchaseOrderId)?.number ?? '', row.at.slice(0, 10)])} />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 const PURPOSE_LABEL: Record<string, string> = {
@@ -2055,7 +2062,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
     setFormError('')
   }
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="طلبات الشراء"
@@ -2281,7 +2288,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function SupplierTemplates({ ctx }: { ctx: LiveCtx }) {
@@ -2290,7 +2297,7 @@ function SupplierTemplates({ ctx }: { ctx: LiveCtx }) {
   const [body, setBody] = useState('')
   const [kind, setKind] = useState<'QUOTE_REQUEST' | 'INQUIRY' | 'ORDER' | 'OTHER'>('QUOTE_REQUEST')
   const [editingTemplate, setEditingTemplate] = useState<(NonNullable<typeof ctx.state.supplierTemplates>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="قوالب التواصل"
@@ -2355,7 +2362,7 @@ function SupplierTemplates({ ctx }: { ctx: LiveCtx }) {
         <SupplierTemplateEditor ctx={ctx} template={editingTemplate} onClose={() => setEditingTemplate(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function SupplierCommunications({ ctx }: { ctx: LiveCtx }) {
@@ -2364,7 +2371,7 @@ function SupplierCommunications({ ctx }: { ctx: LiveCtx }) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [channel, setChannel] = useState<'EMAIL' | 'WHATSAPP' | 'OTHER'>('EMAIL')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="تواصل الموردين"
@@ -2430,26 +2437,26 @@ function SupplierCommunications({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 export function ProductionScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
-  if (entityKey === 'productionReports') return <ReportEntry ctx={ctx} section="production" />
-  if (entityKey === 'recipe') return <Recipes ctx={ctx} />
-  if (entityKey === 'recipeItem') return <RecipeItems ctx={ctx} />
-  if (entityKey === 'productionOrder') return <Production ctx={ctx} />
-  if (entityKey === 'customerRecipe') return <CustomerRecipes ctx={ctx} />
-  if (entityKey === 'scaleReading') return <ScaleReadings ctx={ctx} />
-  if (entityKey === 'maintenance') return <MaintenanceHub ctx={ctx} />
-  if (entityKey === 'machine') return <Machines ctx={ctx} />
-  if (entityKey === 'maintenanceSchedule') return <MaintenanceSchedules ctx={ctx} />
-  if (entityKey === 'maintenanceRecord') return <MaintenanceRecords ctx={ctx} />
+  if (entityKey === 'productionReports') return (<LocalizedContent>{<ReportEntry ctx={ctx} section="production" />}</LocalizedContent>)
+  if (entityKey === 'recipe') return (<LocalizedContent>{<Recipes ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'recipeItem') return (<LocalizedContent>{<RecipeItems ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'productionOrder') return (<LocalizedContent>{<Production ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'customerRecipe') return (<LocalizedContent>{<CustomerRecipes ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'scaleReading') return (<LocalizedContent>{<ScaleReadings ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'maintenance') return (<LocalizedContent>{<MaintenanceHub ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'machine') return (<LocalizedContent>{<Machines ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'maintenanceSchedule') return (<LocalizedContent>{<MaintenanceSchedules ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'maintenanceRecord') return (<LocalizedContent>{<MaintenanceRecords ctx={ctx} />}</LocalizedContent>)
   return null
 }
 
 function MaintenanceHub({ ctx }: { ctx: LiveCtx }) {
   const { language } = useLanguage()
-  return (
+  return (<LocalizedContent>{(
     <div className="grid gap-4 md:grid-cols-3">
       <Card title="الآلات" hint={`${(ctx.state.machines ?? []).length} ${translateUiText(language, 'آلة مسجلة')}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('machine')}>فتح سجل الآلات</PrimaryButton>
@@ -2461,7 +2468,7 @@ function MaintenanceHub({ ctx }: { ctx: LiveCtx }) {
         <PrimaryButton type="button" onClick={() => ctx.navigate('maintenanceRecord')}>فتح السجلات</PrimaryButton>
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Recipes({ ctx }: { ctx: LiveCtx }) {
@@ -2470,7 +2477,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
   const [baseOutputQty, setBaseOutputQty] = useState('1000')
   const [qtys, setQtys] = useState<Record<string, string>>({})
   const [editingRecipe, setEditingRecipe] = useState<(typeof ctx.state.recipes)[number] | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الوصفات"
@@ -2507,7 +2514,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
                     </label>
                   ))}
                 </div>
-                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.create')}>��فظ الوصفة</PrimaryButton>
+                <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.create')}>حفظ الوصفة</PrimaryButton>
               </form>
             )}
           </FormDialog>
@@ -2542,7 +2549,7 @@ function Recipes({ ctx }: { ctx: LiveCtx }) {
         <RecipeEditor ctx={ctx} recipe={editingRecipe} onClose={() => setEditingRecipe(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function RecipeItems({ ctx }: { ctx: LiveCtx }) {
@@ -2555,11 +2562,11 @@ function RecipeItems({ ctx }: { ctx: LiveCtx }) {
       qtyFmt(recipe.baseOutputQty),
     ]),
   )
-  return (
+  return (<LocalizedContent>{(
     <Card title="مكونات الوصفات" hint="الكميات المسجلة لكل خامة مقابل أساس إنتاج الوصفة. أضف الوصفات أو عدّل مكوناتها من تبويب الوصفات.">
       <DataTable columns={['الوصفة', 'المنتج', 'المادة الخام', 'كمية المكوّن (كجم)', 'أساس الوصفة (كجم)']} rows={rows} />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Production({ ctx }: { ctx: LiveCtx }) {
@@ -2572,7 +2579,7 @@ function Production({ ctx }: { ctx: LiveCtx }) {
   const [completingId, setCompletingId] = useState<string | null>(null)
   const activeRecipe = ctx.state.recipes.find((recipe) => recipe.id === (recipeId || recipes[0]?.id))
   const completing = ctx.state.productionOrders.find((order) => order.id === completingId && order.status === 'RELEASED')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="أوامر الإنتاج"
@@ -2670,7 +2677,7 @@ function Production({ ctx }: { ctx: LiveCtx }) {
       <VarianceThresholdsEditor ctx={ctx} />
       {completing ? <CompleteBox ctx={ctx} orderId={completing.id} onClose={() => setCompletingId(null)} /> : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string; onClose: () => void }) {
@@ -2686,7 +2693,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
   const needsReason = formError.includes('سبب الانحراف')
   const reasonCodes = ctx.state.company.varianceReasonCodes ?? []
   const needsCode = reasonCodes.length > 0 && (formError.includes('رمز سبب الانحراف') || reasonCode !== '')
-  return (
+  return (<LocalizedContent>{(
     <Dialog title={`إكمال ${order.number}`} hint="الصرف يتم من مستودع التصنيع فقط. الناتج المتوقع يُحسب من الوصفة على الكمية الداخلة فعلاً. إذا تجاوز الانحراف حد الشركة فسبب الانحراف إلزامي. بند تكلفة أعلى من حد الاعتماد يُحفظ بانتظار المدير أو المحاسب ولا يدخل في الهامش قبل ذلك." wide onClose={onClose}>
       <form className="space-y-2" onSubmit={async (event) => {
         event.preventDefault()
@@ -2766,7 +2773,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
         <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'production.complete')}>إكمال الإنتاج</PrimaryButton>
       </form>
     </Dialog>
-  )
+  )}</LocalizedContent>)
 }
 
 function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
@@ -2777,7 +2784,7 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
   const [baseOutputQty, setBaseOutputQty] = useState('1000')
   const [salePrice, setSalePrice] = useState('')
   const [editingCustomerRecipe, setEditingCustomerRecipe] = useState<(NonNullable<typeof ctx.state.customerRecipes>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="وصفات العملاء"
@@ -2858,7 +2865,7 @@ function CustomerRecipes({ ctx }: { ctx: LiveCtx }) {
         <CustomerRecipeEditor ctx={ctx} recipe={editingCustomerRecipe} onClose={() => setEditingCustomerRecipe(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
@@ -2870,7 +2877,7 @@ function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
   const [scaleId, setScaleId] = useState('MANUAL')
   const productionOrder = ctx.state.productionOrders.find((item) => item.id === productionOrderId)
   const expected = productionOrder?.expected.find((item) => item.materialId === materialId)
-  return (
+  return (<LocalizedContent>{(
     <Card title="قراءات الميزان" hint="تُحسب الكمية المتوقعة من وصفة أمر الإنتاج. قراءة الميزان الأخيرة لكل مادة تُستخدم تلقائياً عند إكمال الأمر.">
       {can(ctx.permissions, 'scale.manage') ? <FormDialog title="تسجيل قراءة ميزان" openLabel={translateUiText(language, 'قراءة جديدة')}>
         {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
@@ -2893,7 +2900,7 @@ function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
         ctx.state.users.find((user) => user.id === reading.operatorId)?.fullName ?? reading.operatorId,
       ])} />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Machines({ ctx }: { ctx: LiveCtx }) {
@@ -2902,7 +2909,7 @@ function Machines({ ctx }: { ctx: LiveCtx }) {
   const [type, setType] = useState('')
   const [location, setLocation] = useState('')
   const [editingMachine, setEditingMachine] = useState<(NonNullable<typeof ctx.state.machines>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الآلات"
@@ -2964,7 +2971,7 @@ function Machines({ ctx }: { ctx: LiveCtx }) {
         <MachineEditor ctx={ctx} machine={editingMachine} onClose={() => setEditingMachine(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function MaintenanceSchedules({ ctx }: { ctx: LiveCtx }) {
@@ -2974,7 +2981,7 @@ function MaintenanceSchedules({ ctx }: { ctx: LiveCtx }) {
   const [interval, setInterval] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
   const [editingSchedule, setEditingSchedule] = useState<(NonNullable<typeof ctx.state.maintenanceSchedules>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="جداول الصيانة"
@@ -3053,7 +3060,7 @@ function MaintenanceSchedules({ ctx }: { ctx: LiveCtx }) {
         <MaintenanceScheduleEditor ctx={ctx} schedule={editingSchedule} onClose={() => setEditingSchedule(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
@@ -3069,7 +3076,7 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
   const [sparePartQuantity, setSparePartQuantity] = useState('')
   const [notes, setNotes] = useState('')
   const [editingRecord, setEditingRecord] = useState<(NonNullable<typeof ctx.state.maintenanceRecords>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="سجلات الصيانة"
@@ -3167,20 +3174,20 @@ function MaintenanceRecords({ ctx }: { ctx: LiveCtx }) {
         <MaintenanceRecordEditor ctx={ctx} record={editingRecord} onClose={() => setEditingRecord(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 export function SalesScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
-  if (entityKey === 'salesReports') return <ReportEntry ctx={ctx} section="sales" />
-  if (entityKey === 'profitability') return <ProfitabilityScreen ctx={ctx} />
-  if (entityKey === 'customer') return <Customers ctx={ctx} />
-  if (entityKey === 'salesInvoice') return <Invoices ctx={ctx} />
-  if (entityKey === 'salesPayment') return <Payments ctx={ctx} />
-  if (entityKey === 'withdrawal') return <Withdrawals ctx={ctx} />
-  if (entityKey === 'distribution') return <DistributionHub ctx={ctx} />
-  if (entityKey === 'distributionPoint') return <DistributionPoints ctx={ctx} />
-  if (entityKey === 'distributionClosing') return <DistributionClosings ctx={ctx} />
-  if (entityKey === 'invoiceDelivery') return <InvoiceDeliveries ctx={ctx} />
+  if (entityKey === 'salesReports') return (<LocalizedContent>{<ReportEntry ctx={ctx} section="sales" />}</LocalizedContent>)
+  if (entityKey === 'profitability') return (<LocalizedContent>{<ProfitabilityScreen ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'customer') return (<LocalizedContent>{<Customers ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'salesInvoice') return (<LocalizedContent>{<Invoices ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'salesPayment') return (<LocalizedContent>{<Payments ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'withdrawal') return (<LocalizedContent>{<Withdrawals ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'distribution') return (<LocalizedContent>{<DistributionHub ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'distributionPoint') return (<LocalizedContent>{<DistributionPoints ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'distributionClosing') return (<LocalizedContent>{<DistributionClosings ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'invoiceDelivery') return (<LocalizedContent>{<InvoiceDeliveries ctx={ctx} />}</LocalizedContent>)
   return null
 }
 
@@ -3188,7 +3195,7 @@ function DistributionHub({ ctx }: { ctx: LiveCtx }) {
   const points = ctx.state.distributionPoints ?? []
   const closings = ctx.state.distributionClosings ?? []
   const { language } = useLanguage()
-  return (
+  return (<LocalizedContent>{(
     <div className="grid gap-4 md:grid-cols-2">
       <Card title="نقاط التوزيع" hint={`${points.filter((point) => point.active).length} ${translateUiText(language, 'نقطة نشطة من أصل')} ${points.length}`}>
         <PrimaryButton type="button" onClick={() => ctx.navigate('distributionPoint')}>إدارة نقاط التوزيع</PrimaryButton>
@@ -3197,15 +3204,16 @@ function DistributionHub({ ctx }: { ctx: LiveCtx }) {
         <PrimaryButton type="button" onClick={() => ctx.navigate('distributionClosing')}>فتح الإقفال اليومي</PrimaryButton>
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Customers({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const [nameAr, setNameAr] = useState('')
   const [vatNumber, setVatNumber] = useState('')
   const [address, setAddress] = useState('')
   const [editingCustomer, setEditingCustomer] = useState<(typeof ctx.state.customers)[number] | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="العملاء"
@@ -3244,7 +3252,7 @@ function Customers({ ctx }: { ctx: LiveCtx }) {
                 type="button"
                 className="flex items-center gap-1.5 rounded-md bg-[#ad5e46] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#8f4733]"
                 onClick={async () => {
-                  if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} عميل محدد؟`)) return
+                  if (!window.confirm(translateUiText(language, `هل أنت متأكد من حذف ${selectedIds.length} عميل محدد؟`))) return
                   let failedCount = 0
                   for (const id of selectedIds) {
                     const res = await ctx.act('deleteCustomer', { id })
@@ -3281,14 +3289,14 @@ function Customers({ ctx }: { ctx: LiveCtx }) {
         <CustomerEditor ctx={ctx} customer={editingCustomer} onClose={() => setEditingCustomer(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Invoices({ ctx }: { ctx: LiveCtx }) {
   const editor = useLines({ productId: ctx.state.products[0]?.id ?? '', qty: '' })
   const [customerId, setCustomerId] = useState(ctx.state.customers[0]?.id ?? '')
   const [confirmError, setConfirmError] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الفواتير"
@@ -3371,14 +3379,14 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
         <div className="mt-3"><InlineError message={confirmError} /></div>
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Payments({ ctx }: { ctx: LiveCtx }) {
   const open = ctx.state.invoices.filter((invoice) => invoice.status === 'CONFIRMED' || invoice.status === 'PARTIAL')
   const [invoiceId, setInvoiceId] = useState(open[0]?.id ?? '')
   const [amount, setAmount] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="التحصيلات"
@@ -3408,14 +3416,14 @@ function Payments({ ctx }: { ctx: LiveCtx }) {
         <DataTable columns={['الرقم', 'الفاتورة', 'المبلغ', 'الطريقة', 'التاريخ']} rows={ctx.state.payments.map((payment) => [payment.number, ctx.state.invoices.find((invoice) => invoice.id === payment.invoiceId)?.number ?? '', moneyFmt(payment.amount), payment.method, payment.at.slice(0, 10)])} />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Withdrawals({ ctx }: { ctx: LiveCtx }) {
   const [productId, setProductId] = useState(ctx.state.products[0]?.id ?? '')
   const [amount, setAmount] = useState('')
   const [reason, setReason] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="السحوبات"
@@ -3448,7 +3456,7 @@ function Withdrawals({ ctx }: { ctx: LiveCtx }) {
         <DataTable columns={['الرقم', 'السبب', 'التكلفة', 'التاريخ']} rows={ctx.state.withdrawals.map((row) => [row.number, row.reason, moneyFmt(row.totalCost), row.at.slice(0, 10)])} />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
@@ -3458,7 +3466,7 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
   const [managerId, setManagerId] = useState('')
   const [phone, setPhone] = useState('')
   const [editingPoint, setEditingPoint] = useState<(NonNullable<typeof ctx.state.distributionPoints>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="نقاط التوزيع"
@@ -3531,7 +3539,7 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
         <DistributionPointEditor ctx={ctx} point={editingPoint} onClose={() => setEditingPoint(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
@@ -3545,7 +3553,7 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
   const [transfers, setTransfers] = useState('')
   const expectedTakings = ctx.state.products.reduce((sum, item) => sum + ((Number(sales[item.id]) || 0) - (Number(returns[item.id]) || 0)) * item.salePrice, 0)
   const expectedClosingByProduct = (productId: string) => (Number(openingStock[productId]) || 0) - (Number(sales[productId]) || 0) + (Number(returns[productId]) || 0)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="قفل التوزيع"
@@ -3606,7 +3614,7 @@ function DistributionClosings({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
@@ -3631,7 +3639,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
 
   const activeDelivery = deliveries.find((d) => d.id === advanceDeliveryId)
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="دورة الفاتورة والتسليم"
@@ -3781,7 +3789,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
             <Field label="المرحلة المستهدفة">
               <SelectInput value={nextStep} onChange={(e) => setNextStep(e.target.value as typeof nextStep)}>
                 <option value="LOADER">2. التحميل (جاهزية البضاعة في المستودع)</option>
-                <option value="DRIVER">3. السائق (خروج البضاعة على ا��شاحنة)</option>
+                <option value="DRIVER">3. السائق (خروج البضاعة على الشاحنة)</option>
                 <option value="CUSTOMER">4. العميل (تأكيد وصول وتسليم البضاعة)</option>
               </SelectInput>
             </Field>
@@ -3816,7 +3824,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
         </Dialog>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
@@ -3870,7 +3878,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
     }
   }
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="flex border-b border-[#e5e7eb] gap-2 pb-2">
         <button
@@ -4187,7 +4195,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
         </Card>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
@@ -4196,13 +4204,13 @@ function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
   const active = rows.find((row) => row.material.id === materialId) ?? rows[0] ?? null
 
   if (!active) {
-    return <Card title="تحليل أسعار المواد الخام" hint="لا توجد مواد خام بعد"><p className="text-sm text-[#6b7280]">أضف مواد خام أولاً من شاشة المواد الخام.</p></Card>
+    return (<LocalizedContent>{<Card title="تحليل أسعار المواد الخام" hint="لا توجد مواد خام بعد"><p className="text-sm text-[#6b7280]">أضف مواد خام أولاً من شاشة المواد الخام.</p></Card>}</LocalizedContent>)
   }
 
   const maxMonthPrice = Math.max(...active.months.map((month) => month.avgPrice), 0.0001)
   const maxMonthQty = Math.max(...active.months.map((month) => month.purchasedQty), 1)
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="تحليل أسعار المواد الخام" hint="متوسط/أعلى/أقل سعر شهرياً، المورد، الكمية المشتراة والمستهلكة، تكلفة النقل، والتكلفة الواصلة للمصنع">
         <Field label="الخامة">
@@ -4275,7 +4283,7 @@ function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
         ) : null}
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function ProfitabilityScreen({ ctx }: { ctx: LiveCtx }) {
@@ -4284,7 +4292,7 @@ function ProfitabilityScreen({ ctx }: { ctx: LiveCtx }) {
   const rows = profitabilityReport(ctx.state, groupBy)
   const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0)
   const totalMargin = rows.reduce((sum, row) => sum + row.marginValue, 0)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-[12px] border border-[#e5e7eb] bg-white p-4 shadow-sm">
@@ -4327,7 +4335,7 @@ function ProfitabilityScreen({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
@@ -4341,7 +4349,7 @@ function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
     production: [
       { href: '/inventory/manufacturing/planned', label: 'المخطط' },
       { href: '/inventory/manufacturing/actual', label: 'الفعلي' },
-      { href: '/inventory/manufacturing/execution', label: 'ن��بة التنفيذ' },
+      { href: '/inventory/manufacturing/execution', label: 'نسبة التنفيذ' },
     ],
     sales: [
       { href: '/sales/today', label: 'مبيعات اليوم' },
@@ -4350,7 +4358,7 @@ function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
     ],
   }
   const items = links[section] ?? []
-  return (
+  return (<LocalizedContent>{(
     <Card title="التقارير" hint="اختر التقرير المطلوب">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
@@ -4360,5 +4368,5 @@ function ReportEntry({ ctx, section }: { ctx: LiveCtx; section: string }) {
         ))}
       </div>
     </Card>
-  )
+  )}</LocalizedContent>)
 }

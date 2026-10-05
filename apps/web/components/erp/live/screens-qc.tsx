@@ -1,5 +1,7 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+
 import { useMemo, useState } from 'react'
 
 import { supplierQuality } from '@/lib/erp/domain/reports'
@@ -36,7 +38,7 @@ function LimitsForm({ ctx, itemType, itemId }: { ctx: LiveCtx; itemType: 'MATERI
     maxPhosphorus: limits.maxPhosphorus?.toString() ?? '',
   })
   const num = (value: string) => (value.trim() === '' ? undefined : Number(value))
-  return (
+  return (<LocalizedContent>{(
     <form className="grid gap-3 md:grid-cols-3" onSubmit={async (event) => {
       event.preventDefault()
       await ctx.act('setQcLimits', {
@@ -88,7 +90,7 @@ function LimitsForm({ ctx, itemType, itemId }: { ctx: LiveCtx; itemType: 'MATERI
         <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'qc.limits')}>حفظ الحدود</PrimaryButton>
       </div>
     </form>
-  )
+  )}</LocalizedContent>)
 }
 
 export function QcLimitsEditor({ ctx, itemType }: { ctx: LiveCtx; itemType: 'MATERIAL' | 'PRODUCT' }) {
@@ -96,7 +98,7 @@ export function QcLimitsEditor({ ctx, itemType }: { ctx: LiveCtx; itemType: 'MAT
   const [itemId, setItemId] = useState(items[0]?.id ?? '')
   if (!can(ctx.permissions, 'qc.read') && !can(ctx.permissions, 'qc.limits')) return null
   const active = items.some((item) => item.id === itemId) ? itemId : (items[0]?.id ?? '')
-  return (
+  return (<LocalizedContent>{(
     <Card title="حدود الجودة" hint="النتيجة المقترحة تُحسب من هذه الحدود. تغييرها يحتاج صلاحية qc.limits.">
       <Field label={itemType === 'MATERIAL' ? 'المادة' : 'المنتج'}>
         <SelectInput value={active} onChange={(e) => setItemId(e.target.value)}>
@@ -105,12 +107,12 @@ export function QcLimitsEditor({ ctx, itemType }: { ctx: LiveCtx; itemType: 'MAT
       </Field>
       {active ? <div className="mt-3"><LimitsForm key={active} ctx={ctx} itemType={itemType} itemId={active} /></div> : null}
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 export function QualityScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
-  if (entityKey === 'qualitySample') return <Samples ctx={ctx} />
-  if (entityKey === 'supplierQuality') return <SupplierQuality ctx={ctx} />
+  if (entityKey === 'qualitySample') return (<LocalizedContent>{<Samples ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'supplierQuality') return (<LocalizedContent>{<SupplierQuality ctx={ctx} />}</LocalizedContent>)
   return null
 }
 
@@ -147,7 +149,7 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
     if (to && day > to) return false
     return true
   }), [ctx.state.qualitySamples, supplierId, materialId, lotNo, result, from, to])
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="تسجيل عينة" hint="النتيجة تُقترح من الحدود. تجاوزها يحتاج سبباً، وفك الرفض أو الحجز يحتاج صلاحية خاصة.">
         {can(ctx.permissions, 'qc.manage') ? (
@@ -329,7 +331,7 @@ function Samples({ ctx }: { ctx: LiveCtx }) {
         />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function qualitySampleTypeLabel(type: QualitySample['type']) {
@@ -350,7 +352,7 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
     : sample.type === 'IN_PROCESS'
       ? sample.productionOrderId
       : `${sample.batchNo ?? ''}`
-  return (
+  return (<LocalizedContent>{(
     <div className="flex flex-col gap-1">
       {(sample.attachments ?? []).map((attachment) => (
         <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/quality-samples/attachments/${attachment.id}`} target="_blank" rel="noreferrer">
@@ -417,7 +419,7 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
         </FormDialog>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function NutritionalComparisonPanel({ ctx, sample }: { ctx: LiveCtx; sample: QualitySample }) {
@@ -426,7 +428,7 @@ function NutritionalComparisonPanel({ ctx, sample }: { ctx: LiveCtx; sample: Qua
   const product = ctx.state.products.find((item) => item.id === lot.productId)
   const calculation = calculateLotNutrition(ctx.state, lot)
   const comparison = compareNutrition(calculation.profile, sample, product?.qcLimits)
-  return (
+  return (<LocalizedContent>{(
     <Card title={`التحليل الغذائي — ${lot.lotNo}`} hint="مقارنة قيم الخامات المحسوبة بقراءة المختبر ومواصفة المنتج.">
       {calculation.missingMaterials.length ? (
         <p className="mb-3 text-sm text-amber-800">تحليل بعض الخامات غير متوفر؛ تغطية كل عنصر موضحة أدناه: {calculation.missingMaterials.join('، ')}</p>
@@ -441,25 +443,25 @@ function NutritionalComparisonPanel({ ctx, sample }: { ctx: LiveCtx; sample: Qua
         item.lab === undefined ? 'لا توجد قراءة' : item.inSpec ? 'مطابق' : 'خارج المواصفة',
       ])} />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function ResultButtons({ ctx, sampleId }: { ctx: LiveCtx; sampleId: string }) {
   const [reason, setReason] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <span className="flex flex-wrap items-center gap-2">
       <input className="h-9 w-28 rounded-xl border border-[#dfe7e3] px-2 text-sm" placeholder="السبب" value={reason} onChange={(e) => setReason(e.target.value)} />
       {(['PASSED', 'FAILED', 'HOLD'] as const).map((next) => (
         <GhostButton key={next} type="button" onClick={() => ctx.act('updateQualityResult', { sampleId, result: next, reason })}>{statusLabel(next)}</GhostButton>
       ))}
     </span>
-  )
+  )}</LocalizedContent>)
 }
 
 function SupplierQuality({ ctx }: { ctx: LiveCtx }) {
   const [supplierId, setSupplierId] = useState(ctx.state.suppliers[0]?.id ?? '')
   const summary = supplierId ? supplierQuality(ctx.state, supplierId) : null
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="جودة المورد">
         <Field label="المورد">
@@ -489,5 +491,5 @@ function SupplierQuality({ ctx }: { ctx: LiveCtx }) {
         ) : null}
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }

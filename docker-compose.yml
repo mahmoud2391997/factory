@@ -24,7 +24,9 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      APP_MODE: demo
+      APP_MODE: production
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      SETUP_TOKEN: ${SETUP_TOKEN:?set SETUP_TOKEN in .env}
       DATABASE_URL: postgresql://factory:${POSTGRES_PASSWORD}@postgres:5432/factory_erp
       ERP_DATA_DIR: /app/data
     ports:

@@ -1,5 +1,7 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { COST_LABEL } from '@/lib/erp/domain/costing'
@@ -37,21 +39,21 @@ const FACTORY_KEYS = new Set([
 
 function DayNote({ day, shifted }: { day: string; shifted: boolean }) {
   const { language } = useLanguage()
-  return <p className="text-sm text-[#788983]">{translateUiText(language, shifted ? `آخر يوم تشغيل: ${dayFmt(day)}` : dayFmt(day))}</p>
+  return (<LocalizedContent>{<p className="text-sm text-[#788983]">{translateUiText(language, shifted ? `آخر يوم تشغيل: ${dayFmt(day)}` : dayFmt(day))}</p>}</LocalizedContent>)
 }
 
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'bad' | 'good' }) {
   const { language } = useLanguage()
   const toneClass = tone === 'bad' ? 'text-[#dc2626]' : tone === 'good' ? 'text-[#0a825d]' : 'text-[#1f1f1f]'
   const barClass = tone === 'bad' ? 'bg-[#ef4444]' : tone === 'good' ? 'bg-[#10b981]' : 'bg-[#0d9488]'
-  return (
+  return (<LocalizedContent>{(
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
       <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
       <div className={`mt-2 text-3xl font-semibold leading-none tracking-tight ${toneClass}`}>{translateUiText(language, value)}</div>
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
@@ -70,7 +72,7 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
   const note = <DayNote day={day} shifted={status.shifted} />
 
   if (entityKey === 'factoryPlanned' || entityKey === 'factoryActual' || entityKey === 'factoryExecution') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -95,13 +97,13 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factorySalesToday' || entityKey === 'factorySalesMonth') {
     const rows = entityKey === 'factorySalesToday' ? todayInvoices : monthInvoices
     const total = entityKey === 'factorySalesToday' ? status.sales.today : status.sales.month
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -122,11 +124,11 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryOpenOrders') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -146,15 +148,15 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryCostPerTon') {
-    return <CostBreakdown ctx={ctx} note={note} day={day} />
+    return (<LocalizedContent>{<CostBreakdown ctx={ctx} note={note} day={day} />}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryAvgPrice' || entityKey === 'factoryMargin') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -175,12 +177,12 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryStockValue') {
     const rows = stockRows(ctx.state)
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <Metric label="قيمة المخزون" value={moneyFmt(status.inventory.value)} />
@@ -191,11 +193,11 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryRunningOut') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <Metric label="المواد التي ستنفد" value={String(status.inventory.runningOut.length)} hint="رصيدها عند الحد الأدنى أو دونه" />
@@ -206,11 +208,11 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryStagnant') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <Metric label="المواد الراكدة" value={String(status.inventory.stagnant.length)} hint="بلا حركة صادرة منذ 7 أيام أو أكثر" />
@@ -221,11 +223,11 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryReserved') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <Metric label="المواد المحجوزة" value={String(status.inventory.reserved.length)} hint="لأمر إنتاج مفتوح أو في مستودع التصنيع" />
@@ -236,7 +238,7 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryWaste') {
@@ -245,7 +247,7 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         .filter((line) => line.wasteQty > 0)
         .map((line) => [order.number, ctx.state.materials.find((item) => item.id === line.materialId)?.nameAr ?? line.materialId, qtyFmt(line.actualQty), qtyFmt(line.wasteQty)]),
     )
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -256,24 +258,24 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           <DataTable columns={['الأمر', 'المادة', 'المصروف', 'الهدر']} rows={lines} />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'varianceReport') {
-    return <VarianceReportScreen ctx={ctx} />
+    return (<LocalizedContent>{<VarianceReportScreen ctx={ctx} />}</LocalizedContent>)
   }
 
   if (entityKey === 'productionLot' || entityKey === 'lotTrace') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <LotsScreen ctx={ctx} detail={entityKey === 'lotTrace'} />
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
   if (entityKey === 'factoryDeviation') {
-    return (
+    return (<LocalizedContent>{(
       <div className="space-y-4">
         {note}
         <Metric
@@ -288,10 +290,10 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
           />
         </Card>
       </div>
-    )
+    )}</LocalizedContent>)
   }
 
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       {note}
       <Metric label="توقفات المصنع" value={status.operations.stoppageMinutes ? `${status.operations.stoppageMinutes} دقيقة` : 'لا توجد'} hint={status.operations.stoppages.length ? `${status.operations.stoppages.length} توقف` : 'الخط يعمل'} />
@@ -302,7 +304,7 @@ export function FactoryScreens({ entityKey, ctx }: { entityKey: string; ctx: Liv
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function VarianceReportScreen({ ctx }: { ctx: LiveCtx }) {
@@ -314,7 +316,7 @@ function VarianceReportScreen({ ctx }: { ctx: LiveCtx }) {
   const varianceKg = actual - expected
   const variancePct = expected > 0 ? (varianceKg / expected) * 100 : 0
   const maxAbs = Math.max(1, ...rows.map((row) => Math.abs(row.variancePct)))
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-4">
         <Metric label={t('expectedOutput')} value={`${qtyFmt(expected)} كجم`} />
@@ -367,14 +369,14 @@ function VarianceReportScreen({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function CostBreakdown({ ctx, note, day }: { ctx: LiveCtx; note: ReactNode; day: string }) {
   const [from, setFrom] = useState(`${day.slice(0, 7)}-01`)
   const [to, setTo] = useState(day)
   const summary = useMemo(() => productionCostSummary(ctx.state, from, to), [ctx.state, from, to])
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       {note}
       <Card title="تكلفة الطن حسب الفترة" hint="تشمل الخام والأكياس وبنود التحميل. الدفعات القديمة تبقى بتكلفة الخام فقط.">
@@ -399,5 +401,5 @@ function CostBreakdown({ ctx, note, day }: { ctx: LiveCtx; note: ReactNode; day:
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }

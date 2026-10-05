@@ -1,5 +1,7 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+
 import { useState } from 'react'
 import Link from 'next/link'
 
@@ -27,14 +29,14 @@ function basisTone(basis?: string): 'good' | 'warn' | 'neutral' {
 
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   const { language } = useLanguage()
-  return (
+  return (<LocalizedContent>{(
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#0d9488]" />
       <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
       <div className="mt-2 text-2xl font-semibold leading-none text-[#1f1f1f]">{translateUiText(language, value)}</div>
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) {
@@ -67,7 +69,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
     ? (ctx.state.qualityHolds ?? []).filter((hold) => hold.targetType === 'LOT' && hold.lotNo === trace.lot.lotNo).at(-1)
     : undefined
   const waste = lots.reduce((sum, lot) => sum + lot.wasteKg, 0)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric label="دفعات الإنتاج" value={String(lots.length)} />
@@ -263,7 +265,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
         </Card>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 type HoldAction = 'holdLot' | 'releaseLot' | 'recallLot' | 'holdRawBatch' | 'releaseRawBatch'
@@ -281,7 +283,7 @@ function HoldActionDialog({
   const [reason, setReason] = useState('')
   const label = translateUiText(language, action.startsWith('hold') ? 'حجر' : action.startsWith('release') ? 'رفع الحجر' : 'استدعاء')
   const batchLabel = translateUiText(language, target.lotNo ? 'دفعة الإنتاج' : 'دفعة الخام')
-  return <FormDialog title={`${label} ${batchLabel}`} openLabel={label}>
+  return (<LocalizedContent>{<FormDialog title={`${label} ${batchLabel}`} openLabel={label}>
     {(close) => <form className="grid gap-3" onSubmit={async (event) => {
       event.preventDefault()
       const result = await ctx.act(action, { ...target, reason })
@@ -290,12 +292,12 @@ function HoldActionDialog({
       <Field label={`${translateUiText(language, 'سبب')} ${label}`}><TextInput value={reason} onChange={(event) => setReason(event.target.value)} required minLength={2} /></Field>
       <PrimaryButton disabled={ctx.pending || reason.trim().length < 2}>{label}</PrimaryButton>
     </form>}
-  </FormDialog>
+  </FormDialog>}</LocalizedContent>)
 }
 
 function QualityHoldAction({ ctx, lotNo, release = false, recall = false }: { ctx: LiveCtx; lotNo: string; release?: boolean; recall?: boolean }) {
   const action: HoldAction = release ? 'releaseLot' : recall ? 'recallLot' : 'holdLot'
-  return <HoldActionDialog ctx={ctx} action={action} target={{ lotNo }} />
+  return (<LocalizedContent>{<HoldActionDialog ctx={ctx} action={action} target={{ lotNo }} />}</LocalizedContent>)
 }
 
 function qualityHoldStatusLabel(status: 'HELD' | 'RELEASED' | 'RECALLED') {
@@ -308,9 +310,9 @@ function RawBatchHoldAction({ ctx, materialId, batchNo }: { ctx: LiveCtx; materi
   const latest = (ctx.state.qualityHolds ?? []).filter(
     (hold) => hold.targetType === 'RAW_BATCH' && hold.materialId === materialId && hold.batchNo === batchNo,
   ).at(-1)
-  if (latest?.status === 'RECALLED') return <Badge tone="bad">مستدعاة</Badge>
+  if (latest?.status === 'RECALLED') return (<LocalizedContent>{<Badge tone="bad">مستدعاة</Badge>}</LocalizedContent>)
   const release = latest?.status === 'HELD'
   const allowed = can(ctx.permissions, release ? 'qc.release' : 'qc.manage')
-  if (!allowed) return latest?.status === 'HELD' ? <Badge tone="bad">محجورة</Badge> : '—'
-  return <HoldActionDialog ctx={ctx} action={release ? 'releaseRawBatch' : 'holdRawBatch'} target={{ materialId, batchNo }} />
+  if (!allowed) return (<LocalizedContent>{latest?.status === 'HELD' ? <Badge tone="bad">محجورة</Badge> : '—'}</LocalizedContent>)
+  return (<LocalizedContent>{<HoldActionDialog ctx={ctx} action={release ? 'releaseRawBatch' : 'holdRawBatch'} target={{ materialId, batchNo }} />}</LocalizedContent>)
 }

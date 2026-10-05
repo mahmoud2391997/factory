@@ -463,6 +463,7 @@ export function ErpShell() {
     if (pages.length === 0) return null
     const isFlyout = variant === 'flyout'
     const sectionKey = `${workspaceId}:${section.id}`
+    const sectionActive = resolved?.workspace?.id === workspaceId && resolved?.section?.id === section.id
     const collapsed = collapsedSectionIds.includes(sectionKey)
 
     if (pages.length === 1) {
@@ -479,7 +480,7 @@ export function ErpShell() {
     const pagesId = `erp-navigation-${workspaceId}-${section.id}-${variant}`
     return (
       <section key={`${variant}:${workspaceId}:${section.id}`} className={isFlyout ? 'border-b border-[#e5e7eb] pb-2 last:border-b-0 dark:border-[#3f3f46]' : 'py-1'}>
-        <button type="button" data-nav-item="true" aria-expanded={!collapsed} aria-controls={pagesId} onClick={() => setCollapsedSectionIds((current) => collapsed ? current.filter((id) => id !== sectionKey) : [...current, sectionKey])} className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-right text-xs font-semibold text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:text-[#e4e4e7] dark:hover:bg-[#27272a] ${isFlyout ? 'px-2.5' : ''}`}>
+        <button type="button" data-nav-item="true" data-active={sectionActive} aria-current={sectionActive ? 'location' : undefined} aria-expanded={!collapsed} aria-controls={pagesId} onClick={() => setCollapsedSectionIds((current) => collapsed ? current.filter((id) => id !== sectionKey) : [...current, sectionKey])} className={`erp-section-item flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-right text-xs font-semibold text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:text-[#e4e4e7] dark:hover:bg-[#27272a] ${isFlyout ? 'px-2.5' : ''}`}>
           <span className="min-w-0 flex-1">
             <span className="block truncate">{uiLabel(section.label)}</span>
             {section.workflow ? <span className="mt-0.5 block truncate text-[10px] font-normal normal-case tracking-normal text-[#6b7280] dark:text-[#a1a1aa]">{uiLabel(section.workflow)}</span> : null}
@@ -513,6 +514,7 @@ export function ErpShell() {
     )
   }
 
+  const displayUserName = uiLabel(user.fullName)
   const primaryRole = uiLabel(user.roles[0]?.nameAr ?? 'مستخدم')
 
   return (
@@ -735,7 +737,7 @@ export function ErpShell() {
           {userMenuOpen ? (
             <div role="menu" aria-label={uiLabel('قائمة المستخدم')} className={`erp-user-menu absolute bottom-[calc(100%+8px)] z-50 w-[min(280px,calc(100vw-32px))] rounded-xl border border-[#d1d5db] bg-white p-3 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b] ${language === 'ar' ? 'right-2' : 'left-2'}`}>
               <div className="mb-3 border-b border-[#e5e7eb] pb-3 dark:border-[#3f3f46]">
-                <div className="truncate text-sm font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{user.fullName}</div>
+                <div className="truncate text-sm font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{displayUserName}</div>
                 <div className="truncate text-xs text-[#6b7280] dark:text-[#a1a1aa]">{primaryRole}</div>
               </div>
               <label className="mb-2 flex items-center justify-between gap-3 text-sm text-[#374151] dark:text-[#e4e4e7]">
@@ -754,10 +756,10 @@ export function ErpShell() {
               </button>
             </div>
           ) : null}
-          <button type="button" aria-haspopup="menu" aria-expanded={userMenuOpen} aria-label={`${uiLabel('قائمة المستخدم')}: ${user.fullName}, ${primaryRole}`} title={iconOnly ? `${user.fullName} · ${primaryRole}` : undefined} onClick={() => setUserMenuOpen((open) => !open)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-right hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:hover:bg-[#27272a] ${iconOnly ? 'justify-center' : ''}`}>
-            <span className="erp-mark grid size-8 shrink-0 place-items-center rounded-full bg-[#1f1f1f] text-xs font-semibold text-white">{getInitials(user.fullName)}</span>
+          <button type="button" aria-haspopup="menu" aria-expanded={userMenuOpen} aria-label={`${uiLabel('قائمة المستخدم')}: ${displayUserName}, ${primaryRole}`} title={iconOnly ? `${displayUserName} · ${primaryRole}` : undefined} onClick={() => setUserMenuOpen((open) => !open)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-right hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:hover:bg-[#27272a] ${iconOnly ? 'justify-center' : ''}`}>
+            <span className="erp-mark grid size-8 shrink-0 place-items-center rounded-full bg-[#1f1f1f] text-xs font-semibold text-white">{getInitials(displayUserName)}</span>
             <span className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
-              <span className="block truncate text-sm font-medium text-[#1f2937] dark:text-[#f4f4f5]">{user.fullName}</span>
+              <span className="block truncate text-sm font-medium text-[#1f2937] dark:text-[#f4f4f5]">{displayUserName}</span>
               <span className="block truncate text-xs text-[#6b7280] dark:text-[#a1a1aa]">{primaryRole}</span>
             </span>
             {!iconOnly ? <ChevronDown size={15} aria-hidden className="shrink-0 text-[#6b7280]" /> : null}
@@ -772,7 +774,7 @@ export function ErpShell() {
           </button>
           <div className="hidden text-right sm:block">
             <div className="text-[13px] text-[#6b7280]">{primaryRole}</div>
-            <h1 className="text-2xl font-semibold leading-tight">{uiLabel('مرحباً،')} {firstName}</h1>
+            <h1 className="text-2xl font-semibold leading-tight">{uiLabel('مرحباً،')} {uiLabel(firstName)}</h1>
           </div>
           <div className="ms-auto flex items-center gap-2">
             {showNotices ? (
@@ -836,7 +838,7 @@ export function ErpShell() {
         </div>
       </div>
 
-      {toast ? <div role="status" className="fixed bottom-5 start-5 z-50 rounded-lg bg-[#1f1f1f] px-4 py-3 text-xs font-medium text-white shadow-xl">{toast}<button type="button" aria-label={uiLabel('إغلاق')} className="ms-3 min-h-8 text-white/90 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>×</button></div> : null}
+      {toast ? <div role="status" className="fixed bottom-5 start-5 z-50 rounded-lg bg-[#1f1f1f] px-4 py-3 text-xs font-medium text-white shadow-xl">{uiLabel(toast)}<button type="button" aria-label={uiLabel('إغلاق')} className="ms-3 min-h-8 text-white/90 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>×</button></div> : null}
     </main>
   )
 }

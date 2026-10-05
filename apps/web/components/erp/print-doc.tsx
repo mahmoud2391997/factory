@@ -1,5 +1,7 @@
 'use client'
 
+import { LocalizedContent } from '@/lib/i18n/localized-content'
+
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
@@ -32,25 +34,25 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' |
     }
   }, [kind])
 
-  if (error) return <main className="p-8">{error}</main>
+  if (error) return (<LocalizedContent>{<main className="p-8">{error}</main>}</LocalizedContent>)
   if (kind === 'recall') {
-    if (!recallData) return <main className="p-8">جاري التحميل...</main>
-    return (
+    if (!recallData) return (<LocalizedContent>{<main className="p-8">جاري التحميل...</main>}</LocalizedContent>)
+    return (<LocalizedContent>{(
       <main className="print-sheet">
-        <style>{`.print-sheet { max-width: 900px; margin: 0 auto; padding: 24px; color: #14211c; background: white; } .print-sheet table { width: 100%; border-collapse: collapse; } .print-sheet th, .print-sheet td { border-bottom: 1px solid #ddd; padding: 8px; text-align: right; font-size: 13px; } .noprint { margin-bottom: 16px; } @media print { .noprint { display: none; } .print-sheet { padding: 0; } }`}</style>
+        <style>{`.print-sheet { max-width: 900px; margin: 0 auto; padding: 24px; color: #14211c; background: white; } .print-sheet table { width: 100%; border-collapse: collapse; } .print-sheet th, .print-sheet td { border-bottom: 1px solid #ddd; padding: 8px; text-align: start; font-size: 13px; } .noprint { margin-bottom: 16px; } @media print { .noprint { display: none; } .print-sheet { padding: 0; } }`}</style>
         <div className="noprint"><button type="button" onClick={() => window.print()} style={{ background: '#123c35', color: 'white', border: 0, borderRadius: 8, padding: '8px 14px' }}>طباعة</button></div>
         <RecallReportDocument company={recallData.company} report={recallData.report} />
       </main>
-    )
+    )}</LocalizedContent>)
   }
-  if (!state) return <main className="p-8">جاري التحميل...</main>
+  if (!state) return (<LocalizedContent>{<main className="p-8">جاري التحميل...</main>}</LocalizedContent>)
 
-  return (
+  return (<LocalizedContent>{(
     <main className="print-sheet">
       <style>{`
         .print-sheet { max-width: 900px; margin: 0 auto; padding: 24px; color: #14211c; background: white; }
         .print-sheet table { width: 100%; border-collapse: collapse; }
-        .print-sheet th, .print-sheet td { border-bottom: 1px solid #ddd; padding: 8px; text-align: right; font-size: 13px; }
+        .print-sheet th, .print-sheet td { border-bottom: 1px solid #ddd; padding: 8px; text-align: start; font-size: 13px; }
         .noprint { margin-bottom: 16px; }
         @media print { .noprint { display: none; } .print-sheet { padding: 0; } }
       `}</style>
@@ -65,11 +67,11 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' |
       {kind === 'lot' ? <LotCertificate state={state} lotNo={decodeURIComponent(params.lotNo ?? '')} /> : null}
       {kind === 'delivery' ? <DeliveryNote state={state} id={params.id ?? ''} /> : null}
     </main>
-  )
+  )}</LocalizedContent>)
 }
 
 function Letterhead({ company }: { company: Company }) {
-  return (
+  return (<LocalizedContent>{(
     <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
       <div>
         <div style={{ fontSize: 22, fontWeight: 800 }}>{company.nameAr}</div>
@@ -81,14 +83,14 @@ function Letterhead({ company }: { company: Company }) {
       </div>
       <div style={{ fontWeight: 800, color: '#123c35' }}>{company.currency}</div>
     </header>
-  )
+  )}</LocalizedContent>)
 }
 
 function Invoice({ state, id }: { state: PublicState; id: string }) {
   const invoice = state.invoices.find((item) => item.id === id)
-  if (!invoice) return <p>الفاتورة غير موجودة</p>
+  if (!invoice) return (<LocalizedContent>{<p>الفاتورة غير موجودة</p>}</LocalizedContent>)
   const customer = state.customers.find((item) => item.id === invoice.customerId)
-  return (
+  return (<LocalizedContent>{(
     <article>
       <Letterhead company={state.company} />
       <h1 style={{ fontSize: 26, margin: '8px 0' }}>فاتورة ضريبية</h1>
@@ -133,14 +135,14 @@ function Invoice({ state, id }: { state: PublicState; id: string }) {
         فاتورة صادرة بالريال العُماني (ثلاثة أرقام عشرية) ومهيأة لمتطلبات فاتورة ضريبة القيمة المضافة في سلطنة عُمان. المعاملة الضريبية لكل صنف قابلة للتهيئة داخل النظام.
       </p>
     </article>
-  )
+  )}</LocalizedContent>)
 }
 
 function PurchaseOrder({ state, id }: { state: PublicState; id: string }) {
   const order = state.purchaseOrders.find((item) => item.id === id)
-  if (!order) return <p>أمر الشراء غير موجود</p>
+  if (!order) return (<LocalizedContent>{<p>أمر الشراء غير موجود</p>}</LocalizedContent>)
   const supplier = state.suppliers.find((item) => item.id === order.supplierId)
-  return (
+  return (<LocalizedContent>{(
     <article>
       <Letterhead company={state.company} />
       <h1>أمر شراء</h1>
@@ -171,16 +173,16 @@ function PurchaseOrder({ state, id }: { state: PublicState; id: string }) {
       </table>
       {order.notes ? <p>ملاحظات: {order.notes}</p> : null}
     </article>
-  )
+  )}</LocalizedContent>)
 }
 
 function DeliveryNote({ state, id }: { state: PublicState; id: string }) {
   const delivery = state.invoiceDeliveries.find((item) => item.id === id)
-  if (!delivery) return <p>أمر التسليم غير موجود</p>
+  if (!delivery) return (<LocalizedContent>{<p>أمر التسليم غير موجود</p>}</LocalizedContent>)
   const invoice = state.invoices.find((item) => item.id === delivery.invoiceId)
-  if (!invoice) return <p>فاتورة أمر التسليم غير موجودة</p>
+  if (!invoice) return (<LocalizedContent>{<p>فاتورة أمر التسليم غير موجودة</p>}</LocalizedContent>)
   const customer = state.customers.find((item) => item.id === invoice.customerId)
-  return (
+  return (<LocalizedContent>{(
     <article>
       <Letterhead company={state.company} />
       <h1 style={{ fontSize: 26, margin: '8px 0' }}>أمر تسليم</h1>
@@ -218,13 +220,13 @@ function DeliveryNote({ state, id }: { state: PublicState; id: string }) {
         </section>
       ) : <p style={{ marginTop: 20 }}>لم يُسجّل إثبات التسليم بعد.</p>}
     </article>
-  )
+  )}</LocalizedContent>)
 }
 
 function LotCertificate({ state, lotNo }: { state: PublicState; lotNo: string }) {
   const trace = traceLot(state, lotNo)
-  if (!trace) return <p>دفعة الإنتاج غير موجودة</p>
-  return (
+  if (!trace) return (<LocalizedContent>{<p>دفعة الإنتاج غير موجودة</p>}</LocalizedContent>)
+  return (<LocalizedContent>{(
     <article>
       <Letterhead company={state.company} />
       <h1 style={{ fontSize: 26, margin: '8px 0' }}>شهادة تتبع دفعة إنتاج</h1>
@@ -295,7 +297,7 @@ function LotCertificate({ state, lotNo }: { state: PublicState; lotNo: string })
         </tbody>
       </table>
     </article>
-  )
+  )}</LocalizedContent>)
 }
 
 function Labels({ state }: { state: PublicState }) {
@@ -303,7 +305,7 @@ function Labels({ state }: { state: PublicState }) {
     ...state.materials.map((item) => ({ code: item.barcode, name: item.nameAr })),
     ...state.products.map((item) => ({ code: item.barcode, name: item.nameAr })),
   ]
-  return (
+  return (<LocalizedContent>{(
     <article>
       <h1>ملصقات الباركود — {state.company.nameAr}</h1>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
@@ -315,14 +317,14 @@ function Labels({ state }: { state: PublicState }) {
         ))}
       </div>
     </article>
-  )
+  )}</LocalizedContent>)
 }
 
 function RecallReportDocument({ company, report }: { company: Company; report: ReturnType<typeof recallReport> }) {
   const target = report.target.type === 'LOT'
     ? `دفعة إنتاج: ${report.target.lotNo}`
     : `دفعة خام: ${report.materialName ?? report.target.materialId} — ${report.target.batchNo}`
-  return (
+  return (<LocalizedContent>{(
     <article>
       <Letterhead company={company} />
       <h1 style={{ fontSize: 26, margin: '8px 0' }}>تقرير تتبع واستدعاء</h1>
@@ -346,5 +348,5 @@ function RecallReportDocument({ company, report }: { company: Company; report: R
         </tr>)}</tbody>
       </table>
     </article>
-  )
+  )}</LocalizedContent>)
 }

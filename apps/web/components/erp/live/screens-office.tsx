@@ -26,36 +26,36 @@ const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = (Object.entries(R
 )
 
 export function OfficeScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
-  if (entityKey === 'fleet' || entityKey === 'fleetFuel' || entityKey === 'fleetTrips') return <FleetScreens ctx={ctx} mode={entityKey} />
-  if (entityKey === 'account') return <Accounts ctx={ctx} />
-  if (entityKey === 'journalEntry') return <Journals ctx={ctx} />
-  if (entityKey === 'expense') return <Expenses ctx={ctx} />
-  if (entityKey === 'vatReport' || entityKey === 'taxSettings') return <VatScreen ctx={ctx} settings={entityKey === 'taxSettings'} />
-  if (entityKey === 'financialOps') return <FinancialOperations ctx={ctx} />
-  if (entityKey === 'utilitiesReading') return <Utilities ctx={ctx} />
-  if (entityKey === 'bankTransaction') return <BankTransactions ctx={ctx} />
-  if (entityKey === 'obligation') return <Obligations ctx={ctx} />
-  if (entityKey === 'documents') return <Documents ctx={ctx} />
-  if (entityKey === 'employee') return <Employees ctx={ctx} />
-  if (entityKey === 'attendance') return <Attendance ctx={ctx} />
-  if (entityKey === 'overtime') return <Overtime ctx={ctx} />
-  if (entityKey === 'payroll') return <Payroll ctx={ctx} />
-  if (entityKey === 'report' || entityKey === 'accountingReports') return <Reports ctx={ctx} />
-  if (entityKey === 'notification') return <Notifications ctx={ctx} />
-  if (entityKey === 'auditLog') return <Audit ctx={ctx} />
-  if (entityKey === 'companySettings') return <Settings ctx={ctx} />
-  if (entityKey === 'approvals') return <Approvals ctx={ctx} />
-  if (entityKey === 'users') return <Users ctx={ctx} />
+  if (entityKey === 'fleet' || entityKey === 'fleetFuel' || entityKey === 'fleetTrips') return (<LocalizedContent>{<FleetScreens ctx={ctx} mode={entityKey} />}</LocalizedContent>)
+  if (entityKey === 'account') return (<LocalizedContent>{<Accounts ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'journalEntry') return (<LocalizedContent>{<Journals ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'expense') return (<LocalizedContent>{<Expenses ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'vatReport' || entityKey === 'taxSettings') return (<LocalizedContent>{<VatScreen ctx={ctx} settings={entityKey === 'taxSettings'} />}</LocalizedContent>)
+  if (entityKey === 'financialOps') return (<LocalizedContent>{<FinancialOperations ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'utilitiesReading') return (<LocalizedContent>{<Utilities ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'bankTransaction') return (<LocalizedContent>{<BankTransactions ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'obligation') return (<LocalizedContent>{<Obligations ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'documents') return (<LocalizedContent>{<Documents ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'employee') return (<LocalizedContent>{<Employees ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'attendance') return (<LocalizedContent>{<Attendance ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'overtime') return (<LocalizedContent>{<Overtime ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'payroll') return (<LocalizedContent>{<Payroll ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'report' || entityKey === 'accountingReports') return (<LocalizedContent>{<Reports ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'notification') return (<LocalizedContent>{<Notifications ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'auditLog') return (<LocalizedContent>{<Audit ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'companySettings') return (<LocalizedContent>{<Settings ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'approvals') return (<LocalizedContent>{<Approvals ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'users') return (<LocalizedContent>{<Users ctx={ctx} />}</LocalizedContent>)
   return null
 }
 
 function Accounts({ ctx }: { ctx: LiveCtx }) {
   const tb = trialBalance(ctx.state)
-  return (
+  return (<LocalizedContent>{(
     <Card title="دليل الحسابات" hint="الأرصدة تُحسب من القيود الناتجة عن العمليات، وليست إدخالاً يدوياً منفصلاً." extra={<ExportLinks href="/api/erp/export?kind=trial" />}>
       <DataTable columns={['الرمز', 'الحساب', 'النوع', 'الرصيد']} rows={tb.rows.map((row) => [row.code, row.nameAr, row.type, moneyFmt(row.balance)])} />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function VehicleEditor({ ctx, vehicle, onClose }: { ctx: LiveCtx; vehicle: (typeof ctx.state.vehicles)[number]; onClose: () => void }) {
@@ -121,7 +121,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
   const [editingVehicle, setEditingVehicle] = useState<(typeof ctx.state.vehicles)[number] | null>(null)
   const selectedVehicle = ctx.state.vehicles.find((vehicle) => vehicle.id === vehicleId)
 
-  if (mode === 'fleetFuel') return (
+  if (mode === 'fleetFuel') return (<LocalizedContent>{(
     <Card title="سجل الوقود" hint="كل تعبئة مرتبطة بالمركبة والعداد والسائق لتظهر كلفة الكيلومتر والانحراف.">
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr} — {vehicle.plateNo}</option>)}</SelectInput> <DependencyLink field="vehicles" /></Field>
@@ -149,9 +149,9 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         }}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 
-  if (mode === 'fleetTrips') return (
+  if (mode === 'fleetTrips') return (<LocalizedContent>{(
     <Card title="رحلات التوزيع" hint="تُحسب التكلفة من الوقود والمسافة والسائق. رحلة الفاتورة يمكن توزيع تكلفتها على دفعاتها حسب الكمية ثم إرسالها للمحاسبة للاعتماد.">
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="المركبة"><SelectInput value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>{ctx.state.vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.nameAr}</option>)}</SelectInput> <DependencyLink field="vehicles" /></Field>
@@ -199,9 +199,9 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         ]
       })} />
     </Card>
-  )
+  )}</LocalizedContent>)
 
-  return (
+  return (<LocalizedContent>{(
     <div className="flex flex-col gap-4">
       <Card title="المركبات" hint="ملف المركبة والعدادات ومواعيد الوثائق. تربط الوثائق من شاشة وثائق الشركة.">
         {can(ctx.permissions, 'fleet.manage') ? <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
@@ -281,12 +281,12 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function TripCostAllocationReview({ ctx, allocationId }: { ctx: LiveCtx; allocationId: string }) {
   const [reason, setReason] = useState('')
-  return <div className="flex flex-wrap gap-1">
+  return (<LocalizedContent>{<div className="flex flex-wrap gap-1">
     <GhostButton type="button" disabled={ctx.pending} onClick={() => ctx.act('decideTripCostAllocation', { id: allocationId, decision: 'APPROVED' })}>اعتماد</GhostButton>
     <FormDialog title="رفض توزيع تكلفة الرحلة" openLabel="رفض">
       {(close) => <form className="grid gap-3" onSubmit={async (event) => {
@@ -298,7 +298,7 @@ function TripCostAllocationReview({ ctx, allocationId }: { ctx: LiveCtx; allocat
         <PrimaryButton disabled={ctx.pending || reason.trim().length < 2}>تأكيد الرفض</PrimaryButton>
       </form>}
     </FormDialog>
-  </div>
+  </div>}</LocalizedContent>)
 }
 
 function CompanyDocumentEditor({ ctx, document, onClose }: { ctx: LiveCtx; document: CompanyDocument; onClose: () => void }) {
@@ -389,7 +389,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
     if (days <= 90) return `تنتهي خلال ${days} يوم`
     return 'سارية'
   }
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="الوثائق والتصاريح" hint="سجل موحد للوثائق حسب الجهة وتاريخ الانتهاء؛ تنبيهات التجديد تصدر قبل 90 و60 و30 و7 أيام." extra={<ExportLinks href="/api/erp/export?kind=documents" />}>
         {can(ctx.permissions, 'documents.manage') ? (
@@ -481,7 +481,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
         <CompanyDocumentEditor ctx={ctx} document={editingDoc} onClose={() => setEditingDoc(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function documentEntityName(ctx: LiveCtx, document: CompanyDocument) {
@@ -506,7 +506,7 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
   const [fileName, setFileName] = useState('')
   const [validationError, setValidationError] = useState('')
 
-  return <>
+  return (<LocalizedContent>{<>
     <FormDialog title={`${translateUiText(language, 'تجديد')} ${document.title}`} openLabel="تجديد">
       {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
         event.preventDefault()
@@ -578,11 +578,11 @@ function DocumentActions({ ctx, document }: { ctx: LiveCtx; document: CompanyDoc
         <PrimaryButton disabled={uploading}>{uploading ? 'جارٍ الرفع…' : 'رفع المرفق'}</PrimaryButton>
       </form>}
     </FormDialog>
-  </>
+  </>}</LocalizedContent>)
 }
 
 function Journals({ ctx }: { ctx: LiveCtx }) {
-  return (
+  return (<LocalizedContent>{(
     <Card title="القيود اليومية" extra={<ExportLinks href="/api/erp/export?kind=journals" />}>
       <DataTable
         columns={['القيد', 'التاريخ', 'البيان', 'البنود']}
@@ -594,7 +594,7 @@ function Journals({ ctx }: { ctx: LiveCtx }) {
         ])}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function ExpenseEditor({ ctx, expense, onClose }: { ctx: LiveCtx; expense: (typeof ctx.state.expenses)[number]; onClose: () => void }) {
@@ -645,7 +645,7 @@ function Expenses({ ctx }: { ctx: LiveCtx }) {
   const [amount, setAmount] = useState('')
   const [vatTreatment, setVatTreatment] = useState<VatTreatment>('STANDARD')
   const [editingExpense, setEditingExpense] = useState<(typeof ctx.state.expenses)[number] | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="المصروفات"
@@ -711,7 +711,7 @@ function Expenses({ ctx }: { ctx: LiveCtx }) {
         <ExpenseEditor ctx={ctx} expense={editingExpense} onClose={() => setEditingExpense(null)} />
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function VatScreen({ ctx, settings }: { ctx: LiveCtx; settings: boolean }) {
@@ -719,7 +719,7 @@ function VatScreen({ ctx, settings }: { ctx: LiveCtx; settings: boolean }) {
   const vat = vatReturn(ctx.state, month)
   const [vatRatePct, setVatRatePct] = useState(String(ctx.state.company.vatRatePct))
   const [vatNumber, setVatNumber] = useState(ctx.state.company.vatNumber)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="إقرار ضريبة القيمة المضافة" hint="مخرجات الفواتير المؤكدة مقابل مدخلات الاستلام والمصروفات المرحّلة. راجع المعاملة الضريبية للأعلاف مع المستشار الضريبي؛ النسبة الافتراضية 5%." extra={can(ctx.permissions, 'accounting.read') || can(ctx.permissions, 'accounting.manage') ? <ExportLinks href={`/api/erp/export?kind=vat&month=${month}`} /> : null}>
         <Field label="الشهر"><TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></Field>
@@ -742,13 +742,13 @@ function VatScreen({ ctx, settings }: { ctx: LiveCtx; settings: boolean }) {
         </Card>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function FinancialOperations({ ctx }: { ctx: LiveCtx }) {
   const utilitiesCount = ctx.state.utilitiesReadings?.length ?? 0
   const pendingBankMatches = unmatchedBankTransactions(ctx.state).length
-  return (
+  return (<LocalizedContent>{(
     <div className="grid gap-4 md:grid-cols-2">
       {canSeeEntity(ctx.permissions, 'utilitiesReading') ? (
         <Card title="قراءات المرافق" hint={`${utilitiesCount} قراءة مسجلة للكهرباء والماء والغاز`}>
@@ -761,7 +761,7 @@ function FinancialOperations({ ctx }: { ctx: LiveCtx }) {
         </Card>
       ) : null}
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Utilities({ ctx }: { ctx: LiveCtx }) {
@@ -772,7 +772,7 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
   const [cost, setCost] = useState('')
   const [productionTon, setProductionTon] = useState('')
   const [notes, setNotes] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="استهلاك المرافق"
@@ -840,7 +840,7 @@ function Utilities({ ctx }: { ctx: LiveCtx }) {
         })} />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function BankTransactions({ ctx }: { ctx: LiveCtx }) {
@@ -851,7 +851,7 @@ function BankTransactions({ ctx }: { ctx: LiveCtx }) {
   const [type, setType] = useState<'CREDIT' | 'DEBIT'>('CREDIT')
   const [description, setDescription] = useState('')
   const [reference, setReference] = useState('')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="معاملات البنك"
@@ -900,7 +900,7 @@ function BankTransactions({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function ObligationEditor({ ctx, obligation, onClose }: { ctx: LiveCtx; obligation: (NonNullable<typeof ctx.state.obligations>[number]); onClose: () => void }) {
@@ -957,7 +957,7 @@ function Obligations({ ctx }: { ctx: LiveCtx }) {
   const [frequency, setFrequency] = useState<'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ONE_TIME'>('MONTHLY')
   const [numberOfInstallments, setNumberOfInstallments] = useState('')
   const [editingObligation, setEditingObligation] = useState<(NonNullable<typeof ctx.state.obligations>[number]) | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الالتزامات المالية"
@@ -1067,7 +1067,7 @@ function Obligations({ ctx }: { ctx: LiveCtx }) {
         <DataTable columns={['الشهر', 'عدد الأقساط', 'المبلغ المتوقع']} rows={obligationForecast(ctx.state, new Date().toISOString().slice(0, 7), 12).map((item) => [item.month, String(item.installments), moneyFmt(item.amount)])} />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function ObligationInstallmentPayment({ ctx, scheduleLineId, remaining }: { ctx: LiveCtx; scheduleLineId: string; remaining: number }) {
@@ -1075,7 +1075,7 @@ function ObligationInstallmentPayment({ ctx, scheduleLineId, remaining }: { ctx:
   const [method, setMethod] = useState('تحويل بنكي')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [reference, setReference] = useState('')
-  return <FormDialog title="دفع قسط" openLabel="دفع">
+  return (<LocalizedContent>{<FormDialog title="دفع قسط" openLabel="دفع">
     {(close) => <form className="grid gap-3" onSubmit={async (event) => {
       event.preventDefault()
       const result = await ctx.act('payObligationInstallment', { scheduleLineId, amount: Number(amount), method, date, reference: reference || undefined })
@@ -1088,7 +1088,7 @@ function ObligationInstallmentPayment({ ctx, scheduleLineId, remaining }: { ctx:
       <Field label="المرجع"><TextInput value={reference} onChange={(event) => setReference(event.target.value)} /></Field>
       <PrimaryButton disabled={ctx.pending}>تسجيل الدفعة</PrimaryButton>
     </form>}
-  </FormDialog>
+  </FormDialog>}</LocalizedContent>)
 }
 
 function BankMatchAction({ ctx, transactionId }: { ctx: LiveCtx; transactionId: string }) {
@@ -1100,7 +1100,7 @@ function BankMatchAction({ ctx, transactionId }: { ctx: LiveCtx; transactionId: 
     : type === 'SUPPLIER'
       ? ctx.state.suppliers.map((item) => ({ id: item.id, name: item.nameAr }))
       : ctx.state.expenses.map((item) => ({ id: item.id, name: item.description }))
-  return <FormDialog title={`${translateUiText(language, 'مطابقة')} ${transactionId}`} openLabel="مطابقة">
+  return (<LocalizedContent>{<FormDialog title={`${translateUiText(language, 'مطابقة')} ${transactionId}`} openLabel="مطابقة">
     {(close) => <form className="grid gap-3" onSubmit={async (event) => {
       event.preventDefault()
       const result = await ctx.act('matchBankTransaction', { transactionId, matchTo: { type, id: targetId } })
@@ -1110,10 +1110,11 @@ function BankMatchAction({ ctx, transactionId }: { ctx: LiveCtx; transactionId: 
       <Field label="السجل"><SelectInput value={targetId} onChange={(event) => setTargetId(event.target.value)}><option value="">اختر</option>{targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</SelectInput></Field>
       <PrimaryButton disabled={ctx.pending || !targetId}>مطابقة</PrimaryButton>
     </form>}
-  </FormDialog>
+  </FormDialog>}</LocalizedContent>)
 }
 
 function Employees({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const [nameAr, setNameAr] = useState('')
   const [department, setDepartment] = useState('الإنتاج')
   const [jobTitle, setJobTitle] = useState('')
@@ -1136,7 +1137,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
     const delta = Math.floor((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
     return String(Math.max(1, delta))
   }
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="الموظفون"
@@ -1198,7 +1199,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
         </LocalizedContent>
       ) : null}
 
-      <Card title="الإجازات" hint={`رصيد السنوي = ${entitlement} − المعتمد في السنة. الإجازة غير المدفوعة تخصم من المسير عند الإنشاء.`}>
+      <Card title="الإجازات" hint={`${translateUiText(language, 'رصيد السنوي =')} ${entitlement} ${translateUiText(language, '− المعتمد في السنة. الإجازة غير المدفوعة تخصم من المسير عند الإنشاء.')}`}>
         {selected ? (
           <div className="space-y-3">
             <div className="grid gap-3 md:grid-cols-2">
@@ -1270,7 +1271,7 @@ function Employees({ ctx }: { ctx: LiveCtx }) {
         ) : <p className="text-sm text-[#788983]">لا يوجد موظفون.</p>}
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function EmployeeEditor({ ctx, employee, onSaved }: { ctx: LiveCtx; employee: (typeof ctx.state.employees)[number]; onSaved?: () => void }) {
@@ -1284,7 +1285,7 @@ function EmployeeEditor({ ctx, employee, onSaved }: { ctx: LiveCtx; employee: (t
     residenceExpiryDate: employee.residenceExpiryDate ?? '',
     contractExpiryDate: employee.contractExpiryDate ?? '',
   })
-  return <form className="grid gap-3" onSubmit={async (event) => {
+  return (<LocalizedContent>{<form className="grid gap-3" onSubmit={async (event) => {
     event.preventDefault()
     const result = await ctx.act('updateEmployee', {
       id: employee.id,
@@ -1308,7 +1309,7 @@ function EmployeeEditor({ ctx, employee, onSaved }: { ctx: LiveCtx; employee: (t
     <Field label="انتهاء العقد"><TextInput type="date" value={form.contractExpiryDate} onChange={(event) => setForm({ ...form, contractExpiryDate: event.target.value })} /></Field>
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> موظف نشط</label>
     <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'employees.manage')}>حفظ التحديث</PrimaryButton>
-  </form>
+  </form>}</LocalizedContent>)
 }
 
 function Attendance({ ctx }: { ctx: LiveCtx }) {
@@ -1317,7 +1318,7 @@ function Attendance({ ctx }: { ctx: LiveCtx }) {
   const [checkIn, setCheckIn] = useState('07:00')
   const [checkOut, setCheckOut] = useState('15:00')
   const [csv, setCsv] = useState(() => `EMP-001,${muscatDay(new Date().toISOString())},07:05,15:10`)
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="السجل"
@@ -1377,7 +1378,7 @@ function Attendance({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function hours(checkIn: string, checkOut: string) {
@@ -1392,20 +1393,20 @@ function Overtime({ ctx }: { ctx: LiveCtx }) {
     const worked = hours(row.checkIn, row.checkOut)
     return { ...row, worked, overtime: Math.max(0, worked - 8) }
   }).filter((row) => row.overtime > 0)
-  return (
+  return (<LocalizedContent>{(
     <Card title="الساعات الإضافية" hint="ما زاد عن 8 ساعات في السجل. تُسعَّر في المسير بـ 1.25 من أجر الساعة.">
       <DataTable
         columns={['الموظف', 'التاريخ', 'ساعات العمل', 'الإضافي']}
         rows={rows.map((row) => [ctx.state.employees.find((employee) => employee.id === row.employeeId)?.nameAr ?? '', row.date, row.worked.toFixed(2), row.overtime.toFixed(2)])}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Payroll({ ctx }: { ctx: LiveCtx }) {
   const [month, setMonth] = useState(() => muscatDay(new Date().toISOString()).slice(0, 7))
   const [hoursMap, setHoursMap] = useState<Record<string, string>>({})
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
         title="المسيرات"
@@ -1455,7 +1456,7 @@ function Payroll({ ctx }: { ctx: LiveCtx }) {
         />
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Reports({ ctx }: { ctx: LiveCtx }) {
@@ -1467,7 +1468,7 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
   const [customerId, setCustomerId] = useState(ctx.state.customers[0]?.id ?? '')
   const trace = useMemo(() => (lotNo ? traceLot(ctx.state, lotNo) : null), [ctx.state, lotNo])
   const customerTrace = useMemo(() => (customerId ? traceCustomer(ctx.state, customerId) : null), [ctx.state, customerId])
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-3">
         <Metric label="قيمة المخزون" value={moneyFmt(value)} />
@@ -1507,14 +1508,14 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
         ) : null}
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Notifications({ ctx }: { ctx: LiveCtx }) {
   const { language } = useLanguage()
   const uiLabel = (value: string) => translateUiText(language, value)
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; message: string } | null>(null)
-  return (
+  return (<LocalizedContent>{(
     <Card title={uiLabel('الإشعارات')} hint={uiLabel('نقص المخزون وطلبات الاعتماد تُرسل بالبريد عند ضبط SMTP، وتظهر هنا فوراً.')}>
       <div className="space-y-3">
         {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">{uiLabel('لا توجد إشعارات')}</p> : null}
@@ -1531,18 +1532,18 @@ function Notifications({ ctx }: { ctx: LiveCtx }) {
         ))}
       </div>
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Audit({ ctx }: { ctx: LiveCtx }) {
-  return (
+  return (<LocalizedContent>{(
     <Card title="سجل العمليات">
       <DataTable
         columns={['الوقت', 'المستخدم', 'الإجراء', 'المرجع', 'التفاصيل']}
         rows={ctx.state.auditLogs.slice(0, 60).map((row) => [row.at.slice(0, 16).replace('T', ' '), row.userName, row.action, row.entityId, row.detail])}
       />
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Settings({ ctx }: { ctx: LiveCtx }) {
@@ -1566,7 +1567,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
     utilityVarianceThresholdPct: company.utilityVarianceThresholdPct ?? 20,
     annualLeaveEntitlementDays: company.annualLeaveEntitlementDays ?? 30,
   })
-  return (
+  return (<LocalizedContent>{(
     <Card title="إعدادات الشركة" hint="هذه البيانات تُطبع على الفاتورة الضريبية وأمر الشراء.">
       <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
         event.preventDefault()
@@ -1631,7 +1632,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         ) : null}
       </form>
     </Card>
-  )
+  )}</LocalizedContent>)
 }
 
 function Approvals({ ctx }: { ctx: LiveCtx }) {
@@ -1643,7 +1644,7 @@ function Approvals({ ctx }: { ctx: LiveCtx }) {
   const payrolls = ctx.state.payrolls.filter((payroll) => payroll.status === 'PENDING_APPROVAL')
   const adjustments = ctx.state.adjustments.filter((adjustment) => adjustment.status === 'PENDING_APPROVAL')
   const leaves = (ctx.state.leaveRequests ?? []).filter((request) => request.status === 'PENDING_APPROVAL')
-  return (
+  return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card title="تكلفة إنتاج">
         {pendingCosts.length === 0 ? <p className="text-sm text-[#788983]">لا يوجد</p> : pendingCosts.map(({ lot, line }) => (
@@ -1710,7 +1711,7 @@ function Approvals({ ctx }: { ctx: LiveCtx }) {
         ))}
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function UserEditor({ ctx, user, onClose }: { ctx: LiveCtx; user: (typeof ctx.state.users)[number]; onClose: () => void }) {
@@ -1759,7 +1760,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
   const [password, setPassword] = useState('')
   const [newUser, setNewUser] = useState({ fullName: '', email: '', role: 'OPERATIONS' as RoleKey, password: '' })
   const [editingUser, setEditingUser] = useState<(typeof ctx.state.users)[number] | null>(null)
-  return (
+  return (<LocalizedContent>{(
   <div className="space-y-4">
   <Card
   title="المستخدمون"
@@ -1853,7 +1854,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
         </form>
       </Card>
     </div>
-  )
+  )}</LocalizedContent>)
 }
 
 function Metric({
@@ -1885,21 +1886,21 @@ function Metric({
   const href = entityKey ? hrefForEntity(entityKey) : null
   if (entityKey && ctx && href && canSeeEntity(ctx.permissions, entityKey)) {
     const meta = leafMeta(entityKey)
-    return <Link href={href} title={translateUiText(language, meta.description)} aria-label={`${translateUiText(language, meta.label)}: ${translateUiText(language, value)}`} className="group block rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] [&>div]:transition-[border-color,box-shadow] hover:[&>div]:border-[#7cc9bd] hover:[&>div]:shadow-md motion-reduce:[&>div]:transition-none">{card}</Link>
+    return (<LocalizedContent>{<Link href={href} title={translateUiText(language, meta.description)} aria-label={`${translateUiText(language, meta.label)}: ${translateUiText(language, value)}`} className="group block rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] [&>div]:transition-[border-color,box-shadow] hover:[&>div]:border-[#7cc9bd] hover:[&>div]:shadow-md motion-reduce:[&>div]:transition-none">{card}</Link>}</LocalizedContent>)
   }
   return card
 }
 
 function NameList({ rows, empty }: { rows: string[]; empty: string }) {
   const { language } = useLanguage()
-  if (rows.length === 0) return <p className="text-sm text-[#788983]">{translateUiText(language, empty)}</p>
-  return (
+  if (rows.length === 0) return (<LocalizedContent>{<p className="text-sm text-[#788983]">{translateUiText(language, empty)}</p>}</LocalizedContent>)
+  return (<LocalizedContent>{(
     <ul className="space-y-1.5 text-sm text-[#30453d]">
       {rows.map((row) => (
         <li key={row}>{translateUiText(language, row)}</li>
       ))}
     </ul>
-  )
+  )}</LocalizedContent>)
 }
 
 export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {

@@ -127,7 +127,7 @@ test('DRIVER receives no notifications and has no navigation permission for the 
   assert.deepEqual(publicState(state, state.rolePermissions.DRIVER, 'user-driver').notifications, [])
 })
 
-test('notification deduplication waits for all addressed users before creating a fresh alert', () => {
+test('reading an active alert never recreates it, including after every recipient reads it', () => {
   const clock = createClock(NOW)
   let state = emptyState('notification-dedupe')
   state = must(state, 'user-gm', {
@@ -163,5 +163,20 @@ test('notification deduplication waits for all addressed users before creating a
     action: 'createEmployee',
     input: { nameAr: 'موظف تحديث آخر', department: 'عام', jobTitle: 'عامل', basicSalary: 300 },
   }, clock)
-  assert.equal(state.notifications.filter((item) => item.dedupeKey === note.dedupeKey).length, 2)
+  assert.equal(state.notifications.filter((item) => item.dedupeKey === note.dedupeKey).length, 1)
+  for (const userId of ['user-gm', 'user-admin', 'user-ops']) {
+    const user = state.users.find(item => item.id === userId)!
+    const visible = publicState(state, state.rolePermissions[user.role], userId).notifications
+    assert.equal(visible.find(item => item.id === note.id)?.read, true)
+  }
+
+  // A new escalation window still creates a distinct unread alert.
+  state = must(state, 'user-gm', {
+    action: 'updateVehicle',
+    input: { id: vehicleId, insuranceExpiryDate: daysFromNow(5) },
+  }, clock)
+  const escalation = state.notifications.find(item => item.dedupeKey === `vehicle:${vehicleId}:insurance:expiry:7`)
+  assert.ok(escalation)
+  assert.equal(escalation.read, false)
+  assert.deepEqual(escalation.readBy, [])
 })

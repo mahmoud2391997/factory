@@ -1,3 +1,5 @@
+import { supplementalUi } from './supplemental-ui'
+
 export type Language = 'ar' | 'en' | 'hi'
 
 export const translations = {
@@ -1999,7 +2001,7 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
   'تعديل مادة تعبئة': { en: 'Edit packaging material', hi: 'पैकेजिंग सामग्री संपादित करें' },
   'المتوقع لكل طن': { en: 'Expected per ton', hi: 'प्रति टन अपेक्षित' },
   'الإجمالي': { en: 'Total', hi: 'कुल' },
-  'المحصّل': { en: 'Net', hi: 'शुद्ध' },
+  'المحصّل': { en: 'Collected', hi: 'वसूली गई राशि' },
   'طباعة': { en: 'Print', hi: 'प्रिंट' },
   'هل أنت متأكد من حذف الفاتورة': { en: 'Are you sure you want to delete the invoice', hi: 'क्या आप वाकई चालान हटाना चाहते हैं' },
   'تحويل بنكي': { en: 'Bank transfer', hi: 'बैंक स्थानांतरण' },
@@ -2220,11 +2222,28 @@ const UI_TEXT_TRANSLATIONS: Record<string, { en: string; hi: string }> = {
 
 export function translateUiText(lang: Language, source: string): string {
   if (lang === 'ar') return source
-  const supplemental = UI_TEXT_TRANSLATIONS[source]
+  const supplemental = supplementalUi[source] ?? UI_TEXT_TRANSLATIONS[source]
   if (supplemental) return supplemental[lang]
+  const trimmed = source.trim()
+  if (trimmed !== source && (supplementalUi[trimmed] || UI_TEXT_TRANSLATIONS[trimmed] || ARABIC_KEYS.has(trimmed))) {
+    return source.replace(trimmed, translateUiText(lang, trimmed))
+  }
+  // This validation message ends with a user-entered material name. Translate
+  // the known message prefix without requiring that name in the UI catalog.
+  const overReceiptPrefix = 'الكمية تتجاوز أمر الشراء للمادة'
+  if (source.startsWith(`${overReceiptPrefix} `)) {
+    return `${translateUiText(lang, overReceiptPrefix)} ${source.slice(overReceiptPrefix.length + 1)}`
+  }
   const commonKey = ARABIC_KEYS.get(source)
   if (commonKey) return translations[lang][commonKey]
-  return source
+  // Preserve user-entered names; translate only complete known Arabic text runs.
+  const normalized = source.replace(/،/g, ',').replace(/؟/g, '?').replace(/\p{Script=Arabic}+(?:[ \t]+\p{Script=Arabic}+)*/gu, (fragment) => {
+    const value = supplementalUi[fragment] ?? UI_TEXT_TRANSLATIONS[fragment]
+    if (value) return value[lang]
+    const key = ARABIC_KEYS.get(fragment)
+    return key ? translations[lang][key] : fragment
+  })
+  return normalized
     .replace(/ر\.ع\.?/g, lang === 'en' ? 'OMR' : 'ओमानी रियाल')
     .replace(/(\d[\d,.]*)\s*كجم/g, (_m, n) => (lang === 'en' ? `${n} kg` : `${n} किग्रा`))
     .replace(/(\d[\d,.]*)\s*طن/g, (_m, n) => (lang === 'en' ? `${n} t` : `${n} टन`))

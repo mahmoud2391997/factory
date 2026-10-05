@@ -76,6 +76,13 @@ export function useErp(enabled: boolean = true, frontendDemo = false) {
 
   useEffect(() => {
     if (!enabled) return
+    // The demo state was already generated above. Avoid reseeding it during
+    // hydration (and again under Strict Mode), then release the loading state.
+    if (frontendDemoState) {
+      setData(current => current?.state === frontendDemoState ? current : { state: frontendDemoState, storage: 'file' })
+      setLoading(false)
+      return
+    }
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -85,7 +92,7 @@ export function useErp(enabled: boolean = true, frontendDemo = false) {
     return () => {
       cancelled = true
     }
-  }, [enabled, frontendDemo, reload])
+  }, [enabled, frontendDemoState, reload])
 
   const act = useCallback(
     async (action: string, input?: Record<string, unknown>): Promise<ActResult> => {

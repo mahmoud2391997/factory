@@ -1,0 +1,1626 @@
+[
+  {
+    "buttons": [
+      "Notifications",
+      "Show all",
+      "Reset",
+      "Fullscreen",
+      "All",
+      "Purchasing Cycle",
+      "Inventory cycle",
+      "Production Cycle",
+      "Sales Cycle",
+      "Financial Cycle",
+      "Suppliers",
+      "Purchase requests",
+      "Purchase orders",
+      "Goods receipt",
+      "Raw materials",
+      "Zoom out",
+      "Zoom in",
+      "Fit map",
+      "Toggle connection labels",
+      "Samples",
+      "Details",
+      "Batches",
+      "Collections",
+      "Open invoices",
+      "Sort Type",
+      "Sort Category",
+      "Sort Quantity"
+    ],
+    "error": [],
+    "headings": [
+      "Owner dashboard",
+      "Factory today",
+      "Entity and Relationship Map",
+      "Purchasing Cycle",
+      "Production",
+      "Sales",
+      "Profitability",
+      "Inventory",
+      "Low-stock materials",
+      "Stagnant materials",
+      "Reserved materials",
+      "Owner's center",
+      "Production",
+      "Quality",
+      "Cost per ton this month",
+      "Lowest-margin batches",
+      "Collections",
+      "Receivables aging",
+      "Pending approvals",
+      "Latest movements"
+    ],
+    "path": "/"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Invoice",
+      "Sort Customer",
+      "Sort Date",
+      "Sort Net",
+      "Sort Total",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Today's sales",
+      "Today's invoices"
+    ],
+    "path": "/sales/today"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Invoice",
+      "Sort Customer",
+      "Sort Date",
+      "Sort Net",
+      "Sort Total",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "This month's sales",
+      "This month's invoices"
+    ],
+    "path": "/sales/month"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Invoice",
+      "Sort Customer",
+      "Sort Status",
+      "Sort Total",
+      "Sort Remainder"
+    ],
+    "error": [],
+    "headings": [
+      "Open orders",
+      "Open orders"
+    ],
+    "path": "/sales/open-orders"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add customer",
+      "Sort Code",
+      "Sort Name",
+      "Sort Tax number",
+      "Sort Address",
+      "Edit",
+      "Delete",
+      "Edit",
+      "Delete"
+    ],
+    "error": [],
+    "headings": [
+      "Customers",
+      "Customers"
+    ],
+    "path": "/sales/parties"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New invoice",
+      "Sort Number",
+      "Sort Customer",
+      "Sort Tax",
+      "Sort Total",
+      "Sort Net",
+      "Sort Status",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Invoices",
+      "Invoices"
+    ],
+    "path": "/sales"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Sales reports",
+      "Reports"
+    ],
+    "path": "/sales/reports"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New withdrawal",
+      "Sort Number",
+      "Sort Reason",
+      "Sort Cost",
+      "Sort Date"
+    ],
+    "error": [],
+    "headings": [
+      "Withdrawals and returns",
+      "Withdrawals"
+    ],
+    "path": "/sales/withdrawals"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Record collection",
+      "Sort Number",
+      "Sort Invoice",
+      "Sort Amount",
+      "Sort Method",
+      "Sort Date"
+    ],
+    "error": [],
+    "headings": [
+      "Collections",
+      "Collections"
+    ],
+    "path": "/sales/collections"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Manage distribution points",
+      "Open daily closing"
+    ],
+    "error": [],
+    "headings": [
+      "Distribution",
+      "Distribution points",
+      "Close distribution"
+    ],
+    "path": "/sales/distribution"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add distribution point",
+      "Sort Code",
+      "Sort Name",
+      "Sort Location",
+      "Sort Manager",
+      "Sort Phone",
+      "Sort Status",
+      "Edit",
+      "Delete"
+    ],
+    "error": [],
+    "headings": [
+      "Distribution points",
+      "Distribution points"
+    ],
+    "path": "/sales/distribution/points"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add closing",
+      "Sort Distribution point",
+      "Sort Date",
+      "Sort Cash",
+      "Sort Transfers",
+      "Sort Collection difference",
+      "Sort Stock difference",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Daily closing",
+      "Distribution close"
+    ],
+    "path": "/sales/distribution/closing"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Start delivery",
+      "Sort Invoice",
+      "Sort Customer",
+      "Sort Current stage",
+      "Sort Progress",
+      "Sort Delivery proof",
+      "Sort Actions",
+      "Sort Printing"
+    ],
+    "error": [],
+    "headings": [
+      "Delivery",
+      "Invoice & delivery"
+    ],
+    "path": "/sales/delivery"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Item",
+      "Sort Amount",
+      "Sort Ratio",
+      "Sort Product",
+      "Sort Batches",
+      "Sort Output",
+      "Sort Cost",
+      "Sort Cost per ton"
+    ],
+    "error": [],
+    "headings": [
+      "Cost per ton",
+      "Cost per ton by period",
+      "Cost by product"
+    ],
+    "path": "/accounting/cost"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Product",
+      "Sort Output",
+      "Sort Cost",
+      "Sort Cost per ton"
+    ],
+    "error": [],
+    "headings": [
+      "Average price",
+      "Today's order costs"
+    ],
+    "path": "/accounting/price"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Product",
+      "Sort Output",
+      "Sort Cost",
+      "Sort Cost per ton"
+    ],
+    "error": [],
+    "headings": [
+      "Profit margin",
+      "Today's order costs"
+    ],
+    "path": "/accounting/margin"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Item",
+      "Sort Number of batches",
+      "Sort Quantity (kg)",
+      "Sort Cost/ton",
+      "Sort Sale price/ton",
+      "Sort Margin value",
+      "Sort Margin %"
+    ],
+    "error": [],
+    "headings": [
+      "Profitability",
+      "Profitability"
+    ],
+    "path": "/sales/profitability"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add supplier",
+      "Sort Code",
+      "Sort Name",
+      "Sort Tax number",
+      "Sort Phone",
+      "Edit",
+      "Delete",
+      "Edit",
+      "Delete"
+    ],
+    "error": [],
+    "headings": [
+      "Suppliers",
+      "Suppliers"
+    ],
+    "path": "/sales/parties/suppliers"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Purchase request",
+      "Sort Number",
+      "Sort Purpose",
+      "Sort Status",
+      "Sort the approval",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Purchase requests",
+      "Purchase requests"
+    ],
+    "path": "/sales/parties/requests"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Purchase order",
+      "Sort Number",
+      "Sort Supplier",
+      "Sort Status",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Purchase orders",
+      "Purchase orders"
+    ],
+    "path": "/sales/parties/orders"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Record receipt",
+      "Sort Document",
+      "Sort Purchase order",
+      "Sort Date"
+    ],
+    "error": [],
+    "headings": [
+      "Goods receipt",
+      "Goods receipt notes"
+    ],
+    "path": "/sales/parties/receipts"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Supplier messages (0)",
+      "Prepare new communication",
+      "Message templates (0)",
+      "+ New communication",
+      "Sort Date",
+      "Sort Supplier",
+      "Sort Channel",
+      "Sort Subject",
+      "Sort Status",
+      "Sort Actions"
+    ],
+    "error": [],
+    "headings": [
+      "Supplier relations",
+      "Supplier communications log"
+    ],
+    "path": "/sales/parties/relations"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Supplier messages (0)",
+      "Prepare new communication",
+      "Message templates (0)",
+      "Add template",
+      "Sort Template name",
+      "Sort Type",
+      "Sort Subject",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Message templates",
+      "Supplier message templates"
+    ],
+    "path": "/sales/parties/templates"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Supplier messages (0)",
+      "Prepare new communication",
+      "Message templates (0)",
+      "+ New communication",
+      "Sort Date",
+      "Sort Supplier",
+      "Sort Channel",
+      "Sort Subject",
+      "Sort Status",
+      "Sort Actions"
+    ],
+    "error": [],
+    "headings": [
+      "Supplier communications",
+      "Supplier communications log"
+    ],
+    "path": "/sales/parties/communications"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Supplier",
+      "Sort Quantity",
+      "Sort Average price",
+      "Sort Month",
+      "Sort Purchased quantity",
+      "Sort Average price",
+      "Sort Lowest price",
+      "Sort Highest price",
+      "Sort Consumed",
+      "Sort Transport",
+      "Sort Landed"
+    ],
+    "error": [],
+    "headings": [
+      "Raw material prices",
+      "Raw-material price analysis",
+      "مادة خام اختبارية 4",
+      "Suppliers",
+      "Monthly change"
+    ],
+    "path": "/inventory/raw-materials/price-analysis"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Inventory",
+      "Items",
+      "Available quantity",
+      "Inventory value",
+      "Inventory management"
+    ],
+    "path": "/inventory/overview"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add material",
+      "Sort Code",
+      "Sort Name",
+      "Sort Category",
+      "Sort Minimum stock",
+      "Sort Tax",
+      "Sort Barcode",
+      "Sort Status",
+      "Edit",
+      "Delete",
+      "Edit",
+      "Delete",
+      "Edit",
+      "Delete",
+      "Edit",
+      "Delete",
+      "Save limits"
+    ],
+    "error": [],
+    "headings": [
+      "Raw materials",
+      "Raw materials",
+      "Quality limits"
+    ],
+    "path": "/inventory/raw-materials"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add product",
+      "Sort Code",
+      "Sort Name",
+      "Sort Price",
+      "Sort Tax",
+      "Sort Bag",
+      "Sort Status",
+      "Edit",
+      "Delete",
+      "Save limits"
+    ],
+    "error": [],
+    "headings": [
+      "Products",
+      "Products",
+      "Quality limits"
+    ],
+    "path": "/inventory/products"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Spare Parts",
+      "Packaging materials",
+      "Actual count",
+      "Issue part",
+      "Sort Date",
+      "Sort Part",
+      "Sort Machine",
+      "Sort Quantity",
+      "Sort Cost",
+      "Sort Reason",
+      "Sort User",
+      "Add spare part",
+      "Sort Code",
+      "Sort Name",
+      "Sort Description",
+      "Sort Quantity",
+      "Sort Unit cost",
+      "Sort Minimum stock",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Spare Parts",
+      "Issue spare part",
+      "Spare Parts"
+    ],
+    "path": "/inventory/extensions?kind=spare"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Spare Parts",
+      "Packaging materials",
+      "Actual count",
+      "Add packaging material",
+      "Record consumption",
+      "Sort Code",
+      "Sort Name",
+      "Sort Category",
+      "Sort Quantity",
+      "Sort Unit",
+      "Sort Unit cost",
+      "Sort Minimum stock",
+      "Sort Status",
+      "Sort Material",
+      "Sort Expected",
+      "Sort Actually consumed",
+      "Sort Variance/Waste",
+      "Sort Cost"
+    ],
+    "error": [],
+    "headings": [
+      "Packaging materials",
+      "Packaging materials"
+    ],
+    "path": "/inventory/extensions?kind=packaging"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Warehouse",
+      "Sort Category",
+      "Sort Batch",
+      "Sort Quantity",
+      "Sort Cost",
+      "Sort Value",
+      "Sort Permission"
+    ],
+    "error": [],
+    "headings": [
+      "Inventory balances",
+      "Inventory balances"
+    ],
+    "path": "/inventory/raw-materials/balances"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Time",
+      "Sort Type",
+      "Sort Warehouse",
+      "Sort Category",
+      "Sort Batch",
+      "Sort Quantity",
+      "Sort Before",
+      "Sort After"
+    ],
+    "error": [],
+    "headings": [
+      "Inventory ledger",
+      "Inventory movement ledger"
+    ],
+    "path": "/inventory/raw-materials/ledger"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Warehouse",
+      "Sort Category",
+      "Sort Batch",
+      "Sort Quantity",
+      "Sort Cost",
+      "Sort Value",
+      "Sort Permission"
+    ],
+    "error": [],
+    "headings": [
+      "Material batches",
+      "Material batches"
+    ],
+    "path": "/inventory/raw-materials/batches"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Warehouse",
+      "Sort Category",
+      "Sort Quantity",
+      "Sort Unit cost",
+      "Sort Value"
+    ],
+    "error": [],
+    "headings": [
+      "Inventory value",
+      "Balance details"
+    ],
+    "path": "/inventory/raw-materials/value"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Material",
+      "Sort Balance",
+      "Sort Minimum stock",
+      "Sort Unit"
+    ],
+    "error": [],
+    "headings": [
+      "Low-stock items",
+      "Low-stock materials"
+    ],
+    "path": "/inventory/raw-materials/running-out"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Material",
+      "Sort Balance",
+      "Sort Unit",
+      "Sort Inactive days"
+    ],
+    "error": [],
+    "headings": [
+      "Stagnant materials",
+      "Stagnant materials"
+    ],
+    "path": "/inventory/raw-materials/stagnant"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Material",
+      "Sort Quantity",
+      "Sort Unit"
+    ],
+    "error": [],
+    "headings": [
+      "Reserved materials",
+      "Reserved materials"
+    ],
+    "path": "/inventory/raw-materials/reserved"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Inventory reports",
+      "Reports"
+    ],
+    "path": "/inventory/reports"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Warehouses",
+      "Raw materials warehouse",
+      "Manufacturing warehouse",
+      "Finished goods warehouse"
+    ],
+    "path": "/inventory/warehouses"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New transfer",
+      "Sort Number",
+      "Sort From",
+      "Sort To",
+      "Sort Date"
+    ],
+    "error": [],
+    "headings": [
+      "Stock transfer",
+      "Latest transfers"
+    ],
+    "path": "/inventory/warehouses/transfers"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Request adjustment",
+      "Sort Number",
+      "Sort Reason",
+      "Sort Difference",
+      "Sort Status",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Stock adjustment",
+      "Adjustment requests"
+    ],
+    "path": "/inventory/warehouses/adjustments"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Search"
+    ],
+    "error": [],
+    "headings": [
+      "Barcode",
+      "Barcode station"
+    ],
+    "path": "/inventory/warehouses/barcode"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Product",
+      "Sort Planned",
+      "Sort Actual",
+      "Sort Execution",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Today's plan",
+      "Today's orders"
+    ],
+    "path": "/inventory/manufacturing/planned"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Product",
+      "Sort Planned",
+      "Sort Actual",
+      "Sort Execution",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Actual",
+      "Today's orders"
+    ],
+    "path": "/inventory/manufacturing/actual"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Product",
+      "Sort Planned",
+      "Sort Actual",
+      "Sort Execution",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Completion rate",
+      "Today's orders"
+    ],
+    "path": "/inventory/manufacturing/execution"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Area",
+      "Sort Duration",
+      "Sort Reason"
+    ],
+    "error": [],
+    "headings": [
+      "Factory stoppages",
+      "Factory stoppages"
+    ],
+    "path": "/inventory/manufacturing/stoppages"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Production order",
+      "Sort Number",
+      "Sort Product",
+      "Sort Planned",
+      "Sort Actual",
+      "Sort Variance from plan",
+      "Sort Cost",
+      "Sort Status",
+      "Sort ",
+      "Save limits",
+      "Clear and return to all"
+    ],
+    "error": [],
+    "headings": [
+      "Manufacturing orders",
+      "Production orders",
+      "Variance thresholds"
+    ],
+    "path": "/inventory/manufacturing/orders"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New reading",
+      "Sort Time",
+      "Sort Material",
+      "Sort Production order",
+      "Sort Expected",
+      "Sort Actual",
+      "Sort Variance",
+      "Sort Scale",
+      "Sort Recorded"
+    ],
+    "error": [],
+    "headings": [
+      "Scale",
+      "Scale readings"
+    ],
+    "path": "/inventory/manufacturing/scale"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Batch number",
+      "Sort Product",
+      "Sort Operator",
+      "Sort Input / expected / actual",
+      "Sort Variance",
+      "Sort Cost/ton",
+      "Sort Sales per ton",
+      "Sort Margin per ton",
+      "Sort Margin %",
+      "Sort ",
+      "Recalculate"
+    ],
+    "error": [],
+    "headings": [
+      "Production lots",
+      "Production lots",
+      "Month-close cost recalculation"
+    ],
+    "path": "/inventory/manufacturing/lots"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Production reports",
+      "Reports"
+    ],
+    "path": "/inventory/manufacturing/reports"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New recipe",
+      "Sort Recipe",
+      "Sort Product",
+      "Sort Base",
+      "Sort Components",
+      "Edit",
+      "Delete"
+    ],
+    "error": [],
+    "headings": [
+      "Recipes",
+      "Recipes"
+    ],
+    "path": "/inventory/manufacturing"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Recipe",
+      "Sort Product",
+      "Sort Raw material",
+      "Sort Ingredient quantity (kg)",
+      "Sort Recipe basis (kg)"
+    ],
+    "error": [],
+    "headings": [
+      "Recipe components",
+      "Recipe components"
+    ],
+    "path": "/inventory/manufacturing/recipe-items"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add customer recipe",
+      "Sort Customer",
+      "Sort Product",
+      "Sort Recipe",
+      "Sort Sale price",
+      "Sort Margin",
+      "Sort Status"
+    ],
+    "error": [],
+    "headings": [
+      "Customer recipes",
+      "Customer recipes"
+    ],
+    "path": "/inventory/manufacturing/customer-recipes"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Save sample",
+      "Sort Time",
+      "Sort Sample type",
+      "Sort Reference",
+      "Sort Lab/Method",
+      "Sort Tester",
+      "Sort Moisture",
+      "Sort Protein",
+      "Sort Ash",
+      "Sort Energy",
+      "Sort Fat",
+      "Sort Fiber",
+      "Sort Calcium",
+      "Sort Phosphorus",
+      "Sort Result",
+      "Sort Report",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Quality samples",
+      "Record sample",
+      "Quality samples"
+    ],
+    "path": "/inventory/manufacturing/quality"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Month",
+      "Sort Samples",
+      "Sort Tested",
+      "Sort Acceptance rate",
+      "Sort Rejected/Held",
+      "Sort Average moisture",
+      "Sort Average protein"
+    ],
+    "error": [],
+    "headings": [
+      "Supplier quality and specifications",
+      "Supplier quality",
+      "Monthly supplier quality trend"
+    ],
+    "path": "/inventory/manufacturing/supplier-quality"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Batch number",
+      "Sort Product",
+      "Sort Operator",
+      "Sort Input / expected / actual",
+      "Sort Variance",
+      "Sort Cost/ton",
+      "Sort Sales per ton",
+      "Sort Margin per ton",
+      "Sort Margin %",
+      "Sort ",
+      "Recalculate"
+    ],
+    "error": [],
+    "headings": [
+      "Batch trace",
+      "Production lots",
+      "Forward traceability of a raw material batch",
+      "Month-close cost recalculation"
+    ],
+    "path": "/inventory/manufacturing/lot-trace"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Product",
+      "Sort Expected",
+      "Sort Amount spent",
+      "Sort Waste",
+      "Sort Output"
+    ],
+    "error": [],
+    "headings": [
+      "Raw material movement trace",
+      "Select raw material",
+      "مادة خام اختبارية 4",
+      "Production orders that consumed this material"
+    ],
+    "path": "/tasks/material"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Order",
+      "Sort Material",
+      "Sort Amount spent",
+      "Sort Waste"
+    ],
+    "error": [],
+    "headings": [
+      "Actual waste",
+      "Waste"
+    ],
+    "path": "/inventory/manufacturing/waste"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Material",
+      "Sort Expected",
+      "Sort Actual",
+      "Sort Deviation"
+    ],
+    "error": [],
+    "headings": [
+      "Recipe variance",
+      "Recipe variance"
+    ],
+    "path": "/inventory/manufacturing/deviation"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Item",
+      "Sort Number of batches",
+      "Sort Expected",
+      "Sort Actual",
+      "Sort Variance (kg)",
+      "Sort Variance %",
+      "Sort Waste (kg)",
+      "Sort Warning",
+      "Sort Critical"
+    ],
+    "error": [],
+    "headings": [
+      "Variance analysis",
+      "Variance analysis"
+    ],
+    "path": "/inventory/manufacturing/variance"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add vehicle",
+      "Sort Code",
+      "Sort Vehicle",
+      "Sort License plate",
+      "Sort Odometer",
+      "Sort Efficiency",
+      "Sort Status",
+      "Edit",
+      "Delete",
+      "Add maintenance",
+      "Sort Date",
+      "Sort Vehicle",
+      "Sort Service",
+      "Sort Cost",
+      "Sort Odometer",
+      "Sort Next service date"
+    ],
+    "error": [],
+    "headings": [
+      "Vehicles",
+      "Vehicles",
+      "Fleet services"
+    ],
+    "path": "/fleet/vehicles"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Record refueling",
+      "Sort Date",
+      "Sort Vehicle",
+      "Sort Liters",
+      "Sort Cost",
+      "Sort Odometer"
+    ],
+    "error": [],
+    "headings": [
+      "Fuel",
+      "Fuel log"
+    ],
+    "path": "/fleet/fuel"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Save trip",
+      "Sort Date",
+      "Sort Vehicle",
+      "Sort Destination",
+      "Sort Invoice",
+      "Sort km",
+      "Sort Load",
+      "Sort Fuel (actual / expected)",
+      "Sort Cost",
+      "Sort Cost/ton",
+      "Sort Cost allocation"
+    ],
+    "error": [],
+    "headings": [
+      "Trips",
+      "Delivery trips"
+    ],
+    "path": "/fleet/trips"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Open machine register",
+      "Open schedules",
+      "Open records"
+    ],
+    "error": [],
+    "headings": [
+      "Maintenance center",
+      "Machines",
+      "Maintenance schedules",
+      "Maintenance records"
+    ],
+    "path": "/inventory/manufacturing/maintenance"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add machine",
+      "Sort Code",
+      "Sort Name",
+      "Sort Type",
+      "Sort Location",
+      "Sort Operating hours",
+      "Sort Maintenance and parts cost",
+      "Sort Status",
+      "Edit",
+      "Delete"
+    ],
+    "error": [],
+    "headings": [
+      "Machines",
+      "Machines"
+    ],
+    "path": "/inventory/manufacturing/maintenance/machines"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add schedule",
+      "Sort Machine",
+      "Sort Type",
+      "Sort Description",
+      "Sort Period",
+      "Sort Next due date",
+      "Sort Responsible"
+    ],
+    "error": [],
+    "headings": [
+      "Maintenance schedules",
+      "Maintenance schedules"
+    ],
+    "path": "/inventory/manufacturing/maintenance/schedules"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add record",
+      "Sort Machine",
+      "Sort Type",
+      "Sort Start date",
+      "Sort Expiry date",
+      "Sort Description",
+      "Sort Cost",
+      "Sort Stoppage in minutes",
+      "Sort Responsible"
+    ],
+    "error": [],
+    "headings": [
+      "Breakdown records",
+      "Maintenance records"
+    ],
+    "path": "/inventory/manufacturing/maintenance/records"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add obligation",
+      "Sort Beneficiary",
+      "Sort Description",
+      "Sort Type",
+      "Sort Total amount",
+      "Sort Status",
+      "Sort Action",
+      "Sort Month",
+      "Sort Number of installments",
+      "Sort Expected amount",
+      "Previous",
+      "Next"
+    ],
+    "error": [],
+    "headings": [
+      "Obligations",
+      "Financial obligations",
+      "12-month obligations forecast"
+    ],
+    "path": "/accounting/obligations"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Code",
+      "Sort Account",
+      "Sort Type",
+      "Sort Balance",
+      "Previous",
+      "Next"
+    ],
+    "error": [],
+    "headings": [
+      "Chart of accounts",
+      "Chart of accounts"
+    ],
+    "path": "/accounting"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Journal entry",
+      "Sort Date",
+      "Sort Description",
+      "Sort Line items"
+    ],
+    "error": [],
+    "headings": [
+      "Journal entries",
+      "Journal entries"
+    ],
+    "path": "/accounting/journals"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add transaction",
+      "Sort Date",
+      "Sort ID",
+      "Sort Amount",
+      "Sort Type",
+      "Sort Description",
+      "Sort Status",
+      "Sort Manual reconciliation",
+      "Sort Date",
+      "Sort ID",
+      "Sort Account",
+      "Sort Amount",
+      "Sort Status",
+      "Sort Reconciled by",
+      "Sort Reconciliation time"
+    ],
+    "error": [],
+    "headings": [
+      "Bank transactions",
+      "Bank transactions",
+      "Bank audit log"
+    ],
+    "path": "/accounting/financial-ops/bank-transactions"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Print",
+      "Sort Account",
+      "Sort Debit",
+      "Sort Credit"
+    ],
+    "error": [],
+    "headings": [
+      "Accounting reports",
+      "Trial balance",
+      "Batch trace"
+    ],
+    "path": "/accounting/reports"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New expense",
+      "Sort Number",
+      "Sort Description",
+      "Sort Net",
+      "Sort Tax",
+      "Sort Status",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Expenses",
+      "Expenses"
+    ],
+    "path": "/accounting/expenses"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Save"
+    ],
+    "error": [],
+    "headings": [
+      "Tax",
+      "VAT return",
+      "Tax and company settings"
+    ],
+    "path": "/accounting/tax"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Tax return",
+      "VAT return"
+    ],
+    "path": "/accounting/vat"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Open utility consumption",
+      "Open bank transactions"
+    ],
+    "error": [],
+    "headings": [
+      "Financial operations",
+      "Utility readings",
+      "Bank transactions"
+    ],
+    "path": "/accounting/financial-ops"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add reading",
+      "Sort Utilities",
+      "Sort Reading date",
+      "Sort Consumption",
+      "Sort Cost",
+      "Sort Cost per ton",
+      "Sort Month",
+      "Sort Utilities",
+      "Sort Consumption",
+      "Sort Production tons",
+      "Sort Cost per ton",
+      "Sort Comparison"
+    ],
+    "error": [],
+    "headings": [
+      "Utilities",
+      "Utility consumption"
+    ],
+    "path": "/accounting/financial-ops/utilities"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add employee",
+      "Sort Code",
+      "Sort Name",
+      "Sort Department",
+      "Sort Job title",
+      "Sort Salary"
+    ],
+    "error": [],
+    "headings": [
+      "Employee files",
+      "Employees",
+      "Leave requests"
+    ],
+    "path": "/hr"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Record attendance",
+      "Import CSV",
+      "Sort Employee",
+      "Sort Date",
+      "Sort Check-in",
+      "Sort Check-out",
+      "Sort Source"
+    ],
+    "error": [],
+    "headings": [
+      "Attendance and leave",
+      "Record"
+    ],
+    "path": "/hr/attendance"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Employee",
+      "Sort Date",
+      "Sort Working hours",
+      "Sort Overtime"
+    ],
+    "error": [],
+    "headings": [
+      "Overtime",
+      "Overtime hours"
+    ],
+    "path": "/hr/overtime"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "New payroll run",
+      "Sort Number",
+      "Sort Month",
+      "Sort Net",
+      "Sort Status",
+      "Sort "
+    ],
+    "error": [],
+    "headings": [
+      "Payroll",
+      "Payroll runs"
+    ],
+    "path": "/hr/payroll"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Add document",
+      "Sort Document",
+      "Sort Party",
+      "Sort Type",
+      "Sort Issuance",
+      "Sort Expiry",
+      "Sort Status",
+      "Sort Attachments",
+      "Sort Renewal"
+    ],
+    "error": [],
+    "headings": [
+      "Documents",
+      "Documents and permits"
+    ],
+    "path": "/accounting/documents"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [],
+    "path": "/settings/users"
+  },
+  {
+    "buttons": [
+      "Notifications"
+    ],
+    "error": [],
+    "headings": [
+      "Approvals",
+      "Production cost",
+      "Purchase orders",
+      "Expenses",
+      "Leave",
+      "Payroll",
+      "Inventory adjustment"
+    ],
+    "path": "/tasks/approvals"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Mark as read: Low stock: مادة خام اختبارية 4",
+      "Mark as read: Low stock: مادة خام اختبارية 3",
+      "Mark as read: Low stock: مادة خام اختبارية 2",
+      "Mark as read: Low stock: مادة خام اختبارية 1"
+    ],
+    "error": [],
+    "headings": [
+      "Notifications",
+      "Notifications"
+    ],
+    "path": "/notifications"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Sort Time",
+      "Sort User",
+      "Sort Action",
+      "Sort Reference",
+      "Sort Details",
+      "Previous",
+      "Next"
+    ],
+    "error": [],
+    "headings": [
+      "Audit log",
+      "Audit log"
+    ],
+    "path": "/settings/audit"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Print",
+      "Sort Account",
+      "Sort Debit",
+      "Sort Credit"
+    ],
+    "error": [],
+    "headings": [
+      "Reports",
+      "Trial balance",
+      "Batch trace"
+    ],
+    "path": "/tasks/reports"
+  },
+  {
+    "buttons": [
+      "Notifications",
+      "Delete",
+      "Add limit",
+      "Save",
+      "Archive records older than 90 days"
+    ],
+    "error": [],
+    "headings": [
+      "Settings",
+      "Company settings"
+    ],
+    "path": "/settings"
+  }
+]

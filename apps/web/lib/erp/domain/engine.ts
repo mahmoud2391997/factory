@@ -264,14 +264,6 @@ function audit(state: ErpState, actor: Actor, clock: Clock, action: string, enti
   if (state.auditLogs.length > 1000) state.auditLogs.length = 1000
 }
 
-function notificationHasUnreadRecipient(state: ErpState, notification: Notification) {
-  if (notification.read) return false
-  const readers = new Set(notification.readBy ?? [])
-  const recipients = state.users.filter((user) => user.active && notification.roles.includes(user.role))
-  // Keep suppressing duplicate alerts if a role currently has no active account.
-  return recipients.length === 0 || recipients.some((user) => !readers.has(user.id))
-}
-
 function notify(
   state: ErpState,
   clock: Clock,
@@ -281,7 +273,8 @@ function notify(
   roles: RoleKey[],
   dedupeKey: string,
 ) {
-  if (dedupeKey && state.notifications.some((item) => item.dedupeKey === dedupeKey && notificationHasUnreadRecipient(state, item))) return
+  // Reading acknowledges an alert; only resolving it ends its active occurrence.
+  if (dedupeKey && state.notifications.some((item) => item.dedupeKey === dedupeKey && !item.read)) return
   state.notifications.unshift({
     id: clock.id('ntf'),
     kind,
@@ -4463,7 +4456,7 @@ function refreshObligationAlerts(state: ErpState, clock: Clock) {
       // Check overdue
       if (daysUntilDue < 0) {
         const dedupeKey = `obligation-overdue:${scheduleLine.id}`
-        if (!state.notifications.some((n) => n.dedupeKey === dedupeKey && notificationHasUnreadRecipient(state, n))) {
+        if (!state.notifications.some((n) => n.dedupeKey === dedupeKey && !n.read)) {
           notify(
             state,
             clock,
@@ -4481,7 +4474,7 @@ function refreshObligationAlerts(state: ErpState, clock: Clock) {
       for (const window of windows) {
         if (daysUntilDue === window) {
           const dedupeKey = `obligation-reminder:${window}d:${scheduleLine.id}`
-          if (!state.notifications.some((n) => n.dedupeKey === dedupeKey && notificationHasUnreadRecipient(state, n))) {
+          if (!state.notifications.some((n) => n.dedupeKey === dedupeKey && !n.read)) {
             notify(
               state,
               clock,
@@ -4972,22 +4965,23 @@ function closeDistributionDay(state: ErpState, actor: Actor, input: Extract<Comm
 function advanceInvoiceDelivery(state: ErpState, actor: Actor, input: Extract<Command, { action: 'advanceInvoiceDelivery' }>['input'], clock: Clock): CommandResult {
   const invoice = state.invoices.find((item) => item.id === input.invoiceId)
   if (!invoice) return fail('الفاتورة غير موجودة')
+  if (invoice.status === 'DRAFT') return fail('لا يمكن تسليم فاتورة مسودة')
 
+  const stages = ['ACCOUNTANT', 'LOADER', 'DRIVER', 'CUSTOMER']
+  const stepIndex = stages.indexOf(input.step)
+  if (stepIndex < 0) return fail('مرحلة التسليم غير صحيحة')
   let delivery = state.invoiceDeliveries.find((item) => item.invoiceId === input.invoiceId)
-  if (!delivery) {
-    delivery = {
-      id: clock.id('id'),
-      invoiceId: input.invoiceId,
-      currentStep: 'ACCOUNTANT',
-      steps: [],
-    }
+  if (delivery) {
+    const currentIndex = stages.indexOf(delivery.currentStep)
+    if (stepIndex <= currentIndex) return fail('لا يمكن الرجوع للخلف في سلم التسليم')
+    if (stepIndex !== currentIndex + 1) return fail('يجب إكمال مرحلة التسليم السابقة أولاً')
+  } else {
+    // The UI explicitly starts at ACCOUNTANT. Existing clients may begin at
+    // LOADER after invoice confirmation, which already completes accounting.
+    if (stepIndex > 1) return fail('يجب إكمال مرحلة التسليم السابقة أولاً')
+    delivery = { id: clock.id('id'), invoiceId: input.invoiceId, currentStep: 'ACCOUNTANT', steps: [] }
     state.invoiceDeliveries.unshift(delivery)
   }
-
-  const stepIndex = ['ACCOUNTANT', 'LOADER', 'DRIVER', 'CUSTOMER'].indexOf(input.step)
-  const currentIndex = ['ACCOUNTANT', 'LOADER', 'DRIVER', 'CUSTOMER'].indexOf(delivery.currentStep)
-
-  if (stepIndex <= currentIndex) return fail('لا يمكن الرجوع للخلف في سلم التسليم')
 
   delivery.steps.push({
     step: input.step,

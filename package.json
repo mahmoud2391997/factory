@@ -20,11 +20,18 @@
     "start:web": "pnpm --filter @erp/web start",
     "lint": "pnpm --filter @erp/web lint",
     "typecheck": "pnpm --filter @erp/web exec tsc --noEmit",
-    "test:erp": "tsx --tsconfig apps/web/tsconfig.json --test \"apps/web/**/*.test.ts\""
+    "test:erp": "tsx --tsconfig apps/web/tsconfig.json --test \"apps/web/**/*.test.ts\"",
+    "check": "pnpm typecheck && pnpm test",
+    "db:generate": "pnpm --filter @erp/database generate",
+    "db:migrate": "pnpm --filter @erp/database migrate:dev",
+    "dev:demo": "pnpm db:generate && node scripts/dev-demo.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "playwright": "^1.63.0",
     "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "next": "16.3.8"
   }
 }

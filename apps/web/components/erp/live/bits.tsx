@@ -1,6 +1,6 @@
 'use client'
 
-import { isValidElement, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, isValidElement, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 
 import Link from 'next/link'
@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
 
 const PAGE_SIZE = 8
+const DialogCloseContext = createContext<(() => void) | undefined>(undefined)
 
 function cellText(cell: ReactNode): string {
   if (cell == null || typeof cell === 'boolean') return ''
@@ -92,18 +93,21 @@ export function DataTable({
     else setInternalSelectedIds(next)
   }
 
+  const selectionActions = bulkActions?.(selectedIds, () => updateSelected([]))
+  const selectable = Boolean(selectionActions)
+
   const effectiveIds = useMemo(
     () => rowIds ?? rows.map((_, i) => String(i)),
     [rowIds, rows],
   )
 
   const filtered = query.trim()
-    ? rows.filter((row) => row.some((cell) => cellText(cell).toLocaleLowerCase('ar').includes(query.trim().toLocaleLowerCase('ar'))))
+    ? rows.filter((row) => row.some((cell) => translateUiText(language, cellText(cell)).toLocaleLowerCase(language).includes(query.trim().toLocaleLowerCase(language))))
     : rows
   const sorted = [...filtered]
   if (sort) {
     const direction = sort.dir === 'asc' ? 1 : -1
-    sorted.sort((a, b) => cellText(a[sort.index]).localeCompare(cellText(b[sort.index]), 'ar', { numeric: true }) * direction)
+    sorted.sort((a, b) => translateUiText(language, cellText(a[sort.index])).localeCompare(translateUiText(language, cellText(b[sort.index])), language, { numeric: true }) * direction)
   }
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
@@ -145,7 +149,7 @@ export function DataTable({
         <span className="text-xs text-[#6b7280]">{sorted.length} {translateUiText(language, 'سجل')}</span>
       </div>
 
-      {selectedIds.length > 0 ? (
+      {selectable && selectedIds.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#ccfbf1] bg-[#f0fdf4] px-4 py-2 text-sm text-[#134e4a] shadow-xs dark:border-[#134e4a] dark:bg-[#134e4a]/20 dark:text-[#ccfbf1]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">
@@ -168,9 +172,9 @@ export function DataTable({
               {translateUiText(language, 'إلغاء التحديد')}
             </button>
           </div>
-          {bulkActions ? (
+          {selectionActions ? (
             <div className="flex items-center gap-2">
-              {bulkActions(selectedIds, () => updateSelected([]))}
+              <LocalizedContent>{selectionActions}</LocalizedContent>
             </div>
           ) : null}
         </div>
@@ -180,16 +184,17 @@ export function DataTable({
         <table className="w-full min-w-[640px] text-center text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] text-[#1f1f1f]">
-              <th className="w-12 px-2 py-2 text-center">
+              {selectable ? <th className="w-12 px-2 py-2 text-center">
                 <label className="sr-only" htmlFor={selectId}>{translateUiText(language, 'تحديد كل الصفوف')}</label>
                 <input
                   id={selectId}
                   type="checkbox"
                   checked={allVisibleSelected}
+                  disabled={visibleIds.length === 0}
                   aria-label={translateUiText(language, 'تحديد كل الصفوف')}
                   onChange={toggleSelectAllVisible}
                 />
-              </th>
+              </th> : null}
               {columns.map((column, index) => {
                 const active = sort?.index === index
                 const label = translateUiText(language, column)
@@ -218,7 +223,7 @@ export function DataTable({
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 1 + (rowActions ? 1 : 0)} className="py-10 text-center">
+                <td colSpan={columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0)} className="py-10 text-center">
                   <p className="text-base font-medium text-[#1f1f1f]">{translateUiText(language, 'لا توجد سجلات')}</p>
                 </td>
               </tr>
@@ -226,17 +231,17 @@ export function DataTable({
               visible.map((row, index) => {
                 const originalIndex = visibleIndexes[index] ?? -1
                 const rowId = effectiveIds[originalIndex] ?? `${safePage}-${index}`
-                const isSelected = selectedIds.includes(rowId)
+                const isSelected = selectable && selectedIds.includes(rowId)
                 return (
                   <tr key={rowId} className={`border-b border-[#f3f4f6] last:border-0 ${isSelected ? 'bg-[#f0fdf4]/50 dark:bg-[#134e4a]/10' : ''}`}>
-                    <td className="w-12 px-2 py-3 text-center align-middle">
+                    {selectable ? <td className="w-12 px-2 py-3 text-center align-middle">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         aria-label={`${translateUiText(language, 'تحديد الصف')} ${index + 1}`}
                         onChange={() => toggleSelectRow(rowId)}
                       />
-                    </td>
+                    </td> : null}
                     {row.map((cell, cellIndex) => (
                       <td key={cellIndex} className="px-2 py-3 text-center align-middle">
                         <LocalizedContent>{cell}</LocalizedContent>
@@ -305,7 +310,7 @@ const CONTROL_LINK_TARGETS: Record<string, { href: string; label: string }> = {
   products: { href: '/inventory/products', label: 'المنتجات' },
   employees: { href: '/admin/employees', label: 'الموظفين' },
   customers: { href: '/sales/parties', label: 'العملاء' },
-  machines: { href: '/inventory/machines', label: 'الماكينات' },
+  machines: { href: '/inventory/manufacturing/maintenance/machines', label: 'الماكينات' },
   vehicles: { href: '/fleet/vehicles', label: 'المركبات' },
   productionOrders: { href: '/inventory/manufacturing/orders', label: 'أوامر التصنيع' },
   users: { href: '/admin/users', label: 'المستخدمين' },
@@ -340,11 +345,12 @@ const CONTROL_LINK_TARGETS: Record<string, { href: string; label: string }> = {
 
 export function DependencyLink({ field }: { field: string }) {
   const { language } = useLanguage()
+  const closeDialog = useContext(DialogCloseContext)
   const target = CONTROL_LINK_TARGETS[field]
   if (!target) return null
   return (
-    <Link href={target.href} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1d7f72] underline-offset-2 hover:underline" target="_blank">
-      {translateUiText(language, `أضف ${target.label} ${translateUiText(language, 'أولاً')}`)} ↗
+    <Link href={target.href} onClick={closeDialog} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1d7f72] underline-offset-2 hover:underline">
+      {`${translateUiText(language, 'أضف')} ${translateUiText(language, target.label)} ${translateUiText(language, 'أولاً')}`} ↗
     </Link>
   )
 }
@@ -454,7 +460,7 @@ export function Dialog({
             {translateUiText(language, 'إغلاق')}
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto pe-1"><LocalizedContent>{children}</LocalizedContent></div>
+        <div className="max-h-[70vh] overflow-y-auto pe-1"><DialogCloseContext.Provider value={onClose}><LocalizedContent>{children}</LocalizedContent></DialogCloseContext.Provider></div>
       </div>
     </div>
   )

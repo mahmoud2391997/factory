@@ -9,11 +9,12 @@ apps/
   web/          # Next.js (واجهة ERP)
 packages/
   database/           # Prisma schema + migrations + seed + generated client
-  shared/             # Types/Zod مشتركة
 docs/           # تصميم معماري + نموذج بيانات + تدفقات
 ```
 
 ## التشغيل (Development)
+
+See [development setup](docs/DEVELOPMENT.md) for demo and PostgreSQL setup, and [readiness assessment](docs/DEVELOPMENT-READINESS.md) for the prioritized backlog. Use Node 22 and pnpm 10.12.4.
 
 ### 1) تثبيت الاعتمادات
 
@@ -24,7 +25,7 @@ pnpm install
 ### 2) تشغيل الواجهة (Web)
 
 ```bash
-pnpm dev
+APP_MODE=demo pnpm dev
 ```
 
 افتح `http://localhost:3000`.
@@ -48,9 +49,9 @@ pnpm dev
 
 ## التشغيل اليومي
 
-النظام يربط الشراء والاستلام والتصنيع والبيع والحسابات في دفتر واحد. بدون `DATABASE_URL` تُحفظ البيانات في ملف محلي مع نسخة يومية لمدة 30 يوماً. مع Postgres يصبح جدول `ErpDocument` هو المصدر السحابي وتبقى النسخة المحلية احتياطاً إضافياً.
+النظام يربط الشراء والاستلام والتصنيع والبيع والحسابات في دفتر واحد. في الوضع التجريبي (`APP_MODE=demo`) وبدون `DATABASE_URL` تُحفظ البيانات في ملف محلي مع نسخة يومية لمدة 30 يوماً. مع Postgres يصبح جدول `ErpDocument` هو المصدر السحابي وتبقى النسخة المحلية احتياطاً إضافياً.
 
-حسابات التجربة (كلمة المرور `Admin123!`):
+حسابات الوضع التجريبي فقط (كلمة المرور `Admin123!`):
 
 | الدور | البريد |
 | --- | --- |
