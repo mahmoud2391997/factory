@@ -50,7 +50,7 @@ test("pnpm workspace and package manifests retain the expected deployment config
   const web = readJson<PackageManifest>("apps/web/package.json");
   assert.equal(web.dependencies?.["@erp/database"], "workspace:*");
   const start = web.scripts?.start ?? "";
-  assert.match(start, /\S/, "web package must have a start script");
+  assert.equal(start, "next start", "Vercel production start must use Next.js defaults, not Docker host/port flags");
   assert.doesNotMatch(start, /docker|--network|--publish/i, "web start must not depend on Docker flags");
 
   const database = readJson<PackageManifest>("packages/database/package.json");
