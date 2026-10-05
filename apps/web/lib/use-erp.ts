@@ -90,7 +90,19 @@ export function useErp(enabled: boolean = true, frontendDemo = false) {
   const act = useCallback(
     async (action: string, input?: Record<string, unknown>): Promise<ActResult> => {
       if (frontendDemo) {
-        if (action === 'resetDemo') setData({ state: buildFrontendDemoState(), storage: 'file' })
+        if (action === 'resetDemo') {
+          setData({ state: buildFrontendDemoState(), storage: 'file' })
+        } else if (action === 'markNotificationRead' && typeof input?.id === 'string') {
+          setData((current) => current
+            ? {
+                ...current,
+                state: {
+                  ...current.state,
+                  notifications: setNotificationRead(current.state.notifications, input.id as string, true),
+                },
+              }
+            : current)
+        }
         const messageText = action === 'resetDemo' ? 'تمت إعادة بيانات المصنع التجريبية' : 'تم تنفيذ العملية في الوضع التجريبي'
         setMessage(messageText)
         return { ok: true, message: messageText }
