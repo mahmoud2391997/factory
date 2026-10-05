@@ -1,14 +1,34 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { Lock, Unlock, ZoomIn, ZoomOut, RefreshCw, ArrowRight, X, Maximize2, Minimize2, MousePointer2 } from 'lucide-react'
-import { NAV_CONFIG, canAccessPage, type NavWorkspace, type NavSection, type NavPage } from '@/lib/nav/config'
+import {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react'
+import {
+  Lock,
+  Unlock,
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
+  X,
+  Maximize2,
+  Minimize2,
+  Move,
+  MousePointer2,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
+import { NAV_CONFIG, canAccessPage, type NavPage } from '@/lib/nav/config'
 import { canSeeEntity } from '@/lib/erp-routes'
 import { useRouter } from 'next/navigation'
-
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { translateUiText } from '@/lib/i18n/translations'
 import type { Language } from '@/lib/i18n/translations'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type EntityNode = {
   id: string
@@ -37,48 +57,69 @@ type WorkflowPath = {
   color: string
 }
 
+type Vec2 = { x: number; y: number }
+
 interface SystemMapProps {
   permissions: string[]
   language?: string
 }
 
-// Entity definitions with categories
+// ─── Static Data ──────────────────────────────────────────────────────────────
+
 const ENTITY_CATEGORIES = {
   'المشتريات': {
     color: '#3b82f6',
-    entities: ['supplier', 'purchaseRequest', 'purchaseOrder', 'goodsReceipt', 'supplierCommunication']
+    bg: '#eff6ff',
+    entities: ['supplier', 'purchaseRequest', 'purchaseOrder', 'goodsReceipt', 'supplierCommunication'],
   },
-  'المخزون': {
+  // Inventory split into 3 focused sub-groups
+  'المواد': {
     color: '#10b981',
-    entities: ['material', 'product', 'inventoryOverview', 'stockTransfer', 'stockAdjustment', 'barcode']
+    bg: '#f0fdf4',
+    entities: ['inventoryOverview', 'material', 'product', 'inventoryExtensions', 'inventoryExtensions-packaging'],
+  },
+  'تحليلات المخزون': {
+    color: '#059669',
+    bg: '#ecfdf5',
+    entities: ['factoryStockValue', 'factoryRunningOut', 'factoryStagnant', 'factoryReserved', 'materialBatch', 'inventoryBalance', 'inventoryTransaction', 'inventoryReports', 'materialPriceAnalysis'],
+  },
+  'المستودعات': {
+    color: '#0d9488',
+    bg: '#f0fdfa',
+    entities: ['warehouse', 'stockTransfer', 'stockAdjustment', 'barcode'],
   },
   'الإنتاج': {
     color: '#f59e0b',
-    entities: ['recipe', 'productionOrder', 'productionLot', 'scaleReading', 'machine']
+    bg: '#fffbeb',
+    entities: ['recipe', 'productionOrder', 'productionLot', 'scaleReading', 'machine'],
   },
   'المبيعات': {
     color: '#8b5cf6',
-    entities: ['customer', 'salesInvoice', 'salesPayment', 'distribution', 'invoiceDelivery']
+    bg: '#f5f3ff',
+    entities: ['customer', 'salesInvoice', 'salesPayment', 'distribution', 'invoiceDelivery'],
   },
   'المالية': {
     color: '#ef4444',
-    entities: ['account', 'journalEntry', 'expense', 'bankTransaction', 'obligation']
+    bg: '#fef2f2',
+    entities: ['account', 'journalEntry', 'expense', 'bankTransaction', 'obligation'],
   },
   'الموارد البشرية': {
     color: '#ec4899',
-    entities: ['employee', 'attendance', 'payroll', 'leaveRequest']
+    bg: '#fdf2f8',
+    entities: ['employee', 'attendance', 'payroll', 'leaveRequest'],
   },
   'الجودة': {
     color: '#06b6d4',
-    entities: ['qualitySample', 'qualityHold']
+    bg: '#ecfeff',
+    entities: ['qualitySample', 'qualityHold'],
   },
   'الأسطول': {
     color: '#6366f1',
-    entities: ['fleet', 'fleetFuel', 'fleetTrips']
+    bg: '#eef2ff',
+    entities: ['fleet', 'fleetFuel', 'fleetTrips'],
   },
-}
+} as const
 
-// Entity relationships and workflows
 const ENTITY_RELATIONS: EntityRelation[] = [
   // Purchasing workflow
   { from: 'supplier', to: 'purchaseRequest', label: 'طلب شراء', type: 'workflow' },
@@ -86,7 +127,26 @@ const ENTITY_RELATIONS: EntityRelation[] = [
   { from: 'purchaseOrder', to: 'goodsReceipt', label: 'استلام', type: 'workflow' },
   { from: 'goodsReceipt', to: 'material', label: 'إضافة للمخزون', type: 'workflow' },
   { from: 'supplier', to: 'supplierCommunication', label: 'مراسلة', type: 'reference' },
-
+  // Materials sub-section internal
+  { from: 'inventoryOverview', to: 'material', label: 'مواد', type: 'reference' },
+  { from: 'inventoryOverview', to: 'product', label: 'منتجات', type: 'reference' },
+  // Materials → Analytics
+  { from: 'material', to: 'inventoryBalance', label: 'رصيد', type: 'workflow' },
+  { from: 'material', to: 'factoryRunningOut', label: 'قاربت النفاد', type: 'reference' },
+  { from: 'material', to: 'factoryStagnant', label: 'راكدة', type: 'reference' },
+  { from: 'material', to: 'factoryReserved', label: 'محجوزة', type: 'reference' },
+  { from: 'material', to: 'materialBatch', label: 'دفعات', type: 'reference' },
+  { from: 'material', to: 'factoryStockValue', label: 'قيمة', type: 'reference' },
+  { from: 'inventoryBalance', to: 'inventoryTransaction', label: 'حركات', type: 'workflow' },
+  { from: 'inventoryTransaction', to: 'inventoryReports', label: 'تقرير', type: 'workflow' },
+  { from: 'material', to: 'materialPriceAnalysis', label: 'أسعار', type: 'reference' },
+  // Materials → Warehouses
+  { from: 'material', to: 'stockTransfer', label: 'تحويل', type: 'reference' },
+  { from: 'material', to: 'stockAdjustment', label: 'تسوية', type: 'reference' },
+  { from: 'product', to: 'stockTransfer', label: 'تحويل', type: 'reference' },
+  { from: 'warehouse', to: 'stockTransfer', label: 'حركة', type: 'workflow' },
+  { from: 'warehouse', to: 'stockAdjustment', label: 'تسوية', type: 'workflow' },
+  { from: 'warehouse', to: 'barcode', label: 'مسح', type: 'reference' },
   // Production workflow
   { from: 'material', to: 'recipe', label: 'استهلاك', type: 'workflow' },
   { from: 'recipe', to: 'productionOrder', label: 'أمر إنتاج', type: 'workflow' },
@@ -94,84 +154,157 @@ const ENTITY_RELATIONS: EntityRelation[] = [
   { from: 'scaleReading', to: 'productionLot', label: 'دفعة', type: 'workflow' },
   { from: 'productionLot', to: 'product', label: 'إنتاج', type: 'workflow' },
   { from: 'productionLot', to: 'qualitySample', label: 'فحص جودة', type: 'workflow' },
-
   // Sales workflow
   { from: 'customer', to: 'salesInvoice', label: 'فاتورة', type: 'workflow' },
   { from: 'product', to: 'salesInvoice', label: 'بيع', type: 'workflow' },
   { from: 'salesInvoice', to: 'invoiceDelivery', label: 'تسليم', type: 'workflow' },
   { from: 'salesInvoice', to: 'salesPayment', label: 'تحصيل', type: 'workflow' },
   { from: 'salesInvoice', to: 'distribution', label: 'توزيع', type: 'reference' },
-
   // Financial workflow
   { from: 'purchaseOrder', to: 'expense', label: 'تكلفة', type: 'workflow' },
   { from: 'expense', to: 'journalEntry', label: 'قيد', type: 'workflow' },
   { from: 'journalEntry', to: 'account', label: 'حساب', type: 'workflow' },
   { from: 'salesPayment', to: 'bankTransaction', label: 'إيداع', type: 'workflow' },
   { from: 'obligation', to: 'bankTransaction', label: 'سداد', type: 'workflow' },
-
   // HR workflow
   { from: 'employee', to: 'attendance', label: 'حضور', type: 'workflow' },
   { from: 'attendance', to: 'payroll', label: 'راتب', type: 'workflow' },
   { from: 'employee', to: 'leaveRequest', label: 'إجازة', type: 'workflow' },
-
   // Fleet workflow
   { from: 'fleet', to: 'fleetFuel', label: 'وقود', type: 'workflow' },
   { from: 'fleet', to: 'fleetTrips', label: 'رحلة', type: 'workflow' },
-
-  // Inventory references
-  { from: 'material', to: 'stockTransfer', label: 'تحويل', type: 'reference' },
-  { from: 'material', to: 'stockAdjustment', label: 'تسوية', type: 'reference' },
-  { from: 'product', to: 'stockTransfer', label: 'تحويل', type: 'reference' },
 ]
 
-// Workflow paths
 const WORKFLOW_PATHS: WorkflowPath[] = [
   {
     id: 'purchasing',
     label: 'دورة المشتريات',
     nodes: ['supplier', 'purchaseRequest', 'purchaseOrder', 'goodsReceipt', 'material'],
-    color: '#3b82f6'
+    color: '#3b82f6',
+  },
+  {
+    id: 'inventory',
+    label: 'دورة المخزون',
+    nodes: ['material', 'inventoryBalance', 'inventoryTransaction', 'inventoryReports', 'warehouse', 'stockTransfer'],
+    color: '#10b981',
   },
   {
     id: 'production',
     label: 'دورة الإنتاج',
     nodes: ['material', 'recipe', 'productionOrder', 'scaleReading', 'productionLot', 'product', 'qualitySample'],
-    color: '#f59e0b'
+    color: '#f59e0b',
   },
   {
     id: 'sales',
     label: 'دورة المبيعات',
     nodes: ['customer', 'salesInvoice', 'invoiceDelivery', 'salesPayment', 'distribution'],
-    color: '#8b5cf6'
+    color: '#8b5cf6',
   },
   {
     id: 'financial',
     label: 'الدورة المالية',
     nodes: ['expense', 'journalEntry', 'account', 'bankTransaction', 'obligation'],
-    color: '#ef4444'
+    color: '#ef4444',
   },
 ]
 
+// ─── Node size constants ───────────────────────────────────────────────────────
+const NODE_W = 170
+const NODE_H = 56
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Compute a smooth cubic bezier path between two node centres,
+ * with edge intersection so the arrow starts/ends at the node border.
+ */
+function edgePath(from: Vec2, to: Vec2): string {
+  // Centre of each node
+  const x1 = from.x + NODE_W / 2
+  const y1 = from.y + NODE_H / 2
+  const x2 = to.x + NODE_W / 2
+  const y2 = to.y + NODE_H / 2
+
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1
+
+  // Clamp start/end to node bounding box edges
+  const startX = x1 + (dx / dist) * (NODE_W / 2)
+  const startY = y1 + (dy / dist) * (NODE_H / 2)
+  const endX = x2 - (dx / dist) * (NODE_W / 2 + 10) // leave room for arrowhead
+  const endY = y2 - (dy / dist) * (NODE_H / 2 + 10)
+
+  // Cubic bezier control points — horizontal bias for cleaner routes
+  const cpDist = Math.min(Math.abs(dx) * 0.6, 200) + 40
+  const cp1x = startX + (dx > 0 ? cpDist : -cpDist)
+  const cp1y = startY
+  const cp2x = endX - (dx > 0 ? cpDist : -cpDist)
+  const cp2y = endY
+
+  return `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`
+}
+
+/** Mid-point of bezier path for label placement (approximate at t=0.5) */
+function bezierMid(from: Vec2, to: Vec2): Vec2 {
+  const x1 = from.x + NODE_W / 2
+  const y1 = from.y + NODE_H / 2
+  const x2 = to.x + NODE_W / 2
+  const y2 = to.y + NODE_H / 2
+  return {
+    x: (x1 + x2) / 2,
+    y: (y1 + y2) / 2,
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export function SystemMap({ permissions, language = 'ar' }: SystemMapProps) {
   const router = useRouter()
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  const [zoom, setZoom] = useState(0.85)
+  const [pan, setPan] = useState<Vec2>({ x: 60, y: 40 })
+  const [showAll, setShowAll] = useState(false)
+  const [showLabels, setShowLabels] = useState(true)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null)
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null)
-  const [showAll, setShowAll] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [draggingEntity, setDraggingEntity] = useState<string | null>(null)
-  const [entityPositions, setEntityPositions] = useState<Record<string, { x: number; y: number }>>({})
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const [hoveredEntity, setHoveredEntity] = useState<string | null>(null)
+  const [tooltip, setTooltip] = useState<{ entity: EntityNode; x: number; y: number } | null>(null)
 
-  const entities = useMemo(() => {
+  // Positions live in a ref + a state that triggers re-render
+  const posRef = useRef<Record<string, Vec2>>({})
+  const [positions, setPositions] = useState<Record<string, Vec2>>({})
+
+  // ── Drag state (stored in refs to avoid stale-closure issues) ──────────────
+  const canvasDragRef = useRef<{ active: boolean; startClient: Vec2; startPan: Vec2 }>({
+    active: false,
+    startClient: { x: 0, y: 0 },
+    startPan: { x: 0, y: 0 },
+  })
+  const nodeDragRef = useRef<{
+    active: boolean
+    id: string | null
+    startClient: Vec2
+    startNodePos: Vec2
+    moved: boolean
+  }>({
+    active: false,
+    id: null,
+    startClient: { x: 0, y: 0 },
+    startNodePos: { x: 0, y: 0 },
+    moved: false,
+  })
+
+  const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 768)
+
+  // ── Build entity list ──────────────────────────────────────────────────────
+  const entities = useMemo<EntityNode[]>(() => {
     const nodes: EntityNode[] = []
     const pageMap = new Map<string, NavPage>()
 
-    // Build page map from NAV_CONFIG
     for (const workspace of NAV_CONFIG.workspaces) {
       for (const section of workspace.sections) {
         for (const page of section.pages) {
@@ -180,14 +313,11 @@ export function SystemMap({ permissions, language = 'ar' }: SystemMapProps) {
       }
     }
 
-    // Create entity nodes
     for (const [category, config] of Object.entries(ENTITY_CATEGORIES)) {
-      config.entities.forEach((entityKey, index) => {
+      config.entities.forEach((entityKey) => {
         const page = pageMap.get(entityKey)
         if (!page) return
-
         const hasAccess = canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey)
-
         nodes.push({
           id: entityKey,
           label: page.label,
@@ -203,381 +333,620 @@ export function SystemMap({ permissions, language = 'ar' }: SystemMapProps) {
       })
     }
 
-    // Position nodes with very generous spacing to prevent overlaps
-    const categoryPositions: Record<string, { x: number; y: number }> = {}
+    // Layout: place each category in a column-grid, entities in a tight sub-grid
+    const mob = isMobile.current
+    const cols = mob ? 2 : 4
+    const spacingX = mob ? 300 : 420
+    const spacingY = mob ? 320 : 380
+    const subColW = mob ? 200 : 210
+    const subRowH = mob ? 72 : 80
     const categoryOrder = Object.keys(ENTITY_CATEGORIES)
-    const cols = isMobile ? 2 : 3  // Reduced columns for more space
-    const spacingX = isMobile ? 280 : 450  // Much larger horizontal spacing
-    const spacingY = isMobile ? 300 : 400  // Much larger vertical spacing
 
     categoryOrder.forEach((category, catIndex) => {
       const col = catIndex % cols
       const row = Math.floor(catIndex / cols)
-      categoryPositions[category] = {
-        x: col * spacingX + (isMobile ? 160 : 250),
-        y: row * spacingY + (isMobile ? 160 : 250),
-      }
-    })
+      const baseX = col * spacingX + (mob ? 40 : 60)
+      const baseY = row * spacingY + (mob ? 60 : 80)
 
-    nodes.forEach((node) => {
-      const catPos = categoryPositions[node.category]
-      const categoryEntities = nodes.filter((n) => n.category === node.category)
-      const index = categoryEntities.findIndex((n) => n.id === node.id)
-      const catCols = isMobile ? 1 : 2
-      const catCol = index % catCols
-      const catRow = Math.floor(index / catCols)
-
-      node.x = catPos.x + catCol * (isMobile ? 240 : 350)
-      node.y = catPos.y + catRow * (isMobile ? 180 : 220)
+      const catNodes = nodes.filter((n) => n.category === category)
+      catNodes.forEach((node, idx) => {
+        const subCols = mob ? 1 : 2
+        const subCol = idx % subCols
+        const subRow = Math.floor(idx / subCols)
+        node.x = baseX + subCol * subColW + 20
+        node.y = baseY + subRow * subRowH + 30
+      })
     })
 
     return nodes
-  }, [permissions, isMobile])
+  }, [permissions])
 
-  const visibleEntities = useMemo(() => {
-    return showAll ? entities : entities.filter((e) => e.hasAccess)
-  }, [entities, showAll])
-
-  // Update entity positions when they change
+  // ── Seed positions once when entities change ───────────────────────────────
   useEffect(() => {
-    const positions: Record<string, { x: number; y: number }> = {}
-    entities.forEach((entity) => {
-      positions[entity.id] = { x: entity.x, y: entity.y }
+    const next: Record<string, Vec2> = {}
+    entities.forEach((e) => {
+      // Keep user-moved positions; only seed missing ones
+      next[e.id] = posRef.current[e.id] ?? { x: e.x, y: e.y }
     })
-    setEntityPositions(positions)
+    posRef.current = next
+    setPositions({ ...next })
   }, [entities])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    // Only start drag if clicking on canvas background
-    if (e.target === canvasRef.current) {
-      e.preventDefault()
-      setIsDragging(true)
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      setDragStart({ x: clientX - pan.x, y: clientY - pan.y })
-    }
-  }, [pan])
+  const visibleEntities = useMemo(
+    () => (showAll ? entities : entities.filter((e) => e.hasAccess)),
+    [entities, showAll]
+  )
 
-  const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (isDragging) {
-      e.preventDefault()
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-      setPan({ x: clientX - dragStart.x, y: clientY - dragStart.y })
-    }
-  }, [isDragging, dragStart])
+  const visibleIds = useMemo(() => new Set(visibleEntities.map((e) => e.id)), [visibleEntities])
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-    setDraggingEntity(null)
+  // ── Zoom helpers ──────────────────────────────────────────────────────────
+  const zoomBy = useCallback((delta: number) => {
+    setZoom((prev) => Math.max(0.3, Math.min(2.5, +(prev + delta).toFixed(2))))
   }, [])
 
-  const handleEntityDragStart = useCallback((e: React.MouseEvent, entityId: string) => {
-    e.stopPropagation()
-    e.preventDefault()
-    setDraggingEntity(entityId)
-  }, [])
-
-  const handleEntityDrag = useCallback((e: React.MouseEvent) => {
-    if (draggingEntity) {
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
       e.preventDefault()
-      const clientX = e.clientX
-      const clientY = e.clientY
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (!rect) return
+      const factor = e.ctrlKey ? 0.05 : 0.1
+      zoomBy(e.deltaY > 0 ? -factor : factor)
+    },
+    [zoomBy]
+  )
 
-      const x = (clientX - rect.left - pan.x) / zoom
-      const y = (clientY - rect.top - pan.y) / zoom
+  // Attach non-passive wheel listener
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
-      setEntityPositions((prev) => ({
-        ...prev,
-        [draggingEntity]: { x, y },
-      }))
+  // ── Global pointer move / up ───────────────────────────────────────────────
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const client: Vec2 = { x: e.clientX, y: e.clientY }
+
+      // Node drag takes priority
+      if (nodeDragRef.current.active && nodeDragRef.current.id) {
+        const dx = client.x - nodeDragRef.current.startClient.x
+        const dy = client.y - nodeDragRef.current.startClient.y
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          nodeDragRef.current.moved = true
+        }
+        if (nodeDragRef.current.moved) {
+          const id = nodeDragRef.current.id
+          const newPos: Vec2 = {
+            x: nodeDragRef.current.startNodePos.x + dx / zoom,
+            y: nodeDragRef.current.startNodePos.y + dy / zoom,
+          }
+          posRef.current = { ...posRef.current, [id]: newPos }
+          setPositions((prev) => ({ ...prev, [id]: newPos }))
+        }
+        return
+      }
+
+      // Canvas pan
+      if (canvasDragRef.current.active) {
+        const dx = client.x - canvasDragRef.current.startClient.x
+        const dy = client.y - canvasDragRef.current.startClient.y
+        setPan({
+          x: canvasDragRef.current.startPan.x + dx,
+          y: canvasDragRef.current.startPan.y + dy,
+        })
+      }
     }
-  }, [draggingEntity, pan, zoom])
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.1 : 0.1
-    setZoom((prev) => Math.max(0.5, Math.min(2, prev + delta)))
-  }, [])
+    const onUp = () => {
+      canvasDragRef.current.active = false
+      nodeDragRef.current.active = false
+    }
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.1, 2))
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.1, 0.5))
-  const handleReset = () => {
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [zoom])
+
+  // ── Canvas pointer down (pan) ──────────────────────────────────────────────
+  const handleCanvasPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      // Only start canvas pan when clicking the canvas itself, not a node
+      if ((e.target as HTMLElement).closest('[data-node]')) return
+      e.preventDefault()
+      canvasDragRef.current = {
+        active: true,
+        startClient: { x: e.clientX, y: e.clientY },
+        startPan: { x: pan.x, y: pan.y },
+      }
+    },
+    [pan]
+  )
+
+  // ── Node pointer down (drag) ───────────────────────────────────────────────
+  const handleNodePointerDown = useCallback(
+    (e: React.PointerEvent, entityId: string) => {
+      e.stopPropagation()
+      const pos = posRef.current[entityId] ?? { x: 0, y: 0 }
+      nodeDragRef.current = {
+        active: true,
+        id: entityId,
+        startClient: { x: e.clientX, y: e.clientY },
+        startNodePos: { ...pos },
+        moved: false,
+      }
+      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    },
+    []
+  )
+
+  const handleNodeClick = useCallback(
+    (e: React.MouseEvent, entity: EntityNode) => {
+      if (nodeDragRef.current.moved) return // was a drag, not a click
+      setSelectedEntity((prev) => (prev === entity.id ? null : entity.id))
+      setTooltip(null)
+    },
+    []
+  )
+
+  const handleNodeDoubleClick = useCallback(
+    (entity: EntityNode) => {
+      if (entity.hasAccess) {
+        router.push(entity.href)
+      }
+    },
+    [router]
+  )
+
+  const handleReset = useCallback(() => {
+    setZoom(0.85)
+    setPan({ x: 60, y: 40 })
     setSelectedEntity(null)
     setSelectedWorkflow(null)
-    setIsFullscreen(false)
-  }
+    setTooltip(null)
+    // Re-seed positions from initial layout
+    const next: Record<string, Vec2> = {}
+    entities.forEach((e) => {
+      next[e.id] = { x: e.x, y: e.y }
+    })
+    posRef.current = next
+    setPositions(next)
+  }, [entities])
 
-  const handleEntityClick = (entity: EntityNode) => {
-    if (entity.hasAccess) {
-      router.push(entity.href)
-    }
-    setSelectedEntity(entity.id)
-  }
+  // ── Workflow helpers ──────────────────────────────────────────────────────
+  const activeWorkflow = selectedWorkflow
+    ? WORKFLOW_PATHS.find((w) => w.id === selectedWorkflow)
+    : null
 
-  const handleWorkflowToggle = (workflowId: string) => {
-    setSelectedWorkflow(selectedWorkflow === workflowId ? null : workflowId)
-  }
+  const isNodeInWorkflow = useCallback(
+    (id: string) => activeWorkflow?.nodes.includes(id) ?? false,
+    [activeWorkflow]
+  )
 
-  const isRTL = language === 'ar'
+  const isEdgeInWorkflow = useCallback(
+    (from: string, to: string) => {
+      if (!activeWorkflow) return false
+      const ni = activeWorkflow.nodes.indexOf(from)
+      return ni !== -1 && activeWorkflow.nodes[ni + 1] === to
+    },
+    [activeWorkflow]
+  )
 
+  // ── Category colour ───────────────────────────────────────────────────────
+  const catColor = (category: string) =>
+    ENTITY_CATEGORIES[category as keyof typeof ENTITY_CATEGORIES]?.color ?? '#64748b'
+  const catBg = (category: string) =>
+    ENTITY_CATEGORIES[category as keyof typeof ENTITY_CATEGORIES]?.bg ?? '#f8fafc'
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <LocalizedContent>
-      <div className={`w-full p-4 md:p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : ''}`}>
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
-          <div className="flex-1">
-            <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+      <div
+        className={`w-full p-4 md:p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl ${
+          isFullscreen ? 'fixed inset-0 z-50 rounded-none flex flex-col' : ''
+        }`}
+      >
+        {/* ── Header ── */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-3">
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
               {translateUiText(language as Language, 'خريطة الكيانات والعلاقات')}
             </h2>
-            <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400">
-              {translateUiText(language as Language, 'خريطة تفاعلية توضح الكيانات وعلاقاتها وتدفقات العمل مع التحكم في الصلاحيات')}
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {translateUiText(
+                language as Language,
+                'اسحب العقد لإعادة ترتيبها • انقر مرتين للانتقال • استخدم عجلة الماوس للتكبير'
+              )}
             </p>
           </div>
+
+          {/* Controls */}
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setShowAll(!showAll)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              onClick={() => setShowAll((v) => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              title={translateUiText(language as Language, showAll ? 'عرض المتاح فقط' : 'عرض الكل')}
             >
-              {showAll ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-              <span className="hidden sm:inline">{showAll ? translateUiText(language as Language, 'عرض الكل') : translateUiText(language as Language, 'المسموح فقط')}</span>
+              {showAll ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">
+                {showAll
+                  ? translateUiText(language as Language, 'الكل')
+                  : translateUiText(language as Language, 'المتاح')}
+              </span>
             </button>
+
             <button
-              onClick={handleZoomOut}
-              className="p-2 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              disabled={zoom <= 0.5}
-              title={translateUiText(language as Language, 'تصغير')}
+              onClick={() => setShowLabels((v) => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              title={translateUiText(language as Language, 'تبديل تسميات الروابط')}
             >
-              <ZoomOut className="w-4 h-4" />
+              {showLabels ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">
+                {translateUiText(language as Language, 'التسميات')}
+              </span>
             </button>
-            <button
-              onClick={handleZoomIn}
-              className="p-2 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              disabled={zoom >= 2}
-              title={translateUiText(language as Language, 'تكبير')}
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
+
+            <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <button
+                onClick={() => zoomBy(-0.1)}
+                disabled={zoom <= 0.3}
+                className="p-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
+                title={translateUiText(language as Language, 'تصغير')}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="px-2 text-xs font-mono bg-white dark:bg-slate-800 text-slate-500 border-x border-slate-200 dark:border-slate-700 select-none">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => zoomBy(0.1)}
+                disabled={zoom >= 2.5}
+                className="p-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors"
+                title={translateUiText(language as Language, 'تكبير')}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+
             <button
               onClick={handleReset}
-              className="p-2 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               title={translateUiText(language as Language, 'إعادة تعيين')}
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+
             <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-2 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              title={isFullscreen ? translateUiText(language as Language, 'إغلاق ملء الشاشة') : translateUiText(language as Language, 'ملء الشاشة')}
+              onClick={() => setIsFullscreen((v) => !v)}
+              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              title={
+                isFullscreen
+                  ? translateUiText(language as Language, 'إغلاق ملء الشاشة')
+                  : translateUiText(language as Language, 'ملء الشاشة')
+              }
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        {/* Workflow selector */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          {WORKFLOW_PATHS.map((workflow) => (
+        {/* ── Workflow selector ── */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            {translateUiText(language as Language, 'الدورات')}:
+          </span>
+          {WORKFLOW_PATHS.map((wf) => (
             <button
-              key={workflow.id}
-              onClick={() => handleWorkflowToggle(workflow.id)}
-              className={`px-3 py-1.5 text-xs md:text-sm rounded-full transition-colors ${
-                selectedWorkflow === workflow.id
-                  ? 'text-white'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+              key={wf.id}
+              onClick={() => setSelectedWorkflow((prev) => (prev === wf.id ? null : wf.id))}
+              className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                selectedWorkflow === wf.id
+                  ? 'text-white border-transparent shadow-md scale-105'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:scale-105'
               }`}
-              style={
-                selectedWorkflow === workflow.id
-                  ? { backgroundColor: workflow.color }
-                  : {}
-              }
+              style={selectedWorkflow === wf.id ? { backgroundColor: wf.color, borderColor: wf.color } : {}}
             >
-              {translateUiText(language as Language, workflow.label)}
+              {translateUiText(language as Language, wf.label)}
             </button>
           ))}
           {selectedWorkflow && (
             <button
               onClick={() => setSelectedWorkflow(null)}
-              className="px-2 py-1.5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-              title={translateUiText(language as Language, 'إلغاء التحديد')}
+              className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              title={translateUiText(language as Language, 'إلغاء')}
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Canvas */}
+        {/* ── Canvas ── */}
         <div
           ref={canvasRef}
-          className={`relative overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 cursor-grab active:cursor-grabbing touch-none select-none ${isFullscreen ? 'h-[calc(100vh-200px)]' : 'h-[600px] md:h-[1000px]'}`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={handleMouseDown}
-          onTouchMove={handleMouseMove}
-          onTouchEnd={handleMouseUp}
-          onWheel={handleWheel}
-          style={{ userSelect: 'none' }}
+          className={`relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 select-none touch-none ${
+            isFullscreen ? 'flex-1' : 'h-[640px] md:h-[820px]'
+          }`}
+          style={{ cursor: canvasDragRef.current.active ? 'grabbing' : 'grab' }}
+          onPointerDown={handleCanvasPointerDown}
         >
+          {/* Dot-grid background */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{ transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)` }}
+            xmlns="http://www.w3.org/2000/svg"
           >
-            {/* Draw relations */}
-            {ENTITY_RELATIONS.map((rel, index) => {
-              const fromNode = visibleEntities.find((e) => e.id === rel.from)
-              const toNode = visibleEntities.find((e) => e.id === rel.to)
-              if (!fromNode || !toNode) return null
-
-              const fromPos = entityPositions[rel.from] || { x: fromNode.x, y: fromNode.y }
-              const toPos = entityPositions[rel.to] || { x: toNode.x, y: toNode.y }
-
-              const isHighlighted = selectedWorkflow
-                ? WORKFLOW_PATHS.find((w) => w.id === selectedWorkflow)?.nodes.includes(rel.from) &&
-                  WORKFLOW_PATHS.find((w) => w.id === selectedWorkflow)?.nodes.includes(rel.to)
-                : false
-
-              return (
-                <g key={index}>
-                  <line
-                    x1={fromPos.x + (isMobile ? 60 : 80)}
-                    y1={fromPos.y + 30}
-                    x2={toPos.x}
-                    y2={toPos.y + 30}
-                    stroke={isHighlighted ? WORKFLOW_PATHS.find((w) => w.id === selectedWorkflow)?.color : '#cbd5e1'}
-                    strokeWidth={isHighlighted ? 3 : 1.5}
-                    strokeDasharray={rel.type === 'reference' ? '5,5' : 'none'}
-                    opacity={isHighlighted ? 1 : 0.6}
-                  />
-                  <ArrowRight
-                    x={toPos.x - 10}
-                    y={toPos.y + 25}
-                    size={isMobile ? 12 : 16}
-                    fill={isHighlighted ? WORKFLOW_PATHS.find((w) => w.id === selectedWorkflow)?.color : '#94a3b8'}
-                  />
-                </g>
-              )
-            })}
+            <defs>
+              <pattern
+                id="dot-grid"
+                x={pan.x % (20 * zoom)}
+                y={pan.y % (20 * zoom)}
+                width={20 * zoom}
+                height={20 * zoom}
+                patternUnits="userSpaceOnUse"
+              >
+                <circle cx={1} cy={1} r={0.8} fill="#cbd5e1" opacity="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dot-grid)" />
           </svg>
 
-          {/* Draw entities */}
-          <div
-            className="absolute inset-0"
-            style={{ transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)` }}
+          {/* ── Main SVG for edges ── */}
+          <svg
+            ref={svgRef}
+            className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            {visibleEntities.map((entity) => {
-              const categoryColor = ENTITY_CATEGORIES[entity.category as keyof typeof ENTITY_CATEGORIES]?.color || '#64748b'
-              const isSelected = selectedEntity === entity.id
-              const isInWorkflow = selectedWorkflow
-                ? WORKFLOW_PATHS.find((w) => w.id === selectedWorkflow)?.nodes.includes(entity.id)
-                : false
-              const pos = entityPositions[entity.id] || { x: entity.x, y: entity.y }
-              const isDraggingThis = draggingEntity === entity.id
-
-              return (
-                <div
-                  key={entity.id}
-                  className={`absolute px-2 md:px-3 py-1.5 md:py-2 rounded-lg shadow-md transition-shadow cursor-pointer touch-manipulation ${
-                    isSelected
-                      ? 'ring-2 ring-teal-500 shadow-lg'
-                      : 'hover:shadow-lg'
-                  } ${isDraggingThis ? 'cursor-grabbing shadow-xl scale-105' : 'cursor-grab'} ${!entity.hasAccess && !showAll ? 'opacity-40' : ''}`}
-                  style={{
-                    left: pos.x,
-                    top: pos.y,
-                    backgroundColor: isInWorkflow ? categoryColor : '#f8fafc',
-                    color: isInWorkflow ? '#ffffff' : '#1e293b',
-                    minWidth: isMobile ? '130px' : '150px',
-                    maxWidth: isMobile ? '160px' : '180px',
-                    transition: isDraggingThis ? 'none' : 'all 0.2s',
-                  }}
-                  onClick={(e) => {
-                    if (!isDraggingThis) handleEntityClick(entity)
-                  }}
-                  onMouseDown={(e) => handleEntityDragStart(e, entity.id)}
-                  onMouseMove={handleEntityDrag}
-                  onMouseUp={handleMouseUp}
+            <defs>
+              {/* Default arrowhead marker */}
+              <marker
+                id="arrow-default"
+                markerWidth="8"
+                markerHeight="8"
+                refX="6"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8" />
+              </marker>
+              {/* Workflow arrowhead markers per workflow colour */}
+              {WORKFLOW_PATHS.map((wf) => (
+                <marker
+                  key={wf.id}
+                  id={`arrow-${wf.id}`}
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="6"
+                  refY="3"
+                  orient="auto"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className="w-1.5 md:w-2 h-1.5 md:h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: categoryColor }}
+                  <path d="M0,0 L0,6 L8,3 z" fill={wf.color} />
+                </marker>
+              ))}
+            </defs>
+
+            <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+              {ENTITY_RELATIONS.map((rel, idx) => {
+                if (!visibleIds.has(rel.from) || !visibleIds.has(rel.to)) return null
+                const fromPos = positions[rel.from]
+                const toPos = positions[rel.to]
+                if (!fromPos || !toPos) return null
+
+                const inWorkflow = isEdgeInWorkflow(rel.from, rel.to)
+                const dimmed = activeWorkflow && !inWorkflow
+                const wfColor = activeWorkflow?.color ?? '#94a3b8'
+                const stroke = inWorkflow ? wfColor : rel.type === 'reference' ? '#cbd5e1' : '#94a3b8'
+                const markerId = inWorkflow ? `arrow-${activeWorkflow?.id}` : 'arrow-default'
+                const mid = bezierMid(fromPos, toPos)
+
+                return (
+                  <g key={idx} opacity={dimmed ? 0.15 : 1} style={{ transition: 'opacity 0.25s' }}>
+                    <path
+                      d={edgePath(fromPos, toPos)}
+                      fill="none"
+                      stroke={stroke}
+                      strokeWidth={inWorkflow ? 2.5 : 1.5}
+                      strokeDasharray={rel.type === 'reference' ? '6 4' : undefined}
+                      markerEnd={`url(#${markerId})`}
+                      style={{ transition: 'stroke 0.25s, stroke-width 0.25s' }}
                     />
-                    <span className="font-medium text-xs md:text-sm truncate flex-1">{entity.label}</span>
-                    {!entity.hasAccess && !showAll && <Lock className="w-2.5 h-2.5 md:w-3 md:h-3 ml-auto flex-shrink-0" />}
-                    {entity.hasAccess && <Unlock className="w-2.5 h-2.5 md:w-3 md:h-3 ml-auto text-teal-600 flex-shrink-0" />}
-                  </div>
-                  {entity.description && !isMobile && (
-                    <div className="text-xs mt-0.5 opacity-80 line-clamp-1">{entity.description}</div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                    {/* Edge label */}
+                    {showLabels && (inWorkflow || !activeWorkflow) && (
+                      <g>
+                        <rect
+                          x={mid.x - rel.label.length * 3.5}
+                          y={mid.y - 9}
+                          width={rel.label.length * 7 + 6}
+                          height={18}
+                          rx={4}
+                          fill="white"
+                          stroke={stroke}
+                          strokeWidth={0.8}
+                          opacity={0.92}
+                        />
+                        <text
+                          x={mid.x}
+                          y={mid.y + 4}
+                          textAnchor="middle"
+                          fontSize={10}
+                          fill={inWorkflow ? wfColor : '#64748b'}
+                          fontFamily="sans-serif"
+                          fontWeight={inWorkflow ? 600 : 400}
+                        >
+                          {rel.label}
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                )
+              })}
+            </g>
+          </svg>
 
-          {/* Category labels */}
+          {/* ── Nodes (HTML for rich styling) ── */}
           <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)` }}
+            className="absolute inset-0 overflow-visible"
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}
           >
+            {/* Category group backgrounds */}
             {Object.entries(ENTITY_CATEGORIES).map(([category, config]) => {
-              const categoryEntities = visibleEntities.filter((e) => e.category === category)
-              if (categoryEntities.length === 0) return null
-
-              const firstNode = categoryEntities[0]
-              const pos = entityPositions[firstNode.id] || { x: firstNode.x, y: firstNode.y }
+              const catNodes = visibleEntities.filter((e) => e.category === category)
+              if (catNodes.length === 0) return null
+              const xs = catNodes.map((n) => (positions[n.id]?.x ?? n.x))
+              const ys = catNodes.map((n) => (positions[n.id]?.y ?? n.y))
+              const minX = Math.min(...xs) - 16
+              const minY = Math.min(...ys) - 32
+              const maxX = Math.max(...xs) + NODE_W + 16
+              const maxY = Math.max(...ys) + NODE_H + 16
 
               return (
                 <div
                   key={category}
-                  className="absolute font-semibold text-xs md:text-sm"
+                  className="absolute rounded-xl border-2 pointer-events-none"
                   style={{
-                    left: pos.x,
-                    top: pos.y - (isMobile ? 25 : 30),
-                    color: config.color,
+                    left: minX,
+                    top: minY,
+                    width: maxX - minX,
+                    height: maxY - minY,
+                    backgroundColor: 'transparent',
+                    borderColor: config.color + '44',
                   }}
                 >
-                  {category}
+                  <span
+                    className="absolute top-1.5 right-3 text-[11px] font-bold tracking-wide"
+                    style={{ color: config.color }}
+                  >
+                    {category}
+                  </span>
+                </div>
+              )
+            })}
+
+            {/* Nodes */}
+            {visibleEntities.map((entity) => {
+              const pos = positions[entity.id] ?? { x: entity.x, y: entity.y }
+              const color = catColor(entity.category)
+              const inWf = isNodeInWorkflow(entity.id)
+              const isSelected = selectedEntity === entity.id
+              const isHovered = hoveredEntity === entity.id
+              const dimmed = activeWorkflow && !inWf
+              const isDraggingThis = nodeDragRef.current.active && nodeDragRef.current.id === entity.id
+
+              return (
+                <div
+                  key={entity.id}
+                  data-node="true"
+                  className={`absolute flex items-center gap-2 px-3 py-2 rounded-xl shadow-sm border transition-all duration-150 ${
+                    !entity.hasAccess && !showAll ? 'opacity-40' : ''
+                  }`}
+                  style={{
+                    left: pos.x,
+                    top: pos.y,
+                    width: NODE_W,
+                    height: NODE_H,
+                    backgroundColor: inWf ? color : 'white',
+                    color: inWf ? 'white' : '#1e293b',
+                    borderColor: isSelected
+                      ? '#14b8a6'
+                      : inWf
+                      ? color + 'cc'
+                      : isHovered
+                      ? color
+                      : '#e2e8f0',
+                    boxShadow: isSelected
+                      ? `0 0 0 3px #14b8a640, 0 4px 12px ${color}30`
+                      : isDraggingThis
+                      ? `0 12px 32px ${color}40`
+                      : isHovered
+                      ? `0 4px 16px ${color}30`
+                      : '0 1px 4px rgba(0,0,0,0.08)',
+                    opacity: dimmed ? 0.25 : 1,
+                    cursor: isDraggingThis ? 'grabbing' : 'grab',
+                    transform: isDraggingThis ? 'scale(1.06)' : isHovered && !isDraggingThis ? 'scale(1.03)' : 'scale(1)',
+                    zIndex: isDraggingThis ? 100 : isSelected ? 50 : 1,
+                    userSelect: 'none',
+                    willChange: 'transform',
+                    transition: isDraggingThis ? 'box-shadow 0.1s, border-color 0.1s' : 'all 0.15s',
+                  }}
+                  onPointerDown={(e) => handleNodePointerDown(e, entity.id)}
+                  onClick={(e) => handleNodeClick(e, entity)}
+                  onDoubleClick={() => handleNodeDoubleClick(entity)}
+                  onMouseEnter={() => setHoveredEntity(entity.id)}
+                  onMouseLeave={() => setHoveredEntity(null)}
+                >
+                  {/* Category colour pill */}
+                  <div
+                    className="flex-shrink-0 w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: inWf ? 'rgba(255,255,255,0.7)' : color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold truncate leading-tight ${inWf ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>
+                      {entity.label}
+                    </p>
+                    {entity.description && (
+                      <p className={`text-[10px] truncate leading-tight mt-0.5 ${inWf ? 'text-white/70' : 'text-slate-400'}`}>
+                        {entity.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    {entity.hasAccess ? (
+                      <Unlock className={`w-3 h-3 ${inWf ? 'text-white/80' : 'text-teal-500'}`} />
+                    ) : (
+                      <Lock className={`w-3 h-3 ${inWf ? 'text-white/60' : 'text-slate-300'}`} />
+                    )}
+                  </div>
                 </div>
               )
             })}
           </div>
 
-          {/* Drag hint */}
-          {isDragging && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/80 text-white px-4 py-2 rounded-lg text-sm pointer-events-none">
-              <MousePointer2 className="w-4 h-4 inline mr-2" />
-              {translateUiText(language as Language, 'اسحب للتنقل')}
+          {/* ── Mini status bar ── */}
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+            <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
+              <Move className="w-3 h-3 text-slate-400" />
+              <span className="text-[10px] text-slate-500">
+                {translateUiText(language as Language, 'اسحب للتنقل')} • {translateUiText(language as Language, 'انقر مرتين للفتح')}
+              </span>
             </div>
-          )}
+            <div className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
+              <MousePointer2 className="w-3 h-3 text-slate-400" />
+              <span className="text-[10px] text-slate-500">
+                {visibleEntities.length} {translateUiText(language as Language, 'كيان')}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap items-center gap-3 md:gap-4 text-xs text-slate-600 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <Unlock className="w-3 md:w-4 h-3 md:h-4 text-teal-600 dark:text-teal-400" />
-            <span>{translateUiText(language as Language, 'متاح للوصول')}</span>
+        {/* ── Legend ── */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1.5">
+            <Unlock className="w-3.5 h-3.5 text-teal-500" />
+            <span>{translateUiText(language as Language, 'متاح')}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-slate-300" />
+            <span>{translateUiText(language as Language, 'مقيد')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Lock className="w-3 md:w-4 h-3 md:h-4 text-slate-400" />
-            <span>{translateUiText(language as Language, 'مقيد بالصلاحيات')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 md:w-8 h-0.5 bg-slate-400" />
-            <span>{translateUiText(language as Language, 'علاقة مرجعية')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 md:w-8 h-0.5 bg-slate-800" />
+            <svg width="28" height="8">
+              <line x1="0" y1="4" x2="28" y2="4" stroke="#94a3b8" strokeWidth="1.5" />
+              <polygon points="22,1 28,4 22,7" fill="#94a3b8" />
+            </svg>
             <span>{translateUiText(language as Language, 'تدفق عمل')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <ArrowRight className="w-3 md:w-4 h-3 md:h-4 text-slate-400" />
-            <span>{translateUiText(language as Language, 'اتجاه التدفق')}</span>
+            <svg width="28" height="8">
+              <line x1="0" y1="4" x2="28" y2="4" stroke="#cbd5e1" strokeWidth="1.5" strokeDasharray="4 3" />
+              <polygon points="22,1 28,4 22,7" fill="#cbd5e1" />
+            </svg>
+            <span>{translateUiText(language as Language, 'مرجع')}</span>
           </div>
+          {Object.entries(ENTITY_CATEGORIES).map(([cat, cfg]) => (
+            <div key={cat} className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cfg.color }} />
+              <span>{cat}</span>
+            </div>
+          ))}
         </div>
       </div>
     </LocalizedContent>
