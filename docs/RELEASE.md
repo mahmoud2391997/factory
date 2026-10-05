@@ -23,6 +23,13 @@
 
 Evidence commands used isolated environments around `node scripts/check-env.mjs` and `bash scripts/vercel-build.sh`; no secret value or live connection was used. No claim is made about actual Neon migration success or deployment to Vercel.
 
+### Revalidation on 2026-10-05 / إعادة التحقق
+
+- `node scripts/check-env.mjs`: no production variables exited **1** and listed the missing database URL, `JWT_SECRET`, and `SETUP_TOKEN`; a dummy URL with `JWT_SECRET=change-me` exited **1** with the placeholder error; the dummy URL plus test-only secrets of sufficient length exited **0**.
+- Full `bash scripts/vercel-build.sh` with the dummy URL exited **0**. Prisma generation and the real Next.js production build ran; a temporary `pnpm` shim intercepted only `migrate:deploy` and returned synthetic success, so no database connection was attempted. `apps/web/.next/BUILD_ID` was present.
+- A second run with the shim returning synthetic migration exit **42** stopped at `migrate:deploy`; the build-step marker was absent, proving the web build was not invoked after the failure.
+- With `APP_MODE=demo` and no database URL, the script exited **0** and printed `[vercel-build] DATABASE_URL not set; skipping Prisma migrations.` Prisma generation ran; the duplicate web-build step was deliberately intercepted in this branch because the actual full build had already passed above. No database migration was attempted.
+
 ## V1.3 — Prisma tracing and Neon URLs / تتبع Prisma وروابط Neon
 
 ### Trace verification / التحقق من ملفات التتبع
