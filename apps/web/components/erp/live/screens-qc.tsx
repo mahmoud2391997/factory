@@ -6,6 +6,7 @@ import { supplierQuality } from '@/lib/erp/domain/reports'
 import { calculateLotNutrition, compareNutrition } from '@/lib/erp/domain/nutrition'
 import type { QcResult, QualitySample } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
+import { attachmentTooLargeMessage, getAttachmentUploadLimits } from '@/server/erp/attachment-policy'
 
 import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
@@ -339,6 +340,8 @@ function qualitySampleTypeLabel(type: QualitySample['type']) {
 
 function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: QualitySample }) {
   const { language } = useLanguage()
+  const isVercelBuild = process.env.NEXT_PUBLIC_APP_ENV === 'vercel'
+  const maxAttachmentBytes = getAttachmentUploadLimits(isVercelBuild).maxFileBytes
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [validationError, setValidationError] = useState('')
@@ -367,8 +370,8 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
               setValidationError('الملف مطلوب')
               return
             }
-            if (file.size > 10 * 1024 * 1024) {
-              setValidationError('حجم الملف يتجاوز 10 ميجابايت')
+            if (file.size > maxAttachmentBytes) {
+              setValidationError(attachmentTooLargeMessage(language, isVercelBuild))
               return
             }
             const ext = file.name.split('.').pop()?.toLocaleLowerCase()
@@ -406,7 +409,7 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
             }
           }}>
             <Field label="إرفاق ملف"><TextInput name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" /></Field>
-            <p className="text-xs text-[#7c8c86]">PDF أو صورة PNG/JPEG — حتى 10 ميغابايت</p>
+            <p className="text-xs text-[#7c8c86]">{attachmentTooLargeMessage(language, isVercelBuild)}</p>
             {validationError ? <p role="alert" className="text-sm text-red-700">{validationError}</p> : null}
             {uploadError ? <p role="alert" className="text-sm text-red-700">{uploadError}</p> : null}
             <PrimaryButton disabled={uploading}>{uploading ? 'جارٍ الرفع…' : 'رفع المرفق'}</PrimaryButton>
