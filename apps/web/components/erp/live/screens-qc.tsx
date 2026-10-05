@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { supplierQuality } from '@/lib/erp/domain/reports'
 import { calculateLotNutrition, compareNutrition } from '@/lib/erp/domain/nutrition'
 import type { QcResult, QualitySample } from '@/lib/erp/domain/types'
+import { useLanguage } from '@/lib/i18n/language-provider'
 
 import { Card, DataTable, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput } from './bits'
 import type { LiveCtx } from './ctx'
@@ -337,6 +338,7 @@ function qualitySampleTypeLabel(type: QualitySample['type']) {
 }
 
 function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: QualitySample }) {
+  const { language } = useLanguage()
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [validationError, setValidationError] = useState('')
@@ -384,7 +386,11 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
             }
             setUploading(true)
             try {
-              const response = await fetch(`/api/erp/quality-samples/${sample.id}/attachments`, { method: 'POST', body: formData })
+              const response = await fetch(`/api/erp/quality-samples/${sample.id}/attachments`, {
+                method: 'POST',
+                body: formData,
+                headers: { 'x-erp-language': language },
+              })
               const payload = await response.json() as { success?: boolean; message?: string }
               if (!response.ok || !payload.success) {
                 setUploadError(payload.message || 'تعذر رفع الملف')
