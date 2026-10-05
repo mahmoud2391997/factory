@@ -1511,18 +1511,22 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Notifications({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
+  const uiLabel = (value: string) => translateUiText(language, value)
+  const [feedback, setFeedback] = useState<{ id: string; ok: boolean; message: string } | null>(null)
   return (
-    <Card title="الإشعارات" hint="نقص المخزون وطلبات الاعتماد تُرسل بالبريد عند ضبط SMTP، وتظهر هنا فوراً.">
+    <Card title={uiLabel('الإشعارات')} hint={uiLabel('نقص المخزون وطلبات الاعتماد تُرسل بالبريد عند ضبط SMTP، وتظهر هنا فوراً.')}>
       <div className="space-y-3">
-        {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">لا توجد إشعارات</p> : null}
+        {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">{uiLabel('لا توجد إشعارات')}</p> : null}
         {ctx.state.notifications.slice(0, 40).map((item) => (
           <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-[#edf2ef] p-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
-              <div className="font-bold">{item.title}</div>
-              <div className="text-sm text-[#788983]">{item.body}</div>
-              <div className="mt-1 text-xs text-[#97a49f]">{statusLabel(item.kind)} — بريد: {item.emailStatus === 'sent' ? 'أُرسل' : item.emailStatus === 'pending' ? 'بانتظار الإرسال' : 'لم يُضبط البريد'}</div>
+              <div className="font-bold">{uiLabel(item.title)}</div>
+              <div className="text-sm text-[#788983]">{uiLabel(item.body)}</div>
+              <div className="mt-1 text-xs text-[#97a49f]">{uiLabel(statusLabel(item.kind))} — {uiLabel('بريد')}: {uiLabel(item.emailStatus === 'sent' ? 'أُرسل' : item.emailStatus === 'pending' ? 'بانتظار الإرسال' : 'لم يُضبط البريد')}</div>
             </Link>
-            {!item.read ? <GhostButton type="button" onClick={() => ctx.act('markNotificationRead', { id: item.id })}>تمت القراءة</GhostButton> : <Badge tone="good">مقروء</Badge>}
+            {!item.read ? <GhostButton type="button" disabled={ctx.pending} aria-label={`${uiLabel('تمت القراءة')}: ${uiLabel(item.title)}`} onClick={async () => { setFeedback(null); const result = await ctx.act('markNotificationRead', { id: item.id }); setFeedback({ id: item.id, ok: result.ok, message: uiLabel(result.message) }) }}>{uiLabel('تمت القراءة')}</GhostButton> : <Badge tone="good">{uiLabel('مقروء')}</Badge>}
+            {feedback?.id === item.id ? <p role={feedback.ok ? 'status' : 'alert'} aria-live={feedback.ok ? 'polite' : 'assertive'} className={`text-sm ${feedback.ok ? 'text-[#0f766e]' : 'text-[#b91c1c]'}`}>{feedback.message}</p> : null}
           </div>
         ))}
       </div>

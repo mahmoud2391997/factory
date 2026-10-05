@@ -187,3 +187,46 @@
 أضف هنا حالات الاختبار النهائية بعد تنفيذ Phase 2: اختيار الصفوف وإلغاء/تحديد الكل مع البحث والترقيم، عمليات bulk المصرح بها والفشل الجزئي، تبديل EN/AR/HI مع استمرار `lang` و`dir`، صفحات Inventory الـ12، والتنقل الداخلي على عروض 360/768/1280px. لا تعتبر هذه الحالات مكتملة قبل تنفيذها واختبارها.
 
 Append the final test cases here after Phase 2 implementation: row selection and select/deselect-all under search/pagination, authorized bulk actions and partial failure, EN/AR/HI persistence for `lang`/`dir`, all 12 Inventory sections, and inner navigation at 360/768/1280px. Do not mark these as complete before implementation and verification.
+
+
+## 9. الإشعارات وحالة القراءة لكل مستخدم | Notifications and per-user read state
+
+### [ ] 9.1 تحقق من المستلمين | Verify notification recipients
+- **العربية — المستلمون:**
+  - **GM:** إشعارات اعتماد أوامر الشراء والتسويات والمصروفات والرواتب والإجازات وجرد مواد التعبئة؛ إضافةً إلى التنبيهات المشتركة أدناه.
+  - **OPERATIONS:** طلبات الشراء المعتمدة، انخفاض مخزون المواد الخام/قطع الغيار/التعبئة، قرب انتهاء دفعات المخزون، تنبيهات الجودة التشغيلية، فروقات استهلاك الوقود، وأوراق/صيانة المركبات والماكينات.
+  - **ACCOUNTANT:** توزيع تكلفة الرحلات بانتظار الاعتماد، الالتزامات المالية والأقساط المستحقة/المتأخرة، وانتهاء أو قرب انتهاء مستندات الشركة والموظفين.
+  - **QUALITY:** نتائج عينات الجودة المرفوضة أو المعلّقة، وتنبيهات خرق مواصفات المنتج.
+  - **DRIVER:** لا يستقبل إشعارات ERP ولا يظهر له زر الجرس؛ صلاحيات السائق لا تتضمن `notifications.read`. الأدوار الأخرى لا تستقبل إشعارات ما لم تُضَف صراحةً إلى مستلمي التنبيه.
+- **English — recipients:**
+  - **GM:** approval alerts for purchase orders, inventory adjustments, expenses, payroll, leave, and packaging counts, plus the shared alerts below.
+  - **OPERATIONS:** approved purchase requests; low raw-material/spare-part/packaging stock; expiring inventory batches; operational quality alerts; abnormal fuel use; and vehicle/machine document or maintenance alerts.
+  - **ACCOUNTANT:** trip-cost allocations awaiting approval; financial obligations and due/overdue installments; and company/employee document-expiry alerts.
+  - **QUALITY:** failed or held quality samples and product-specification violations.
+  - **DRIVER:** receives no ERP notifications and has no bell; the default driver role does not include `notifications.read`. Other roles receive none unless explicitly named as recipients.
+- **تحقق:** استخدم حسابات اختبار معزولة؛ تحقق من أن كل مستخدم يرى التنبيهات التي يشملها دوره فقط. لا تستخدم قاعدة بيانات أعمال.
+- **Check:** use isolated test accounts and confirm each role sees only its addressed notifications. Never use a business database.
+
+### [ ] 9.2 القراءة المستقلة والاستمرار بعد التحديث | Independent reads and persistence
+- **العربية — الإجراء:** بحساب GM، افتح الجرس واختر تنبيهًا مشتركًا مع OPERATIONS. سجّل عدد غير المقروء، ثم فعّل «تمت القراءة» بالنقر وباستخدام لوحة المفاتيح (Tab ثم Enter).
+- **المتوقع:** يُعطّل الزر أثناء الطلب؛ ينخفض العداد فورًا؛ يبقى الجرس مفتوحًا ويبقى التنبيه ظاهرًا بوصفه مقروءًا؛ تظهر رسالة نجاح/خطأ مرتبطة بالتنبيه، واسم الزر الميسر يتضمن عنوانه. حدّث الصفحة: يظل التنبيه مقروءًا للمستخدم نفسه.
+- **تحقق:** سجّل الخروج، ثم ادخل بحساب OPERATIONS مختلف الدور. يجب أن يبقى التنبيه المشترك غير مقروء لهذا المستخدم، مع عداد مستقل. علّمه كمقروء ثم حدّث الصفحة للتأكد من استمرارية قراءته دون تغيير حالة المستخدم الأول.
+- **توافق المستندات القديمة:** يبقى `read: true` القديم مقروءًا للجميع؛ أما التنبيهات الجديدة فتسجل القراءة لكل مستخدم، ولا تكفي قراءة مستخدم لإخفاء التنبيه عن مستلم آخر.
+- **English — Action:** Sign in as GM, open the bell, choose an alert shared with OPERATIONS, record the unread count, then activate “Mark as read” by pointer and keyboard (Tab, then Enter).
+- **Expected:** The action is disabled while pending; the badge decreases immediately; the bell stays open and the item remains visible as read; feedback is shown for that item and its accessible button name includes the title. Reload: the item remains read for this user.
+- **Data check:** Sign out and sign in as a different-role OPERATIONS user. The same shared alert must still be unread for that user with an independent count. Mark it read, reload, and verify that state persists without changing the first user’s state.
+- **Legacy compatibility:** A legacy global `read: true` remains read for everyone. New reads are per-user; one recipient’s read must not hide the alert from another recipient.
+
+### [ ] 9.3 انتهاء الجلسة والرفض الآمن | Expired session and safe denial
+- **العربية — الإجراء:** في متصفح/بيانات اختبار فقط، أبطل جلسة المستخدم أثناء ظهور تنبيه غير مقروء ثم حاول تعليمه كمقروء؛ جرّب أيضًا طلب POST غير مصرح به وطلب DRIVER محظورًا.
+- **المتوقع:** تظهر رسالة مفهومة، ويُعاد تمكين الزر بعد انتهاء الطلب؛ لا يظهر رفض غير معالج ولا HTML داخل استجابة API. لا يُعاد التوجيه إلى الدخول إلا بعد تأكد `/api/auth/me` أن الجلسة منتهية. يعيد POST غير المصرح/الممنوع JSON بحالة فشل ولا يغيّر القراءة.
+- **تحقق:** سجّل DRIVER: لا يظهر الجرس ولا أي تنبيه. محاولة POST مباشرةً إلى `markNotificationRead` تُرفض برسالة JSON، ويظل التنبيه غير مقروء لمستلميه.
+- **English — Action:** In a test browser/data set only, invalidate the session while an unread alert is displayed and try to mark it read; also try an unauthenticated POST and a forbidden DRIVER POST.
+- **Expected:** A clear error appears and the button becomes available again after the request. There is no unhandled rejection or HTML API response. Redirect to login occurs only after `/api/auth/me` confirms the session is gone. Unauthorized/forbidden POSTs return JSON failure and do not mutate read state.
+- **Data check:** Sign in as DRIVER: no bell or notification is shown. A direct `markNotificationRead` POST is denied as JSON, and the recipients’ alert remains unread.
+
+### [ ] 9.4 اللغة وإمكانية الوصول | Locale and accessibility
+- **العربية — الإجراء:** كرر فتح الجرس وتعليم تنبيه كمقروء في AR وEN وHI؛ استخدم لوحة المفاتيح وتحقق من قارئ الشاشة/الاسم الميسر.
+- **المتوقع:** يتغير اتجاه الصفحة إلى RTL في AR وLTR في EN/HI؛ تظهر تسميات ورسائل الإجراء باللغة المختارة؛ لا يُقص عنوان التنبيه ولا رسالة النتيجة.
+- **English — Action:** Repeat opening the bell and marking an alert as read in AR, EN, and HI; exercise keyboard navigation and inspect the accessible name/status.
+- **Expected:** AR uses RTL; EN/HI use LTR; action labels and feedback follow the selected locale; notification titles and results are not clipped.

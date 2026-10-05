@@ -264,6 +264,14 @@ function audit(state: ErpState, actor: Actor, clock: Clock, action: string, enti
   if (state.auditLogs.length > 1000) state.auditLogs.length = 1000
 }
 
+function notificationHasUnreadRecipient(state: ErpState, notification: Notification) {
+  if (notification.read) return false
+  const readers = new Set(notification.readBy ?? [])
+  const recipients = state.users.filter((user) => user.active && notification.roles.includes(user.role))
+  // Keep suppressing duplicate alerts if a role currently has no active account.
+  return recipients.length === 0 || recipients.some((user) => !readers.has(user.id))
+}
+
 function notify(
   state: ErpState,
   clock: Clock,
@@ -273,7 +281,7 @@ function notify(
   roles: RoleKey[],
   dedupeKey: string,
 ) {
-  if (dedupeKey && state.notifications.some((item) => !item.read && item.dedupeKey === dedupeKey)) return
+  if (dedupeKey && state.notifications.some((item) => item.dedupeKey === dedupeKey && notificationHasUnreadRecipient(state, item))) return
   state.notifications.unshift({
     id: clock.id('ntf'),
     kind,
@@ -281,6 +289,7 @@ function notify(
     body,
     dedupeKey,
     roles,
+    readBy: [],
     read: false,
     emailStatus: 'pending',
     at: clock.now(),
@@ -3206,8 +3215,9 @@ function decideLeaveRequest(state: ErpState, actor: Actor, input: Extract<Comman
 function markNotificationRead(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markNotificationRead' }>['input'], clock: Clock): CommandResult {
   const note = state.notifications.find((item) => item.id === input.id)
   if (!note) return fail('الإشعار غير موجود')
-  if (note.read) return ok(state, 'الإشعار مقروء بالفعل')
-  note.read = true
+  if (!note.roles.includes(actor.role)) return fail('لا يمكنك قراءة هذا الإشعار')
+  if (note.read || (note.readBy ?? []).includes(actor.id)) return ok(state, 'الإشعار مقروء بالفعل')
+  note.readBy = [...new Set([...(note.readBy ?? []), actor.id])]
   audit(state, actor, clock, 'قراءة إشعار', 'notification', note.id, note.title)
   return ok(state, 'تم تعليم الإشعار كمقروء')
 }
@@ -4453,7 +4463,7 @@ function refreshObligationAlerts(state: ErpState, clock: Clock) {
       // Check overdue
       if (daysUntilDue < 0) {
         const dedupeKey = `obligation-overdue:${scheduleLine.id}`
-        if (!state.notifications.some((n) => !n.read && n.dedupeKey === dedupeKey)) {
+        if (!state.notifications.some((n) => n.dedupeKey === dedupeKey && notificationHasUnreadRecipient(state, n))) {
           notify(
             state,
             clock,
@@ -4471,7 +4481,7 @@ function refreshObligationAlerts(state: ErpState, clock: Clock) {
       for (const window of windows) {
         if (daysUntilDue === window) {
           const dedupeKey = `obligation-reminder:${window}d:${scheduleLine.id}`
-          if (!state.notifications.some((n) => !n.read && n.dedupeKey === dedupeKey)) {
+          if (!state.notifications.some((n) => n.dedupeKey === dedupeKey && notificationHasUnreadRecipient(state, n))) {
             notify(
               state,
               clock,
@@ -4504,6 +4514,8 @@ function canAny(permissions: readonly string[], keys: readonly string[]) {
 
 /** Strip secrets and collections the caller is not allowed to read. */
 export function publicState(state: ErpState, permissions: readonly string[], userId?: string): PublicState {
+  const currentUser = state.users.find((user) => user.id === userId && user.active)
+  const seeNotifications = permissions.includes('notifications.read') && currentUser !== undefined
   const seeSalary = canAny(permissions, ['employees.read', 'employees.manage'])
   const seePayroll = canAny(permissions, ['payroll.manage', 'payroll.approve', 'payroll.pay'])
   const seeJournals = canAny(permissions, ['accounting.read', 'accounting.manage'])
@@ -4541,6 +4553,12 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     qualitySamples: seeQuality ? state.qualitySamples : [],
     qualityHolds: seeQuality ? state.qualityHolds : [],
     scaleReadings: seeScale ? state.scaleReadings : [],
+    notifications: seeNotifications
+      ? state.notifications.filter((notification) => notification.roles.includes(currentUser.role)).map((notification) => {
+          const { readBy: _readBy, ...publicNotification } = notification
+          return { ...publicNotification, read: notification.read || (notification.readBy ?? []).includes(currentUser.id) }
+        })
+      : [],
     companyDocuments: canAny(permissions, ['documents.read', 'documents.manage']) ? state.companyDocuments : [],
     vehicles: seeVehicleServices ? state.vehicles : [],
     vehicleServices: seeVehicleServices ? state.vehicleServices : [],

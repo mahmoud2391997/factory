@@ -139,3 +139,39 @@ test('v11 documents receive packaging counts and backfilled quotation delivery c
   assert.deepEqual(migrated.packagingCounts, [])
   assert.equal(migrated.supplierQuotations[0]!.deliveryCost, 0)
 })
+
+test('v12 notification reads keep their global meaning and initialize per-user read state', () => {
+  const state = emptyState('migration-v12-notification-reads')
+  state.schemaVersion = 12
+  state.notifications = [
+    {
+      id: 'legacy-read',
+      kind: 'INFO',
+      title: 'Legacy read',
+      body: '',
+      dedupeKey: 'legacy-read',
+      roles: ['GM'],
+      read: true,
+      emailStatus: 'skipped',
+      at: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'legacy-unread',
+      kind: 'INFO',
+      title: 'Legacy unread',
+      body: '',
+      dedupeKey: 'legacy-unread',
+      roles: ['GM'],
+      read: false,
+      emailStatus: 'skipped',
+      at: '2026-01-01T00:00:00.000Z',
+    },
+  ]
+
+  const migrated = migrateErpState(state)
+  assert.equal(migrated.schemaVersion, SCHEMA_VERSION)
+  assert.equal(migrated.notifications[0]!.read, true, 'previously read notifications remain globally read')
+  assert.equal(migrated.notifications[1]!.read, false, 'previously unread notifications remain unread')
+  assert.deepEqual(Reflect.get(migrated.notifications[0]!, 'readBy'), [])
+  assert.deepEqual(Reflect.get(migrated.notifications[1]!, 'readBy'), [])
+})
