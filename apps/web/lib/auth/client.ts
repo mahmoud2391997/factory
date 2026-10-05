@@ -35,10 +35,15 @@ export async function apiRefresh() {
 }
 
 export async function apiMe() {
-  const res = await fetch('/api/auth/me', {
+  const request = () => fetch('/api/auth/me', {
     method: 'GET',
     credentials: 'include',
   })
+  const res = await request()
+  if (res.status === 401) {
+    const refreshed = await apiRefresh()
+    if (refreshed.ok) return parseJson<{ user: AuthUser }>(await request())
+  }
   return parseJson<{ user: AuthUser }>(res)
 }
 

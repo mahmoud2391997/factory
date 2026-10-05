@@ -47,6 +47,7 @@ const SCREEN_MAP: Record<string, typeof FactoryScreens> = {
   qualitySample: QualityScreens,
   supplierQuality: QualityScreens,
   // Inventory
+  inventoryOverview: InventoryScreens,
   material: InventoryScreens,
   product: InventoryScreens,
   inventoryExtensions: InventoryScreens,
