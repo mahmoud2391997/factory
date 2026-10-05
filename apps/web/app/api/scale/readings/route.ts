@@ -7,6 +7,7 @@ import { isScaleBearerAuthorized, scaleReadingSchema } from '@/server/scale/inge
 import { toApiError } from '@/server/env'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 function response(status: number, body: Record<string, unknown>) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
