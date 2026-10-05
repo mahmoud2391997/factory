@@ -7,6 +7,7 @@ import type { Command } from '@/lib/erp/domain/types'
 import { toApiError } from '@/server/env'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 /** Typed as a total record so adding a Command action without listing it here fails the build. */
 const COMMAND_ACTIONS: Record<Command['action'], true> = {

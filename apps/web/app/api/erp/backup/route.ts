@@ -5,6 +5,7 @@ import { getSessionUser } from '@/server/auth/session'
 import { loadState, writeLocalCopy } from '@/server/erp/store'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
