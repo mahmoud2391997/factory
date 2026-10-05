@@ -37,6 +37,7 @@ function useLines<T>(blank: T) {
 }
 
 export function InventoryScreens({ entityKey, ctx, viewKind }: { entityKey: string; ctx: LiveCtx; viewKind?: 'spare' | 'packaging' }) {
+  if (entityKey === 'inventoryOverview') return <InventoryOverview ctx={ctx} />
   if (entityKey === 'inventoryReports') return <ReportEntry ctx={ctx} section="inventory" />
   if (entityKey === 'material') return <Materials ctx={ctx} />
   if (entityKey === 'product') return <Products ctx={ctx} />
@@ -1174,6 +1175,46 @@ function Warehouses({ ctx }: { ctx: LiveCtx }) {
           </Card>
         )
       })}
+    </div>
+  )
+}
+
+function InventoryOverview({ ctx }: { ctx: LiveCtx }) {
+  const links = [
+    { href: '/inventory/raw-materials', label: 'المواد الخام', hint: 'الأصناف والحدود الدنيا' },
+    { href: '/inventory/products', label: 'المنتجات', hint: 'المنتجات الجاهزة والوصفات' },
+    { href: '/inventory/warehouses', label: 'المستودعات', hint: 'أرصدة كل مستودع' },
+    { href: '/inventory/warehouses/transfers', label: 'تحويل المخزون', hint: 'النقل بين المستودعات' },
+    { href: '/inventory/warehouses/adjustments', label: 'تسوية المخزون', hint: 'الجرد والفروقات والاعتماد' },
+    { href: '/inventory/warehouses/barcode', label: 'الباركود', hint: 'البحث والطباعة بالباركود' },
+    { href: '/inventory/raw-materials/batches', label: 'دفعات المواد', hint: 'التتبع والصلاحية والمورد' },
+    { href: '/inventory/raw-materials/balances', label: 'أرصدة المخزون', hint: 'الرصيد والكمية والتكلفة' },
+    { href: '/inventory/raw-materials/ledger', label: 'دفتر الحركات', hint: 'السجل القابل للتدقيق' },
+    { href: '/inventory/reports', label: 'تقارير المخزون', hint: 'التحليلات والتقارير' },
+    { href: '/inventory/raw-materials/value', label: 'قيمة المخزون', hint: 'قيمة الأرصدة الحالية' },
+    { href: '/inventory/raw-materials/price-analysis', label: 'أسعار الخام', hint: 'تحليل الأسعار والتكلفة الواصلة' },
+    { href: '/inventory/extensions?kind=spare', label: 'قطع الغيار', hint: 'المخزون الإضافي والصرف' },
+    { href: '/inventory/extensions?kind=packaging', label: 'مواد التعبئة', hint: 'الأكياس ومواد التشغيل' },
+  ]
+  const totalQty = ctx.state.balances.reduce((sum, row) => sum + Math.max(0, row.qty), 0)
+  const totalValue = ctx.state.balances.reduce((sum, row) => sum + Math.max(0, row.qty) * row.unitCost, 0)
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card title="الأصناف" hint="مواد ومنتجات مسجلة"><div className="text-2xl font-bold">{ctx.state.materials.length + ctx.state.products.length}</div></Card>
+        <Card title="الكمية المتاحة" hint="كل أرصدة المستودعات"><div className="text-2xl font-bold">{qtyFmt(totalQty)}</div></Card>
+        <Card title="قيمة المخزون" hint="حسب التكلفة الحالية"><div className="text-2xl font-bold">{moneyFmt(totalValue)}</div></Card>
+      </div>
+      <Card title="إدارة المخزون" hint="كل عمليات المخزون والمستودعات والدفعات والحركات والتقارير">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className="rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm transition hover:border-[#99d4cb] hover:bg-[#f0fdfa] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#3f3f46] dark:bg-[#18181b] dark:hover:bg-[#193b37]">
+              <div className="font-semibold text-[#134e4a] dark:text-[#ccfbf1]">{link.label}</div>
+              <div className="mt-1 text-sm text-[#6b7280] dark:text-[#a1a1aa]">{link.hint}</div>
+            </Link>
+          ))}
+        </div>
+      </Card>
     </div>
   )
 }

@@ -186,8 +186,8 @@ export function PageTabs({
           role="menu"
           aria-label={translateUiText(language, 'المزيد من الصفحات')}
           onKeyDown={onMenuKeyDown}
-          style={{ position: 'fixed', top: menuPosition.top, left: menuPosition.left, width: menuPosition.width, maxHeight: menuPosition.maxHeight }}
-          className="z-[100] overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-1.5 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b]"
+          style={{ position: 'fixed', top: menuPosition.top, left: menuPosition.left, width: menuPosition.width, maxHeight: menuPosition.maxHeight, zIndex: 9999 }}
+          className="z-[9999] min-w-0 overscroll-contain overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-1.5 shadow-2xl dark:border-[#3f3f46] dark:bg-[#18181b]"
         >
           {menuGroups.map((group) => (
             <div key={group.id}>

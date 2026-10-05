@@ -514,14 +514,15 @@ test('Sales customers navigation keeps six routes in three responsive sidebar gr
 })
 
 
-test('Inventory movement navigation keeps twelve routes in three responsive sidebar groups', () => {
+test('Inventory movement navigation keeps all routes in four responsive sidebar groups', () => {
   const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!.sections.find((item) => item.id === 'movement')!
   const resolved = resolvePath('/inventory/raw-materials/value')!
   const tabs = pageTabs(resolved, allPagesForEveryRole)
   assert.equal(section.tabLayout, 'sidebar')
   assert.equal(tabs.layout, 'sidebar')
-  assert.equal(tabs.primary.length, 12)
+  assert.equal(tabs.primary.length, 13)
   assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
+    'inventory-overview',
     'stock-status',
     'warehouse-operations',
     'traceability-reports',
