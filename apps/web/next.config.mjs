@@ -5,6 +5,7 @@ const nextConfig = {
     NEXT_PUBLIC_GIT_COMMIT_SHA:
       process.env.NEXT_PUBLIC_GIT_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'local',
     NEXT_PUBLIC_BUILD_DATE: process.env.NEXT_PUBLIC_BUILD_DATE || new Date().toISOString(),
+    NEXT_PUBLIC_APP_ENV: process.env.VERCEL ? 'vercel' : process.env.NEXT_PUBLIC_APP_ENV || 'local',
   },
   images: {
     unoptimized: true,
