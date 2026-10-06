@@ -11,6 +11,8 @@ import type { ProfitabilityGroupBy } from '@/lib/erp/domain/reports'
 import type { ItemType, PurchasePurpose, VatTreatment, WarehouseKey } from '@/lib/erp/domain/types'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
+import { mobileText } from '@/lib/i18n/mobile'
+import { BarcodeCamera } from './barcode-camera'
 
 import { Badge, Card, DataTable, Dialog, ExportLinks, Field, FormDialog, GhostButton, PrimaryButton, RowActions, SelectInput, TextInput, toneForStatus, DependencyLink } from './bits'
 import { QcLimitsEditor } from './screens-qc'
@@ -1409,22 +1411,29 @@ function Adjustment({ ctx }: { ctx: LiveCtx }) {
 }
 
 function BarcodeStation({ ctx }: { ctx: LiveCtx }) {
+  const { language } = useLanguage()
   const [code, setCode] = useState('')
   const [found, setFound] = useState<string>('')
+  async function lookup(value: string) {
+    setCode(value)
+    setFound('')
+    const result = await ctx.act('scanBarcode', { code: value })
+    setFound(result.message)
+  }
   return (<LocalizedContent>{(
-    <Card title="محطة الباركود" hint="قارئ USB يعمل كلوحة مفاتيح: وجّه المؤشر هنا وامسح. Enter يُنهي القراءة.">
+    <Card title="محطة الباركود" hint={mobileText(language, 'hint')}>
       <form
         className="flex flex-col gap-3 sm:flex-row"
         onSubmit={async (event) => {
           event.preventDefault()
-          const result = await ctx.act('scanBarcode', { code })
-          setFound(result.ok ? result.message : result.message)
+          await lookup(code.trim())
         }}
       >
-        <TextInput autoFocus value={code} onChange={(e) => setCode(e.target.value)} placeholder="امسح أو اكتب RM-CORN" />
-        <PrimaryButton disabled={ctx.pending}>بحث</PrimaryButton>
+        <TextInput aria-label={mobileText(language, 'code')} value={code} onChange={(e) => setCode(e.target.value)} placeholder="امسح أو اكتب RM-CORN" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+        <PrimaryButton disabled={ctx.pending || !code.trim()}>بحث</PrimaryButton>
       </form>
-      {found ? <p className="mt-4 text-lg font-bold">{found}</p> : null}
+      <BarcodeCamera disabled={ctx.pending} onScan={lookup}/>
+      {found ? <p role="status" className="mt-4 text-lg font-bold">{found}</p> : null}
       <p className="mt-4 text-sm text-[#788983]">لطباعة الملصق استخدم طابعة الباركود أو أي طابعة ورق من صفحة الملصقات.</p>
       <Link className="mt-3 inline-flex text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank" rel="noreferrer">فتح ملصقات الطباعة</Link>
     </Card>

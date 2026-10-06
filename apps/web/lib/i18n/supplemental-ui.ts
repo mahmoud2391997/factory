@@ -1,4 +1,5 @@
 export const supplementalUi: Record<string, { en: string; hi: string }> = {
+  "أعلاف الخليج": { "en": "Gulf Feed", "hi": "गल्फ फ़ीड" },
   "لا يمكن تسليم فاتورة مسودة": { "en": "A draft invoice cannot be delivered", "hi": "मसौदा चालान की डिलीवरी नहीं की जा सकती" },
   "مرحلة التسليم غير صحيحة": { "en": "Invalid delivery stage", "hi": "डिलीवरी चरण अमान्य है" },
   "يجب إكمال مرحلة التسليم السابقة أولاً": { "en": "Complete the previous delivery stage first", "hi": "पहले पिछला डिलीवरी चरण पूरा करें" },

@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { ThemeInit } from '@/components/theme-init'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { LanguageProvider } from '@/lib/i18n/language-provider'
+import { PwaInstall } from '@/components/pwa-install'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
   description: 'منصة إدارة متكاملة لمصنع الأعلاف والعمليات الصناعية في سلطنة عمان',
   manifest: '/manifest.webmanifest',
   applicationName: 'مصنع الخليج للأعلاف',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'أعلاف الخليج' },
   generator: 'v0.app',
   icons: {
     icon: [
@@ -49,6 +51,7 @@ export default function RootLayout({
         <ThemeInit />
         <LanguageProvider>
           <AuthProvider>{children}</AuthProvider>
+          <PwaInstall />
         </LanguageProvider>
       </body>
     </html>

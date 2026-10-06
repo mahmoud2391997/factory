@@ -446,17 +446,17 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`my-auto w-full rounded-[12px] border border-[#e5e7eb] bg-white p-5 shadow-xl outline-none ${wide ? 'max-w-3xl' : 'max-w-xl'}`}
+        className={`my-auto w-full rounded-[12px] border border-[#e5e7eb] bg-white p-5 shadow-xl outline-none dark:border-[#3b4b5e] dark:bg-[#1c232d] ${wide ? 'max-w-3xl' : 'max-w-xl'}`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id={titleId} className="text-lg font-medium text-[#1f1f1f]">
+            <h3 id={titleId} className="text-lg font-medium text-[#1f1f1f] dark:text-[#e6edf3]">
               {translateUiText(language, title)}
             </h3>
-            {hint ? <p className="mt-1 text-sm text-[#6b7280]">{translateUiText(language, hint)}</p> : null}
+            {hint ? <p className="mt-1 text-sm text-[#6b7280] dark:text-[#a6b2bf]">{translateUiText(language, hint)}</p> : null}
           </div>
-          <button type="button" className="rounded-md px-2 py-1 text-sm text-[#6b7280] hover:bg-[#f3f4f6]" onClick={() => onCloseRef.current()}>
+          <button type="button" className="rounded-md px-2 py-1 text-sm text-[#6b7280] hover:bg-[#f3f4f6] dark:text-[#a6b2bf] dark:hover:bg-[#273341]" onClick={() => onCloseRef.current()}>
             {translateUiText(language, 'إغلاق')}
           </button>
         </div>
