@@ -4,8 +4,9 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 
 import { canSeeEntity, hrefForEntity, leafMeta } from '@/lib/erp-routes'
-import { PERMISSIONS, ROLE_LABELS } from '@/lib/erp/domain/permissions'
+import { ROLE_LABELS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
+import { PERMISSION_GROUPS, PERMISSION_LABELS } from '@/lib/erp/permission-copy'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { dashboardAccess, dashboardAlerts } from '@/lib/erp/domain/dashboard'
 import { factoryStatus, itemOnHand, materialStatement, muscatDay, obligationForecast, profitAndLoss, stockRows, traceCustomer, traceLot, trialBalance, unmatchedBankTransactions, utilitiesPerTon, vatReturn } from '@/lib/erp/domain/reports'
@@ -1825,7 +1826,7 @@ function Users({ ctx }: { ctx: LiveCtx }) {
       {editingUser ? (
         <UserEditor ctx={ctx} user={editingUser} onClose={() => setEditingUser(null)} />
       ) : null}
-      <Card title="صلاحيات الدور" hint="يمكن تضييق ما يراه كل دور دون إيقاف باقي النظام. لا يُسحب حق إدارة المستخدمين من المدير العام.">
+      <Card title="ما الذي يستطيع هذا الدور فعله؟" hint="اختر المهام التي تسمح لأصحاب هذا الدور بتنفيذها. التغيير يطبق على جميع المستخدمين بهذا الدور. يحتفظ المدير العام بحق إدارة المستخدمين.">
         <form className="space-y-3" onSubmit={async (event) => {
           event.preventDefault()
           const result = await ctx.act('setRolePermissions', { role, permissions: selected })
@@ -1840,14 +1841,22 @@ function Users({ ctx }: { ctx: LiveCtx }) {
               {ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </SelectInput> <DependencyLink field="rolePermissions" />
           </Field>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {PERMISSIONS.map((permission) => (
-              <label key={permission} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={selected.includes(permission)} onChange={(e) => {
-                  setSelected((current) => e.target.checked ? [...current, permission] : current.filter((item) => item !== permission))
-                }} />
-                <span>{permission}</span>
-              </label>
+          <p className="text-sm text-slate-500">علامة الاختيار تعني أن المهمة مسموحة. أزلها لمنع المهمة عن هذا الدور.</p>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {PERMISSION_GROUPS.map((group) => (
+              <fieldset key={group.title} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <legend className="px-2 text-sm font-semibold">{group.title}</legend>
+                <div className="space-y-2">
+                  {group.permissions.map((permission) => (
+                    <label key={permission} className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <input type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-purple-700" checked={selected.includes(permission)} onChange={(e) => {
+                        setSelected((current) => e.target.checked ? [...current, permission] : current.filter((item) => item !== permission))
+                      }} />
+                      <span className="leading-6">{PERMISSION_LABELS[permission]}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             ))}
           </div>
           <PrimaryButton disabled={ctx.pending}>حفظ الصلاحيات</PrimaryButton>
