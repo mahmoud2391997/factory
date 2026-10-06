@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: '/al-kawther-logo-transparent.png',
-    apple: '/al-kawther-logo-transparent.png',
+    apple: '/al-kawther-apple-180.png',
   },
 }
 
