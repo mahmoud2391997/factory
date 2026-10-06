@@ -40,7 +40,7 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' |
     return (<LocalizedContent>{(
       <main className="print-sheet">
         <style>{`.print-sheet { max-width: 900px; margin: 0 auto; padding: 24px; color: #14211c; background: white; } .print-sheet table { width: 100%; border-collapse: collapse; } .print-sheet th, .print-sheet td { border-bottom: 1px solid #ddd; padding: 8px; text-align: start; font-size: 13px; } .noprint { margin-bottom: 16px; } @media print { .noprint { display: none; } .print-sheet { padding: 0; } }`}</style>
-        <div className="noprint"><button type="button" onClick={() => window.print()} style={{ background: '#123c35', color: 'white', border: 0, borderRadius: 8, padding: '8px 14px' }}>طباعة</button></div>
+        <div className="noprint"><button type="button" onClick={() => window.print()} style={{ background: '#1e127c', color: 'white', border: 0, borderRadius: 8, padding: '8px 14px' }}>طباعة</button></div>
         <RecallReportDocument company={recallData.company} report={recallData.report} />
       </main>
     )}</LocalizedContent>)
@@ -57,7 +57,7 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' |
         @media print { .noprint { display: none; } .print-sheet { padding: 0; } }
       `}</style>
       <div className="noprint">
-        <button type="button" onClick={() => window.print()} style={{ background: '#123c35', color: 'white', border: 0, borderRadius: 8, padding: '8px 14px' }}>
+        <button type="button" onClick={() => window.print()} style={{ background: '#1e127c', color: 'white', border: 0, borderRadius: 8, padding: '8px 14px' }}>
           طباعة
         </button>
       </div>
@@ -81,7 +81,7 @@ function Letterhead({ company }: { company: Company }) {
         <div>س.ت: {company.crNumber}</div>
         <div>الرقم الضريبي: {company.vatNumber}</div>
       </div>
-      <div style={{ fontWeight: 800, color: '#123c35' }}>{company.currency}</div>
+      <div style={{ fontWeight: 800, color: '#1e127c' }}>{company.currency}</div>
     </header>
   )}</LocalizedContent>)
 }

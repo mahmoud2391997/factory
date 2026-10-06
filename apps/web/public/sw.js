@@ -1,6 +1,6 @@
 /* Cache public assets only. Authenticated pages, APIs and mutations stay online. */
-const CACHE = 'erp-public-v1'
-const PUBLIC_ASSETS = ['/offline.html', '/pwa-192.png', '/pwa-512.png', '/pwa-maskable-512.png']
+const CACHE = 'erp-public-v2'
+const PUBLIC_ASSETS = ['/offline.html', '/al-kawther-logo-transparent.png']
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(PUBLIC_ASSETS)).then(() => self.skipWaiting()))
 })

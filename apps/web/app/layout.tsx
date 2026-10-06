@@ -7,28 +7,15 @@ import { PwaInstall } from '@/components/pwa-install'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'مصنع الخليج للأعلاف | نظام إدارة المصنع',
+  title: 'أعلاف الكوثر بحار الجوبه | نظام إدارة المصنع',
   description: 'منصة إدارة متكاملة لمصنع الأعلاف والعمليات الصناعية في سلطنة عمان',
   manifest: '/manifest.webmanifest',
-  applicationName: 'مصنع الخليج للأعلاف',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'أعلاف الخليج' },
+  applicationName: 'أعلاف الكوثر بحار الجوبه',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'أعلاف الكوثر' },
   generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/al-kawther-logo-transparent.png',
+    apple: '/al-kawther-logo-transparent.png',
   },
 }
 

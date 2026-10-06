@@ -439,7 +439,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
             document.expiryDate ?? '—',
             status(document.expiryDate),
             <div key={`${document.id}-files`} className="flex flex-col gap-1">
-              {(document.attachments ?? []).map((attachment) => <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName} — إصدار {attachment.issueDate}</a>)}
+              {(document.attachments ?? []).map((attachment) => <a key={attachment.id} className="text-[#1e127c] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName} — إصدار {attachment.issueDate}</a>)}
               {document.attachmentId ? <span className="text-xs text-[#7c8c86]">مرفق قديم</span> : null}
             </div>,
             <div key={`${document.id}-actions`} className="flex flex-wrap gap-1">
@@ -472,7 +472,7 @@ function Documents({ ctx }: { ctx: LiveCtx }) {
               renewal.expiryDate ?? '—',
               renewal.cost === undefined ? '—' : moneyFmt(renewal.cost),
               renewal.renewedAt.slice(0, 10),
-              <div key={`${document.id}-${renewal.renewedAt}`} className="flex flex-col gap-1">{(document.attachments ?? []).filter((attachment) => renewal.attachmentIds.includes(attachment.id)).map((attachment) => <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName}</a>)}</div>,
+              <div key={`${document.id}-${renewal.renewedAt}`} className="flex flex-col gap-1">{(document.attachments ?? []).filter((attachment) => renewal.attachmentIds.includes(attachment.id)).map((attachment) => <a key={attachment.id} className="text-[#1e127c] underline" href={`/api/erp/documents/attachments/${attachment.id}`} target="_blank" rel="noreferrer">{attachment.fileName}</a>)}</div>,
             ]))} />
           </details>
         ) : null}
@@ -1521,13 +1521,13 @@ function Notifications({ ctx }: { ctx: LiveCtx }) {
         {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">{uiLabel('لا توجد إشعارات')}</p> : null}
         {ctx.state.notifications.slice(0, 40).map((item) => (
           <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-[#edf2ef] p-3 sm:flex-row sm:items-center sm:justify-between">
-            <Link href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">
+            <Link href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]">
               <div className="font-bold">{uiLabel(item.title)}</div>
               <div className="text-sm text-[#788983]">{uiLabel(item.body)}</div>
               <div className="mt-1 text-xs text-[#97a49f]">{uiLabel(statusLabel(item.kind))} — {uiLabel('بريد')}: {uiLabel(item.emailStatus === 'sent' ? 'أُرسل' : item.emailStatus === 'pending' ? 'بانتظار الإرسال' : 'لم يُضبط البريد')}</div>
             </Link>
             {!item.read ? <GhostButton type="button" disabled={ctx.pending} aria-label={`${uiLabel('تمت القراءة')}: ${uiLabel(item.title)}`} onClick={async () => { setFeedback(null); const result = await ctx.act('markNotificationRead', { id: item.id }); setFeedback({ id: item.id, ok: result.ok, message: uiLabel(result.message) }) }}>{uiLabel('تمت القراءة')}</GhostButton> : <Badge tone="good">{uiLabel('مقروء')}</Badge>}
-            {feedback?.id === item.id ? <p role={feedback.ok ? 'status' : 'alert'} aria-live={feedback.ok ? 'polite' : 'assertive'} className={`text-sm ${feedback.ok ? 'text-[#0f766e]' : 'text-[#b91c1c]'}`}>{feedback.message}</p> : null}
+            {feedback?.id === item.id ? <p role={feedback.ok ? 'status' : 'alert'} aria-live={feedback.ok ? 'polite' : 'assertive'} className={`text-sm ${feedback.ok ? 'text-[#1e127c]' : 'text-[#b91c1c]'}`}>{feedback.message}</p> : null}
           </div>
         ))}
       </div>
@@ -1872,8 +1872,8 @@ function Metric({
   entityKey?: string
   ctx?: LiveCtx
 }) {
-  const toneClass = tone === 'good' ? 'text-[#0a825d]' : tone === 'warn' ? 'text-[#d97706]' : tone === 'bad' ? 'text-[#dc2626]' : 'text-[#1f1f1f]'
-  const barClass = tone === 'good' ? 'bg-[#10b981]' : tone === 'warn' ? 'bg-[#f59e0b]' : tone === 'bad' ? 'bg-[#ef4444]' : 'bg-[#0d9488]'
+  const toneClass = tone === 'good' ? 'text-[#1e127c]' : tone === 'warn' ? 'text-[#d97706]' : tone === 'bad' ? 'text-[#dc2626]' : 'text-[#1f1f1f]'
+  const barClass = tone === 'good' ? 'bg-[#7664d8]' : tone === 'warn' ? 'bg-[#f59e0b]' : tone === 'bad' ? 'bg-[#ef4444]' : 'bg-[#1e127c]'
   const { language } = useLanguage()
   const card = (
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
@@ -1886,7 +1886,7 @@ function Metric({
   const href = entityKey ? hrefForEntity(entityKey) : null
   if (entityKey && ctx && href && canSeeEntity(ctx.permissions, entityKey)) {
     const meta = leafMeta(entityKey)
-    return (<LocalizedContent>{<Link href={href} title={translateUiText(language, meta.description)} aria-label={`${translateUiText(language, meta.label)}: ${translateUiText(language, value)}`} className="group block rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] [&>div]:transition-[border-color,box-shadow] hover:[&>div]:border-[#7cc9bd] hover:[&>div]:shadow-md motion-reduce:[&>div]:transition-none">{card}</Link>}</LocalizedContent>)
+    return (<LocalizedContent>{<Link href={href} title={translateUiText(language, meta.description)} aria-label={`${translateUiText(language, meta.label)}: ${translateUiText(language, value)}`} className="group block rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e127c] [&>div]:transition-[border-color,box-shadow] hover:[&>div]:border-[#b9adff] hover:[&>div]:shadow-md motion-reduce:[&>div]:transition-none">{card}</Link>}</LocalizedContent>)
   }
   return card
 }
@@ -1938,7 +1938,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
           {' · '}
           {ctx.state.company.nameAr}
         </p>
-        <Link href="/guide" className="inline-flex min-h-11 items-center rounded-lg border border-[#99d4cb] bg-[#f0fdfa] px-4 text-sm font-semibold text-[#134e4a] hover:bg-[#ccfbf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#285c56] dark:bg-[#193b37] dark:text-[#ccfbf1] dark:hover:bg-[#134e4a]">دليل البنود</Link>
+        <Link href="/guide" className="inline-flex min-h-11 items-center rounded-lg border border-[#c4b9f5] bg-[#f3f0ff] px-4 text-sm font-semibold text-[#271a83] hover:bg-[#e0dbfa] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#51457e] dark:bg-[#29234b] dark:text-[#e0dbfa] dark:hover:bg-[#271a83]">دليل البنود</Link>
       </div>
 
       <SystemMap permissions={ctx.permissions} language={language} />
@@ -1951,7 +1951,7 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#e7eeeb]">
           <div
-            className={`h-full rounded-full ${executionTone === 'good' ? 'bg-[#1d7f72]' : executionTone === 'warn' ? 'bg-[#d6ad61]' : 'bg-[#ad5e46]'}`}
+            className={`h-full rounded-full ${executionTone === 'good' ? 'bg-[#1e127c]' : executionTone === 'warn' ? 'bg-[#d6ad61]' : 'bg-[#ad5e46]'}`}
             style={{ width: `${Math.max(0, Math.min(100, status.production.executionPct))}%` }}
           />
         </div>

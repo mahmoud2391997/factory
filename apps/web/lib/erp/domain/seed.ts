@@ -44,8 +44,8 @@ export function emptyState(passwordHash: string): ErpState {
     permissionsVersion: PERMISSIONS_VERSION,
     revision: 0,
     company: {
-      nameAr: 'مصنع الخليج للأعلاف',
-      nameEn: 'Gulf Feed Mill',
+      nameAr: 'أعلاف الكوثر بحار الجوبه',
+      nameEn: 'Al Kawther Feeds — Bahar Al Joubah',
       address: 'المنطقة الصناعية، صحار',
       city: 'صحار',
       country: 'سلطنة عُمان',

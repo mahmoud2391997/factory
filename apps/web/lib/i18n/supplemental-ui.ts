@@ -1,5 +1,5 @@
 export const supplementalUi: Record<string, { en: string; hi: string }> = {
-  "أعلاف الخليج": { "en": "Gulf Feed", "hi": "गल्फ फ़ीड" },
+  "أعلاف الكوثر": { "en": "Al Kawther Feeds", "hi": "अल कौथर फ़ीड" },
   "لا يمكن تسليم فاتورة مسودة": { "en": "A draft invoice cannot be delivered", "hi": "मसौदा चालान की डिलीवरी नहीं की जा सकती" },
   "مرحلة التسليم غير صحيحة": { "en": "Invalid delivery stage", "hi": "डिलीवरी चरण अमान्य है" },
   "يجب إكمال مرحلة التسليم السابقة أولاً": { "en": "Complete the previous delivery stage first", "hi": "पहले पिछला डिलीवरी चरण पूरा करें" },
@@ -4009,7 +4009,7 @@ export const supplementalUi: Record<string, { en: string; hi: string }> = {
   },
   "شركة الخليج للأعلاف": {
     "en": "Gulf Feed Company",
-    "hi": "गल्फ फ़ीड कंपनी"
+    "hi": "अल कौथर फ़ीड कंपनी"
   },
   "شركة الباطنة التجارية": {
     "en": "Al Batinah Trading Company",

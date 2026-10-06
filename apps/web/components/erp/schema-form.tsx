@@ -25,7 +25,7 @@ export function SchemaForm({
         const value = values[field.key]
         const error = errors[field.key]
         const common =
-          'w-full rounded-xl border border-[#dfe7e3] bg-white px-3.5 py-3.5 text-base outline-none transition focus:border-[#1d7f72] focus:ring-2 focus:ring-[#1d7f72]/15'
+          'w-full rounded-xl border border-[#dfe7e3] bg-white px-3.5 py-3.5 text-base outline-none transition focus:border-[#1e127c] focus:ring-2 focus:ring-[#1e127c]/15'
 
         return (
           <label
@@ -65,7 +65,7 @@ export function SchemaForm({
                   type="checkbox"
                   checked={Boolean(value ?? field.defaultValue ?? false)}
                   onChange={(e) => onChange(field.key, e.target.checked)}
-                  className="size-4 accent-[#123c35]"
+                  className="size-4 accent-[#1e127c]"
                 />
                 <span className="text-sm text-[#53655e]">{t('تفعيل')}</span>
               </div>

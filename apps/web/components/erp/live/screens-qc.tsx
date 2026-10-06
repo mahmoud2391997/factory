@@ -355,7 +355,7 @@ function QualitySampleAttachments({ ctx, sample }: { ctx: LiveCtx; sample: Quali
   return (<LocalizedContent>{(
     <div className="flex flex-col gap-1">
       {(sample.attachments ?? []).map((attachment) => (
-        <a key={attachment.id} className="text-[#1d7f72] underline" href={`/api/erp/quality-samples/attachments/${attachment.id}`} target="_blank" rel="noreferrer">
+        <a key={attachment.id} className="text-[#1e127c] underline" href={`/api/erp/quality-samples/attachments/${attachment.id}`} target="_blank" rel="noreferrer">
           {attachment.fileName}
         </a>
       ))}

@@ -31,7 +31,7 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
   const { language } = useLanguage()
   return (<LocalizedContent>{(
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
-      <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#0d9488]" />
+      <span aria-hidden className="absolute inset-y-3 right-0 w-1.5 rounded-full bg-[#1e127c]" />
       <div className="text-sm font-medium text-[#6b7280]">{translateUiText(language, label)}</div>
       <div className="mt-2 text-2xl font-semibold leading-none text-[#1f1f1f]">{translateUiText(language, value)}</div>
       {hint ? <div className="mt-2 text-sm text-[#53655e]">{translateUiText(language, hint)}</div> : null}
@@ -133,7 +133,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
           {batchRecall ? <>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold">{batchRecall.lots.length} دفعة إنتاج، {batchRecall.affectedCustomers.length} عميل متأثر</p>
-              <Link className="text-sm font-semibold text-[#0d9488]" href={`/print/recall?${new URLSearchParams({ materialId: searchMaterialId, batchNo: searchBatchNo.trim() }).toString()}`} target="_blank" rel="noreferrer">طباعة تقرير التتبع</Link>
+              <Link className="text-sm font-semibold text-[#1e127c]" href={`/print/recall?${new URLSearchParams({ materialId: searchMaterialId, batchNo: searchBatchNo.trim() }).toString()}`} target="_blank" rel="noreferrer">طباعة تقرير التتبع</Link>
             </div>
             <DataTable columns={['دفعة الإنتاج', 'المنتج', 'العميل', 'الكمية كجم', 'الفاتورة', 'التاريخ']} rows={batchRecall.deliveries.map((delivery) => [
               delivery.lotNo, delivery.product, delivery.customer, qtyFmt(delivery.quantityKg), delivery.invoiceNo ?? '—', delivery.date,
@@ -145,7 +145,7 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
         <Card
           title={`${translateUiText(language, 'تتبع')} ${trace.lot.lotNo}`}
           hint={detail ? 'من الدفعة إلى خامات الموردين ثم إلى العملاء.' : 'تفاصيل الدفعة المختارة.'}
-          extra={<Link className="text-sm font-semibold text-[#0d9488]" href={`/print/lot/${encodeURIComponent(trace.lot.lotNo)}`} target="_blank" rel="noreferrer">طباعة الشهادة</Link>}
+          extra={<Link className="text-sm font-semibold text-[#1e127c]" href={`/print/lot/${encodeURIComponent(trace.lot.lotNo)}`} target="_blank" rel="noreferrer">طباعة الشهادة</Link>}
         >
           <div className="mb-4 grid gap-2 text-sm leading-7 text-[#30453d] sm:grid-cols-2">
             <div>المنتج: {trace.product?.nameAr ?? '—'}</div>

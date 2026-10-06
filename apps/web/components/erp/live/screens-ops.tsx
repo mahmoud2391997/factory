@@ -1030,7 +1030,7 @@ function Products({ ctx }: { ctx: LiveCtx }) {
       title="المنتجات"
       extra={
         <div className="flex flex-wrap items-center gap-3">
-          <Link className="text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank">طباعة ملصقات الباركود</Link>
+          <Link className="text-sm font-bold text-[#1e127c]" href="/print/labels" target="_blank">طباعة ملصقات الباركود</Link>
           <FormDialog title="منتج نهائي" hint="سعر البيع للكيلوغرام بالريال العُماني، غير شامل الضريبة." openLabel="إضافة منتج">
             {(close) => (
               <form
@@ -1224,8 +1224,8 @@ function InventoryOverview({ ctx }: { ctx: LiveCtx }) {
       <Card title="إدارة المخزون" hint="كل عمليات المخزون والمستودعات والدفعات والحركات والتقارير">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className="rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm transition hover:border-[#99d4cb] hover:bg-[#f0fdfa] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#3f3f46] dark:bg-[#18181b] dark:hover:bg-[#193b37]">
-              <div className="font-semibold text-[#134e4a] dark:text-[#ccfbf1]">{link.label}</div>
+            <Link key={link.href} href={link.href} className="rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm transition hover:border-[#c4b9f5] hover:bg-[#f3f0ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#3f3f46] dark:bg-[#18181b] dark:hover:bg-[#29234b]">
+              <div className="font-semibold text-[#271a83] dark:text-[#e0dbfa]">{link.label}</div>
               <div className="mt-1 text-sm text-[#6b7280] dark:text-[#a1a1aa]">{link.hint}</div>
             </Link>
           ))}
@@ -1435,7 +1435,7 @@ function BarcodeStation({ ctx }: { ctx: LiveCtx }) {
       <BarcodeCamera disabled={ctx.pending} onScan={lookup}/>
       {found ? <p role="status" className="mt-4 text-lg font-bold">{found}</p> : null}
       <p className="mt-4 text-sm text-[#788983]">لطباعة الملصق استخدم طابعة الباركود أو أي طابعة ورق من صفحة الملصقات.</p>
-      <Link className="mt-3 inline-flex text-sm font-bold text-[#1d7f72]" href="/print/labels" target="_blank" rel="noreferrer">فتح ملصقات الطباعة</Link>
+      <Link className="mt-3 inline-flex text-sm font-bold text-[#1e127c]" href="/print/labels" target="_blank" rel="noreferrer">فتح ملصقات الطباعة</Link>
     </Card>
   )}</LocalizedContent>)
 }
@@ -1793,21 +1793,21 @@ function InventoryExtensions({ ctx, viewKind }: { ctx: LiveCtx; viewKind?: 'spar
       <div className="flex gap-2 border-b border-[#e5e7eb] pb-2">
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium ${activeTab === 'spareParts' ? 'text-[#1d7f72] border-b-2 border-[#1d7f72]' : 'text-[#6b7280]'}`}
+          className={`px-4 py-2 text-sm font-medium ${activeTab === 'spareParts' ? 'text-[#1e127c] border-b-2 border-[#1e127c]' : 'text-[#6b7280]'}`}
           onClick={() => setActiveTab('spareParts')}
         >
           قطع الغيار
         </button>
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium ${activeTab === 'packaging' ? 'text-[#1d7f72] border-b-2 border-[#1d7f72]' : 'text-[#6b7280]'}`}
+          className={`px-4 py-2 text-sm font-medium ${activeTab === 'packaging' ? 'text-[#1e127c] border-b-2 border-[#1e127c]' : 'text-[#6b7280]'}`}
           onClick={() => setActiveTab('packaging')}
         >
           مواد التعبئة
         </button>
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium ${activeTab === 'counts' ? 'text-[#1d7f72] border-b-2 border-[#1d7f72]' : 'text-[#6b7280]'}`}
+          className={`px-4 py-2 text-sm font-medium ${activeTab === 'counts' ? 'text-[#1e127c] border-b-2 border-[#1e127c]' : 'text-[#6b7280]'}`}
           onClick={() => setActiveTab('counts')}
         >
           الجرد الفعلي
@@ -1947,7 +1947,7 @@ function PurchaseOrders({ ctx }: { ctx: LiveCtx }) {
             partyName(ctx.state.suppliers, order.supplierId),
             <Badge key={order.id} tone={toneForStatus(order.status)}>{statusLabel(order.status)}</Badge>,
             <span key={`${order.id}-p`} className="flex flex-wrap items-center justify-center gap-2">
-              <Link className="text-sm font-bold text-[#1d7f72]" href={`/print/po/${order.id}`} target="_blank" rel="noreferrer">طباعة</Link>
+              <Link className="text-sm font-bold text-[#1e127c]" href={`/print/po/${order.id}`} target="_blank" rel="noreferrer">طباعة</Link>
               {order.status === 'PENDING_APPROVAL' && can(ctx.permissions, 'purchasing.po.approve') ? (
                 <GhostButton type="button" onClick={() => ctx.act('decidePurchaseOrder', { id: order.id, decision: 'APPROVED' })}>اعتماد</GhostButton>
               ) : null}
@@ -2126,7 +2126,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
             PURPOSE_LABEL[item.purpose] ?? item.purpose,
             <Badge key={item.id} tone={toneForStatus(item.status)}>{statusLabel(item.status)}</Badge>,
             item.approvalTier === 'GM' ? 'المدير العام' : 'التشغيل',
-            <button key={`${item.id}-open`} type="button" className="text-sm font-bold text-[#1d7f72]" onClick={() => { setSelectedId(item.id); resetQuoteForm() }}>عرض</button>,
+            <button key={`${item.id}-open`} type="button" className="text-sm font-bold text-[#1e127c]" onClick={() => { setSelectedId(item.id); resetQuoteForm() }}>عرض</button>,
           ])}
           rowActions={(_, index) => {
             const item = ctx.state.purchaseRequests[index]
@@ -2243,7 +2243,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
                     const isLowest = quote.id === lowestId
                     const selected = quote.id === request.selectedQuotationId
                     return (
-                      <tr key={quote.id} className={`border-b border-[#f3f4f6] ${isLowest ? 'bg-[#e5ede6]' : ''}`}>
+                      <tr key={quote.id} className={`border-b border-[#f3f4f6] ${isLowest ? 'bg-[#eeebfb]' : ''}`}>
                         <td className="px-2 py-2">
                           <div className="font-medium">{partyName(ctx.state.suppliers, quote.supplierId)}</div>
                           {isLowest ? <Badge tone="good">الأقل سعراً</Badge> : null}
@@ -2257,7 +2257,7 @@ function PurchaseRequests({ ctx }: { ctx: LiveCtx }) {
                           return (
                             <td key={line.materialId} className="px-2 py-2">
                               <div>{quoteLine ? moneyFmt(quoted) : '—'}</div>
-                              {diff !== null ? <div className={`text-xs ${diff > 0 ? 'text-[#dc2626]' : diff < 0 ? 'text-[#0a825d]' : 'text-[#6b7280]'}`}>{diff > 0 ? '+' : ''}{diff}% عن آخر شراء</div> : null}
+                              {diff !== null ? <div className={`text-xs ${diff > 0 ? 'text-[#dc2626]' : diff < 0 ? 'text-[#1e127c]' : 'text-[#6b7280]'}`}>{diff > 0 ? '+' : ''}{diff}% عن آخر شراء</div> : null}
                             </td>
                           )
                         })}
@@ -2730,7 +2730,7 @@ function CompleteBox({ ctx, orderId, onClose }: { ctx: LiveCtx; orderId: string;
             <div className="text-sm font-semibold">
               {materialName(ctx.state, line.materialId)}
               {ctx.state.scaleReadings.find((reading) => reading.usedForProduction && reading.productionOrderId === order.id && reading.materialId === line.materialId)
-                ? <span className="block text-xs text-[#1d7f72]">من آخر قراءة ميزان تلقائياً</span>
+                ? <span className="block text-xs text-[#1e127c]">من آخر قراءة ميزان تلقائياً</span>
                 : null}
             </div>
             <div className="text-sm text-[#788983]">متوقع {qtyFmt(line.expectedQty)}</div>
@@ -3361,7 +3361,7 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
             moneyFmt(invoice.paidAmount),
             <Badge key={invoice.id} tone={toneForStatus(invoice.status)}>{statusLabel(invoice.status)}</Badge>,
             <span key={`${invoice.id}-a`} className="flex flex-wrap gap-2">
-              <Link className="text-sm font-bold text-[#1d7f72]" href={`/print/invoice/${invoice.id}`} target="_blank" rel="noreferrer">طباعة</Link>
+              <Link className="text-sm font-bold text-[#1e127c]" href={`/print/invoice/${invoice.id}`} target="_blank" rel="noreferrer">طباعة</Link>
               {invoice.status === 'DRAFT' && can(ctx.permissions, 'sales.confirm') ? (
                 <GhostButton type="button" onClick={async () => {
                   const result = await ctx.act('confirmInvoice', { id: invoice.id })
@@ -3691,7 +3691,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
           ) : null
         }
       >
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-[#f0fdf4] p-3 text-xs text-[#166534] border border-[#bbf7d0]">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-[#f3f0ff] p-3 text-xs text-[#271a83] border border-[#d7cff5]">
           <span className="font-bold">مراحل التسليم:</span>
           <span>1. المحاسب (الاعتماد)</span>
           <span>→</span>
@@ -3723,7 +3723,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
                   <div
                     key={s}
                     className={`h-2 w-6 rounded ${
-                      idx <= stepIdx ? 'bg-[#0d9488]' : 'bg-[#e5e7eb]'
+                      idx <= stepIdx ? 'bg-[#1e127c]' : 'bg-[#e5e7eb]'
                     }`}
                     title={STEP_TITLES[s]}
                   />
@@ -3731,7 +3731,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
               </div>,
               item.deliveryProof ? (
                 <div key={`proof-${item.id}`} className="text-xs space-y-0.5">
-                  <span className="font-semibold text-[#0f766e]">المستلم: {item.deliveryProof.recipientName}</span>
+                  <span className="font-semibold text-[#1e127c]">المستلم: {item.deliveryProof.recipientName}</span>
                   {item.deliveryProof.recipientPhone ? (
                     <span className="block text-[#6b7280]">{item.deliveryProof.recipientPhone}</span>
                   ) : null}
@@ -3758,7 +3758,7 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
               ) : null,
               <Link
                 key={`delivery-print-${item.id}`}
-                className="font-semibold text-[#0d9488] hover:underline"
+                className="font-semibold text-[#1e127c] hover:underline"
                 href={`/print/delivery/${encodeURIComponent(item.id)}`}
                 target="_blank"
                 rel="noreferrer"
@@ -3812,8 +3812,8 @@ function InvoiceDeliveries({ ctx }: { ctx: LiveCtx }) {
             </Field>
 
             {nextStep === 'CUSTOMER' ? (
-              <div className="rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] p-3 space-y-3">
-                <p className="text-xs font-bold text-[#166534]">إثبات استلام العميل:</p>
+              <div className="rounded-xl border border-[#d7cff5] bg-[#f3f0ff] p-3 space-y-3">
+                <p className="text-xs font-bold text-[#271a83]">إثبات استلام العميل:</p>
                 <Field label="اسم المستلم">
                   <TextInput value={recipientName} onChange={(e) => setRecipientName(e.target.value)} required />
                 </Field>
@@ -3893,7 +3893,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
         <button
           type="button"
           className={`px-4 py-2 text-sm font-medium ${
-            tab === 'communications' ? 'border-b-2 border-[#1d7f72] text-[#1d7f72]' : 'text-[#6b7280]'
+            tab === 'communications' ? 'border-b-2 border-[#1e127c] text-[#1e127c]' : 'text-[#6b7280]'
           }`}
           onClick={() => setTab('communications')}
         >
@@ -3902,7 +3902,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
         <button
           type="button"
           className={`px-4 py-2 text-sm font-medium ${
-            tab === 'compose' ? 'border-b-2 border-[#1d7f72] text-[#1d7f72]' : 'text-[#6b7280]'
+            tab === 'compose' ? 'border-b-2 border-[#1e127c] text-[#1e127c]' : 'text-[#6b7280]'
           }`}
           onClick={() => setTab('compose')}
         >
@@ -3911,7 +3911,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
         <button
           type="button"
           className={`px-4 py-2 text-sm font-medium ${
-            tab === 'templates' ? 'border-b-2 border-[#1d7f72] text-[#1d7f72]' : 'text-[#6b7280]'
+            tab === 'templates' ? 'border-b-2 border-[#1e127c] text-[#1e127c]' : 'text-[#6b7280]'
           }`}
           onClick={() => setTab('templates')}
         >
@@ -3960,7 +3960,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
                     </Field>
                     <Field label="نص الرسالة">
                       <textarea
-                        className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm outline-none focus:border-[#1d7f72]"
+                        className="min-h-24 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm outline-none focus:border-[#1e127c]"
                         value={tplBody}
                         onChange={(e) => setTplBody(e.target.value)}
                         placeholder="يمكنك استخدام {supplier} لاسم المورد و {date} للتاريخ"
@@ -4077,7 +4077,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
 
             <Field label="نص الرسالة">
               <textarea
-                className="min-h-36 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm outline-none focus:border-[#1d7f72]"
+                className="min-h-36 w-full rounded-xl border border-[#dfe7e3] p-3 text-sm outline-none focus:border-[#1e127c]"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="اكتب تفاصيل طلب السعر أو الاستفسار أو أمر الشراء..."
@@ -4086,7 +4086,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
             </Field>
 
             {selectedSupplier?.phone ? (
-              <p className="text-xs text-[#0d9488]">
+              <p className="text-xs text-[#1e127c]">
                 رقم هاتف المورد: <strong>{selectedSupplier.phone}</strong> (جاهز للإرسال المباشر عبر WhatsApp)
               </p>
             ) : null}
@@ -4195,7 +4195,7 @@ export function SupplierRelations({ entityKey, ctx }: { entityKey: string; ctx: 
                   ) : null}
 
                   {item.status === 'SENT' ? (
-                    <span className="text-xs text-[#166534]">مرسل بنجاح</span>
+                    <span className="text-xs text-[#271a83]">مرسل بنجاح</span>
                   ) : null}
                 </div>,
               ]
@@ -4278,8 +4278,8 @@ function MaterialPriceAnalysisScreen({ ctx }: { ctx: LiveCtx }) {
                 <span className="text-[#6b7280]">{month.month}</span>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <div className="h-3 rounded-full bg-[#0f766e]" style={{ width: `${Math.max((month.avgPrice / maxMonthPrice) * 100, 2)}%` }} />
-                    <span className="whitespace-nowrap text-[#0f766e]">سعر {moneyFmt(month.avgPrice)}</span>
+                    <div className="h-3 rounded-full bg-[#1e127c]" style={{ width: `${Math.max((month.avgPrice / maxMonthPrice) * 100, 2)}%` }} />
+                    <span className="whitespace-nowrap text-[#1e127c]">سعر {moneyFmt(month.avgPrice)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-3 rounded-full bg-[#c2410c]" style={{ width: `${Math.max((month.purchasedQty / maxMonthQty) * 100, 2)}%` }} />

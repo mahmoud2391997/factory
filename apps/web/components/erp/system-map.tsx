@@ -55,18 +55,18 @@ const ENTITY_CATEGORIES = {
   },
   // Inventory split into 3 focused sub-groups
   'المواد': {
-    color: '#10b981',
-    bg: '#f0fdf4',
+    color: '#7664d8',
+    bg: '#f3f0ff',
     entities: ['inventoryOverview', 'material', 'product', 'inventoryExtensions', 'inventoryExtensions-packaging'],
   },
   'تحليلات المخزون': {
-    color: '#059669',
-    bg: '#ecfdf5',
+    color: '#5c46c2',
+    bg: '#f3f0ff',
     entities: ['factoryStockValue', 'factoryRunningOut', 'factoryStagnant', 'factoryReserved', 'materialBatch', 'inventoryBalance', 'inventoryTransaction', 'inventoryReports', 'materialPriceAnalysis'],
   },
   'المستودعات': {
-    color: '#0d9488',
-    bg: '#f0fdfa',
+    color: '#1e127c',
+    bg: '#f3f0ff',
     entities: ['warehouse', 'stockTransfer', 'stockAdjustment', 'barcode'],
   },
   'الإنتاج': {
@@ -167,7 +167,7 @@ const WORKFLOW_PATHS: WorkflowPath[] = [
     id: 'inventory',
     label: 'دورة المخزون',
     nodes: ['material', 'inventoryBalance', 'inventoryTransaction', 'inventoryReports'],
-    color: '#10b981',
+    color: '#7664d8',
   },
   {
     id: 'production',
@@ -355,11 +355,11 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
       fit(entities.filter(n => showAll || n.hasAccess))
     }
   }
-  const control = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+  const control = 'inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
 
   return <section data-testid="system-map" className={`min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 ${isFullscreen ? 'fixed inset-3 z-50 flex flex-col shadow-2xl' : ''}`}>
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 p-4 md:p-5 dark:border-slate-800">
-      <div className="flex items-center gap-3"><div className="rounded-xl bg-teal-50 p-3 text-teal-600 dark:bg-teal-950"><Network size={22} /></div><div><h2 className="text-lg font-semibold text-slate-900 dark:text-white">{ui('خريطة الكيانات والعلاقات')}</h2><p className="mt-1 text-xs text-slate-500">{ui('استكشف الروابط بين أقسام المصنع')}</p></div></div>
+      <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-50 p-3 text-indigo-600 dark:bg-indigo-950"><Network size={22} /></div><div><h2 className="text-lg font-semibold text-slate-900 dark:text-white">{ui('خريطة الكيانات والعلاقات')}</h2><p className="mt-1 text-xs text-slate-500">{ui('استكشف الروابط بين أقسام المصنع')}</p></div></div>
       <div className="flex flex-wrap items-center gap-2">
         <button className={control} aria-pressed={showAll} onClick={() => setShowAll(!showAll)}>{showAll ? <Unlock size={14} /> : <Lock size={14} />}{ui(showAll ? 'عرض المتاح فقط' : 'عرض الكل')}</button>
         <button className={control} aria-label={ui('إعادة تعيين')} onClick={reset}><RefreshCw size={15} /></button>
@@ -369,12 +369,12 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
     <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/30">
       <span className="px-2 text-xs font-medium text-slate-500">{ui('الدورات')}</span>
       <button className={control} aria-pressed={!workflowId} onClick={() => {if(workflowId) chooseWorkflow(workflowId); else fit()}}>{ui('الكل')}</button>
-      {WORKFLOW_PATHS.map(w => <button key={w.id} className={`${control} ${workflowId === w.id ? '!border-teal-500 !bg-teal-50 !text-teal-800 dark:!bg-teal-950 dark:!text-teal-100' : ''}`} aria-pressed={workflowId === w.id} onClick={() => chooseWorkflow(w.id)}><span className="h-2 w-2 rounded-full" style={{background: w.color}} />{ui(w.label)}</button>)}
+      {WORKFLOW_PATHS.map(w => <button key={w.id} className={`${control} ${workflowId === w.id ? '!border-indigo-500 !bg-indigo-50 !text-indigo-800 dark:!bg-indigo-950 dark:!text-indigo-100' : ''}`} aria-pressed={workflowId === w.id} onClick={() => chooseWorkflow(w.id)}><span className="h-2 w-2 rounded-full" style={{background: w.color}} />{ui(w.label)}</button>)}
     </div>
     <div className={`flex min-h-0 flex-col xl:flex-row ${isFullscreen ? 'flex-1' : ''}`}>
       <div className="relative min-w-0 flex-1">
         <div className="absolute start-3 top-3 z-10 flex max-w-[calc(100%-24px)] items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/95"><Search size={16} className="shrink-0 text-slate-400"/><input aria-label={ui('البحث في الخريطة')} placeholder={ui('البحث في الخريطة')} value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-44 min-w-0 bg-transparent text-sm outline-none sm:w-56" />{query && <button aria-label={ui('مسح البحث')} onClick={() => setQuery('')}><X size={14}/></button>}</div>
-        <div ref={canvasRef} data-testid="map-canvas" dir="ltr" tabIndex={0} aria-label={ui('خريطة تفاعلية')} className={`relative touch-none select-none overflow-hidden bg-slate-50 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 dark:bg-[#111c2b] ${isFullscreen ? 'h-full min-h-[300px]' : 'h-[620px]'}`} style={{cursor: dragging === 'canvas' ? 'grabbing' : 'grab', backgroundImage: 'radial-gradient(circle, #94a3b844 1px, transparent 1px)', backgroundSize: `${24*view.zoom}px ${24*view.zoom}px`, backgroundPosition: `${view.pan.x}px ${view.pan.y}px`}} onPointerDown={e => startDrag(e)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={e => {
+        <div ref={canvasRef} data-testid="map-canvas" dir="ltr" tabIndex={0} aria-label={ui('خريطة تفاعلية')} className={`relative touch-none select-none overflow-hidden bg-slate-50 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 dark:bg-[#111c2b] ${isFullscreen ? 'h-full min-h-[300px]' : 'h-[620px]'}`} style={{cursor: dragging === 'canvas' ? 'grabbing' : 'grab', backgroundImage: 'radial-gradient(circle, #94a3b844 1px, transparent 1px)', backgroundSize: `${24*view.zoom}px ${24*view.zoom}px`, backgroundPosition: `${view.pan.x}px ${view.pan.y}px`}} onPointerDown={e => startDrag(e)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={e => {
           if (e.target !== e.currentTarget) return
           const offsets: Record<string, Vec2> = { ArrowLeft: {x:40,y:0}, ArrowRight: {x:-40,y:0}, ArrowUp: {x:0,y:40}, ArrowDown: {x:0,y:-40} }
           const offset=offsets[e.key]; if(offset){e.preventDefault(); updateView({...viewRef.current,pan:{x:viewRef.current.pan.x+offset.x,y:viewRef.current.pan.y+offset.y}})}
@@ -396,7 +396,7 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
                 const workflowEdge=!!activeWorkflow && activeWorkflow.nodes.includes(from.id)&&activeWorkflow.nodes.includes(to.id)
                 const related=!!selected&&(relation.from===selected||relation.to===selected)
                 const dim=(!!activeWorkflow&&!workflowEdge)||(!!selected&&!related)||(!!query&& !matching.has(from.id)&&!matching.has(to.id))
-                const color=workflowEdge?activeWorkflow!.color:related?'#0d9488':'#94a3b8'
+                const color=workflowEdge?activeWorkflow!.color:related?'#1e127c':'#94a3b8'
                 return <g key={i} opacity={dim?0.1:workflowEdge||related?1:0.5}><path d={geometry.path} fill="none" stroke={color} strokeWidth={workflowEdge||related?2.5:1.4} strokeDasharray={relation.type==='reference'?'5 5':undefined} markerEnd={`url(#${markerId})`}/>{(showLabels||related||workflowEdge)&&<g><rect x={geometry.label.x-62} y={geometry.label.y-10} width={124} height={20} rx={6} className="fill-white dark:fill-slate-800"/><text x={geometry.label.x} y={geometry.label.y+4} textAnchor="middle" fontSize="11" fill={color}>{ui(relation.label)}</text></g>}</g>
               })}
             </svg>
@@ -404,7 +404,7 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
               const p=position(node),cfg=ENTITY_CATEGORIES[node.category as keyof typeof ENTITY_CATEGORIES],active=selected===node.id
               const inWorkflow=activeWorkflow?.nodes.includes(node.id),dim=(!!activeWorkflow&&!inWorkflow)||(!!query&&!matching.has(node.id))||(!!selected&&!connected.has(node.id))
               const step=activeWorkflow?activeWorkflow.nodes.indexOf(node.id)+1:0
-              return <button type="button" key={node.id} data-node={node.id} aria-label={ui(node.label)} aria-pressed={active} dir={language==='ar'?'rtl':'ltr'} className="absolute flex items-center gap-3 rounded-xl border bg-white px-3 text-start shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-teal-500 dark:bg-slate-800" style={{width:NODE_W,height:NODE_H,transform:`translate3d(${p.x}px,${p.y}px,0)`,borderColor:active||inWorkflow?cfg.color:'#94a3b844',boxShadow:dragging===node.id?'0 16px 32px #0f172a24':active?`0 0 0 3px ${cfg.color}22`:'0 2px 6px #0f172a08',opacity:dim?0.2:1,zIndex:dragging===node.id?20:active?10:2,cursor:dragging===node.id?'grabbing':'grab',transition:'border-color 120ms, box-shadow 120ms',willChange:dragging===node.id?'transform':undefined}} onPointerDown={e=>startDrag(e,node)} onClick={()=>{if(!wasDragged.current)setSelected(active?null:node.id)}} onDoubleClick={()=>{if(!wasDragged.current&&node.hasAccess)router.push(node.href)}} onKeyDown={e=>{
+              return <button type="button" key={node.id} data-node={node.id} aria-label={ui(node.label)} aria-pressed={active} dir={language==='ar'?'rtl':'ltr'} className="absolute flex items-center gap-3 rounded-xl border bg-white px-3 text-start shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-slate-800" style={{width:NODE_W,height:NODE_H,transform:`translate3d(${p.x}px,${p.y}px,0)`,borderColor:active||inWorkflow?cfg.color:'#94a3b844',boxShadow:dragging===node.id?'0 16px 32px #0f172a24':active?`0 0 0 3px ${cfg.color}22`:'0 2px 6px #0f172a08',opacity:dim?0.2:1,zIndex:dragging===node.id?20:active?10:2,cursor:dragging===node.id?'grabbing':'grab',transition:'border-color 120ms, box-shadow 120ms',willChange:dragging===node.id?'transform':undefined}} onPointerDown={e=>startDrag(e,node)} onClick={()=>{if(!wasDragged.current)setSelected(active?null:node.id)}} onDoubleClick={()=>{if(!wasDragged.current&&node.hasAccess)router.push(node.href)}} onKeyDown={e=>{
                 if(!e.key.startsWith('Arrow'))return
                 e.preventDefault();e.stopPropagation();const amount=e.shiftKey?40:10
                 const next={...p};if(e.key==='ArrowLeft')next.x-=amount;if(e.key==='ArrowRight')next.x+=amount;if(e.key==='ArrowUp')next.y-=amount;if(e.key==='ArrowDown')next.y+=amount
@@ -412,7 +412,7 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
               }}>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold" style={{color:cfg.color,background:`${cfg.color}12`}}>{step>0?step:<Network size={16}/>}</span>
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{ui(node.label)}</span><span className="mt-1 block truncate text-[10px] text-slate-500 dark:text-slate-400">{ui(node.description)}</span></span>
-                {node.hasAccess?<Unlock size={12} className="shrink-0 text-teal-500"/>:<Lock size={12} className="shrink-0 text-slate-400"/>}
+                {node.hasAccess?<Unlock size={12} className="shrink-0 text-indigo-500"/>:<Lock size={12} className="shrink-0 text-slate-400"/>}
               </button>
             })}
           </div>
@@ -423,9 +423,9 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
         </div>
       </div>
       <aside className={`shrink-0 border-t border-slate-100 bg-white p-4 xl:w-64 xl:border-s xl:border-t-0 dark:border-slate-800 dark:bg-slate-900 ${isFullscreen?'max-h-48 overflow-y-auto xl:max-h-none':''}`}>
-        {selectedNode?<><div className="flex items-center justify-between"><span className="text-xs font-medium text-teal-600">{ui(selectedNode.category)}</span><button aria-label={ui('إغلاق')} onClick={()=>setSelected(null)}><X size={16}/></button></div><h3 className="mt-3 font-semibold">{ui(selectedNode.label)}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{ui(selectedNode.description)}</p><button disabled={!selectedNode.hasAccess} className={`${control} mt-4 w-full disabled:opacity-40`} onClick={()=>router.push(selectedNode.href)}>{ui(selectedNode.hasAccess?'فتح الصفحة':'مقيد')}<ArrowUpRight size={15}/></button><h4 className="mt-6 text-xs font-semibold text-slate-500">{ui('روابط ذات صلة')}</h4><div className="mt-2 space-y-1">{visible.filter(n=>n.id!==selectedNode.id&&connected.has(n.id)).map(n=><button key={n.id} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-start text-xs hover:bg-slate-50 dark:hover:bg-slate-800" onClick={()=>{setSelected(n.id);fit([n,selectedNode])}}>{ui(n.label)}<ChevronRight size={12}/></button>)}</div></>:<><span className="text-xs font-medium uppercase tracking-wide text-teal-600">{ui(activeWorkflow?'تدفق عمل':'نظرة عامة')}</span><h3 className="mt-3 font-semibold">{ui(activeWorkflow?.label??'كيف ترتبط بيانات المصنع؟')}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{ui('اختر دورة لتتبع خطواتها أو اختر عقدة لاستكشاف روابطها.')}</p>{activeWorkflow?<ol className="mt-4 space-y-2">{activeWorkflow.nodes.map((id,i)=>{const node=visible.find(n=>n.id===id);return <li key={id}><button disabled={!node} onClick={()=>{setSelected(id);if(node)fit([node])}} className="flex w-full items-center gap-3 rounded-lg bg-slate-50 p-2 text-start text-xs disabled:opacity-40 dark:bg-slate-800"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white font-medium text-teal-700 dark:bg-slate-700 dark:text-teal-200">{i+1}</span>{ui(node?.label??entities.find(n=>n.id===id)?.label??id)}</button></li>})}</ol>:<div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><strong className="text-lg tabular-nums">{visible.length}</strong><p className="mt-1 text-xs text-slate-500">{ui('كيان')}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><strong className="text-lg tabular-nums">{ENTITY_RELATIONS.filter(r=>ids.has(r.from)&&ids.has(r.to)).length}</strong><p className="mt-1 text-xs text-slate-500">{ui('روابط')}</p></div></div>}</>}
+        {selectedNode?<><div className="flex items-center justify-between"><span className="text-xs font-medium text-indigo-600">{ui(selectedNode.category)}</span><button aria-label={ui('إغلاق')} onClick={()=>setSelected(null)}><X size={16}/></button></div><h3 className="mt-3 font-semibold">{ui(selectedNode.label)}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{ui(selectedNode.description)}</p><button disabled={!selectedNode.hasAccess} className={`${control} mt-4 w-full disabled:opacity-40`} onClick={()=>router.push(selectedNode.href)}>{ui(selectedNode.hasAccess?'فتح الصفحة':'مقيد')}<ArrowUpRight size={15}/></button><h4 className="mt-6 text-xs font-semibold text-slate-500">{ui('روابط ذات صلة')}</h4><div className="mt-2 space-y-1">{visible.filter(n=>n.id!==selectedNode.id&&connected.has(n.id)).map(n=><button key={n.id} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-start text-xs hover:bg-slate-50 dark:hover:bg-slate-800" onClick={()=>{setSelected(n.id);fit([n,selectedNode])}}>{ui(n.label)}<ChevronRight size={12}/></button>)}</div></>:<><span className="text-xs font-medium uppercase tracking-wide text-indigo-600">{ui(activeWorkflow?'تدفق عمل':'نظرة عامة')}</span><h3 className="mt-3 font-semibold">{ui(activeWorkflow?.label??'كيف ترتبط بيانات المصنع؟')}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{ui('اختر دورة لتتبع خطواتها أو اختر عقدة لاستكشاف روابطها.')}</p>{activeWorkflow?<ol className="mt-4 space-y-2">{activeWorkflow.nodes.map((id,i)=>{const node=visible.find(n=>n.id===id);return <li key={id}><button disabled={!node} onClick={()=>{setSelected(id);if(node)fit([node])}} className="flex w-full items-center gap-3 rounded-lg bg-slate-50 p-2 text-start text-xs disabled:opacity-40 dark:bg-slate-800"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white font-medium text-indigo-700 dark:bg-slate-700 dark:text-indigo-200">{i+1}</span>{ui(node?.label??entities.find(n=>n.id===id)?.label??id)}</button></li>})}</ol>:<div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><strong className="text-lg tabular-nums">{visible.length}</strong><p className="mt-1 text-xs text-slate-500">{ui('كيان')}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><strong className="text-lg tabular-nums">{ENTITY_RELATIONS.filter(r=>ids.has(r.from)&&ids.has(r.to)).length}</strong><p className="mt-1 text-xs text-slate-500">{ui('روابط')}</p></div></div>}</>}
         {query&&<p role="status" className="mt-4 text-xs text-slate-500">{matching.size} {ui('نتائج البحث')}</p>}
-        <div className="mt-6 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-500 dark:border-slate-800"><p className="flex items-center gap-2"><Move size={14}/>{ui('اسحب للتنقل')}</p><p>{ui('اسحب العقد لإعادة ترتيبها')}</p><p>{ui('انقر مرتين للفتح')}</p><p>{ui('استخدم الأسهم لتحريك العقدة المحددة')}</p><div className="mt-3 flex items-center gap-2"><span className="w-6 border-t-2 border-teal-600"/>{ui('تدفق عمل')}</div><div className="flex items-center gap-2"><span className="w-6 border-t-2 border-dashed border-slate-400"/>{ui('مرجع')}</div></div>
+        <div className="mt-6 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-500 dark:border-slate-800"><p className="flex items-center gap-2"><Move size={14}/>{ui('اسحب للتنقل')}</p><p>{ui('اسحب العقد لإعادة ترتيبها')}</p><p>{ui('انقر مرتين للفتح')}</p><p>{ui('استخدم الأسهم لتحريك العقدة المحددة')}</p><div className="mt-3 flex items-center gap-2"><span className="w-6 border-t-2 border-indigo-600"/>{ui('تدفق عمل')}</div><div className="flex items-center gap-2"><span className="w-6 border-t-2 border-dashed border-slate-400"/>{ui('مرجع')}</div></div>
       </aside>
     </div>
   </section>

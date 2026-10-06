@@ -1,19 +1,35 @@
 {
-  "name": "مصنع الخليج للأعلاف",
-  "short_name": "أعلاف الخليج",
+  "name": "أعلاف الكوثر بحار الجوبه",
+  "short_name": "أعلاف الكوثر",
   "id": "/",
   "scope": "/",
   "description": "إدارة المصنع والمخزون ومسح الباركود",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1117",
-  "theme_color": "#0f766e",
+  "theme_color": "#1e127c",
   "lang": "ar",
   "dir": "rtl",
   "icons": [
-    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/pwa-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/al-kawther-logo-transparent.png",
+      "sizes": "1273x1236",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ],
-  "shortcuts": [{ "name": "الباركود", "url": "/inventory/warehouses/barcode", "icons": [{ "src": "/pwa-192.png", "sizes": "192x192" }] }]
+  "shortcuts": [
+    {
+      "name": "الباركود",
+      "url": "/inventory/warehouses/barcode",
+      "icons": [
+        {
+          "src": "/al-kawther-logo-transparent.png",
+          "sizes": "1273x1236",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    }
+  ]
 }

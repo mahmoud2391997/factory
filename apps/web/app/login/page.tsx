@@ -6,7 +6,8 @@ import { LanguageSelect } from '@/lib/i18n/language-select'
 
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, CheckCircle2, Factory, Loader2, Lock, Mail, XCircle } from 'lucide-react'
+import Image from 'next/image'
+import { AlertTriangle, CheckCircle2, Loader2, Lock, Mail, XCircle } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
 
@@ -97,10 +98,8 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-screen w-full max-w-md items-center px-5 py-10">
         <div className="w-full rounded-[12px] border border-[#e5e7eb] bg-white p-7 shadow-sm">
           <div className="mb-7 text-center">
-            <div className="mx-auto mb-4 grid size-10 place-items-center rounded-lg bg-[#1f1f1f] text-white">
-              <Factory size={18} strokeWidth={2.4} />
-            </div>
-            <div className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">مصنع الخليج للأعلاف</div>
+            <Image src="/al-kawther-logo-transparent.png" alt="شعار أعلاف الكوثر" width={1273} height={1236} priority className="mx-auto mb-4 h-40 w-40 rounded-xl object-contain" />
+            <div className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">أعلاف الكوثر بحار الجوبه</div>
             <div className="mt-1.5 text-sm font-medium text-[#6b7280]">نظام إدارة المصنع — تسجيل الدخول</div>
           </div>
 
@@ -158,7 +157,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting || setupBlocked}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-[#1f1f1f] text-sm font-medium text-white transition hover:bg-[#1f1f1f]/90 disabled:opacity-60"
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-[#1e127c] text-sm font-medium text-white transition hover:bg-[#1e127c]/90 disabled:opacity-60"
             >
               {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
               دخول النظام
@@ -175,7 +174,7 @@ export default function LoginPage() {
                     true,
                   )
                 }
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#19725f] bg-[#f0faf7] text-sm font-semibold text-[#19725f] transition hover:bg-[#e3f5ef] disabled:opacity-60"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#1e127c] bg-[#f3f0ff] text-sm font-semibold text-[#1e127c] transition hover:bg-[#e9e3ff] disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
                 دخول تجريبي ببيانات وهمية

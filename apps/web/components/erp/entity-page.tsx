@@ -126,7 +126,7 @@ export function EntityPage({
           <div className="mb-2 flex items-center gap-2 text-base text-[#7c8c86]">
             <span>{mainLabel}</span>
             <span>/</span>
-            <span className="text-[#1d7f72]">{schema.title}</span>
+            <span className="text-[#1e127c]">{schema.title}</span>
           </div>
           <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{schema.title}</h2>
           <p className="mt-2 text-lg text-[#788983]">{schema.description}</p>
@@ -142,7 +142,7 @@ export function EntityPage({
           <button
             type="button"
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-xl bg-[#123c35] px-4 py-3 text-base font-bold text-white hover:bg-[#1d594d]"
+            className="flex items-center gap-2 rounded-xl bg-[#1e127c] px-4 py-3 text-base font-bold text-white hover:bg-[#35269b]"
           >
             <Plus size={18} />
             {t('إضافة جديد')}
@@ -162,7 +162,7 @@ export function EntityPage({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('بحث...')}
-              className="h-11 rounded-lg border border-[#dfe7e3] pr-10 pl-3 text-base outline-none focus:border-[#1d7f72]"
+              className="h-11 rounded-lg border border-[#dfe7e3] pr-10 pl-3 text-base outline-none focus:border-[#1e127c]"
             />
           </div>
         </div>
@@ -174,7 +174,7 @@ export function EntityPage({
         ) : null}
 
         {selectedIds.length > 0 ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ccfbf1] bg-[#f0fdf4] p-3 text-sm text-[#134e4a] shadow-xs">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e0dbfa] bg-[#f3f0ff] p-3 text-sm text-[#271a83] shadow-xs">
             <div className="flex items-center gap-3">
               <span className="font-semibold">
                 {t('تم تحديد')} {selectedIds.length} {t('من أصل')} {filtered.length} {t('سجل')}
@@ -230,7 +230,7 @@ export function EntityPage({
                 filtered.map((row) => {
                   const isSelected = selectedIds.includes(row.id)
                   return (
-                    <tr key={row.id} className={`border-b border-[#f0f4f2] transition-colors duration-200 last:border-0 hover:bg-[#fcfdfd] ${isSelected ? 'bg-[#f0fdf4]' : ''}`}>
+                    <tr key={row.id} className={`border-b border-[#f0f4f2] transition-colors duration-200 last:border-0 hover:bg-[#fcfdfd] ${isSelected ? 'bg-[#f3f0ff]' : ''}`}>
                       <td className="w-12 py-4 text-center align-middle">
                         <input
                           type="checkbox"
@@ -306,12 +306,12 @@ export function EntityPage({
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-xl font-bold text-[#123c35]">
+                <h3 className="text-xl font-bold text-[#1e127c]">
                   {editing ? t('تعديل سجل') : t('إضافة سجل جديد')}
                 </h3>
                 <p className="mt-1 text-sm text-[#899892]">{schema.title} — حقول النموذج من الـ Schema</p>
               </div>
-              <button type="button" onClick={() => setDialogOpen(false)} className="text-sm text-[#899892] hover:text-[#123c35]">
+              <button type="button" onClick={() => setDialogOpen(false)} className="text-sm text-[#899892] hover:text-[#1e127c]">
                 {t('إغلاق')}
               </button>
             </div>
@@ -334,7 +334,7 @@ export function EntityPage({
               <button
                 type="button"
                 onClick={save}
-                className="rounded-xl bg-[#123c35] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1d594d]"
+                className="rounded-xl bg-[#1e127c] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#35269b]"
               >
                 {t('حفظ')}
               </button>

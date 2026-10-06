@@ -83,14 +83,14 @@ export function BarcodeCamera({ onScan, disabled }: { onScan: (code: string) => 
 
   return <div className="mt-4 space-y-3">
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" disabled={disabled || phase !== 'idle'} onClick={() => void start(deviceId)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"><Camera size={18}/>{phase === 'starting' ? t('starting') : t('camera')}</button>
+      <button type="button" disabled={disabled || phase !== 'idle'} onClick={() => void start(deviceId)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-indigo-700 px-4 text-sm font-semibold text-white hover:bg-indigo-800 disabled:opacity-50"><Camera size={18}/>{phase === 'starting' ? t('starting') : t('camera')}</button>
       {phase !== 'idle' && <button type="button" onClick={stop} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm dark:border-slate-600"><Square size={16}/>{t('stop')}</button>}
     </div>
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">{error}</p>}
     <div hidden={phase === 'idle'} className="space-y-3">
       <div className="relative mx-auto max-w-xl overflow-hidden rounded-xl bg-black">
         <video ref={video} aria-label={t('camera')} muted autoPlay playsInline className="aspect-[4/3] w-full object-contain"/>
-        <div aria-hidden className="pointer-events-none absolute inset-x-[10%] top-[30%] h-[40%] rounded-lg border-2 border-teal-300"/>
+        <div aria-hidden className="pointer-events-none absolute inset-x-[10%] top-[30%] h-[40%] rounded-lg border-2 border-indigo-300"/>
       </div>
       <p role="status" className="text-sm text-slate-600 dark:text-slate-300">{t('aim')}</p>
       {devices.length > 1 && <label className="block text-sm">{t('selectCamera')}<select value={deviceId} disabled={phase === 'starting'} onChange={event => void start(event.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border p-2">{devices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `${t('cameraNumber')} ${index + 1}`}</option>)}</select></label>}

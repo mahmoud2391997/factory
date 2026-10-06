@@ -46,7 +46,7 @@ export function PwaInstall() {
   }
 
   return <>
-    {visible && <button type="button" disabled={pending} onClick={() => void install()} className="fixed bottom-4 end-4 z-40 inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal-300 bg-teal-700 px-4 text-sm font-semibold text-white shadow-lg hover:bg-teal-800 disabled:opacity-50"><Download size={18}/>{mobileText(language, 'install')}</button>}
+    {visible && <button type="button" disabled={pending} onClick={() => void install()} className="fixed bottom-4 end-4 z-40 inline-flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-700 px-4 text-sm font-semibold text-white shadow-lg hover:bg-indigo-800 disabled:opacity-50"><Download size={18}/>{mobileText(language, 'install')}</button>}
     {help && <Dialog title={mobileText(language, 'install')} onClose={() => setHelp(false)}><p className="text-sm leading-7 text-slate-700 dark:text-slate-200">{mobileText(language, 'installHelp')}</p></Dialog>}
   </>
 }

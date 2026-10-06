@@ -55,7 +55,7 @@ export function ExportLinks({ href }: { href: string }) {
     return `${path}?${next.toString()}`
   }
   return (
-    <div className="flex items-center gap-3 text-sm font-bold text-[#1d7f72]">
+    <div className="flex items-center gap-3 text-sm font-bold text-[#1e127c]">
       <a href={makeHref('excel')}>Excel</a>
       <a href={makeHref('csv')}>CSV</a>
     </div>
@@ -144,13 +144,13 @@ export function DataTable({
           value={query}
           onChange={(event) => { setQuery(event.target.value); setPage(0) }}
           placeholder={translateUiText(language, 'ابحث في جميع الصفوف')}
-          className="h-9 w-full rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#0d9488] sm:max-w-xs"
+          className="h-9 w-full rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#1e127c] sm:max-w-xs"
         />
         <span className="text-xs text-[#6b7280]">{sorted.length} {translateUiText(language, 'سجل')}</span>
       </div>
 
       {selectable && selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#ccfbf1] bg-[#f0fdf4] px-4 py-2 text-sm text-[#134e4a] shadow-xs dark:border-[#134e4a] dark:bg-[#134e4a]/20 dark:text-[#ccfbf1]">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e0dbfa] bg-[#f3f0ff] px-4 py-2 text-sm text-[#271a83] shadow-xs dark:border-[#271a83] dark:bg-[#271a83]/20 dark:text-[#e0dbfa]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold">
               {translateUiText(language, 'تم تحديد')} {selectedIds.length} {translateUiText(language, 'من أصل')} {allFilteredIds.length} {translateUiText(language, 'سجل')}
@@ -159,7 +159,7 @@ export function DataTable({
               <button
                 type="button"
                 onClick={() => updateSelected(allFilteredIds)}
-                className="text-xs font-semibold text-[#0d9488] underline hover:text-[#0f766e]"
+                className="text-xs font-semibold text-[#1e127c] underline hover:text-[#1e127c]"
               >
                 {translateUiText(language, 'تحديد جميع النتائج')} ({allFilteredIds.length})
               </button>
@@ -202,7 +202,7 @@ export function DataTable({
                   <th key={column} className="px-2 py-2 font-semibold" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button
                       type="button"
-                      className="mx-auto inline-flex items-center justify-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]"
+                      className="mx-auto inline-flex items-center justify-center gap-1 rounded-md px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]"
                       aria-label={`${translateUiText(language, 'فرز')} ${label}`}
                       onClick={() => {
                         setPage(0)
@@ -233,7 +233,7 @@ export function DataTable({
                 const rowId = effectiveIds[originalIndex] ?? `${safePage}-${index}`
                 const isSelected = selectable && selectedIds.includes(rowId)
                 return (
-                  <tr key={rowId} className={`border-b border-[#f3f4f6] last:border-0 ${isSelected ? 'bg-[#f0fdf4]/50 dark:bg-[#134e4a]/10' : ''}`}>
+                  <tr key={rowId} className={`border-b border-[#f3f4f6] last:border-0 ${isSelected ? 'bg-[#f3f0ff]/50 dark:bg-[#271a83]/10' : ''}`}>
                     {selectable ? <td className="w-12 px-2 py-3 text-center align-middle">
                       <input
                         type="checkbox"
@@ -263,7 +263,7 @@ export function DataTable({
         <div className="flex items-center justify-between gap-3 text-sm text-[#6b7280]">
           <button
             type="button"
-            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] disabled:opacity-40"
+            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] disabled:opacity-40"
             disabled={safePage === 0}
             onClick={() => setPage(safePage - 1)}
           >
@@ -274,7 +274,7 @@ export function DataTable({
           </span>
           <button
             type="button"
-            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] disabled:opacity-40"
+            className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] disabled:opacity-40"
             disabled={safePage >= pageCount - 1}
             onClick={() => setPage(safePage + 1)}
           >
@@ -349,7 +349,7 @@ export function DependencyLink({ field }: { field: string }) {
   const target = CONTROL_LINK_TARGETS[field]
   if (!target) return null
   return (
-    <Link href={target.href} onClick={closeDialog} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1d7f72] underline-offset-2 hover:underline">
+    <Link href={target.href} onClick={closeDialog} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1e127c] underline-offset-2 hover:underline">
       {`${translateUiText(language, 'أضف')} ${translateUiText(language, target.label)} ${translateUiText(language, 'أولاً')}`} ↗
     </Link>
   )
@@ -498,7 +498,7 @@ export function FormDialog({
 export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'good' | 'warn' | 'bad' }) {
   const toneClass =
     tone === 'good'
-      ? 'bg-[#e5ede6] text-[#0a825d]'
+      ? 'bg-[#eeebfb] text-[#1e127c]'
       : tone === 'warn'
         ? 'bg-[#fef3c7] text-[#d97706]'
         : tone === 'bad'
@@ -544,7 +544,7 @@ export function RowActions({
           type="button"
           disabled={disabled || submitting}
           onClick={onEdit}
-          className="inline-flex items-center gap-1 rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs font-semibold text-[#0d9488] shadow-xs hover:bg-[#f0fdfa] hover:border-[#0d9488]/40 disabled:opacity-40 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 rounded-md border border-[#e5e7eb] bg-white px-2 py-1 text-xs font-semibold text-[#1e127c] shadow-xs hover:bg-[#f3f0ff] hover:border-[#1e127c]/40 disabled:opacity-40 transition-colors cursor-pointer"
           title={translateUiText(language, 'تعديل')}
         >
           <Pencil size={13} className="shrink-0" />

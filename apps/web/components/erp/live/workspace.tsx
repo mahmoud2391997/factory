@@ -166,7 +166,7 @@ export function LiveWorkspace({
             return (
               <li key={`${crumb.href}-${index}`} className="flex items-center gap-2">
                 {index > 0 ? <span aria-hidden="true">/</span> : null}
-                <Link href={crumb.href} aria-current={last ? 'page' : undefined} className={`rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${last ? 'font-semibold text-[#134e4a] dark:text-[#ccfbf1]' : 'hover:text-[#134e4a] dark:hover:text-[#ccfbf1]'}`}>
+                <Link href={crumb.href} aria-current={last ? 'page' : undefined} className={`rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${last ? 'font-semibold text-[#271a83] dark:text-[#e0dbfa]' : 'hover:text-[#271a83] dark:hover:text-[#e0dbfa]'}`}>
                   {crumb.label}
                 </Link>
               </li>
@@ -191,7 +191,7 @@ export function LiveWorkspace({
             {relatedLinks.length ? (
               <div className="flex flex-wrap items-center gap-2 pt-1" aria-label={translateUiText(language, 'روابط ذات صلة')}>
                 {relatedLinks.map((link) => (
-                  <Link key={link.entityKey} href={link.href} className="inline-flex min-h-10 items-center rounded-full border border-[#99d4cb] bg-[#f0fdfa] px-3 text-sm font-medium text-[#134e4a] hover:bg-[#ccfbf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#285c56] dark:bg-[#193b37] dark:text-[#ccfbf1] dark:hover:bg-[#134e4a]">
+                  <Link key={link.entityKey} href={link.href} className="inline-flex min-h-10 items-center rounded-full border border-[#c4b9f5] bg-[#f3f0ff] px-3 text-sm font-medium text-[#271a83] hover:bg-[#e0dbfa] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#51457e] dark:bg-[#29234b] dark:text-[#e0dbfa] dark:hover:bg-[#271a83]">
                     {translateUiText(language, link.label)}
                   </Link>
                 ))}
@@ -220,7 +220,7 @@ function NavigationGuide({ permissions }: { permissions: string[] }) {
       <p className="text-[#4b5563] dark:text-[#d4d4d8]">{translateUiText(language, 'فهرس مساحات العمل والأقسام والشاشات المتاحة حسب صلاحيتك.')}</p>
       {workspaces.map((workspace) => (
         <section key={workspace.id} className="rounded-xl border border-[#e5e7eb] bg-white p-4 dark:border-[#3f3f46] dark:bg-[#18181b]">
-          <h3 className="mb-3 text-lg font-semibold text-[#134e4a] dark:text-[#ccfbf1]">{translateUiText(language, workspace.label)}</h3>
+          <h3 className="mb-3 text-lg font-semibold text-[#271a83] dark:text-[#e0dbfa]">{translateUiText(language, workspace.label)}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             {workspace.sections.map((section) => (
               <div key={section.id} className="rounded-lg bg-[#f9fafb] p-3 dark:bg-[#202024]">
@@ -228,7 +228,7 @@ function NavigationGuide({ permissions }: { permissions: string[] }) {
                 <ul className="space-y-1">
                   {section.pages.map((page) => (
                     <li key={page.id}>
-                      <Link href={page.href} className="group flex min-h-10 items-center justify-between gap-3 rounded-md px-2 text-sm text-[#374151] hover:bg-[#e9f7f4] hover:text-[#134e4a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:text-[#e4e4e7] dark:hover:bg-[#193b37] dark:hover:text-[#ccfbf1]">
+                      <Link href={page.href} className="group flex min-h-10 items-center justify-between gap-3 rounded-md px-2 text-sm text-[#374151] hover:bg-[#eeebfb] hover:text-[#271a83] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:text-[#e4e4e7] dark:hover:bg-[#29234b] dark:hover:text-[#e0dbfa]">
                         <span className="min-w-0 flex-1 truncate font-medium">{translateUiText(language, page.label)}</span>
                         <span className="hidden truncate text-xs text-[#6b7280] group-hover:block dark:text-[#a1a1aa]">{translateUiText(language, page.description)}</span>
                       </Link>

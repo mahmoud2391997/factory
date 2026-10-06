@@ -44,8 +44,8 @@ function DayNote({ day, shifted }: { day: string; shifted: boolean }) {
 
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: 'bad' | 'good' }) {
   const { language } = useLanguage()
-  const toneClass = tone === 'bad' ? 'text-[#dc2626]' : tone === 'good' ? 'text-[#0a825d]' : 'text-[#1f1f1f]'
-  const barClass = tone === 'bad' ? 'bg-[#ef4444]' : tone === 'good' ? 'bg-[#10b981]' : 'bg-[#0d9488]'
+  const toneClass = tone === 'bad' ? 'text-[#dc2626]' : tone === 'good' ? 'text-[#1e127c]' : 'text-[#1f1f1f]'
+  const barClass = tone === 'bad' ? 'bg-[#ef4444]' : tone === 'good' ? 'bg-[#7664d8]' : 'bg-[#1e127c]'
   return (<LocalizedContent>{(
     <div className="relative overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white p-4 ps-5 shadow-sm">
       <span aria-hidden className={`absolute inset-y-3 right-0 w-1.5 rounded-full ${barClass}`} />
@@ -345,11 +345,11 @@ function VarianceReportScreen({ ctx }: { ctx: LiveCtx }) {
               <div className="w-40 shrink-0 truncate text-sm text-[#53655e]">{row.label}</div>
               <div className="relative h-4 flex-1 rounded bg-[#f1f5f4]">
                 <div
-                  className={`absolute inset-y-0 rounded ${row.variancePct < 0 ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`}
+                  className={`absolute inset-y-0 rounded ${row.variancePct < 0 ? 'bg-[#ef4444]' : 'bg-[#7664d8]'}`}
                   style={{ width: `${(Math.abs(row.variancePct) / maxAbs) * 100}%` }}
                 />
               </div>
-              <div className={`w-20 text-right text-sm tabular-nums ${row.variancePct < 0 ? 'text-[#dc2626]' : 'text-[#0a825d]'}`}>{pctFmt(row.variancePct)}</div>
+              <div className={`w-20 text-right text-sm tabular-nums ${row.variancePct < 0 ? 'text-[#dc2626]' : 'text-[#1e127c]'}`}>{pctFmt(row.variancePct)}</div>
             </div>
           ))}
         </div>

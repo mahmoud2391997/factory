@@ -104,7 +104,7 @@ export function PageTabs({
           const selected = tabs.find((tab) => tab.id === event.target.value)
           if (selected) router.push(selected.href)
         }}
-        className="min-h-11 w-full min-w-0 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#134e4a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#ccfbf1]"
+        className="min-h-11 w-full min-w-0 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#271a83] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#e0dbfa]"
       >
         {tabs.map((tab) => <option key={tab.id} value={tab.id}>{translateUiText(language, tab.label)}</option>)}
       </select>
@@ -119,7 +119,7 @@ export function PageTabs({
         href={tab.href}
         aria-current={active ? 'page' : undefined}
         title={translateUiText(language, tab.label)}
-        className={`flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg px-2 py-2 text-center text-sm font-semibold leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0d9488] ${active ? 'bg-white text-[#134e4a] shadow-sm ring-1 ring-black/5 dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#e5e7eb] hover:text-[#134e4a] dark:text-[#d4d4d8] dark:hover:bg-[#3f3f46] dark:hover:text-[#ccfbf1]'}`}
+        className={`flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg px-2 py-2 text-center text-sm font-semibold leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e127c] ${active ? 'bg-white text-[#271a83] shadow-sm ring-1 ring-black/5 dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#e5e7eb] hover:text-[#271a83] dark:text-[#d4d4d8] dark:hover:bg-[#3f3f46] dark:hover:text-[#e0dbfa]'}`}
       >
         <span className="min-w-0 break-words">{translateUiText(language, tab.label)}</span>
       </Link>
@@ -154,7 +154,7 @@ export function PageTabs({
                   <Link
                     href={tab.href}
                     aria-current={tab.id === activePrimaryId ? 'page' : undefined}
-                    className={`flex min-h-10 min-w-0 items-center rounded-lg px-3 py-2 text-sm font-medium leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${tab.id === activePrimaryId ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}
+                    className={`flex min-h-10 min-w-0 items-center rounded-lg px-3 py-2 text-sm font-medium leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${tab.id === activePrimaryId ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}
                   >
                     <span className="min-w-0 break-words">{translateUiText(language, tab.label)}</span>
                   </Link>
@@ -202,7 +202,7 @@ export function PageTabs({
                     role="menuitem"
                     aria-current={tab.id === activePrimaryId ? 'page' : undefined}
                     onClick={() => setMoreOpen(false)}
-                    className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${tab.id === activePrimaryId ? 'bg-[#e9f7f4] text-[#134e4a] dark:bg-[#193b37] dark:text-[#ccfbf1]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'}`}
+                    className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${tab.id === activePrimaryId ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'}`}
                   >
                     <span className="break-words">{translateUiText(language, tab.label)}</span>
                   </Link>
@@ -251,7 +251,7 @@ export function PageTabs({
                     setMoreOpen(true)
                   }
                 }}
-                className="flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-semibold text-[#4b5563] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] dark:text-[#d4d4d8]"
+                className="flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-semibold text-[#4b5563] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:text-[#d4d4d8]"
               >
                 {activeOverflowTab ? translateUiText(language, activeOverflowTab.label) : translateUiText(language, 'المزيد')}
                 <ChevronDown size={15} aria-hidden className={`transition-transform motion-reduce:transition-none ${moreOpen ? 'rotate-180' : ''}`} />
