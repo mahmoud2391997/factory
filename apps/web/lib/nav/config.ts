@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { CarFront, Factory, Landmark, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
+import { CarFront, Factory, Handshake, Landmark, LayoutDashboard, Settings, ShoppingCart, Users, Warehouse } from 'lucide-react'
 
 export type NavRelatedLink = { entityKey: string; label: string }
 export type NavPage = { id: string; entityKey: string; href: string; label: string; description: string; keywords: string[]; permission: string[]; accessPaths: Array<{ mainPermission: string[]; pagePermission: string[] }>; tab: boolean; tabGroup?: string; tabGroupLabel?: string; canonical?: boolean; queryView?: { param: string; value: string }; relatedLinks?: NavRelatedLink[] }
@@ -43,7 +43,7 @@ export const NAV_CONFIG: { workspaces: NavWorkspace[]; utilityPages: NavPage[]; 
         {"id":"profitability","entityKey":"profitability","href":"/sales/profitability","label":"الربحية","description":"تكلفة الطن ومتوسط سعر البيع والهامش حسب المنتج أو العميل أو الشهر","keywords":["الربحية حسب المنتج والعميل","المبيعات والتوزيع","الربحية"],"permission":["sales.read"],"tab":true,"accessPaths":[{"mainPermission":["sales.read"],"pagePermission":["sales.read"]}]},
       ] },
     ] },
-    { id: "purchasing", label: "المشتريات والموردون", icon: ShoppingCart, keywords: ["مشتريات", "موردون", "عروض"], sections: [
+    { id: "purchasing", label: "المشتريات والموردون", icon: Handshake, keywords: ["مشتريات", "موردون", "عروض"], sections: [
       { id: "purchasing", label: "المشتريات والموافقات", keywords: ["طلبات الشراء", "الاعتماد", "الموردون"], workflow: 'مورد ← طلب شراء ← أمر شراء ← استلام', pages: [
         {"id":"supplier","entityKey":"supplier","href":"/sales/parties/suppliers","label":"الموردون","description":"ملفات الموردين؛ تحليل الأسعار في شاشة تحليل أسعار المواد الخام.","keywords":["ملف الموردين وآخر أسعار الشراء","المشتريات والموردون","المشتريات والموافقات"],"permission":["purchasing.read"],"tab":true,"relatedLinks":[{"entityKey":"supplierCommunication","label":"مراسلات الموردين"}],"accessPaths":[{"mainPermission":["purchasing.read"],"pagePermission":["purchasing.read"]}]},
         {"id":"purchaseRequest","entityKey":"purchaseRequest","href":"/sales/parties/requests","label":"طلبات الشراء","description":"طلب → عروض الموردين → اختيار المورد → اعتماد → أمر شراء","keywords":["طلبات الشراء وعروض الأسعار والمقارنة والاعتماد","المشتريات والموردون","المشتريات والموافقات","طلب شراء","موافقة"],"permission":["purchasing.read"],"tab":true,"accessPaths":[{"mainPermission":["purchasing.read"],"pagePermission":["purchasing.read"]}]},

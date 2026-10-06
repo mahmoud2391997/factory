@@ -220,21 +220,18 @@ export function ErpShell() {
 
   useEffect(() => {
     try {
-      setCompact(localStorage.getItem(COMPACT_KEY) === '1')
+      const storedCompact = localStorage.getItem(COMPACT_KEY)
+      setCompact(storedCompact === null ? window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches : storedCompact === '1')
       const storedWorkspaces = localStorage.getItem(OPEN_WORKSPACE_KEY)
       if (storedWorkspaces) {
         try {
           const parsed = JSON.parse(storedWorkspaces)
-          if (Array.isArray(parsed) && parsed.length > 1) {
+          if (Array.isArray(parsed) && parsed.every((id) => typeof id === 'string')) {
             setOpenWorkspaceIds(parsed)
-          } else if (Array.isArray(parsed)) {
-            setOpenWorkspaceIds((current) => Array.from(new Set([...current, ...parsed])))
           }
         } catch {
           setOpenWorkspaceIds((current) => Array.from(new Set([...current, storedWorkspaces])))
         }
-      } else if (window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches) {
-        setCompact(true)
       }
     } catch {
       // Use the default sidebar state when storage is unavailable or malformed.
@@ -363,7 +360,7 @@ export function ErpShell() {
 
   const toggleWorkspace = (workspaceId: string, href: string | null) => {
     if (compact && !mobileOpen) {
-      setFlyoutWorkspaceId((current) => (current === workspaceId ? null : workspaceId))
+      setFlyoutWorkspaceId(workspaceId)
       setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId]))
       return
     }
@@ -524,11 +521,11 @@ export function ErpShell() {
         <button type="button" aria-label={uiLabel('إغلاق')} className="fixed inset-0 z-30 bg-[#111827]/45 md:hidden" onClick={closeMobile} />
       ) : null}
       <aside
-        className={`erp-sidebar fixed z-40 flex w-[min(280px,calc(100vw-24px))] flex-col bg-[#f9fafb] text-[#1f1f1f] transition-[width,transform] duration-200 motion-reduce:transition-none md:inset-y-[15px] md:w-[280px] md:translate-x-0 ${iconOnly ? 'md:w-[72px]' : ''} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-2xl' : `inset-y-0 right-0 ${language === 'ar' ? 'translate-x-full' : '-translate-x-full'}`} ${language !== 'ar' ? 'ltr-sidebar' : ''}`}
+        className={`erp-sidebar fixed z-40 flex w-[min(280px,calc(100vw-24px))] flex-col bg-[#f9fafb] text-[#1f1f1f] transition-[width,transform] duration-200 motion-reduce:transition-none md:inset-y-[15px] md:translate-x-0 ${iconOnly ? 'md:w-[72px]' : 'md:w-[280px]'} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-2xl' : `inset-y-0 right-0 ${language === 'ar' ? 'translate-x-full' : '-translate-x-full'}`} ${language !== 'ar' ? 'ltr-sidebar' : ''}`}
       >
-        <div className={`flex h-16 shrink-0 items-center border-b border-[#e5e7eb] ${iconOnly ? 'justify-center gap-1 px-2' : 'gap-2 px-4'}`}>
-          <Link href="/" aria-label={uiLabel('الرئيسية')} onClick={closeMobile} className="erp-mark grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]">
-            <Image src="/al-kawther-logo-transparent.png" alt={uiLabel('أعلاف الكوثر بحار الجوبه')} width={48} height={48} className="h-12 w-12 object-contain" />
+        <div className={`flex shrink-0 items-center border-b border-[#e5e7eb] ${iconOnly ? 'h-24 flex-col justify-center gap-1 px-2' : 'h-16 gap-2 px-4'}`}>
+          <Link href="/" aria-label={uiLabel('الرئيسية')} onClick={closeMobile} className={`erp-mark grid shrink-0 place-items-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${iconOnly ? 'size-9' : 'size-12'}`}>
+            <Image src="/al-kawther-logo-transparent.png" alt={uiLabel('أعلاف الكوثر بحار الجوبه')} width={48} height={48} className="h-full w-full object-contain" />
           </Link>
           <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
             <div className="text-sm font-semibold leading-6">{uiLabel('أعلاف الكوثر بحار الجوبه')}</div>
@@ -537,8 +534,8 @@ export function ErpShell() {
             type="button"
             aria-label={uiLabel(compact ? 'توسيع الشريط' : 'طي الشريط')}
             title={uiLabel(compact ? 'توسيع الشريط' : 'طي الشريط')}
-            className={`grid size-7 shrink-0 place-items-center rounded-lg text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${mobileOpen ? 'hidden' : ''}`}
-            onClick={() => setCompact((value) => !value)}
+            className={`grid size-8 shrink-0 place-items-center rounded-lg text-[#525252] hover:bg-neutral-200/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${mobileOpen ? 'hidden' : ''}`}
+            onClick={() => { setCompact((value) => !value); setFlyoutWorkspaceId(null); setSearchOpen(false) }}
           >
             {compact ? <PanelRightOpen size={17} aria-hidden /> : <PanelRightClose size={17} aria-hidden />}
           </button>
@@ -681,7 +678,7 @@ export function ErpShell() {
                     const isSinglePage = pages.length === 1
                     const Icon = workspace.icon
                     const badgeValue = workspace.id === 'inventory' && canSeeEntity(permissions, 'material') ? status?.inventory.runningOut.length ?? 0 : 0
-                    const rowClass = `erp-workspace-item ${active ? 'erp-workspace-active bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'} flex h-11 w-full items-center gap-3 rounded-xl px-3 text-right text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]`
+                    const rowClass = `${iconOnly ? 'justify-center' : ''} erp-workspace-item ${active ? 'erp-workspace-active bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'} flex h-11 w-full items-center gap-3 rounded-xl px-3 text-right text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]`
                     const row = isSinglePage ? (
                       <Link key={workspace.id} data-nav-item="true" data-workspace-id={workspace.id} href={entryHref ?? '/'} aria-current={active ? 'page' : undefined} title={iconOnly ? uiLabel(workspace.label) : undefined} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspace.id) ? current : [...current, workspace.id])); closeMobile() }} className={rowClass}>
                         <Icon size={18} aria-hidden className="shrink-0" />
@@ -696,7 +693,7 @@ export function ErpShell() {
                         data-workspace-id={workspace.id}
                         title={iconOnly ? uiLabel(workspace.label) : undefined}
                         aria-label={uiLabel(workspace.label)}
-                        aria-expanded={isExpanded && (!iconOnly || flyoutWorkspaceId === workspace.id)}
+                        aria-expanded={iconOnly ? flyoutWorkspaceId === workspace.id : isExpanded}
                         onMouseEnter={(event) => { if (iconOnly) openFlyoutAt(workspace.id, event.currentTarget) }}
                         onFocus={(event) => { if (iconOnly) openFlyoutAt(workspace.id, event.currentTarget) }}
                         onClick={() => toggleWorkspace(workspace.id, entryHref)}
