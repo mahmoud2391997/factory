@@ -1,5 +1,7 @@
 'use client'
 
+import { landingPath } from '@/lib/auth/landing'
+
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -188,6 +190,7 @@ export function ErpShell() {
   const unread = unreadNotificationCount(notices)
   const showNotices = canSeeEntity(permissions, 'notification')
   const allowed = resolved ? canSeeEntity(permissions, resolved.page.entityKey) : false
+  const redirectingHome = Boolean(user && pathname === '/' && !canSeeEntity(permissions, 'dashboard'))
   const meta = resolved ? { label: uiLabel(resolved.page.label), description: uiLabel(resolved.page.description) } : null
   const tabs = resolved && allowed ? pageTabs(resolved, permissions) : null
   const crumbs = resolved && allowed
@@ -213,6 +216,10 @@ export function ErpShell() {
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login')
   }, [authLoading, user, router])
+
+  useEffect(() => {
+    if (!authLoading && user && redirectingHome) router.replace(landingPath(user))
+  }, [authLoading, user, redirectingHome, router])
 
   useEffect(() => {
     if (erp.message) setToast(erp.message)
@@ -501,7 +508,7 @@ export function ErpShell() {
     )
   }
 
-  if (authLoading || !user) {
+  if (authLoading || !user || redirectingHome) {
     return (
       <main dir={direction} className="grid min-h-screen place-items-center bg-[#f9fafb] text-[#1f1f1f]">
         <div className="flex items-center gap-3 text-sm text-[#6b7280]">
@@ -524,7 +531,7 @@ export function ErpShell() {
         className={`erp-sidebar fixed z-40 flex w-[min(280px,calc(100vw-24px))] flex-col bg-[#f9fafb] text-[#1f1f1f] transition-[width,transform] duration-200 motion-reduce:transition-none md:inset-y-[15px] md:translate-x-0 ${iconOnly ? 'md:w-[72px]' : 'md:w-[280px]'} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-2xl' : `inset-y-0 right-0 ${language === 'ar' ? 'translate-x-full' : '-translate-x-full'}`} ${language !== 'ar' ? 'ltr-sidebar' : ''}`}
       >
         <div className={`flex shrink-0 items-center border-b border-[#e5e7eb] ${iconOnly ? 'h-24 flex-col justify-center gap-1 px-2' : 'h-16 gap-2 px-4'}`}>
-          <Link href="/" aria-label={uiLabel('الرئيسية')} onClick={closeMobile} className={`erp-mark grid shrink-0 place-items-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${iconOnly ? 'size-9' : 'size-12'}`}>
+          <Link href={landingPath(user)} aria-label={uiLabel('الرئيسية')} onClick={closeMobile} className={`erp-mark grid shrink-0 place-items-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${iconOnly ? 'size-9' : 'size-12'}`}>
             <Image src="/al-kawther-logo-transparent.png" alt={uiLabel('أعلاف الكوثر بحار الجوبه')} width={48} height={48} className="h-full w-full object-contain" />
           </Link>
           <div className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>

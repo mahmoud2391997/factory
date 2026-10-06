@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Lock } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
+import { landingPath } from '@/lib/auth/landing'
 
 export default function ChangePasswordPage() {
   const router = useRouter()
@@ -22,7 +23,7 @@ export default function ChangePasswordPage() {
   useEffect(() => {
     if (loading) return
     if (!user) router.replace('/login')
-    else if (!user.mustChangePassword) router.replace('/')
+    else if (!user.mustChangePassword) router.replace(landingPath(user))
   }, [loading, user, router])
 
   const onSubmit = async (event: FormEvent) => {
@@ -51,7 +52,7 @@ export default function ChangePasswordPage() {
         return
       }
       await refresh()
-      router.replace('/')
+      router.replace(landingPath({ ...user, mustChangePassword: false }))
     } finally {
       setPending(false)
     }

@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { AlertTriangle, CheckCircle2, Loader2, Lock, Mail, XCircle } from 'lucide-react'
 
 import { useAuth } from '@/components/providers/auth-provider'
+import { landingPath } from '@/lib/auth/landing'
 
 type HealthData = {
   status: 'ok' | 'degraded' | 'demo'
@@ -36,7 +37,7 @@ export default function LoginPage() {
   const [healthLoading, setHealthLoading] = useState(true)
 
   useEffect(() => {
-    if (!loading && user) router.replace(user.mustChangePassword ? '/account/password' : '/')
+    if (!loading && user) router.replace(landingPath(user))
   }, [loading, user, router])
 
   useEffect(() => {
