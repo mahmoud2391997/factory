@@ -86,15 +86,19 @@ for (const key of ['WH_RAW', 'WH_MFG', 'WH_FG']) {
 console.log('Verified stock locations: WH_RAW, WH_MFG, WH_FG.')
 
 const roles = [
-  ['ACCOUNTANT', 'Test Accountant'],
-  ['OPERATIONS', 'Test Operations'],
-  ['QUALITY', 'Test Quality'],
-  ['STOREKEEPER', 'Test Storekeeper'],
-  ['DRIVER', 'Test Driver'],
-  ['SALES', 'Test Sales'],
+  ['ACCOUNTANT', 'محاسب التجربة'],
+  ['OPERATIONS', 'مسؤول العمليات التجريبي'],
+  ['QUALITY', 'مسؤول الجودة التجريبي'],
+  ['STOREKEEPER', 'أمين المخزن التجريبي'],
+  ['PRODUCTION', 'مدير الإنتاج التجريبي'],
+  ['MAINTENANCE', 'مسؤول الصيانة التجريبي'],
+  ['DRIVER', 'السائق التجريبي'],
+  ['SALES', 'مسؤول المبيعات التجريبي'],
+  // Production includes packaging.manage even on a freshly bootstrapped database.
+  ['PRODUCTION', 'مدخل بيانات الأكياس التجريبي', 'seed-data-entry@factory.local'],
 ]
-for (const [role, fullName] of roles) {
-  const email = `seed-${role.toLowerCase()}@factory.local`
+for (const [role, fullName, accountEmail] of roles) {
+  const email = accountEmail || `seed-${role.toLowerCase()}@factory.local`
   state = await getState()
   const user = state.users.find((item) => item.email.toLowerCase() === email)
   if (user) {
@@ -105,6 +109,11 @@ for (const [role, fullName] of roles) {
     counts.created += 1
   }
 }
+
+await ensureByCode('packagingMaterials', 'SEED-BAG-50', 'createPackagingMaterial', {
+  code: 'SEED-BAG-50', nameAr: 'كيس علف تجريبي 50 كجم', category: 'BAG',
+  quantity: 200, unit: 'كيس', unitCost: 0.1, minStock: 20, expectedPerTon: 20,
+})
 
 for (const suffix of ['01', '02']) {
   const supplierName = `مورد اختبارات المصنع ${suffix}`
@@ -161,9 +170,86 @@ await ensureByCode('distributionPoints', 'SEED-DP-01', 'createDistributionPoint'
   code: 'SEED-DP-01', nameAr: 'نقطة توزيع اختبارية', location: 'الموقع التجريبي', phone: '',
 })
 
+// Leave a draft invoice for the accountant to inspect without posting a sale.
+state = await getState()
+const invoiceNote = 'SEED: فاتورة تجربة المالك — مسودة'
+if (!state.invoices.some((item) => item.notes === invoiceNote)) {
+  const customer = state.customers.find((item) => item.nameAr === 'عميل اختبارات المصنع 01')
+  assert.ok(customer, 'test customer could not be reread')
+  await command('createInvoice', {
+    customerId: customer.id, notes: invoiceNote,
+    lines: [{ productId: product.id, qty: 100, unitPrice: 0.25 }],
+  }, 'seed:owner-invoice')
+  counts.created += 1
+} else {
+  counts.skipped += 1
+}
+
+await ensureByName('employees', 'مشغل الإنتاج التجريبي', 'createEmployee', {
+  nameAr: 'مشغل الإنتاج التجريبي', department: 'الإنتاج', jobTitle: 'مشغل خط الإنتاج', basicSalary: 300,
+})
+
+// Receive enough raw stock for two one-ton runs through the normal ERP workflow.
+state = await getState()
+const purchaseNote = 'SEED: مواد تجربة المالك'
+let purchase = state.purchaseOrders.find((item) => item.notes === purchaseNote)
+if (!purchase) {
+  const supplier = state.suppliers.find((item) => item.nameAr === 'مورد اختبارات المصنع 01')
+  assert.ok(supplier, 'test supplier could not be reread')
+  await command('createPurchaseOrder', {
+    supplierId: supplier.id, notes: purchaseNote,
+    lines: materials.map((material) => ({ materialId: material.id, qty: 500, unitCost: 0.04 })),
+  }, 'seed:owner-purchase')
+  state = await getState()
+  purchase = state.purchaseOrders.find((item) => item.notes === purchaseNote)
+  counts.created += 1
+}
+assert.ok(purchase, 'test purchase order could not be reread')
+if (purchase.status === 'PENDING_APPROVAL') {
+  await command('decidePurchaseOrder', { id: purchase.id, decision: 'APPROVED' }, 'seed:owner-purchase-approval')
+}
+if (!state.goodsReceipts.some((item) => item.purchaseOrderId === purchase.id)) {
+  await command('receiveGoods', {
+    purchaseOrderId: purchase.id,
+    lines: materials.map((material, index) => ({ materialId: material.id, qty: 500, batchNo: `SEED-BATCH-0${index + 1}` })),
+  }, 'seed:owner-receipt')
+  counts.created += 1
+}
+for (const [index, material] of materials.entries()) {
+  const batchNo = `SEED-BATCH-0${index + 1}`
+  state = await getState()
+  if (!state.qualitySamples.some((item) => item.materialId === material.id && item.batchNo === batchNo)) {
+    await command('createQualitySample', {
+      type: 'RAW_MATERIAL', materialId: material.id, batchNo, moisturePct: 10,
+      result: 'PASSED', reason: 'SEED: اعتماد مواد افتراضية لتجربة المالك على قاعدة الاختبار',
+    }, `seed:owner-qc:${batchNo}`)
+    counts.created += 1
+  }
+}
+state = await getState()
+if (!state.transfers.some((item) => item.notes === purchaseNote)) {
+  await command('transferStock', {
+    from: 'WH_RAW', to: 'WH_MFG', notes: purchaseNote,
+    lines: materials.map((material, index) => ({ itemType: 'MATERIAL', itemId: material.id, qty: 500, batchNo: `SEED-BATCH-0${index + 1}` })),
+  }, 'seed:owner-transfer')
+  counts.created += 1
+}
+state = await getState()
+if (!state.productionOrders.some((item) => item.productId === product.id)) {
+  const recipe = state.recipes.find((item) => item.productId === product.id)
+  assert.ok(recipe, 'test recipe could not be reread')
+  await command('createProductionOrder', {
+    productId: product.id, recipeId: recipe.id, plannedQty: 1000,
+  }, 'seed:owner-production')
+  counts.created += 1
+}
+
 console.log('\nSeed summary:')
 console.log('- Suppliers: 2; customers: 2; raw materials: 4; finished products: 1; recipe: 1.')
 console.log('- Stock locations verified: WH_RAW, WH_MFG, WH_FG; vehicle: 1; machine: 1; distribution point: 1.')
-console.log(`- Test users: ${roles.length} (accountant, operations, quality, storekeeper, driver, sales).`)
+console.log(`- Test users: ${roles.length} (all operational roles plus a bag data-entry account using PRODUCTION permissions).`)
+console.log('- Packaging: 200 test bags for a 50 kg product (20 bags per ton).')
+console.log('- Owner walkthrough: draft sales invoice and a production operator; recipe output is 1,000 kg.')
+console.log('- Raw stock: 2,000 kg received, quality checked, and transferred to production; one 1,000 kg production order ready to complete.')
 console.log(`- API operations: ${counts.created} created, ${counts.updated} password updates, ${counts.skipped} already present.`)
 console.log('- All test users use SEED_TEST_PASSWORD (default is test-only FactoryTest123!). Change or remove these accounts before any live business use.')

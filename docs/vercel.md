@@ -22,7 +22,7 @@
 - `DATABASE_URL_UNPOOLED` أو اسم Neon/Vercel مباشر مدعوم: رابط direct/unpooled لتطبيق migrations.
 - أضف `sslmode=require` إلى الرابطين إذا لم يضفه المزوّد.
 - `JWT_SECRET` و`SETUP_TOKEN`: قيم عشوائية قوية، مختلفة، وغير ملتزمة إلى Git.
-- لا تستخدم `APP_MODE=demo` مع قاعدة بيانات.
+- اضبط `APP_MODE=production` صراحةً؛ تركه فارغًا يستخدم demo في النسخة الحالية.
 
 لا يحتوي `packages/database/prisma/schema.prisma` على `directUrl`. يتولى `scripts/vercel-build.sh` اختيار رابط direct وتمريره إلى `prisma migrate deploy`؛ يظل `DATABASE_URL` رابط تشغيل التطبيق.
 

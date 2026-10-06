@@ -1,0 +1,61 @@
+{
+  "url": "https://factory-web-rouge.vercel.app",
+  "verifiedAt": "2026-10-06T20:51:35.126Z",
+  "storage": "postgresql",
+  "checks": [
+    {
+      "email": "seed-data-entry@factory.local",
+      "role": "PRODUCTION",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-sales@factory.local",
+      "role": "SALES",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-driver@factory.local",
+      "role": "DRIVER",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-maintenance@factory.local",
+      "role": "MAINTENANCE",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-production@factory.local",
+      "role": "PRODUCTION",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-storekeeper@factory.local",
+      "role": "STOREKEEPER",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-quality@factory.local",
+      "role": "QUALITY",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-operations@factory.local",
+      "role": "OPERATIONS",
+      "mustChangePassword": false,
+      "login": "passed"
+    },
+    {
+      "email": "seed-accountant@factory.local",
+      "role": "ACCOUNTANT",
+      "mustChangePassword": false,
+      "login": "passed"
+    }
+  ]
+}

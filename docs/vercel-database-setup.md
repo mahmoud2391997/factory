@@ -8,7 +8,7 @@
 - استخدم `DATABASE_URL` المجمع/pooled لتشغيل التطبيق و`DATABASE_URL_UNPOOLED` المباشر/unpooled لتطبيق migrations متى توفر.
 - أضف `sslmode=require` إلى الرابطين إذا لم يضفه مزوّد قاعدة البيانات.
 - اضبط `JWT_SECRET` و`SETUP_TOKEN` على قيم عشوائية قوية ومختلفة. لا تضع الأسرار في Git ولا تشاركها في طلبات الدعم.
-- اترك `APP_MODE` فارغًا أو `production`. لا تجمع وضع demo مع قاعدة بيانات.
+- اضبط `APP_MODE=production` صراحةً؛ النسخة الحالية تستخدم demo افتراضيًا عند تركه فارغًا. لا تجمع وضع demo مع قاعدة بيانات.
 - لا يحتوي Prisma schema على `directUrl`؛ `scripts/vercel-build.sh` يمرّر رابط الاتصال المباشر إلى migration عند توفره.
 
 ## التحقق
