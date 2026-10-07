@@ -5256,5 +5256,5 @@ export const supplementalUi: Record<string, { en: string; hi: string }> = {
   "حالة المخزون": {"en": "Inventory status", "hi": "इन्वेंटरी स्थिति"},
   "عدد المواد في كل حالة؛ قد تظهر المادة في أكثر من حالة.": {"en": "Material counts by status; a material can appear in more than one status.", "hi": "स्थिति के अनुसार सामग्री की संख्या; एक सामग्री एक से अधिक स्थितियों में हो सकती है।"},
   "عدد المواد": {"en": "Material count", "hi": "सामग्री की संख्या"},
-  "مرر للتنقل في الصفحة. استخدم Ctrl أو ⌘ مع التمرير لتكبير الخريطة.": { "en": "Scroll to move through the page. Hold Ctrl or ⌘ while scrolling to zoom the map.", "hi": "पेज पर आगे बढ़ने के लिए स्क्रॉल करें। मानचित्र को ज़ूम करने के लिए स्क्रॉल करते समय Ctrl या ⌘ दबाए रखें।" },
+  "اسحب داخل الخريطة على الهاتف أو الجهاز اللوحي. على الكمبيوتر، التمرير يحرك الصفحة. استخدم الأزرار لتكبير الخريطة.": { "en": "Swipe inside the map on a phone or tablet. On a computer, scrolling moves the page. Use the buttons to zoom the map.", "hi": "फ़ोन या टैबलेट पर मानचित्र के अंदर स्वाइप करें। कंप्यूटर पर स्क्रॉल करने से पेज आगे बढ़ता है। मानचित्र को ज़ूम करने के लिए बटन इस्तेमाल करें।" },
 }

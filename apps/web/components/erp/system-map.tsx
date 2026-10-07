@@ -79,21 +79,6 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
     return () => observer.disconnect()
   }, [fit, isFullscreen])
   useEffect(() => {
-    const el = canvasRef.current
-    if (!el) return
-    const wheel = (event: WheelEvent) => {
-      // Embedded maps must not trap page scrolling. Zoom is an explicit gesture.
-      if (!isFullscreen && !event.ctrlKey && !event.metaKey) return
-      event.preventDefault()
-      if (drag.current) return
-      const rect = el.getBoundingClientRect()
-      viewRef.current = zoomAt(viewRef.current, { x: event.clientX - rect.left, y: event.clientY - rect.top }, viewRef.current.zoom * Math.exp(-event.deltaY * 0.002))
-      schedule()
-    }
-    el.addEventListener('wheel', wheel, { passive: false })
-    return () => el.removeEventListener('wheel', wheel)
-  }, [schedule, isFullscreen])
-  useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { setIsFullscreen(false); setSelected(null); drag.current = null; setDragging(null) }
     }
@@ -111,8 +96,6 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
     if (event.button !== 0 || drag.current) return
     if (!node && (event.target as HTMLElement).closest('button,input,a,[data-node]')) return
     wasDragged.current = false
-    // Leave embedded touch gestures to native page scrolling.
-    if (event.pointerType === 'touch' && !isFullscreen) return
     event.stopPropagation()
     drag.current = { pointerId: event.pointerId, id: node?.id ?? null, start: { x: event.clientX, y: event.clientY }, origin: node ? { ...(posRef.current[node.id] ?? node) } : { ...viewRef.current.pan }, moved: false }
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -180,7 +163,7 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
     <div className={`flex min-h-0 flex-col xl:flex-row ${isFullscreen ? 'flex-1' : ''}`}>
       <div className="relative min-w-0 flex-1">
         <div className="absolute start-3 top-3 z-10 flex max-w-[calc(100%-24px)] items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 shadow-sm dark:border-slate-700 dark:bg-slate-900/95"><Search size={16} className="shrink-0 text-slate-400"/><input aria-label={ui('البحث في الخريطة')} placeholder={ui('البحث في الخريطة')} value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-44 min-w-0 bg-transparent text-sm outline-none sm:w-56" />{query && <button aria-label={ui('مسح البحث')} onClick={() => setQuery('')}><X size={14}/></button>}</div>
-        <div ref={canvasRef} data-testid="map-canvas" dir="ltr" tabIndex={0} aria-label={ui('خريطة تفاعلية')} className={`relative ${isFullscreen ? 'touch-none' : 'touch-pan-y touch-pinch-zoom'} select-none overflow-hidden bg-slate-50 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 dark:bg-[#111c2b] ${isFullscreen ? 'h-full min-h-[300px]' : 'h-[420px] sm:h-[620px]'}`} style={{cursor: dragging === 'canvas' ? 'grabbing' : 'grab', backgroundImage: 'radial-gradient(circle, #94a3b844 1px, transparent 1px)', backgroundSize: `${24*view.zoom}px ${24*view.zoom}px`, backgroundPosition: `${view.pan.x}px ${view.pan.y}px`}} onPointerDown={e => startDrag(e)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={e => {
+        <div ref={canvasRef} data-testid="map-canvas" dir="ltr" tabIndex={0} aria-label={ui('خريطة تفاعلية')} className={`relative touch-none select-none overflow-hidden bg-slate-50 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 dark:bg-[#111c2b] ${isFullscreen ? 'h-full min-h-[300px]' : 'h-[420px] sm:h-[620px]'}`} style={{cursor: dragging === 'canvas' ? 'grabbing' : 'grab', backgroundImage: 'radial-gradient(circle, #94a3b844 1px, transparent 1px)', backgroundSize: `${24*view.zoom}px ${24*view.zoom}px`, backgroundPosition: `${view.pan.x}px ${view.pan.y}px`}} onPointerDown={e => startDrag(e)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onKeyDown={e => {
           if (e.target !== e.currentTarget) return
           const offsets: Record<string, Vec2> = { ArrowLeft: {x:40,y:0}, ArrowRight: {x:-40,y:0}, ArrowUp: {x:0,y:40}, ArrowDown: {x:0,y:-40} }
           const offset=offsets[e.key]; if(offset){e.preventDefault(); updateView({...viewRef.current,pan:{x:viewRef.current.pan.x+offset.x,y:viewRef.current.pan.y+offset.y}})}
@@ -230,7 +213,7 @@ export function SystemMap({ permissions, language: requestedLanguage }: SystemMa
       <aside className={`shrink-0 border-t border-slate-100 bg-white p-4 xl:w-64 xl:border-s xl:border-t-0 dark:border-slate-800 dark:bg-slate-900 ${isFullscreen?'max-h-48 overflow-y-auto xl:max-h-none':''}`}>
         {selectedNode?<><div className="flex items-center justify-between"><span className="text-xs font-medium text-indigo-600">{ui(selectedNode.category)}</span><button aria-label={ui('إغلاق')} onClick={()=>setSelected(null)}><X size={16}/></button></div><h3 className="mt-3 font-semibold">{ui(selectedNode.label)}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{ui(selectedNode.description)}</p><button className={`${control} mt-4 w-full disabled:opacity-40`} onClick={()=>router.push(selectedNode.href)}>{ui('فتح الصفحة')}<ArrowUpRight size={15}/></button><h4 className="mt-6 text-xs font-semibold text-slate-500">{ui('روابط ذات صلة')}</h4><div className="mt-2 space-y-1">{visible.filter(n=>n.id!==selectedNode.id&&connected.has(n.id)).map(n=><button key={n.id} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-start text-xs hover:bg-slate-50 dark:hover:bg-slate-800" onClick={()=>{setSelected(n.id);fit([n,selectedNode])}}>{ui(n.label)}<ChevronRight size={12}/></button>)}</div></>:<><span className="text-xs font-medium uppercase tracking-wide text-indigo-600">{ui(activeWorkflow?'تدفق عمل':'نظرة عامة')}</span><h3 className="mt-3 font-semibold">{ui(activeWorkflow?.label??'كيف ترتبط بيانات المصنع؟')}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{ui('اختر دورة لتتبع خطواتها أو اختر عقدة لاستكشاف روابطها.')}</p>{activeWorkflow?<ol className="mt-4 space-y-2">{activeWorkflow.nodes.map((id,i)=>{const node=visible.find(n=>n.id===id);return <li key={id}><button disabled={!node} onClick={()=>{setSelected(id);if(node)fit([node])}} className="flex w-full items-center gap-3 rounded-lg bg-slate-50 p-2 text-start text-xs disabled:opacity-40 dark:bg-slate-800"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white font-medium text-indigo-700 dark:bg-slate-700 dark:text-indigo-200">{i+1}</span>{ui(node?.label??'')}</button></li>})}</ol>:<div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><strong className="text-lg tabular-nums">{visible.length}</strong><p className="mt-1 text-xs text-slate-500">{ui('كيان')}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><strong className="text-lg tabular-nums">{relations.filter(r=>ids.has(r.from)&&ids.has(r.to)).length}</strong><p className="mt-1 text-xs text-slate-500">{ui('روابط')}</p></div></div>}</>}
         {query&&<p role="status" className="mt-4 text-xs text-slate-500">{matching.size} {ui('نتائج البحث')}</p>}
-        <div className="mt-6 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-500 dark:border-slate-800"><p className="flex items-center gap-2"><Move size={14}/>{ui('اسحب للتنقل')}</p>{!isFullscreen ? <p>{ui('مرر للتنقل في الصفحة. استخدم Ctrl أو ⌘ مع التمرير لتكبير الخريطة.')}</p> : null}<p>{ui('اسحب العقد لإعادة ترتيبها')}</p><p>{ui('انقر مرتين للفتح')}</p><p>{ui('استخدم الأسهم لتحريك العقدة المحددة')}</p><div className="mt-3 flex items-center gap-2"><span className="w-6 border-t-2 border-indigo-600"/>{ui('تدفق عمل')}</div><div className="flex items-center gap-2"><span className="w-6 border-t-2 border-dashed border-slate-400"/>{ui('مرجع')}</div></div>
+        <div className="mt-6 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-500 dark:border-slate-800"><p className="flex items-center gap-2"><Move size={14}/>{ui('اسحب للتنقل')}</p>{!isFullscreen ? <p>{ui('اسحب داخل الخريطة على الهاتف أو الجهاز اللوحي. على الكمبيوتر، التمرير يحرك الصفحة. استخدم الأزرار لتكبير الخريطة.')}</p> : null}<p>{ui('اسحب العقد لإعادة ترتيبها')}</p><p>{ui('انقر مرتين للفتح')}</p><p>{ui('استخدم الأسهم لتحريك العقدة المحددة')}</p><div className="mt-3 flex items-center gap-2"><span className="w-6 border-t-2 border-indigo-600"/>{ui('تدفق عمل')}</div><div className="flex items-center gap-2"><span className="w-6 border-t-2 border-dashed border-slate-400"/>{ui('مرجع')}</div></div>
       </aside>
     </div>
   </section>
