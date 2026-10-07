@@ -658,6 +658,12 @@ function cloneState(state: ErpState): ErpState {
   return structuredClone(state)
 }
 
+export function refreshSystemNotifications(source: ErpState, clock: Clock = defaultClock()): ErpState {
+  const state = cloneState(source)
+  refreshAlerts(state, clock)
+  return state
+}
+
 function ok(state: ErpState, message: string, extra?: Record<string, unknown>): CommandResult {
   return { ok: true, state, message, extra }
 }

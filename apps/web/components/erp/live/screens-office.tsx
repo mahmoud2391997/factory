@@ -1524,7 +1524,7 @@ function Notifications({ ctx }: { ctx: LiveCtx }) {
       <div className="space-y-3">
         {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">{uiLabel('لا توجد إشعارات')}</p> : null}
         {ctx.state.notifications.slice(0, 40).map((item) => (
-          <div key={item.id} className="flex flex-col gap-2 rounded-xl border border-[#edf2ef] p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div key={item.id} className={`flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${item.kind === 'LOW_STOCK' ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'border-[#edf2ef]'}`} >
             <Link href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]">
               <div className="font-bold">{uiLabel(item.title)}</div>
               <div className="text-sm text-[#788983]">{uiLabel(item.body)}</div>

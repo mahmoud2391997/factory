@@ -1577,9 +1577,12 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
   const [expectedPerTon, setExpectedPerTon] = useState('')
   const [supplierId, setSupplierId] = useState('')
   const [consumptionMaterialId, setConsumptionMaterialId] = useState(ctx.state.packagingMaterials[0]?.id ?? '')
-  const [productionOrderId, setProductionOrderId] = useState(ctx.state.productionOrders[0]?.id ?? '')
+  const [productionOrderId, setProductionOrderId] = useState(ctx.state.lots[0]?.productionOrderId ?? ctx.state.productionOrders[0]?.id ?? '')
   const availableLots = ctx.state.lots.filter((lot) => !productionOrderId || lot.productionOrderId === productionOrderId)
   const [lotNo, setLotNo] = useState(availableLots[0]?.lotNo ?? '')
+  useEffect(() => {
+    if (!availableLots.some((lot) => lot.lotNo === lotNo)) setLotNo(availableLots[0]?.lotNo ?? '')
+  }, [availableLots, lotNo])
   const [consumptionQuantity, setConsumptionQuantity] = useState('')
   const [editingPkg, setEditingPkg] = useState<NonNullable<typeof ctx.state.packagingMaterials>[number] | null>(null)
   const selectedPackaging = ctx.state.packagingMaterials.find((item) => item.id === consumptionMaterialId)
@@ -1660,10 +1663,12 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
               if (result.ok) { setConsumptionQuantity(''); close() }
             }}>
               <Field label="مادة التعبئة"><SelectInput value={consumptionMaterialId} onChange={(event) => setConsumptionMaterialId(event.target.value)}>{ctx.state.packagingMaterials.map((item) => <option key={item.id} value={item.id}>{item.nameAr}</option>)}</SelectInput> <DependencyLink field="packagingMaterials" /></Field>
-              <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { setProductionOrderId(event.target.value); setLotNo(ctx.state.lots.find((lot) => lot.productionOrderId === event.target.value)?.lotNo ?? '') }}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput> <DependencyLink field="lots" /></Field>
-              <Field label="دفعة الإنتاج"><SelectInput value={lotNo} onChange={(event) => setLotNo(event.target.value)}>{availableLots.map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}</SelectInput></Field>
+              <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { setProductionOrderId(event.target.value); setLotNo(ctx.state.lots.find((lot) => lot.productionOrderId === event.target.value)?.lotNo ?? '') }}>{ctx.state.productionOrders.map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput> <DependencyLink field="productionOrders" /></Field>
+              <Field label="دفعة الإنتاج">
+                {availableLots.length ? <SelectInput value={lotNo} onChange={(event) => setLotNo(event.target.value)} required>{availableLots.map((lot) => <option key={lot.id} value={lot.lotNo}>{lot.lotNo}</option>)}</SelectInput> : <><p className="text-sm text-[#b91c1c]">لا توجد دفعة لهذا الأمر. أكمل الإنتاج أولاً لإنشاء الدفعة.</p><DependencyLink field="productionOrders" /></>}
+              </Field>
               <Field label="الكمية الفعلية المصروفة"><TextInput type="number" min="0.001" step="0.001" value={consumptionQuantity} onChange={(event) => setConsumptionQuantity(event.target.value)} required /></Field>
-              <p className="text-sm text-[#6b7280]">المتوقع: {expectedQuantity == null ? 'لا يوجد معدل محدد' : qtyFmt(expectedQuantity)} {consumptionVariance == null ? '' : ` — الفارق/الهدر: ${qtyFmt(consumptionVariance)}`}</p>
+              <p className="text-sm text-[#6b7280]">المتوقع: {!selectedLot ? 'اختر دفعة إنتاج لحساب الكمية المتوقعة' : expectedQuantity == null ? 'حدد الاستهلاك المتوقع لكل طن في مادة التعبئة' : qtyFmt(expectedQuantity)} {consumptionVariance == null ? '' : ` — الفارق/الهدر: ${qtyFmt(consumptionVariance)}`}</p>
               <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !consumptionMaterialId || !productionOrderId || !lotNo}>حفظ الاستهلاك</PrimaryButton></div>
             </form>}
           </FormDialog> : null}

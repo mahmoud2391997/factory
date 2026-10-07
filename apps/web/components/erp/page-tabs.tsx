@@ -123,7 +123,7 @@ export function PageTabs({
         title={translateUiText(language, tab.label)}
         className={`flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-lg px-2 py-2 text-center text-sm font-semibold leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e127c] ${active ? 'bg-white text-[#271a83] shadow-sm ring-1 ring-black/5 dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#e5e7eb] hover:text-[#271a83] dark:text-[#d4d4d8] dark:hover:bg-[#3f3f46] dark:hover:text-[#e0dbfa]'}`}
       >
-        <span className="min-w-0 break-words">{translateUiText(language, tab.label)}{counts[tab.id] ? <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#e5e7eb] px-1.5 text-xs font-semibold text-[#374151] dark:bg-[#3f3f46] dark:text-[#f4f4f5]">{counts[tab.id]}</span> : null}</span>
+        <span className="min-w-0 break-words">{translateUiText(language, tab.label)}{counts[tab.id] ? <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b91c1c] px-1.5 text-xs font-semibold text-white dark:bg-[#dc2626]">{counts[tab.id]}</span> : null}</span>
       </Link>
     )
   }
@@ -158,7 +158,7 @@ export function PageTabs({
                     aria-current={tab.id === activePrimaryId ? 'page' : undefined}
                     className={`flex min-h-10 min-w-0 items-center rounded-lg px-3 py-2 text-sm font-medium leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${tab.id === activePrimaryId ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}
                   >
-                    <span className="min-w-0 break-words">{translateUiText(language, tab.label)}{counts[tab.id] ? <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#e5e7eb] px-1.5 text-xs font-semibold text-[#374151] dark:bg-[#3f3f46] dark:text-[#f4f4f5]">{counts[tab.id]}</span> : null}</span>
+                    <span className="min-w-0 break-words">{translateUiText(language, tab.label)}{counts[tab.id] ? <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b91c1c] px-1.5 text-xs font-semibold text-white dark:bg-[#dc2626]">{counts[tab.id]}</span> : null}</span>
                   </Link>
                 </li>
               ))}
@@ -206,7 +206,7 @@ export function PageTabs({
                     onClick={() => setMoreOpen(false)}
                     className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${tab.id === activePrimaryId ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'}`}
                   >
-                    <span className="break-words">{translateUiText(language, tab.label)}{counts[tab.id] ? <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#e5e7eb] px-1.5 text-xs font-semibold text-[#374151] dark:bg-[#3f3f46] dark:text-[#f4f4f5]">{counts[tab.id]}</span> : null}</span>
+                    <span className="break-words">{translateUiText(language, tab.label)}{counts[tab.id] ? <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#b91c1c] px-1.5 text-xs font-semibold text-white dark:bg-[#dc2626]">{counts[tab.id]}</span> : null}</span>
                   </Link>
                 )
               })}

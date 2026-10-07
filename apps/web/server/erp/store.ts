@@ -9,7 +9,7 @@ import { canResetDemoData, getDemoSecrets, isDemoMode } from '@/server/demo'
 
 import { planArchive } from '@/lib/erp/domain/archive'
 import { commitWithRetry, REVISION_CONFLICT } from '@/lib/erp/domain/commit'
-import { actorFromUser, applyCommand, publicState } from '@/lib/erp/domain/engine'
+import { actorFromUser, applyCommand, publicState, refreshSystemNotifications } from '@/lib/erp/domain/engine'
 import { migrateErpState } from '@/lib/erp/domain/migrate'
 import { buildSeedState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
@@ -287,6 +287,18 @@ export async function loadState(): Promise<{ state: ErpState; storage: StorageKi
   normalizeDemoUsers(created)
   await writeFileState(created)
   return { state: created, storage: 'file' }
+}
+
+export async function loadStateWithNotifications() {
+  return enqueue(() => commitWithRetry(async () => {
+    const loaded = await loadState()
+    const refreshed = refreshSystemNotifications(loaded.state)
+    if (JSON.stringify(refreshed.notifications) !== JSON.stringify(loaded.state.notifications)) {
+      await persist(refreshed, loaded.storage)
+      return { state: refreshed, storage: loaded.storage }
+    }
+    return loaded
+  }))
 }
 
 async function persistEmailFlags(state: ErpState, storage: StorageKind) {

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { getSessionUser } from '@/server/auth/session'
-import { loadState, runCommand } from '@/server/erp/store'
+import { loadStateWithNotifications, runCommand } from '@/server/erp/store'
 import { publicState } from '@/lib/erp/domain/engine'
 import type { Command } from '@/lib/erp/domain/types'
 import { toApiError } from '@/server/env'
@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ success: false, message: 'غير مصرح' }, { status: 401 })
   try {
-    const loaded = await loadState()
+    const loaded = await loadStateWithNotifications()
     return NextResponse.json({
       success: true,
       data: { state: publicState(loaded.state, user.permissions, user.id), storage: loaded.storage },

@@ -1,4 +1,9 @@
 export const supplementalUi: Record<string, { en: string; hi: string }> = {
+  'العمليات والإجراءات': { en: 'Actions', hi: 'कार्रवाइयाँ' },
+  'المعلومات والتقارير': { en: 'Information & reports', hi: 'जानकारी और रिपोर्ट' },
+  'لا توجد دفعة لهذا الأمر. أكمل الإنتاج أولاً لإنشاء الدفعة.': { en: 'This order has no production lot. Complete production first to create one.', hi: 'इस आदेश में उत्पादन बैच नहीं है। बैच बनाने के लिए पहले उत्पादन पूरा करें।' },
+  'اختر دفعة إنتاج لحساب الكمية المتوقعة': { en: 'Select a production lot to calculate the expected quantity', hi: 'अपेक्षित मात्रा की गणना के लिए उत्पादन बैच चुनें' },
+  'حدد الاستهلاك المتوقع لكل طن في مادة التعبئة': { en: 'Set the expected consumption per ton on the packaging material', hi: 'पैकेजिंग सामग्री में प्रति टन अपेक्षित खपत निर्धारित करें' },
   "أعلاف الكوثر": { "en": "Al Kawther Feeds", "hi": "अल कौथर फ़ीड" },
   "لا يمكن تسليم فاتورة مسودة": { "en": "A draft invoice cannot be delivered", "hi": "मसौदा चालान की डिलीवरी नहीं की जा सकती" },
   "مرحلة التسليم غير صحيحة": { "en": "Invalid delivery stage", "hi": "डिलीवरी चरण अमान्य है" },

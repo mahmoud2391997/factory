@@ -1,3 +1,4 @@
+import { pagePurpose } from './nav/page-purpose'
 import {
   ALL_NAV_PAGES,
   NAV_CONFIG,
@@ -127,9 +128,19 @@ export function visibleWorkspaces(permissions: string[]) {
 }
 
 export function visibleSections(workspace: NavWorkspace, permissions: string[]) {
-  return workspace.sections.filter((section) =>
-    section.pages.some((page) => canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey)),
-  )
+  const pages = workspace.sections.flatMap((section) => section.pages)
+    .filter((page) => canAccessPage(page, permissions))
+  if (workspace.id === 'home') return workspace.sections.filter((section) => section.pages.some((page) => canAccessPage(page, permissions)))
+  return (['actions', 'information'] as const).flatMap((purpose): NavSection[] => {
+    const grouped = pages.filter((page) => pagePurpose(page.entityKey) === purpose)
+    return grouped.length ? [{
+      id: `${workspace.id}-${purpose}`,
+      label: purpose === 'actions' ? 'العمليات والإجراءات' : 'المعلومات والتقارير',
+      keywords: [],
+      tabLayout: 'tabs',
+      pages: grouped,
+    }] : []
+  })
 }
 
 export function sectionEntryHref(section: NavSection, permissions: string[]) {
@@ -148,7 +159,8 @@ export function workspaceEntryHref(workspace: NavWorkspace, permissions: string[
 }
 
 export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
-  const primary = (resolved.section?.pages ?? [])
+  const section = resolved.workspace ? visibleSections(resolved.workspace, permissions).find((group) => group.pages.some((page) => page.id === resolved.page.id)) : resolved.section
+  const primary = (section?.pages ?? [])
     .filter((page) => page.tab && canSeeEntity(permissions, page.entityKey))
     .map((page) => ({ id: page.id, href: page.href, label: page.label, group: page.tabGroup, groupLabel: page.tabGroupLabel }))
   return {

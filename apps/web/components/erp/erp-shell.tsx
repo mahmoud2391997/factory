@@ -74,10 +74,10 @@ function SearchHighlight({ text, query }: { text: string; query: string }) {
   )
 }
 
-function CountBadge({ value, label }: { value: number; label: string }) {
+function CountBadge({ value, label, warning = false }: { value: number; label: string; warning?: boolean }) {
   if (value <= 0) return null
   return (
-    <span aria-label={`${value} ${label}`} className="erp-count-badge ms-auto inline-flex min-w-5 items-center justify-center rounded-full bg-[#e5e7eb] px-1.5 text-[11px] font-semibold leading-5 text-[#374151] dark:bg-[#3f3f46] dark:text-[#f4f4f5]">
+    <span aria-label={`${value} ${label}`} className={`erp-count-badge ms-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold leading-5 ${warning ? 'bg-[#b91c1c] text-white dark:bg-[#dc2626]' : 'bg-[#e5e7eb] text-[#374151] dark:bg-[#3f3f46] dark:text-[#f4f4f5]'}`}>
       {value > 99 ? '99+' : value}
     </span>
   )
@@ -325,9 +325,10 @@ export function ErpShell() {
 
   useEffect(() => {
     if (!resolved?.workspace || !resolved.section) return
-    const activeSectionId = `${resolved.workspace.id}:${resolved.section.id}`
+    const category = visibleSections(resolved.workspace, permissions).find((section) => section.pages.some((page) => page.id === resolved.page.id))
+    const activeSectionId = `${resolved.workspace.id}:${category?.id ?? resolved.section.id}`
     setCollapsedSectionIds((collapsed) => collapsed.filter((sectionId) => sectionId !== activeSectionId))
-  }, [resolved?.workspace?.id, resolved?.section?.id])
+  }, [resolved?.workspace?.id, resolved?.page.id, permissionKey])
 
   useEffect(() => {
     if (resolved?.redirectTo) router.replace(resolved.redirectTo)
@@ -497,7 +498,7 @@ export function ErpShell() {
     if (pages.length === 0) return null
     const isFlyout = variant === 'flyout'
     const sectionKey = `${workspaceId}:${section.id}`
-    const sectionActive = resolved?.workspace?.id === workspaceId && resolved?.section?.id === section.id
+    const sectionActive = resolved?.workspace?.id === workspaceId && pages.some((page) => page.id === resolved?.page.id)
     const collapsed = collapsedSectionIds.includes(sectionKey)
 
     if (pages.length === 1) {
@@ -506,7 +507,8 @@ export function ErpShell() {
       return (
         <Link key={`${variant}:${workspaceId}:${section.id}`} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={`${uiLabel(section.label)} · ${uiLabel(page.description)}`} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-start text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
           <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
-                {page.entityKey === 'factoryRunningOut' && canSeeEntity(permissions, 'material') ? <CountBadge value={status?.inventory.runningOut.length ?? 0} label={uiLabel('مواد قاربت النفاد')} /> : null}
+                {page.entityKey === 'factoryRunningOut' && canSeeEntity(permissions, 'material') ? <CountBadge value={status?.inventory.runningOut.length ?? 0} label={uiLabel('مواد قاربت النفاد')} warning /> : null}
+                {['approvals', 'obligation', 'documents', 'notification'].includes(page.entityKey) ? <CountBadge value={sectionBadge(page.entityKey === 'obligation' ? 'obligations' : page.entityKey === 'notification' ? 'notifications' : page.entityKey)} label={uiLabel(page.label)} /> : null}
           <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
         </Link>
       )
@@ -530,7 +532,8 @@ export function ErpShell() {
             return (
               <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-9 items-center rounded-lg px-3 text-start text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
                 <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
-                {page.entityKey === 'factoryRunningOut' && canSeeEntity(permissions, 'material') ? <CountBadge value={status?.inventory.runningOut.length ?? 0} label={uiLabel('مواد قاربت النفاد')} /> : null}
+                {page.entityKey === 'factoryRunningOut' && canSeeEntity(permissions, 'material') ? <CountBadge value={status?.inventory.runningOut.length ?? 0} label={uiLabel('مواد قاربت النفاد')} warning /> : null}
+                {['approvals', 'obligation', 'documents', 'notification'].includes(page.entityKey) ? <CountBadge value={sectionBadge(page.entityKey === 'obligation' ? 'obligations' : page.entityKey === 'notification' ? 'notifications' : page.entityKey)} label={uiLabel(page.label)} /> : null}
               </Link>
             )
           })}
@@ -721,7 +724,7 @@ export function ErpShell() {
                       <Link key={workspace.id} data-nav-item="true" data-workspace-id={workspace.id} href={entryHref ?? '/'} aria-current={active ? 'page' : undefined} title={iconOnly ? uiLabel(workspace.label) : undefined} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspace.id) ? current : [...current, workspace.id])); closeMobile() }} className={rowClass}>
                         <Icon size={18} aria-hidden className="shrink-0" />
                         <span className={iconOnly ? 'sr-only' : 'min-w-0 flex-1 truncate'}>{uiLabel(workspace.label)}</span>
-                        {!iconOnly ? <CountBadge value={badgeValue} label={uiLabel('مواد قاربت النفاد')} /> : badgeValue > 0 ? <span aria-label={`${badgeValue} ${uiLabel('مواد قاربت النفاد')}`} className="absolute end-1 top-1 size-2 rounded-full bg-[#1e127c]" /> : null}
+                        {!iconOnly ? <CountBadge value={badgeValue} label={uiLabel('مواد قاربت النفاد')} warning /> : badgeValue > 0 ? <span aria-label={`${badgeValue} ${uiLabel('مواد قاربت النفاد')}`} className="absolute end-1 top-1 size-2 rounded-full bg-[#b91c1c]" /> : null}
                       </Link>
                     ) : (
                     <button
@@ -739,7 +742,7 @@ export function ErpShell() {
                       >
                         <Icon size={18} aria-hidden className="shrink-0" />
                         <span className={iconOnly ? 'sr-only' : 'min-w-0 flex-1 truncate'}>{uiLabel(workspace.label)}</span>
-                        {!iconOnly ? <CountBadge value={badgeValue} label={uiLabel('مواد قاربت النفاد')} /> : badgeValue > 0 ? <span aria-label={`${badgeValue} ${uiLabel('مواد قاربت النفاد')}`} className="absolute end-1 top-1 size-2 rounded-full bg-[#1e127c]" /> : null}
+                        {!iconOnly ? <CountBadge value={badgeValue} label={uiLabel('مواد قاربت النفاد')} warning /> : badgeValue > 0 ? <span aria-label={`${badgeValue} ${uiLabel('مواد قاربت النفاد')}`} className="absolute end-1 top-1 size-2 rounded-full bg-[#b91c1c]" /> : null}
                         {!iconOnly ? <ChevronDown size={15} aria-hidden className={`shrink-0 transition-transform motion-reduce:transition-none ${isExpanded ? 'rotate-180' : ''}`} /> : null}
                       </button>
                     )
@@ -825,7 +828,7 @@ export function ErpShell() {
                     <div className="max-h-80 space-y-2 overflow-y-auto">
                       {notices.length === 0 ? <p className="text-sm text-[#6b7280]">{uiLabel('لا توجد إشعارات')}</p> : null}
                       {notices.slice(0, 8).map((item) => (
-                        <div key={item.id} className="rounded-lg border border-[#e5e7eb] p-3 dark:border-[#3f3f46]">
+                        <div key={item.id} className={`rounded-lg border p-3 ${item.kind === 'LOW_STOCK' ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'border-[#e5e7eb] dark:border-[#3f3f46]'}`} >
                           <Link href="/notifications" onClick={() => setNoticesOpen(false)} className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]">
                             <div className="font-medium">{uiLabel(item.title)}</div>
                             <div className="text-sm text-[#6b7280]">{uiLabel(item.body)}</div>

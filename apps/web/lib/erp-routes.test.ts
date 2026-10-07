@@ -463,7 +463,7 @@ test('the general manager sees every workspace; the driver only sees trip and fu
   const driverWorkspaces = visibleWorkspaces(DEFAULT_ROLE_PERMISSIONS.DRIVER)
   assert.deepEqual(driverWorkspaces.map((workspace) => workspace.id), ['fleet'])
   const vehicleSections = visibleSections(driverWorkspaces[0]!, DEFAULT_ROLE_PERMISSIONS.DRIVER)
-  assert.deepEqual(vehicleSections.map((section) => section.id), ['vehicles'])
+  assert.deepEqual(vehicleSections.map((section) => section.id), ['fleet-actions'])
   assert.deepEqual(vehicleSections[0]!.pages.filter((page) => canSeeEntity(DEFAULT_ROLE_PERMISSIONS.DRIVER, page.entityKey)).map((page) => page.entityKey).sort(), ['fleetFuel', 'fleetTrips'])
   assert.equal(canSeeEntity(DEFAULT_ROLE_PERMISSIONS.DRIVER, 'fleet'), false, 'drivers cannot navigate to vehicle management')
 })
@@ -514,50 +514,32 @@ test('the navigation guide resolves as a searchable page and breadcrumbs are cli
 })
 
 
-test('Sales customers navigation keeps six routes in three responsive sidebar groups', () => {
-  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'sales')!.sections.find((item) => item.id === 'customers')!
-  const resolved = resolvePath('/sales/today')!
-  const tabs = pageTabs(resolved, allPagesForEveryRole)
-  assert.equal(section.tabLayout, 'tabs')
-  assert.equal(tabs.layout, 'tabs')
-  assert.equal(tabs.primary.length, 6)
-  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
-    'sales-overview',
-    'customer-invoices',
-    'sales-insights',
-  ])
-})
-
-
-test('Inventory separates materials, stock analytics, and warehouse movements', () => {
-  const inventory = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!
-  assert.deepEqual(inventory.sections.map((section) => section.id), ['materials', 'stock-analytics', 'warehouses'])
-  for (const section of inventory.sections) assert.equal(section.tabLayout, 'tabs')
+test('workspace tabs separate actions from information and reports', () => {
+  for (const href of ['/sales/today', '/inventory/raw-materials', '/inventory/manufacturing/planned']) {
+    const resolved = resolvePath(href)!
+    const tabs = pageTabs(resolved, allPagesForEveryRole)
+    assert.ok(tabs.primary.some((tab) => tab.id === resolved.page.id))
+    assert.equal(tabs.activePrimary, resolved.page.id)
+  }
   const materials = pageTabs(resolvePath('/inventory/raw-materials')!, allPagesForEveryRole)
-  assert.equal(materials.layout, 'tabs')
-  assert.deepEqual([...new Set(materials.primary.map((tab) => tab.group))], ['inventory-overview', 'materials-products'])
-  const analytics = pageTabs(resolvePath('/inventory/raw-materials/value')!, allPagesForEveryRole)
-  assert.equal(analytics.layout, 'tabs')
-  assert.deepEqual([...new Set(analytics.primary.map((tab) => tab.group))], ['traceability-reports', 'stock-status'])
-  const movements = pageTabs(resolvePath('/inventory/warehouses/transfers')!, allPagesForEveryRole)
-  assert.deepEqual([...new Set(movements.primary.map((tab) => tab.group))], ['warehouse-operations'])
-  assert.equal(new Set(ALL_NAV_PAGES.map((page) => page.id)).size, ALL_NAV_PAGES.length, 'navigation page IDs are unique')
+  assert.ok(materials.primary.some((tab) => tab.id === 'stockTransfer'))
+  assert.ok(!materials.primary.some((tab) => tab.id === 'factoryRunningOut'))
+  const low = pageTabs(resolvePath('/inventory/raw-materials/running-out')!, allPagesForEveryRole)
+  assert.ok(low.primary.some((tab) => tab.id === 'inventoryReports'))
+  assert.ok(!low.primary.some((tab) => tab.id === 'material'))
+  const restricted = pageTabs(resolvePath('/inventory/raw-materials')!, [])
+  assert.deepEqual(restricted.primary, [])
+  assert.deepEqual(restricted.secondary, [])
+  const inventory = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'inventory')!
+  const sections = visibleSections(inventory, allPagesForEveryRole)
+  assert.equal(sections.length, 2)
+  assert.ok(sections[0]!.pages.some((page) => page.id === 'material'))
+  assert.ok(!sections[0]!.pages.some((page) => page.id === 'factoryRunningOut'))
+  assert.ok(sections[1]!.pages.some((page) => page.id === 'factoryRunningOut'))
+  assert.ok(sections[1]!.pages.some((page) => page.id === 'inventoryReports'))
+  assert.ok(!sections[1]!.pages.some((page) => page.id === 'stockTransfer'))
 })
 
-
-test('Production manufacturing navigation keeps eight routes in three responsive sidebar groups', () => {
-  const section = NAV_CONFIG.workspaces.find((workspace) => workspace.id === 'production')!.sections.find((item) => item.id === 'manufacturing')!
-  const resolved = resolvePath('/inventory/manufacturing/planned')!
-  const tabs = pageTabs(resolved, allPagesForEveryRole)
-  assert.equal(section.tabLayout, 'tabs')
-  assert.equal(tabs.layout, 'tabs')
-  assert.equal(tabs.primary.length, 8)
-  assert.deepEqual([...new Set(tabs.primary.map((tab) => tab.group))], [
-    'manufacturing-status',
-    'production-operations',
-    'production-insights',
-  ])
-})
 
 test('every inventory and receiving route resolves to a screen, and permission denial is not a login redirect', () => {
   const workspaceSource = readFileSync(new URL('../components/erp/live/workspace.tsx', import.meta.url), 'utf8')

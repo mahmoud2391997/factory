@@ -1,11 +1,31 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { actorFromUser, applyCommand } from './engine'
+import { actorFromUser, applyCommand, refreshSystemNotifications } from './engine'
 import { createClock, emptyState } from './seed'
 import type { Actor, Command, ErpState } from './types'
 
 const NOW = '2026-09-29T08:00:00.000Z'
+
+test('existing low stock creates one system alert per shortage and re-alerts after replenishment', () => {
+  const clock = createClock(NOW)
+  let state = emptyState('low-stock-refresh')
+  state.materials.push({ id: 'mat-low', code: 'RM-LOW', nameAr: 'ذرة', category: 'حبوب', unit: 'كجم', minQty: 10, vatTreatment: 'ZERO', barcode: 'RM-LOW', active: true })
+  state = refreshSystemNotifications(state, clock)
+  const alert = state.notifications.find((note) => note.dedupeKey === 'low:mat-low')!
+  assert.equal(alert.kind, 'LOW_STOCK')
+  assert.deepEqual(alert.roles, ['GM', 'OPERATIONS'])
+  alert.readBy = ['user-gm']
+  state = refreshSystemNotifications(state, clock)
+  assert.equal(state.notifications.filter((note) => note.dedupeKey === alert.dedupeKey).length, 1)
+  // Replenishment resolves the current occurrence; a later shortage starts a new one.
+  state.balances.push({ id: 'balance-low', warehouse: 'WH_RAW', itemType: 'MATERIAL', itemId: 'mat-low', batchNo: 'B1', qty: 20, unitCost: 1, expiryDate: null, receivedAt: NOW })
+  state = refreshSystemNotifications(state, clock)
+  assert.equal(state.notifications.find((note) => note.id === alert.id)!.read, true)
+  state.balances[0]!.qty = 5
+  state = refreshSystemNotifications(state, clock)
+  assert.equal(state.notifications.filter((note) => note.dedupeKey === alert.dedupeKey && !note.read).length, 1)
+})
 
 function actor(state: ErpState): Actor {
   const found = actorFromUser(state, 'user-gm')
