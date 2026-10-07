@@ -805,3 +805,18 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
 @container erp-page (min-width: 900px) {
   .erp-dashboard-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Mark the exact map scroll area without blocking pointer input. */
+.erp-map-canvas::after {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  border: 3px solid transparent;
+  pointer-events: none;
+  content: '';
+}
+
+.erp-map-canvas:hover::after,
+.erp-map-canvas:focus-visible::after {
+  border-color: var(--erp-accent);
+}

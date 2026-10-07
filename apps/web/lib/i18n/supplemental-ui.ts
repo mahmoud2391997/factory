@@ -5256,5 +5256,5 @@ export const supplementalUi: Record<string, { en: string; hi: string }> = {
   "حالة المخزون": {"en": "Inventory status", "hi": "इन्वेंटरी स्थिति"},
   "عدد المواد في كل حالة؛ قد تظهر المادة في أكثر من حالة.": {"en": "Material counts by status; a material can appear in more than one status.", "hi": "स्थिति के अनुसार सामग्री की संख्या; एक सामग्री एक से अधिक स्थितियों में हो सकती है।"},
   "عدد المواد": {"en": "Material count", "hi": "सामग्री की संख्या"},
-  "اسحب داخل الخريطة على الهاتف أو الجهاز اللوحي. على الكمبيوتر، التمرير يحرك الصفحة. استخدم الأزرار لتكبير الخريطة.": { "en": "Swipe inside the map on a phone or tablet. On a computer, scrolling moves the page. Use the buttons to zoom the map.", "hi": "फ़ोन या टैबलेट पर मानचित्र के अंदर स्वाइप करें। कंप्यूटर पर स्क्रॉल करने से पेज आगे बढ़ता है। मानचित्र को ज़ूम करने के लिए बटन इस्तेमाल करें।" },
+  "الحد الملون يعني أن التمرير يتحكم بالخريطة. مرر داخلها للتكبير، وخارجها لتحريك الصفحة.": {"en": "The colored border means scrolling controls the map. Scroll inside to zoom, or outside to move through the page.", "hi": "रंगीन बॉर्डर का अर्थ है कि स्क्रॉल मानचित्र को नियंत्रित करता है। ज़ूम करने के लिए अंदर स्क्रॉल करें, या पेज पर आगे बढ़ने के लिए बाहर स्क्रॉल करें।"},
 }
