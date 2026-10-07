@@ -1,5 +1,7 @@
 'use client'
 
+import { CodeInput } from '@/components/erp/code-input'
+
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 
@@ -76,7 +78,7 @@ function VehicleEditor({ ctx, vehicle, onClose }: { ctx: LiveCtx; vehicle: (type
           const result = await ctx.act('updateVehicle', { id: vehicle.id, code, plateNo, nameAr, type, active })
           if (result.ok) onClose()
         }}>
-          <Field label="الرمز"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+          <Field label="الرمز"><CodeInput prefix="VEH" value={code} onValueChange={setCode} required /></Field>
           <Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(e) => setPlateNo(e.target.value)} required /></Field>
           <Field label="النوع"><TextInput value={type} onChange={(e) => setType(e.target.value)} required /></Field>
           <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
@@ -207,7 +209,7 @@ function FleetScreens({ ctx, mode }: { ctx: LiveCtx; mode: string }) {
     <div className="flex flex-col gap-4">
       <Card title="المركبات" hint="ملف المركبة والعدادات ومواعيد الوثائق. تربط الوثائق من شاشة وثائق الشركة.">
         {can(ctx.permissions, 'fleet.manage') ? <FormDialog title="مركبة جديدة" openLabel="إضافة مركبة">
-          {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><TextInput value={code} onChange={(event) => setCode(event.target.value)} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
+          {(close) => <form className="grid gap-3" onSubmit={async (event) => { event.preventDefault(); const result = await ctx.act('createVehicle', { code, plateNo, type, nameAr, kmPerLiter: selectedVehicle?.kmPerLiter }); if (result.ok) { setCode(''); setPlateNo(''); setNameAr(''); close() } }}><Field label="الرمز"><CodeInput prefix="VEH" value={code} onValueChange={setCode} required /></Field><Field label="رقم اللوحة"><TextInput value={plateNo} onChange={(event) => setPlateNo(event.target.value)} required /></Field><Field label="النوع"><TextInput value={type} onChange={(event) => setType(event.target.value)} required /></Field><Field label="الاسم"><TextInput value={nameAr} onChange={(event) => setNameAr(event.target.value)} required /></Field><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></form>}
         </FormDialog> : null}
         <DataTable
           columns={['الرمز', 'المركبة', 'اللوحة', 'العداد', 'الكفاءة', 'الحالة']}

@@ -1,5 +1,7 @@
 'use client'
 
+import { CodeInput } from '@/components/erp/code-input'
+
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 
 import { useEffect, useState } from 'react'
@@ -216,11 +218,11 @@ function MaterialEditor({
         }}
       >
         <InlineError message={error} />
-        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الكود"><CodeInput prefix="RM" value={code} onValueChange={setCode} required /></Field>
         <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
         <Field label="التصنيف"><TextInput value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
         <Field label="الحد الأدنى (كجم)"><TextInput type="number" min="0" step="0.001" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
-        <Field label="الباركود"><TextInput value={barcode} onChange={(e) => setBarcode(e.target.value)} /></Field>
+        <Field label="الباركود"><CodeInput prefix="BAR" value={barcode} onValueChange={setBarcode} /></Field>
         <Field label="الضريبة">
           <SelectInput value={vatTreatment} onChange={(e) => setVatTreatment(e.target.value as VatTreatment)}>
             <option value="ZERO">صفرية</option>
@@ -278,7 +280,7 @@ function ProductEditor({
         }}
       >
         <InlineError message={error} />
-        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الكود"><CodeInput prefix="FG" value={code} onValueChange={setCode} required /></Field>
         <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
         <Field label="سعر البيع / كجم"><TextInput type="number" min="0" step="0.001" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} required /></Field>
         <Field label="وزن الكيس (كجم)"><TextInput type="number" min="1" step="1" value={bagKg} onChange={(e) => setBagKg(e.target.value)} /></Field>
@@ -438,7 +440,7 @@ function SparePartEditor({
         }}
       >
         <InlineError message={error} />
-        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الكود"><CodeInput prefix="SP" value={code} onValueChange={setCode} required /></Field>
         <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
         <Field label="الكمية"><TextInput type="number" min="0" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /></Field>
         <Field label="تكلفة الوحدة"><TextInput type="number" min="0" step="0.001" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} required /></Field>
@@ -504,7 +506,7 @@ function PackagingMaterialEditor({
         }}
       >
         <InlineError message={error} />
-        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الكود"><CodeInput prefix="PKG" value={code} onValueChange={setCode} required /></Field>
         <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
         <Field label="التصنيف">
           <SelectInput value={category} onChange={(e) => setCategory(e.target.value as typeof category)}>
@@ -726,7 +728,7 @@ function MachineEditor({
         }}
       >
         <InlineError message={error} />
-        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الكود"><CodeInput prefix="MCH" value={code} onValueChange={setCode} required /></Field>
         <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
         <Field label="النوع"><TextInput value={type} onChange={(e) => setType(e.target.value)} required /></Field>
         <Field label="الموقع"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} required /></Field>
@@ -884,7 +886,7 @@ function DistributionPointEditor({
         }}
       >
         <InlineError message={error} />
-        <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+        <Field label="الكود"><CodeInput prefix="DP" value={code} onValueChange={setCode} required /></Field>
         <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
         <Field label="الموقع"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} required /></Field>
         <Field label="المدير">
@@ -938,7 +940,7 @@ function Materials({ ctx }: { ctx: LiveCtx }) {
                   }
                 }}
               >
-                <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+                <Field label="الكود"><CodeInput prefix="RM" value={code} onValueChange={setCode} required /></Field>
                 <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                 <Field label="التصنيف"><TextInput value={category} onChange={(e) => setCategory(e.target.value)} /></Field>
                 <Field label="الحد الأدنى (كجم)"><TextInput type="number" min="0" step="0.001" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
@@ -1045,7 +1047,7 @@ function Products({ ctx }: { ctx: LiveCtx }) {
                   }
                 }}
               >
-                <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+                <Field label="الكود"><CodeInput prefix="FG" value={code} onValueChange={setCode} required /></Field>
                 <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                 <Field label="سعر البيع / كجم"><TextInput type="number" min="0" step="0.001" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} /></Field>
                 <div className="flex items-end"><PrimaryButton disabled={ctx.pending}>حفظ</PrimaryButton></div>
@@ -1510,7 +1512,7 @@ function SpareParts({ ctx }: { ctx: LiveCtx }) {
                     }
                   }}
                 >
-                  <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+                  <Field label="الكود"><CodeInput prefix="SP" value={code} onValueChange={setCode} required /></Field>
                   <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                   <Field label="الوصف"><TextInput value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
                   <Field label="الكمية"><TextInput type="number" min="0" step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /></Field>
@@ -1621,7 +1623,7 @@ function PackagingMaterials({ ctx }: { ctx: LiveCtx }) {
                     }
                   }}
                 >
-                  <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+                  <Field label="الكود"><CodeInput prefix="PKG" value={code} onValueChange={setCode} required /></Field>
                   <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                   <Field label="التصنيف">
                     <SelectInput value={category} onChange={(e) => setCategory(e.target.value as 'BAG' | 'THREAD' | 'INK' | 'PAPER' | 'LABEL' | 'OTHER')}>
@@ -2937,7 +2939,7 @@ function Machines({ ctx }: { ctx: LiveCtx }) {
                     close()
                   }
                 }}>
-                  <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+                  <Field label="الكود"><CodeInput prefix="MCH" value={code} onValueChange={setCode} required /></Field>
                   <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                   <Field label="النوع"><TextInput value={type} onChange={(e) => setType(e.target.value)} required /></Field>
                   <Field label="الموقع"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} required /></Field>
@@ -3501,7 +3503,7 @@ function DistributionPoints({ ctx }: { ctx: LiveCtx }) {
                     close()
                   }
                 }}>
-                  <Field label="الكود"><TextInput value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+                  <Field label="الكود"><CodeInput prefix="DP" value={code} onValueChange={setCode} required /></Field>
                   <Field label="الاسم"><TextInput value={nameAr} onChange={(e) => setNameAr(e.target.value)} required /></Field>
                   <Field label="الموقع"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} required /></Field>
                   <Field label="المدير">

@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
+import { hrefForPageId } from '@/lib/erp-routes'
 
 const PAGE_SIZE = 8
 const DialogCloseContext = createContext<(() => void) | undefined>(undefined)
@@ -304,52 +305,53 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} placeholder={props.placeholder ? translateUiText(language, props.placeholder) : undefined} className={controlClass} />
 }
 
-const CONTROL_LINK_TARGETS: Record<string, { href: string; label: string }> = {
-  suppliers: { href: '/sales/parties/suppliers', label: 'الموردين' },
-  materials: { href: '/inventory/raw-materials', label: 'المواد الخام' },
-  products: { href: '/inventory/products', label: 'المنتجات' },
-  employees: { href: '/admin/employees', label: 'الموظفين' },
-  customers: { href: '/sales/parties', label: 'العملاء' },
-  machines: { href: '/inventory/manufacturing/maintenance/machines', label: 'الماكينات' },
-  vehicles: { href: '/fleet/vehicles', label: 'المركبات' },
-  productionOrders: { href: '/inventory/manufacturing/orders', label: 'أوامر التصنيع' },
-  users: { href: '/admin/users', label: 'المستخدمين' },
-  invoices: { href: '/sales', label: 'الفواتير' },
-  recipes: { href: '/inventory/manufacturing', label: 'الوصفات' },
-  packagingMaterials: { href: '/inventory/extensions?kind=packaging', label: 'مواد التعبئة' },
-  spareParts: { href: '/inventory/extensions?kind=spare', label: 'قطع الغيار' },
-  lots: { href: '/inventory/manufacturing/lots', label: 'دفعات الإنتاج' },
-  distributionPoints: { href: '/sales/distribution/points', label: 'نقاط التوزيع' },
-  supplierTemplates: { href: '/sales/parties/templates', label: 'قوالب الرسائل' },
-  expenses: { href: '/accounting/expenses', label: 'المصروفات' },
-  purchaseOrders: { href: '/sales/parties/orders', label: 'أوامر الشراء' },
-  maintenanceSchedules: { href: '/fleet/maintenance', label: 'جدول الصيانة' },
-  purchaseRequests: { href: '/sales/parties/requests', label: 'طلبات الشراء' },
-  obligations: { href: '/accounting/obligations', label: 'الالتزامات' },
-  maintenanceRecords: { href: '/fleet/maintenance', label: 'سجلات الصيانة' },
-  warehouses: { href: '/inventory/warehouses', label: 'المستودعات' },
-  customerRecipes: { href: '/inventory/manufacturing/customer-recipes', label: 'خلطات العملاء' },
-  payrolls: { href: '/admin/payroll', label: 'الرواتب' },
-  attendance: { href: '/admin/attendance', label: 'الحضور' },
-  adjustments: { href: '/inventory/warehouses/adjustments', label: 'تسويات المخزون' },
-  vehicleServices: { href: '/fleet/vehicles/services', label: 'خدمات المركبات' },
-  supplierCommunications: { href: '/sales/parties/communications', label: 'مراسلات الموردين' },
-  qualitySamples: { href: '/inventory/manufacturing/quality', label: 'عينات الجودة' },
-  notifications: { href: '/admin/notifications', label: 'الإشعارات' },
-  leaveRequests: { href: '/admin/leaves', label: 'الإجازات' },
-  fuelLogs: { href: '/fleet/fuel', label: 'تعبئات الوقود' },
-  distributionClosings: { href: '/sales/distribution/closing', label: 'الإقفال اليومي' },
-  scaleReadings: { href: '/inventory/manufacturing/scale', label: 'قراءات الميزان' },
-  utilitiesReadings: { href: '/accounting/utilities', label: 'قراءات المرافق' },
+const CONTROL_LINK_TARGETS: Record<string, { pageId: string; label: string }> = {
+  suppliers: { pageId: 'supplier', label: 'الموردين' },
+  materials: { pageId: 'material', label: 'المواد الخام' },
+  products: { pageId: 'product', label: 'المنتجات' },
+  employees: { pageId: 'employee', label: 'الموظفين' },
+  customers: { pageId: 'customer', label: 'العملاء' },
+  machines: { pageId: 'machine', label: 'الماكينات' },
+  vehicles: { pageId: 'fleet', label: 'المركبات' },
+  productionOrders: { pageId: 'productionOrder', label: 'أوامر التصنيع' },
+  users: { pageId: 'users', label: 'المستخدمين' },
+  invoices: { pageId: 'salesInvoice', label: 'الفواتير' },
+  recipes: { pageId: 'recipe', label: 'الوصفات' },
+  packagingMaterials: { pageId: 'inventoryExtensions-packaging', label: 'مواد التعبئة' },
+  spareParts: { pageId: 'inventoryExtensions', label: 'قطع الغيار' },
+  lots: { pageId: 'productionLot', label: 'دفعات الإنتاج' },
+  distributionPoints: { pageId: 'distributionPoint', label: 'نقاط التوزيع' },
+  supplierTemplates: { pageId: 'supplierTemplate', label: 'قوالب الرسائل' },
+  expenses: { pageId: 'expense', label: 'المصروفات' },
+  purchaseOrders: { pageId: 'purchaseOrder', label: 'أوامر الشراء' },
+  maintenanceSchedules: { pageId: 'maintenanceSchedule', label: 'جدول الصيانة' },
+  purchaseRequests: { pageId: 'purchaseRequest', label: 'طلبات الشراء' },
+  obligations: { pageId: 'obligation', label: 'الالتزامات' },
+  maintenanceRecords: { pageId: 'maintenanceRecord', label: 'سجلات الصيانة' },
+  warehouses: { pageId: 'warehouse', label: 'المستودعات' },
+  customerRecipes: { pageId: 'customerRecipe', label: 'خلطات العملاء' },
+  payrolls: { pageId: 'payroll', label: 'الرواتب' },
+  attendance: { pageId: 'attendance', label: 'الحضور' },
+  adjustments: { pageId: 'stockAdjustment', label: 'تسويات المخزون' },
+  vehicleServices: { pageId: 'fleet', label: 'خدمات المركبات' },
+  supplierCommunications: { pageId: 'supplierCommunication', label: 'مراسلات الموردين' },
+  qualitySamples: { pageId: 'qualitySample', label: 'عينات الجودة' },
+  notifications: { pageId: 'notification', label: 'الإشعارات' },
+  leaveRequests: { pageId: 'attendance', label: 'الإجازات' },
+  fuelLogs: { pageId: 'fleetFuel', label: 'تعبئات الوقود' },
+  distributionClosings: { pageId: 'distributionClosing', label: 'الإقفال اليومي' },
+  scaleReadings: { pageId: 'scaleReading', label: 'قراءات الميزان' },
+  utilitiesReadings: { pageId: 'utilitiesReading', label: 'قراءات المرافق' },
 }
 
 export function DependencyLink({ field }: { field: string }) {
   const { language } = useLanguage()
   const closeDialog = useContext(DialogCloseContext)
   const target = CONTROL_LINK_TARGETS[field]
-  if (!target) return null
+  const href = target ? hrefForPageId(target.pageId) : null
+  if (!target || !href) return null
   return (
-    <Link href={target.href} onClick={closeDialog} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1e127c] underline-offset-2 hover:underline">
+    <Link href={href} onClick={closeDialog} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#1e127c] underline-offset-2 hover:underline">
       {`${translateUiText(language, 'أضف')} ${translateUiText(language, target.label)} ${translateUiText(language, 'أولاً')}`} ↗
     </Link>
   )

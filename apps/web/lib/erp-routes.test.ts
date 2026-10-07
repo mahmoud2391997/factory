@@ -18,6 +18,21 @@ import {
 } from './erp-routes'
 import { ALL_NAV_PAGES, MAX_VISIBLE_PAGE_TABS, NAV_CONFIG, canonicalPages } from './nav/config'
 
+test('form dependency shortcuts resolve to registered pages', () => {
+  const source = readFileSync(new URL('../components/erp/live/bits.tsx', import.meta.url), 'utf8')
+  const shortcuts = source.split('const CONTROL_LINK_TARGETS:')[1]!.split('export function DependencyLink')[0]!
+  const pageIds = [...shortcuts.matchAll(/pageId: '([^']+)'/g)].map((match) => match[1]!)
+  assert.ok(pageIds.length > 0)
+  for (const pageId of pageIds) {
+    const href = hrefForPageId(pageId)
+    assert.ok(href, `Missing dependency page ${pageId}`)
+    const url = new URL(href, 'https://nav.invalid')
+    assert.ok(resolvePath(url.pathname, url.search), `Unresolved dependency ${href}`)
+  }
+  assert.equal(hrefForPageId('employee'), '/hr')
+  assert.equal(resolvePath('/admin/employees')?.redirectTo, '/hr')
+})
+
 // Snapshot of every entity key and URL in the previous navigation catalog.
 const LEGACY_ROUTES = [
   {

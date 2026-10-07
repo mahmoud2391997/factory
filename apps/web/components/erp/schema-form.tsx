@@ -3,6 +3,7 @@
 import type { SchemaField } from '@/lib/erp-schema'
 import { useLanguage } from '@/lib/i18n/language-provider'
 import { translateUiText } from '@/lib/i18n/translations'
+import { CodeInput } from './code-input'
 
 type Values = Record<string, unknown>
 
@@ -86,6 +87,14 @@ export function SchemaForm({
                 className={common}
                 value={String(value ?? '')}
                 onChange={(e) => onChange(field.key, e.target.value)}
+              />
+            ) : field.key === 'code' ? (
+              <CodeInput
+                className={common}
+                placeholder={field.placeholder}
+                value={String(value ?? '')}
+                required={field.required}
+                onValueChange={(next) => onChange(field.key, next)}
               />
             ) : (
               <input
