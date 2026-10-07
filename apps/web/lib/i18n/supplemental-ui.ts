@@ -5242,5 +5242,19 @@ export const supplementalUi: Record<string, { en: string; hi: string }> = {
   "استلام": {
     "en": "Receipt",
     "hi": "प्राप्ति"
-  }
+  },
+  "مؤشرات الأداء": {"en": "Performance overview", "hi": "प्रदर्शन अवलोकन"},
+  "فترة الرسوم البيانية": {"en": "Chart period", "hi": "चार्ट अवधि"},
+  "آخر 7 أيام": {"en": "Last 7 days", "hi": "पिछले 7 दिन"},
+  "آخر 30 يوماً": {"en": "Last 30 days", "hi": "पिछले 30 दिन"},
+  "عرض بيانات الرسم": {"en": "View chart data", "hi": "चार्ट डेटा देखें"},
+  "الإنتاج خلال الفترة": {"en": "Production over time", "hi": "समय के अनुसार उत्पादन"},
+  "المخطط مقابل الفعلي بالطن": {"en": "Planned versus actual in tonnes", "hi": "टन में नियोजित बनाम वास्तविक"},
+  "المبيعات خلال الفترة": {"en": "Sales over time", "hi": "समय के अनुसार बिक्री"},
+  "التكلفة والربحية": {"en": "Cost and profitability", "hi": "लागत और लाभप्रदता"},
+  "تكلفة وسعر البيع وهامش الربح للطن": {"en": "Cost, selling price, and margin per tonne", "hi": "प्रति टन लागत, बिक्री मूल्य और लाभ"},
+  "حالة المخزون": {"en": "Inventory status", "hi": "इन्वेंटरी स्थिति"},
+  "عدد المواد في كل حالة؛ قد تظهر المادة في أكثر من حالة.": {"en": "Material counts by status; a material can appear in more than one status.", "hi": "स्थिति के अनुसार सामग्री की संख्या; एक सामग्री एक से अधिक स्थितियों में हो सकती है।"},
+  "عدد المواد": {"en": "Material count", "hi": "सामग्री की संख्या"},
+  "مرر للتنقل في الصفحة. استخدم Ctrl أو ⌘ مع التمرير لتكبير الخريطة.": { "en": "Scroll to move through the page. Hold Ctrl or ⌘ while scrolling to zoom the map.", "hi": "पेज पर आगे बढ़ने के लिए स्क्रॉल करें। मानचित्र को ज़ूम करने के लिए स्क्रॉल करते समय Ctrl या ⌘ दबाए रखें।" },
 }

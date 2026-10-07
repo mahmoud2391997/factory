@@ -801,3 +801,7 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
   .erp-section-tabs-mobile { display: none; }
   .erp-section-tabs-desktop { display: block; }
 }
+
+@container erp-page (min-width: 900px) {
+  .erp-dashboard-charts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

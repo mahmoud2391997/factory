@@ -21,6 +21,7 @@ import { Badge, Card, DataTable, ExportLinks, Field, FormDialog, GhostButton, Pr
 import type { LiveCtx } from './ctx'
 import { can, dayFmt, moneyFmt, partyName, pctFmt, qtyFmt, statusLabel, tonsFmt, WAREHOUSE_LABEL } from './format'
 import { SystemMap } from '@/components/erp/system-map'
+import { DashboardCharts } from './dashboard-charts'
 
 const ROLE_OPTIONS: Array<{ value: RoleKey; label: string }> = (Object.entries(ROLE_LABELS) as Array<[RoleKey, string]>).map(
   ([value, label]) => ({ value, label }),
@@ -1949,6 +1950,8 @@ export function DashboardScreen({ ctx }: { ctx: LiveCtx }) {
         </p>
         <Link href="/guide" className="inline-flex min-h-11 items-center rounded-lg border border-[#c4b9f5] bg-[#f3f0ff] px-4 text-sm font-semibold text-[#271a83] hover:bg-[#e0dbfa] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#51457e] dark:bg-[#29234b] dark:text-[#e0dbfa] dark:hover:bg-[#271a83]">دليل البنود</Link>
       </div>
+
+      <DashboardCharts ctx={ctx} status={status} />
 
       <SystemMap permissions={ctx.permissions} language={language} />
 
