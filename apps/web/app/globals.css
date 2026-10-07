@@ -578,13 +578,22 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
     right: auto;
   }
 
-  .erp-app[dir='ltr'] .erp-content {
-    margin-right: 0 !important;
-    margin-left: 19.5rem;
+  .erp-app {
+    --erp-sidebar-width: 280px;
   }
 
-  .erp-app[dir='ltr'].erp-app-compact .erp-content {
-    margin-left: 6.5rem;
+  .erp-app.erp-app-compact {
+    --erp-sidebar-width: 72px;
+  }
+
+  .erp-sidebar {
+    inset-inline-start: 15px;
+    inset-inline-end: auto;
+    width: var(--erp-sidebar-width);
+  }
+
+  .erp-content {
+    margin-inline-start: calc(var(--erp-sidebar-width) + 16px);
   }
 }
 
@@ -766,3 +775,29 @@ html:not(.dark) .erp-content [class*='border-[#edf2ef]'] {
 
 /* Selection controls share the brand in both color schemes. */
 .erp-app :is(input[type='checkbox'], input[type='radio']) { accent-color: var(--primary); }
+
+/* Keep intrinsic table and form widths inside their available page space. */
+.erp-page-content {
+  container-type: inline-size;
+  container-name: erp-page;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .erp-sidebar {
+    max-height: 100dvh;
+  }
+}
+
+/* Switch navigation using the page width, including the space taken by the main menu. */
+@container erp-page (min-width: 640px) {
+  .erp-page-tabs-mobile { display: none; }
+  .erp-page-tabs-desktop { display: block; }
+}
+
+@container erp-page (min-width: 1024px) {
+  .erp-workspace-layout { grid-template-columns: 15rem minmax(0, 1fr); }
+  .erp-section-tabs { position: sticky; top: 6rem; align-self: start; }
+  .erp-section-tabs-mobile { display: none; }
+  .erp-section-tabs-desktop { display: block; }
+}

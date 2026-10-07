@@ -528,7 +528,7 @@ export function ErpShell() {
         <button type="button" aria-label={uiLabel('إغلاق')} className="fixed inset-0 z-30 bg-[#111827]/45 md:hidden" onClick={closeMobile} />
       ) : null}
       <aside
-        className={`erp-sidebar fixed z-40 flex w-[min(280px,calc(100vw-24px))] flex-col bg-[#f9fafb] text-[#1f1f1f] transition-[width,transform] duration-200 motion-reduce:transition-none md:inset-y-[15px] md:translate-x-0 ${iconOnly ? 'md:w-[72px]' : 'md:w-[280px]'} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-2xl' : `inset-y-0 right-0 ${language === 'ar' ? 'translate-x-full' : '-translate-x-full'}`} ${language !== 'ar' ? 'ltr-sidebar' : ''}`}
+        className={`erp-sidebar fixed z-40 flex w-[min(280px,calc(100vw-24px))] flex-col bg-[#f9fafb] text-[#1f1f1f] transition-transform duration-200 motion-reduce:transition-none md:inset-y-[15px] md:translate-x-0 ${iconOnly ? 'md:w-[72px]' : 'md:w-[280px]'} ${mobileOpen ? 'inset-y-0 right-0 translate-x-0 bg-white shadow-2xl' : `inset-y-0 right-0 ${language === 'ar' ? 'translate-x-full' : '-translate-x-full'}`} ${language !== 'ar' ? 'ltr-sidebar' : ''}`}
       >
         <div className={`flex shrink-0 items-center border-b border-[#e5e7eb] ${iconOnly ? 'h-24 flex-col justify-center gap-1 px-2' : 'h-16 gap-2 px-4'}`}>
           <Link href={landingPath(user)} aria-label={uiLabel('الرئيسية')} onClick={closeMobile} className={`erp-mark grid shrink-0 place-items-center overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${iconOnly ? 'size-9' : 'size-12'}`}>
@@ -772,19 +772,19 @@ export function ErpShell() {
         </div>
       </aside>
 
-      <div className={`erp-content min-h-screen overflow-auto bg-white md:min-h-[calc(100vh-30px)] md:rounded-[15px] md:border md:border-[#e5e7eb] ${iconOnly ? 'md:mr-[6.5rem]' : 'md:mr-[19.5rem]'}`}>
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-[#e5e7eb] bg-white px-5 md:px-8">
-          <button type="button" aria-label={uiLabel('فتح القائمة')} className="grid size-11 place-items-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] md:hidden" onClick={() => { setMobileWorkspaceId(null); setMobileOpen(true) }}>
+      <div className="erp-content min-w-0 min-h-screen bg-white md:min-h-[calc(100vh-30px)] md:rounded-[15px] md:border md:border-[#e5e7eb]">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center gap-2 sm:gap-4 border-b border-[#e5e7eb] bg-white px-3 sm:px-5 md:px-6">
+          <button type="button" aria-label={uiLabel('فتح القائمة')} className="grid size-11 shrink-0 place-items-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] md:hidden" onClick={() => { setMobileWorkspaceId(null); setMobileOpen(true) }}>
             <Menu size={21} aria-hidden />
           </button>
-          <div className="hidden text-right sm:block">
+          <div className="hidden min-w-0 text-right sm:block">
             <div className="text-[13px] text-[#6b7280]">{primaryRole}</div>
-            <h1 className="text-2xl font-semibold leading-tight">{uiLabel('مرحباً،')} {uiLabel(firstName)}</h1>
+            <h1 className="truncate text-xl sm:text-2xl font-semibold leading-tight">{uiLabel('مرحباً،')} {uiLabel(firstName)}</h1>
           </div>
-          <div className="ms-auto flex items-center gap-2">
+          <div className="ms-auto flex shrink-0 items-center gap-2">
             {showNotices ? (
               <div className="relative" ref={noticesRef}>
-                <button type="button" aria-label={uiLabel('إشعارات')} aria-expanded={noticesOpen} className="relative grid size-11 place-items-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#e4e4e7]" onClick={() => setNoticesOpen((open) => !open)}>
+                <button type="button" aria-label={uiLabel('إشعارات')} aria-expanded={noticesOpen} className="relative grid size-11 shrink-0 place-items-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#e4e4e7]" onClick={() => setNoticesOpen((open) => !open)}>
                   <Bell size={20} aria-hidden />
                   {unread > 0 ? <span className="absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#b91c1c] px-1 text-[10px] font-semibold leading-5 text-white">{unread > 99 ? '99+' : unread}</span> : null}
                 </button>
@@ -812,7 +812,7 @@ export function ErpShell() {
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 lg:px-10">
+        <div className="erp-page-content w-full min-w-0 px-3 py-4 sm:px-5 sm:py-6 md:px-6">
           {erp.error ? <div className="mb-4 rounded-lg border border-[#fecaca] bg-[#fee2e2] px-4 py-3 text-sm font-medium text-[#991b1b]">{uiLabel(erp.error)}</div> : null}
           {erp.loading || !liveCtx ? (
             <div aria-busy="true" aria-live="polite" className="space-y-4">

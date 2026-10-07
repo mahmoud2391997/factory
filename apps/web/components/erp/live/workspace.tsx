@@ -175,7 +175,7 @@ export function LiveWorkspace({
         </ol>
       </nav>
 
-      <div className={tabLayout === 'sidebar' ? 'grid min-w-0 items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]' : 'min-w-0 space-y-4'}>
+      <div className={tabLayout === 'sidebar' ? 'erp-workspace-layout grid min-w-0 items-start gap-6' : 'min-w-0 space-y-4'}>
         <PageTabs
           label="الأقسام الرئيسية"
           primaryTabs={tabs}

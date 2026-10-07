@@ -33,8 +33,8 @@ export function Card({
 }) {
   const { language } = useLanguage()
   return (
-    <section className="flex flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-5 shadow-sm">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="flex min-w-0 flex-col rounded-[12px] border border-[#e5e7eb] bg-white p-3 sm:p-5 shadow-sm">
+      <div className="mb-4 flex min-w-0 flex-col flex-wrap gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-medium">{translateUiText(language, title)}</h3>
           {hint ? <p className="mt-1 text-sm text-[#6b7280]">{translateUiText(language, hint)}</p> : null}
@@ -136,7 +136,7 @@ export function DataTable({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 max-w-full space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="sr-only" htmlFor={filterId}>{translateUiText(language, 'تصفية الجدول')}</label>
         <input
@@ -180,7 +180,7 @@ export function DataTable({
         </div>
       ) : null}
 
-      <div className="overflow-x-auto">
+      <div className="max-w-full overflow-x-auto overscroll-x-contain">
         <table className="w-full min-w-[640px] text-center text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] text-[#1f1f1f]">
@@ -260,7 +260,7 @@ export function DataTable({
         </table>
       </div>
       {sorted.length > PAGE_SIZE ? (
-        <div className="flex items-center justify-between gap-3 text-sm text-[#6b7280]">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[#6b7280]">
           <button
             type="button"
             className="rounded-md border border-[#e5e7eb] bg-white px-3 py-1.5 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] disabled:opacity-40"
@@ -289,7 +289,7 @@ export function DataTable({
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   const { language } = useLanguage()
   return (
-    <label className="block space-y-1.5 text-sm">
+    <label className="block min-w-0 space-y-1.5 text-sm">
       <span className="font-medium text-[#1f1f1f]">{translateUiText(language, label)}</span>
       <LocalizedContent>{children}</LocalizedContent>
     </label>
@@ -297,7 +297,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 const controlClass =
-  'h-10 w-full rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#1f1f1f]'
+  'h-10 w-full min-w-0 rounded-md border border-[#e5e7eb] bg-white px-3 text-sm outline-none focus:border-[#1f1f1f]'
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   const { language } = useLanguage()

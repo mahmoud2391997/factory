@@ -143,7 +143,7 @@ export function PageTabs({
   }
 
   const sidebarContent = (
-    <nav aria-label={translateUiText(language, label)} className="hidden min-w-0 lg:block">
+    <nav aria-label={translateUiText(language, label)} className="erp-section-tabs-desktop hidden min-w-0">
       <div className="space-y-4">
         {groups.map((group) => (
           <section key={group.id} aria-label={group.label ? translateUiText(language, group.label) : undefined}>
@@ -217,8 +217,8 @@ export function PageTabs({
 
   if (layout === 'sidebar') {
     return (
-      <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-        <div className="space-y-2 lg:hidden">
+      <aside className="erp-section-tabs min-w-0">
+        <div className="erp-section-tabs-mobile space-y-2">
           {select(primaryTabs, activePrimaryId, label)}
           {secondaryTabs.length > 1 ? select(secondaryTabs, activeSecondaryId, 'صفحات القسم') : null}
         </div>
@@ -229,11 +229,11 @@ export function PageTabs({
 
   return (
     <div className="erp-page-tabs min-w-0 max-w-full border-y border-[#e5e7eb] bg-white/95 py-2 backdrop-blur-sm dark:border-[#3f3f46] dark:bg-[#161b22]/95 motion-reduce:backdrop-blur-none">
-      <div className="space-y-2 md:hidden">
+      <div className="erp-page-tabs-mobile space-y-2">
         {select(primaryTabs, activePrimaryId, label)}
         {secondaryTabs.length > 1 ? select(secondaryTabs, activeSecondaryId, 'صفحات القسم') : null}
       </div>
-      <nav aria-label={translateUiText(language, label)} className="hidden min-w-0 md:block">
+      <nav aria-label={translateUiText(language, label)} className="erp-page-tabs-desktop hidden min-w-0">
         <div className="flex min-w-0 flex-nowrap items-stretch gap-1 rounded-xl bg-[#f3f4f6] p-1 dark:bg-[#27272a]">
           {visibleTabs.map((tab) => desktopLink(tab, activePrimaryId))}
           {overflowTabs.length ? (
