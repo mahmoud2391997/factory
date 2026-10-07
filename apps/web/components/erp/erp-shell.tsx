@@ -131,7 +131,7 @@ export function ErpShell() {
   ])
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<string[]>([])
   const [flyoutWorkspaceId, setFlyoutWorkspaceId] = useState<string | null>(null)
-  const [flyoutPosition, setFlyoutPosition] = useState<{ top: number; left: number } | null>(null)
+  const [flyoutPosition, setFlyoutPosition] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
   const [navSearch, setNavSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1)
@@ -414,7 +414,7 @@ export function ErpShell() {
     const left = language === 'ar'
       ? Math.max(8, rect.left - flyoutWidth - 8)
       : Math.min(window.innerWidth - flyoutWidth - 8, rect.right + 8)
-    setFlyoutPosition({ top, left })
+    setFlyoutPosition({ top, left, maxHeight: flyoutHeight })
     setFlyoutWorkspaceId(workspaceId)
   }
 
@@ -475,7 +475,7 @@ export function ErpShell() {
       const page = pages[0]!
       const active = resolved?.page.id === page.id
       return (
-        <Link key={`${variant}:${workspaceId}:${section.id}`} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={`${uiLabel(section.label)} · ${uiLabel(page.description)}`} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
+        <Link key={`${variant}:${workspaceId}:${section.id}`} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={`${uiLabel(section.label)} · ${uiLabel(page.description)}`} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-start text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
           <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
           <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
         </Link>
@@ -485,7 +485,7 @@ export function ErpShell() {
     const pagesId = `erp-navigation-${workspaceId}-${section.id}-${variant}`
     return (
       <section key={`${variant}:${workspaceId}:${section.id}`} className={isFlyout ? 'border-b border-[#e5e7eb] pb-2 last:border-b-0 dark:border-[#3f3f46]' : 'py-1'}>
-        <button type="button" data-nav-item="true" data-active={sectionActive} aria-current={sectionActive ? 'location' : undefined} aria-expanded={!collapsed} aria-controls={pagesId} onClick={() => setCollapsedSectionIds((current) => collapsed ? current.filter((id) => id !== sectionKey) : [...current, sectionKey])} className={`erp-section-item flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-right text-xs font-semibold text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:text-[#e4e4e7] dark:hover:bg-[#27272a] ${isFlyout ? 'px-2.5' : ''}`}>
+        <button type="button" data-nav-item="true" data-active={sectionActive} aria-current={sectionActive ? 'location' : undefined} aria-expanded={!collapsed} aria-controls={pagesId} onClick={() => setCollapsedSectionIds((current) => collapsed ? current.filter((id) => id !== sectionKey) : [...current, sectionKey])} className={`erp-section-item flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-start text-xs font-semibold text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:text-[#e4e4e7] dark:hover:bg-[#27272a] ${isFlyout ? 'px-2.5' : ''}`}>
           <span className="min-w-0 flex-1">
             <span className="block truncate">{uiLabel(section.label)}</span>
             {section.workflow ? <span className="mt-0.5 block truncate text-[10px] font-normal normal-case tracking-normal text-[#6b7280] dark:text-[#a1a1aa]">{uiLabel(section.workflow)}</span> : null}
@@ -498,7 +498,7 @@ export function ErpShell() {
           {pages.map((page) => {
             const active = resolved?.page.id === page.id
             return (
-              <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-9 items-center rounded-lg px-3 text-right text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
+              <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-9 items-center rounded-lg px-3 text-start text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
                 <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
               </Link>
             )
@@ -592,7 +592,7 @@ export function ErpShell() {
                   aria-label={uiLabel('ابحث في القوائم')}
                   aria-expanded={searchOpen}
                   aria-controls="erp-navigation-search-results"
-                  className="min-w-0 flex-1 bg-transparent text-right text-sm text-[#1f1f1f] outline-none placeholder:text-[#6b7280] dark:text-[#f4f4f5] dark:placeholder:text-[#a1a1aa]"
+                  className="min-w-0 flex-1 bg-transparent text-start text-sm text-[#1f1f1f] outline-none placeholder:text-[#6b7280] dark:text-[#f4f4f5] dark:placeholder:text-[#a1a1aa]"
                 />
                 <kbd className="hidden rounded border border-[#e5e7eb] px-1.5 py-0.5 text-[10px] text-[#6b7280] lg:inline">{typeof navigator !== 'undefined' && navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}</kbd>
                 {navSearch ? <button type="button" aria-label={uiLabel('مسح البحث')} onClick={() => { setNavSearch(''); setSearchInputFocus(searchInputRef.current) }} className="grid size-6 place-items-center rounded text-[#525252] hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]">×</button> : null}
@@ -617,7 +617,7 @@ export function ErpShell() {
                                 aria-current={resolved?.page.id === result.page?.id ? 'page' : undefined}
                                 onMouseEnter={() => setActiveSearchIndex(index)}
                                 onClick={() => { if (result.workspace) { const wid = result.workspace.id; setOpenWorkspaceIds((current) => (current.includes(wid) ? current : [...current, wid])) } setSearchOpen(false); setNavSearch(''); closeMobile() }}
-                                className={`flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-2 text-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${activeSearchIndex === index ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'}`}
+                                className={`flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-2 text-start text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${activeSearchIndex === index ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'}`}
                               >
                                 {ResultIcon ? <ResultIcon size={16} aria-hidden className="shrink-0" /> : null}
                                 <span className="min-w-0 flex-1 truncate font-medium"><SearchHighlight text={uiLabel(result.label)} query={navSearch} /></span>
@@ -685,7 +685,7 @@ export function ErpShell() {
                     const isSinglePage = pages.length === 1
                     const Icon = workspace.icon
                     const badgeValue = workspace.id === 'inventory' && canSeeEntity(permissions, 'material') ? status?.inventory.runningOut.length ?? 0 : 0
-                    const rowClass = `${iconOnly ? 'justify-center' : ''} erp-workspace-item ${active ? 'erp-workspace-active bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'} flex h-11 w-full items-center gap-3 rounded-xl px-3 text-right text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]`
+                    const rowClass = `${iconOnly ? 'justify-center' : ''} erp-workspace-item ${active ? 'erp-workspace-active bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#374151] hover:bg-[#f3f4f6] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]'} flex h-11 w-full items-center gap-3 rounded-xl px-3 text-start text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]`
                     const row = isSinglePage ? (
                       <Link key={workspace.id} data-nav-item="true" data-workspace-id={workspace.id} href={entryHref ?? '/'} aria-current={active ? 'page' : undefined} title={iconOnly ? uiLabel(workspace.label) : undefined} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspace.id) ? current : [...current, workspace.id])); closeMobile() }} className={rowClass}>
                         <Icon size={18} aria-hidden className="shrink-0" />
@@ -714,7 +714,7 @@ export function ErpShell() {
                     )
 
                     const flyout = iconOnly && flyoutWorkspaceId === workspace.id && flyoutPosition ? (
-                      <div style={{ top: flyoutPosition.top, left: flyoutPosition.left }} className="erp-workspace-flyout fixed z-[80] max-h-[85vh] w-[260px] overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-2 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b]" onMouseEnter={() => { if (flyoutCloseTimer.current != null) window.clearTimeout(flyoutCloseTimer.current) }} onMouseLeave={scheduleFlyoutClose}>
+                      <div dir={direction} style={{ top: flyoutPosition.top, left: flyoutPosition.left, maxHeight: flyoutPosition.maxHeight }} className="erp-workspace-flyout fixed z-[80] text-start w-[260px] overflow-y-auto rounded-xl border border-[#d1d5db] bg-white p-2 shadow-xl dark:border-[#3f3f46] dark:bg-[#18181b]" onMouseEnter={() => { if (flyoutCloseTimer.current != null) window.clearTimeout(flyoutCloseTimer.current) }} onMouseLeave={scheduleFlyoutClose}>
                         <div className="px-2 py-2 text-sm font-semibold text-[#1f2937] dark:text-[#f4f4f5]">{uiLabel(workspace.label)}</div>
                         {sections.map((section) => renderSectionGroup(section, workspace.id, 'flyout'))}
                       </div>
@@ -751,17 +751,17 @@ export function ErpShell() {
                   {getSupportedLanguages().map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
                 </select>
               </label>
-              <button type="button" role="menuitem" onClick={() => setDark((value) => !value)} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-right text-sm text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]">
+              <button type="button" role="menuitem" onClick={() => setDark((value) => !value)} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-start text-sm text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:text-[#e4e4e7] dark:hover:bg-[#27272a]">
                 {dark ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}{uiLabel(dark ? 'الوضع الفاتح' : 'الوضع الداكن')}
               </button>
               <div className="my-2 border-t border-[#e5e7eb] dark:border-[#3f3f46]" />
               <div className="mb-2 text-[11px] text-[#6b7280] dark:text-[#a1a1aa]" dir="ltr">Build {process.env.NEXT_PUBLIC_GIT_COMMIT_SHA ?? 'local'} · {process.env.NEXT_PUBLIC_BUILD_DATE ?? 'development'}</div>
-              <button type="button" role="menuitem" disabled={loggingOut} onClick={async () => { setLoggingOut(true); await logout(); router.replace('/login') }} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-right text-sm font-medium text-[#991b1b] hover:bg-[#fef2f2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] disabled:opacity-60 dark:text-[#fca5a5] dark:hover:bg-[#3f1d1d]">
+              <button type="button" role="menuitem" disabled={loggingOut} onClick={async () => { setLoggingOut(true); await logout(); router.replace('/login') }} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-start text-sm font-medium text-[#991b1b] hover:bg-[#fef2f2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] disabled:opacity-60 dark:text-[#fca5a5] dark:hover:bg-[#3f1d1d]">
                 {loggingOut ? <Loader2 size={17} className="animate-spin" aria-hidden /> : <LogOut size={17} aria-hidden />}{uiLabel('تسجيل الخروج')}
               </button>
             </div>
           ) : null}
-          <button type="button" aria-haspopup="menu" aria-expanded={userMenuOpen} aria-label={`${uiLabel('قائمة المستخدم')}: ${displayUserName}, ${primaryRole}`} title={iconOnly ? `${displayUserName} · ${primaryRole}` : undefined} onClick={() => setUserMenuOpen((open) => !open)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-right hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:hover:bg-[#27272a] ${iconOnly ? 'justify-center' : ''}`}>
+          <button type="button" aria-haspopup="menu" aria-expanded={userMenuOpen} aria-label={`${uiLabel('قائمة المستخدم')}: ${displayUserName}, ${primaryRole}`} title={iconOnly ? `${displayUserName} · ${primaryRole}` : undefined} onClick={() => setUserMenuOpen((open) => !open)} className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-start hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] dark:hover:bg-[#27272a] ${iconOnly ? 'justify-center' : ''}`}>
             <span className="erp-mark grid size-8 shrink-0 place-items-center rounded-full bg-[#1f1f1f] text-xs font-semibold text-white">{getInitials(displayUserName)}</span>
             <span className={iconOnly ? 'sr-only' : 'min-w-0 flex-1'}>
               <span className="block truncate text-sm font-medium text-[#1f2937] dark:text-[#f4f4f5]">{displayUserName}</span>
@@ -772,12 +772,12 @@ export function ErpShell() {
         </div>
       </aside>
 
-      <div className="erp-content min-w-0 min-h-screen bg-white md:min-h-[calc(100vh-30px)] md:rounded-[15px] md:border md:border-[#e5e7eb]">
+      <div key={`${pathname}?${searchString}`} className="erp-content min-w-0 min-h-screen bg-white md:min-h-[calc(100vh-30px)] md:rounded-[15px] md:border md:border-[#e5e7eb]">
         <header className="sticky top-0 z-30 flex min-h-16 items-center gap-2 sm:gap-4 border-b border-[#e5e7eb] bg-white px-3 sm:px-5 md:px-6">
           <button type="button" aria-label={uiLabel('فتح القائمة')} className="grid size-11 shrink-0 place-items-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f3f4f6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] md:hidden" onClick={() => { setMobileWorkspaceId(null); setMobileOpen(true) }}>
             <Menu size={21} aria-hidden />
           </button>
-          <div className="hidden min-w-0 text-right sm:block">
+          <div className="hidden min-w-0 text-start sm:block">
             <div className="text-[13px] text-[#6b7280]">{primaryRole}</div>
             <h1 className="truncate text-xl sm:text-2xl font-semibold leading-tight">{uiLabel('مرحباً،')} {uiLabel(firstName)}</h1>
           </div>
