@@ -506,6 +506,7 @@ export function ErpShell() {
       return (
         <Link key={`${variant}:${workspaceId}:${section.id}`} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={`${uiLabel(section.label)} · ${uiLabel(page.description)}`} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-10 items-center rounded-lg px-3 text-start text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
           <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
+                {page.entityKey === 'factoryRunningOut' && canSeeEntity(permissions, 'material') ? <CountBadge value={status?.inventory.runningOut.length ?? 0} label={uiLabel('مواد قاربت النفاد')} /> : null}
           <CountBadge value={sectionBadge(section.id)} label={uiLabel(section.label)} />
         </Link>
       )
@@ -529,6 +530,7 @@ export function ErpShell() {
             return (
               <Link key={page.id} data-nav-item="true" href={page.href} aria-current={active ? 'page' : undefined} title={uiLabel(page.description)} onClick={() => { setOpenWorkspaceIds((current) => (current.includes(workspaceId) ? current : [...current, workspaceId])); setFlyoutWorkspaceId(null); closeMobile() }} className={`flex min-h-9 items-center rounded-lg px-3 text-start text-[13px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c] ${isFlyout ? 'px-2.5' : ''} ${active ? 'bg-[#eeebfb] text-[#271a83] dark:bg-[#29234b] dark:text-[#e0dbfa]' : 'text-[#4b5563] hover:bg-[#f3f4f6] dark:text-[#d4d4d8] dark:hover:bg-[#27272a]'}`}>
                 <span className="min-w-0 flex-1 truncate">{uiLabel(page.label)}</span>
+                {page.entityKey === 'factoryRunningOut' && canSeeEntity(permissions, 'material') ? <CountBadge value={status?.inventory.runningOut.length ?? 0} label={uiLabel('مواد قاربت النفاد')} /> : null}
               </Link>
             )
           })}

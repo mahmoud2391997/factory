@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
 import { PageTabs } from '@/components/erp/page-tabs'
+import { factoryStatus } from '@/lib/erp/domain/reports'
 import { NAV_CONFIG } from '@/lib/nav/config'
 import { canSeeEntity } from '@/lib/erp-routes'
 import { useLanguage } from '@/lib/i18n/language-provider'
@@ -182,6 +183,7 @@ export function LiveWorkspace({
           secondaryTabs={secondaryTabs}
           activePrimaryId={activeTabId}
           activeSecondaryId={activeSecondaryId}
+          counts={canSeeEntity(ctx.permissions, 'material') ? { factoryRunningOut: factoryStatus(ctx.state).inventory.runningOut.length } : {}}
           layout={tabLayout}
         />
         <div className="min-w-0 space-y-4">
