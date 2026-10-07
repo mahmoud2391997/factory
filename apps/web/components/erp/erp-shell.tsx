@@ -226,6 +226,35 @@ export function ErpShell() {
   }, [erp.message])
 
   useEffect(() => {
+    if (!mobileOpen) return
+    const mobile = window.matchMedia('(max-width: 767px)')
+    if (!mobile.matches) return
+    const body = document.body
+    const root = document.documentElement
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const previousBodyStyle = body.getAttribute('style')
+    const previousOverflow = root.style.overflow
+    root.style.overflow = 'hidden'
+    Object.assign(body.style, {
+      position: 'fixed',
+      top: `-${scrollY}px`,
+      left: `-${scrollX}px`,
+      width: '100%',
+      overflow: 'hidden',
+    })
+    const closeOnDesktop = () => { if (!mobile.matches) setMobileOpen(false) }
+    mobile.addEventListener('change', closeOnDesktop)
+    return () => {
+      mobile.removeEventListener('change', closeOnDesktop)
+      if (previousBodyStyle === null) body.removeAttribute('style')
+      else body.setAttribute('style', previousBodyStyle)
+      root.style.overflow = previousOverflow
+      window.scrollTo(scrollX, scrollY)
+    }
+  }, [mobileOpen])
+
+  useEffect(() => {
     try {
       const storedCompact = localStorage.getItem(COMPACT_KEY)
       setCompact(storedCompact === null ? window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches : storedCompact === '1')
@@ -556,7 +585,7 @@ export function ErpShell() {
           </button>
         </div>
 
-        <nav ref={navRef} onKeyDown={handleNavKeyDown} className="erp-sidebar-nav flex-1 space-y-2 overflow-y-auto overflow-x-visible px-2.5 py-3" aria-label={uiLabel('التنقل الرئيسي')}>
+        <nav ref={navRef} onKeyDown={handleNavKeyDown} className="erp-sidebar-nav min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-visible overscroll-contain px-2.5 py-3" aria-label={uiLabel('التنقل الرئيسي')}>
           {!iconOnly ? (
             <div className="relative mb-2">
               <label className="flex h-11 items-center gap-2 rounded-xl border border-[#d1d5db] bg-white px-3 text-[#6b7280] shadow-sm transition-colors focus-within:border-[#1e127c] focus-within:ring-2 focus-within:ring-[#1e127c]/20 dark:border-[#3f3f46] dark:bg-[#18181b] dark:text-[#d4d4d8]">
