@@ -409,8 +409,8 @@ export function ErpShell() {
     if (flyoutCloseTimer.current != null) window.clearTimeout(flyoutCloseTimer.current)
     const rect = element.getBoundingClientRect()
     const flyoutWidth = 260
-    const flyoutHeight = Math.min(window.innerHeight * 0.85, 680)
-    const top = Math.max(12, Math.min(rect.top, window.innerHeight - flyoutHeight - 12))
+    const top = Math.max(12, rect.top)
+    const flyoutHeight = Math.min(window.innerHeight - top - 12, 680)
     const left = language === 'ar'
       ? Math.max(8, rect.left - flyoutWidth - 8)
       : Math.min(window.innerWidth - flyoutWidth - 8, rect.right + 8)
