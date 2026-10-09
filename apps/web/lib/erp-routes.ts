@@ -122,7 +122,7 @@ export function leafMeta(entityKey: string) {
 export function visibleWorkspaces(permissions: string[]) {
   return NAV_CONFIG.workspaces.filter((workspace) =>
     workspace.sections.some((section) =>
-      section.pages.some((page) => canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey)),
+      section.pages.some((page) => canAccessPage(page, permissions)),
     ),
   )
 }
@@ -145,7 +145,7 @@ export function visibleSections(workspace: NavWorkspace, permissions: string[]) 
 
 export function sectionEntryHref(section: NavSection, permissions: string[]) {
   return (
-    section.pages.find((page) => canAccessPage(page, permissions) || canSeeEntity(permissions, page.entityKey))?.href ??
+    section.pages.find((page) => canAccessPage(page, permissions))?.href ??
     null
   )
 }
@@ -161,7 +161,7 @@ export function workspaceEntryHref(workspace: NavWorkspace, permissions: string[
 export function pageTabs(resolved: ResolvedRoute, permissions: string[]) {
   const section = resolved.workspace ? visibleSections(resolved.workspace, permissions).find((group) => group.pages.some((page) => page.id === resolved.page.id)) : resolved.section
   const primary = (section?.pages ?? [])
-    .filter((page) => page.tab && canSeeEntity(permissions, page.entityKey))
+    .filter((page) => page.tab && canAccessPage(page, permissions))
     .map((page) => ({ id: page.id, href: page.href, label: page.label, group: page.tabGroup, groupLabel: page.tabGroupLabel }))
   return {
     primary,
@@ -209,7 +209,7 @@ export function searchNavigation(query: string, permissions: string[]): NavSearc
   const needle = normalizeText(query)
   if (!needle) return []
   const results: NavSearchResult[] = []
-  const accessiblePages = (pages: NavPage[]) => pages.filter((page) => canSeeEntity(permissions, page.entityKey))
+  const accessiblePages = (pages: NavPage[]) => pages.filter((page) => canAccessPage(page, permissions))
 
   for (const workspace of NAV_CONFIG.workspaces) {
     const pages = accessiblePages(workspace.sections.flatMap((section) => section.pages))

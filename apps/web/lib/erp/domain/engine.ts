@@ -4526,6 +4526,18 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   const seeVehicleServices = canAny(permissions, ['fleet.manage', 'fleet.service.manage'])
   const isDriver = permissions.includes('fleet.read') && !permissions.includes('fleet.manage')
   
+  const seeInventory = canAny(permissions, ['inventory.read', 'warehouses.read', 'inventory.transfer.create', 'inventory.adjust'])
+  const seeProduction = canAny(permissions, ['production.read', 'production.create', 'production.complete', 'production.cost.approve'])
+  const seePurchasing = permissions.some((permission) => permission.startsWith('purchasing.'))
+  const seeSales = permissions.some((permission) => permission.startsWith('sales.'))
+  const seeMaintenance = canAny(permissions, ['maintenance.read', 'maintenance.manage', 'spareparts.manage'])
+  const seePackaging = canAny(permissions, ['packaging.read', 'packaging.manage'])
+  const seeSpares = canAny(permissions, ['spareparts.read', 'spareparts.manage'])
+  const seeObligations = canAny(permissions, ['obligations.read', 'obligations.manage', 'obligations.pay'])
+  const seeDistribution = canAny(permissions, ['distribution.read', 'distribution.manage', 'delivery.track'])
+  const seeBank = canAny(permissions, ['bank.read', 'bank.manage'])
+  const seeUtilities = canAny(permissions, ['utilities.read', 'utilities.manage'])
+
   // DRIVER role filtering: only see own trips and fuel logs, no financial data
   const filteredTrips = isDriver && userId 
     ? state.trips.filter((trip) => trip.driverId === userId)
@@ -4537,10 +4549,57 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   return {
     ...state,
     idempotency: [],
-    users: state.users.map(({ passwordHash: _password, ...user }) => user),
+    users: state.users.filter((user) => user.id === userId || canAny(permissions, ['users.read', 'users.manage', 'fleet.manage'])).map(({ passwordHash: _password, ...user }) => user),
+    rolePermissions: Object.fromEntries(Object.entries(state.rolePermissions).map(([role, values]) => [role,
+      canAny(permissions, ['roles.read', 'roles.manage', 'users.manage']) || role === currentUser?.role ? values : [],
+    ])) as ErpState['rolePermissions'],
+    accounts: seeJournals || seeBank || permissions.includes('sales.payments.manage') ? state.accounts : [],
+    materials: seeInventory || seeProduction || seePurchasing || seeQuality ? state.materials : [],
+    products: seeInventory || seeProduction || seeSales || seeQuality ? state.products : [],
+    suppliers: seePurchasing || seeQuality || seeInventory || permissions.includes('suppliers.communicate') ? state.suppliers : [],
+    customers: seeSales || permissions.includes('recipes.custom') ? state.customers : [],
+    warehouses: seeInventory || seeProduction || seePurchasing ? state.warehouses : [],
+    recipes: seeProduction ? state.recipes : [],
+    balances: seeInventory || seeProduction || seeSales ? state.balances : [],
+    ledger: seeInventory ? state.ledger : [],
+    ledgerBaselines: seeInventory ? state.ledgerBaselines : [],
+    journalOpenings: seeJournals ? state.journalOpenings : [],
+    purchaseRequests: seePurchasing ? state.purchaseRequests : [],
+    supplierQuotations: seePurchasing ? state.supplierQuotations : [],
+    purchaseOrders: seePurchasing ? state.purchaseOrders : [],
+    goodsReceipts: seePurchasing ? state.goodsReceipts : [],
+    transfers: seeInventory ? state.transfers : [],
+    adjustments: seeInventory ? state.adjustments : [],
+    productionOrders: seeProduction || seeQuality || seePackaging || seeScale ? state.productionOrders : [],
+    lots: seeProduction || seeQuality || seeSales || seePackaging || seeScale ? state.lots : [],
+    stoppages: seeProduction ? state.stoppages : [],
+    invoices: seeSales ? state.invoices : [],
+    payments: seeSales ? state.payments : [],
+    withdrawals: seeSales ? state.withdrawals : [],
+    expenses: canAny(permissions, ['expenses.manage', 'expenses.approve']) ? state.expenses : [],
+    tripCostAllocations: seeVehicleServices ? state.tripCostAllocations : [],
+    obligations: seeObligations ? state.obligations : [],
+    obligationScheduleLines: seeObligations ? state.obligationScheduleLines : [],
+    obligationPayments: seeObligations ? state.obligationPayments : [],
+    spareParts: seeSpares ? state.spareParts : [],
+    sparePartUsages: seeSpares ? state.sparePartUsages : [],
+    packagingMaterials: seePackaging ? state.packagingMaterials : [],
+    packagingConsumption: seePackaging ? state.packagingConsumption : [],
+    packagingCounts: seePackaging ? state.packagingCounts : [],
+    supplierTemplates: permissions.includes('suppliers.communicate') ? state.supplierTemplates : [],
+    supplierCommunications: canAny(permissions, ['suppliers.communicate', 'suppliers.approve']) ? state.supplierCommunications : [],
+    distributionPoints: seeDistribution ? state.distributionPoints : [],
+    distributionClosings: seeDistribution ? state.distributionClosings : [],
+    invoiceDeliveries: seeDistribution || seeSales ? state.invoiceDeliveries : [],
+    utilitiesReadings: seeUtilities ? state.utilitiesReadings : [],
+    machines: seeMaintenance ? state.machines : [],
+    maintenanceSchedules: seeMaintenance ? state.maintenanceSchedules : [],
+    maintenanceRecords: seeMaintenance ? state.maintenanceRecords : [],
+    bankTransactions: seeBank ? state.bankTransactions : [],
+    customerRecipes: permissions.includes('recipes.custom') ? state.customerRecipes : [],
     employees: seeSalary
       ? state.employees
-      : state.employees.map((employee) => {
+      : (seeProduction || seeAttendance || seePayroll ? state.employees : []).map((employee) => {
           const { basicSalary: _salary, ...rest } = employee
           return rest as typeof employee
         }),

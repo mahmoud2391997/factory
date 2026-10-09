@@ -6,6 +6,7 @@ import { DEFAULT_ROLE_PERMISSIONS } from './erp/domain/permissions'
 import {
   breadcrumbs,
   canSeeEntity,
+  canSeePage,
   hrefForEntity,
   hrefForPageId,
   pageTabs,
@@ -566,4 +567,24 @@ test('every inventory and receiving route resolves to a screen, and permission d
   assert.ok(restricted, 'the restricted reports route remains resolvable')
   assert.equal(canSeeEntity([], restricted.page.entityKey), false, 'a user without permissions is denied the screen')
   assert.equal(restricted.redirectTo, undefined, 'authorization denial does not redirect the user to login')
+})
+
+
+test('packaging and spare parts stay isolated across URLs, menus, tabs, and search', () => {
+  for (const [allowedKind, deniedKind, permissions] of [
+    ['packaging', 'spare', ['packaging.read']],
+    ['spare', 'packaging', ['spareparts.read']],
+  ] as const) {
+    const allowed = resolvePath('/inventory/extensions', 'kind=' + allowedKind)!
+    const denied = resolvePath('/inventory/extensions', 'kind=' + deniedKind)!
+    assert.equal(canSeePage([...permissions], allowed.page), true)
+    assert.equal(canSeePage([...permissions], denied.page), false)
+    for (const workspace of visibleWorkspaces([...permissions])) {
+      for (const section of visibleSections(workspace, [...permissions])) {
+        assert.ok(section.pages.every((page) => canSeePage([...permissions], page)))
+      }
+    }
+    assert.ok(pageTabs(allowed, [...permissions]).primary.every((tab) => tab.id !== denied.page.id))
+    assert.ok(searchNavigation(denied.page.label, [...permissions]).every((result) => result.page?.id !== denied.page.id))
+  }
 })

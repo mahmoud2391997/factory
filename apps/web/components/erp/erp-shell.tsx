@@ -41,7 +41,6 @@ import {
 } from '@/lib/erp-routes'
 import { dashboardAlerts } from '@/lib/erp/domain/dashboard'
 import { factoryStatus } from '@/lib/erp/domain/reports'
-import { DEFAULT_ROLE_PERMISSIONS } from '@/lib/erp/domain/permissions'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { getSupportedLanguages, translateUiText } from '@/lib/i18n/translations'
 import type { Language } from '@/lib/i18n/translations'
@@ -93,16 +92,7 @@ export function ErpShell() {
   const { language, setLanguage } = useLanguage()
   const uiLabel = (value: string) => translateUiText(language, value)
   const roleKey = (user?.roles[0]?.key ?? 'GM') as RoleKey
-  const isSuperOrGm =
-    roleKey === 'GM' ||
-    (roleKey as string) === 'SUPER_ADMIN' ||
-    (roleKey as string) === 'ADMIN' ||
-    !roleKey ||
-    user?.email === 'admin@factory.local' ||
-    user?.email === 'gm@factory.local'
-  const permissions = isSuperOrGm
-    ? DEFAULT_ROLE_PERMISSIONS.GM
-    : (erp.state?.rolePermissions[roleKey] ?? user?.permissions ?? DEFAULT_ROLE_PERMISSIONS.GM)
+  const permissions = user?.permissions ?? []
   const permissionKey = permissions.join('|')
   const resolved = resolvePath(pathname, searchString)
   const workspaces = useMemo(() => visibleWorkspaces(permissions), [permissionKey])
@@ -189,7 +179,7 @@ export function ErpShell() {
   const notices = erp.state?.notifications.filter((item) => item.roles.includes(roleKey)) ?? []
   const unread = unreadNotificationCount(notices)
   const showNotices = canSeeEntity(permissions, 'notification')
-  const allowed = resolved ? canSeeEntity(permissions, resolved.page.entityKey) : false
+  const allowed = resolved ? canSeePage(permissions, resolved.page) : false
   const redirectingHome = Boolean(user && pathname === '/' && !canSeeEntity(permissions, 'dashboard'))
   const meta = resolved ? { label: uiLabel(resolved.page.label), description: uiLabel(resolved.page.description) } : null
   const tabs = resolved && allowed ? pageTabs(resolved, permissions) : null
@@ -494,7 +484,7 @@ export function ErpShell() {
   }
 
   const renderSectionGroup = (section: (typeof visibleSections extends never ? never : ReturnType<typeof visibleSections>[number]), workspaceId: string, variant: 'sidebar' | 'mobile' | 'flyout') => {
-    const pages = section.pages.filter((page) => canSeePage(permissions, page) || canSeeEntity(permissions, page.entityKey))
+    const pages = section.pages.filter((page) => canSeePage(permissions, page))
     if (pages.length === 0) return null
     const isFlyout = variant === 'flyout'
     const sectionKey = `${workspaceId}:${section.id}`
@@ -712,7 +702,7 @@ export function ErpShell() {
                   ) : null}
                   {workspaces.map((workspace) => {
                     const sections = visibleSections(workspace, permissions)
-                    const pages = sections.flatMap((section) => section.pages.filter((page) => canSeePage(permissions, page) || canSeeEntity(permissions, page.entityKey)))
+                    const pages = sections.flatMap((section) => section.pages.filter((page) => canSeePage(permissions, page)))
                     const entryHref = workspaceEntryHref(workspace, permissions)
                     const active = workspace.id === activeWorkspaceId
                     const isExpanded = openWorkspaceIds.includes(workspace.id)

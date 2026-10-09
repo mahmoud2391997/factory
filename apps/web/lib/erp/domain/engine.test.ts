@@ -574,3 +574,29 @@ function must(state: ErpState, who: Actor, clock: ReturnType<typeof defaultClock
   if (!result.ok) throw new Error(result.error)
   return result.state
 }
+
+test('driver API state contains no unrelated business modules or other accounts', () => {
+  const state = buildSeedState()
+  const view = publicState(state, DEFAULT_ROLE_PERMISSIONS.DRIVER, 'user-driver')
+  for (const field of ['materials', 'products', 'suppliers', 'customers', 'employees', 'recipes', 'balances', 'purchaseOrders', 'invoices', 'payments', 'expenses', 'accounts', 'packagingMaterials', 'spareParts', 'obligations', 'machines', 'bankTransactions'] as const) {
+    assert.deepEqual(view[field], [], field)
+  }
+  assert.ok(view.users.every((user) => user.id === 'user-driver'))
+  assert.deepEqual(view.rolePermissions.GM, [])
+  assert.deepEqual(view.rolePermissions.DRIVER, DEFAULT_ROLE_PERMISSIONS.DRIVER)
+})
+
+test('production retains operating references but cannot read sales, banking, or personnel finances', () => {
+  const state = buildSeedState()
+  const view = publicState(state, DEFAULT_ROLE_PERMISSIONS.PRODUCTION)
+  assert.ok(view.materials.length > 0)
+  assert.ok(view.products.length > 0)
+  assert.ok(view.recipes.length > 0)
+  assert.ok(view.employees.length > 0)
+  assert.deepEqual(view.invoices, [])
+  assert.deepEqual(view.payments, [])
+  assert.deepEqual(view.bankTransactions, [])
+  assert.deepEqual(view.payrolls, [])
+  assert.deepEqual(view.accounts, [])
+  assert.deepEqual(view.spareParts, [])
+})
