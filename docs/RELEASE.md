@@ -64,3 +64,17 @@ The local production build's `functions-config-manifest.json` reports `maxDurati
 - Verification after the V1.5 code changes: typecheck, `pnpm test:erp` (**232/232**), production build, and lint passed. Policy unit tests cover the 4/4.5 MB limits and distinct AR/EN/HI messages. A live Vercel request, external durable attachment store, and multi-instance throttle behavior were **not** exercised here.
 
 **Decisions still open / قرارات ما زالت مفتوحة:** choose database-backed versus external object storage for attachments, and choose a shared rate-limit provider if distributed brute-force protection is required. The temporary disk and per-instance throttle must not be treated as durable/shared services.
+
+## Local readiness evidence — 2026-10-15
+Current index: [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md). No live deployment.
+
+Node22, disposable PostgreSQL16 at localhost:55439, empty factory_readiness and factory_shadow databases:
+```sh
+pnpm --filter @erp/database migrate:deploy
+pnpm --filter @erp/database exec prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL"
+pnpm check
+FACTORY_TEST_URL=http://127.0.0.1:4322 pnpm test:browser
+```
+DATABASE_URL/SHADOW_DATABASE_URL/SETUP_TOKEN supplied privately; no production URL used. Migration output: `All migrations have been successfully applied.` Drift: `Added enums` (3), `Added tables` (17) plus their indexes/foreign keys; owner decision unresolved, no model tables added/deleted. Full check281/281 passed. Local container protected bootstrap succeeded; /api/health returned200 after bootstrap. Browser journey passed receipt, manufacturing transfer/production, QC, delivery, invoice/payment, production reset denial, accountant/operations permission denial, RTL/mobile assertions. Business actions use Playwright request context. Private PDF attachment upload/download and download after restart succeeded.
+
+Shared encrypted backup restored all three databases/table counts and attachment checksums in6seconds, snapshot age20seconds. Corruption rejected. Second isolated application stack restored with app-role ownership and file UID1000; factory authenticated file bytes matched and all five proxy health routes returned200. These timings describe a small synthetic local dataset, not a VPS recovery SLA. Live TLS, real operator trial and SMTP catcher acceptance are not certified.

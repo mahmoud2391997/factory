@@ -9,7 +9,7 @@
     "dev": "pnpm --filter @erp/web dev",
     "predev": "pnpm --filter @erp/database generate",
     "dev:web": "pnpm --filter @erp/web dev",
-    "prebuild": "pnpm --filter @erp/database generate",
+    "prebuild": "node scripts/check-build-mode.mjs && pnpm --filter @erp/database generate",
     "build": "pnpm --filter @erp/web build",
     "build:web": "pnpm --filter @erp/web build",
     "test": "pnpm test:erp",
@@ -24,7 +24,11 @@
     "check": "pnpm typecheck && pnpm test",
     "db:generate": "pnpm --filter @erp/database generate",
     "db:migrate": "pnpm --filter @erp/database migrate:dev",
-    "dev:demo": "pnpm db:generate && node scripts/dev-demo.mjs"
+    "dev:demo": "pnpm db:generate && node scripts/dev-demo.mjs",
+    "benchmark:storage": "node scripts/performance-baseline.mjs",
+    "test:browser": "node scripts/browser-regression.cjs",
+    "prebuild:web": "node scripts/check-build-mode.mjs",
+    "predeploy": "sh scripts/predeploy.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

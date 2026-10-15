@@ -1,3 +1,5 @@
+import { demoPreviewEnabled } from '@/server/demo-availability'
+import { resolveDatabaseUrl } from '@erp/database/env'
 import { randomUUID } from 'node:crypto'
 
 import { PERMISSIONS } from '@/lib/erp/domain/permissions'
@@ -24,10 +26,15 @@ export function getDemoSecrets() {
   return generatedDemoSecrets
 }
 
-/** Demo mode is the default unless APP_MODE explicitly selects production. */
+/** Production defaults to real storage; sample mode requires explicit, database-free configuration. */
 export function isDemoMode() {
   const configuredMode = process.env.APP_MODE?.trim().toLowerCase()
-  return configuredMode !== 'production' && configuredMode !== 'prod'
+  if (process.env.NODE_ENV === 'production' && !['production', 'demo'].includes(configuredMode || '')) throw new Error('APP_MODE must explicitly be production or demo')
+  if (configuredMode === 'demo' && resolveDatabaseUrl()) throw new Error('Demo mode cannot use a database connection')
+  if (!demoPreviewEnabled()) return false
+  if (configuredMode === 'production') return false
+  if (process.env.NODE_ENV === 'production') return configuredMode === 'demo' && !resolveDatabaseUrl()
+  return true
 }
 
 export function canResetDemoData() {

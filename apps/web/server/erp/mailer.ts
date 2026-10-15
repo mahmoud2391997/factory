@@ -1,48 +1,8 @@
-import type { ErpState } from '@/lib/erp/domain/types'
-
-export async function deliverPendingEmails(state: ErpState) {
-  const pending = state.notifications.filter((item) => item.emailStatus === 'pending')
-  if (pending.length === 0) return false
-
-  const host = process.env.SMTP_HOST?.trim()
-  if (!host) {
-    for (const item of pending) item.emailStatus = 'skipped'
-    return true
-  }
-
-  try {
-    const nodemailer = await import('nodemailer')
-    const transporter = nodemailer.createTransport({
-      host,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER
-        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        : undefined,
-    })
-    for (const item of pending) {
-      const recipients = state.users
-        .filter((user) => user.active && item.roles.includes(user.role))
-        .map((user) => user.email)
-      if (state.company.notifyEmail) recipients.push(state.company.notifyEmail)
-      const to = [...new Set(recipients)]
-      if (to.length === 0) {
-        item.emailStatus = 'skipped'
-        continue
-      }
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || state.company.email,
-        to: to.join(','),
-        subject: item.title,
-        text: `${item.body}\n\n${state.company.nameAr}`,
-      })
-      item.emailStatus = 'sent'
-    }
-  } catch (error) {
-    console.error('[erp/mail]', error)
-    for (const item of pending) {
-      if (item.emailStatus === 'pending') item.emailStatus = 'skipped'
-    }
-  }
-  return true
+import type {ErpState} from '@/lib/erp/domain/types'
+export async function configuredMailSender(){
+ const host=process.env.SMTP_HOST?.trim(),from=process.env.SMTP_FROM?.trim()
+ if(!host||!from)return null
+ const nodemailer=await import('nodemailer')
+ const transport=nodemailer.createTransport({host,port:Number(process.env.SMTP_PORT||587),secure:process.env.SMTP_SECURE==='true',requireTLS:process.env.NODE_ENV==='production'&&process.env.SMTP_SECURE!=='true',auth:process.env.SMTP_USER?{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}:undefined,connectionTimeout:10000,socketTimeout:15000})
+ return async(message:{id:string;state:ErpState})=>{const item=message.state.notifications.find(n=>n.id===message.id);if(!item)throw Error('OUTBOX_MESSAGE_MISSING');const to=[...new Set(message.state.users.filter(u=>u.active&&item.roles.includes(u.role)).map(u=>u.email).concat(message.state.company.notifyEmail?[message.state.company.notifyEmail]:[]))];if(!to.length)throw Error('OUTBOX_RECIPIENT_MISSING');await transport.sendMail({from,to:to.join(','),messageId:'<factory-'+item.id+'@notifications.invalid>',subject:item.title,text:item.body+'\n\n'+message.state.company.nameAr})}
 }

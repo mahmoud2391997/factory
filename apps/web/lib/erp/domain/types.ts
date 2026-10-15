@@ -627,7 +627,8 @@ export type Notification = {
   /** Legacy `read: true` means read globally; new reads are tracked per user here. */
   readBy?: string[]
   read: boolean
-  emailStatus: 'pending' | 'sent' | 'skipped'
+  emailStatus: 'pending' | 'sending' | 'sent' | 'skipped' | 'uncertain'
+  emailAttempts?: number
   at: string
 }
 

@@ -1,3 +1,4 @@
+import {isDemoMode} from '@/server/demo'
 import { prisma } from '@erp/database/client'
 
 export const COLLECTIONS = {
@@ -14,5 +15,6 @@ export const COLLECTIONS = {
 export type ErpDocumentRow = { _id: string; version: number; payload: unknown; updatedAt: Date }
 
 export async function getDb() {
+  isDemoMode() // fail closed even when an API bypasses the startup wrapper
   return prisma
 }

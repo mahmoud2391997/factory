@@ -8,6 +8,13 @@ node_modules
 !.env.example
 **/.env
 **/.env.*
-**/data
+/data
 *.log
 **/*.tsbuildinfo
+
+!**/.env.example
+
+# Internal delivery artifacts are never application assets
+/owner-testing-guide-ar.pdf
+/riwaq-production-*.jpg
+/docs/*.pdf

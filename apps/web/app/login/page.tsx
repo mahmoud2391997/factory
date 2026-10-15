@@ -29,6 +29,10 @@ export default function LoginPage() {
   const router = useRouter()
   const { dir } = useLanguage()
   const { user, loading, login } = useAuth()
+  const [previewAvailable, setPreviewAvailable] = useState(false)
+  useEffect(() => {
+    fetch('/api/demo/config', {cache:'no-store'}).then(r=>r.json()).then(data=>setPreviewAvailable(data.available === true)).catch(()=>setPreviewAvailable(false))
+  }, [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -163,6 +167,8 @@ export default function LoginPage() {
               {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
               دخول النظام
             </button>
+
+            {previewAvailable && !health?.demoMode ? <a href="/api/demo/start" className="flex h-10 w-full items-center justify-center rounded-md border border-[#1e127c] bg-[#f3f0ff] text-sm font-semibold text-[#1e127c]">دخول تجريبي ببيانات وهمية</a> : null}
 
             {!healthLoading && health?.demoMode ? (
               <button

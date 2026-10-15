@@ -1,0 +1,1 @@
+const mode=(process.env.APP_MODE||'').trim().toLowerCase();if(!['production','demo'].includes(mode)){console.error('Production build requires explicit APP_MODE=production or APP_MODE=demo');process.exitCode=1}

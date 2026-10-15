@@ -11,7 +11,7 @@ import { planArchive } from '@/lib/erp/domain/archive'
 import { commitWithRetry, REVISION_CONFLICT } from '@/lib/erp/domain/commit'
 import { actorFromUser, applyCommand, publicState, refreshSystemNotifications } from '@/lib/erp/domain/engine'
 import { migrateErpState } from '@/lib/erp/domain/migrate'
-import { buildSeedState } from '@/lib/erp/domain/seed'
+import { buildSeedState, emptyState } from '@/lib/erp/domain/seed'
 import type { Command, ErpState } from '@/lib/erp/domain/types'
 import type { RoleKey } from '@/lib/erp/domain/permissions'
 import { resetLoginThrottle } from '@/server/auth/login-throttle'
@@ -26,7 +26,8 @@ async function getErpDocuments() {
 
 import { writeDatabaseArchive, writeFileArchive } from './archive-store'
 import { resolveErpDataDir } from './data-dir'
-import { deliverPendingEmails } from './mailer'
+import { configuredMailSender } from './mailer'
+import {dispatchOutbox} from './outbox'
 
 const DOC_ID = 'main'
 
@@ -100,7 +101,8 @@ export async function createInitialState(passwordHash?: string) {
   const hash = passwordHash && passwordHash.startsWith('$2')
     ? passwordHash
     : bcrypt.hashSync(isDemoMode() ? getDemoSecrets().password : randomRequiredPassword(), BCRYPT_ROUNDS)
-  const state = buildSeedState(hash)
+  const state = isDemoMode() ? buildSeedState(hash) : emptyState(hash)
+  if (!isDemoMode()) state.users = []
   for (const item of state.notifications) item.emailStatus = 'skipped'
   return state
 }
@@ -223,6 +225,7 @@ async function writeFileState(state: ErpState) {
 }
 
 async function databaseEnabled() {
+  isDemoMode() // validates explicit production mode before selecting database storage
   return Boolean(ensureDatabaseUrlEnv())
 }
 
@@ -301,22 +304,14 @@ export async function loadStateWithNotifications() {
   }))
 }
 
-async function persistEmailFlags(state: ErpState, storage: StorageKind) {
-  let current = state
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const mailed = await deliverPendingEmails(current)
-    if (!mailed) return current
-    try {
-      await persist(current, storage)
-      return current
-    } catch (error) {
-      if (error instanceof Error && error.message !== REVISION_CONFLICT) throw error
-      if (attempt === 2) throw error
-      current = (await loadState()).state
-    }
-  }
-  return current
+async function flushOutbox(){
+ const send=await configuredMailSender();if(!send)return;
+ await dispatchOutbox({
+  claim:()=>commitWithRetry(async()=>{const loaded=await loadState();const note=loaded.state.notifications.find(n=>n.emailStatus==='pending');if(!note)return null;note.emailStatus='sending';note.emailAttempts=(note.emailAttempts??0)+1;await persist(loaded.state,loaded.storage);return {id:note.id,status:'sending' as const,attempts:note.emailAttempts,state:loaded.state}}),
+  finish:(id,status)=>commitWithRetry(async()=>{const loaded=await loadState();const note=loaded.state.notifications.find(n=>n.id===id);if(note?.emailStatus==='sending'){note.emailStatus=status;await persist(loaded.state,loaded.storage)}})
+ },send);
 }
+export async function deliverNotificationOutbox(){return enqueue(flushOutbox)}
 
 export async function revokeUserTokens(userId: string) {
   return enqueue(async () => {
@@ -349,7 +344,7 @@ export async function runCommand(
       prepared = { action: 'setUserPassword', input: { userId: String(input.userId ?? ''), passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) } }
     }
 
-    return commitWithRetry(async () => {
+    const outcome = await commitWithRetry(async () => {
       const loaded = await loadState()
       const actor = actorFromUser(loaded.state, userId)
       if (!actor) return { ok: false as const, error: 'المستخدم غير موجود' }
@@ -415,7 +410,7 @@ export async function runCommand(
         result.state.idempotency = list
       }
       await persist(result.state, loaded.storage)
-      const saved = await persistEmailFlags(result.state, loaded.storage)
+      const saved = result.state
       return {
         ok: true as const,
         state: publicState(saved, actor.permissions, userId),
@@ -424,5 +419,7 @@ export async function runCommand(
         storage: loaded.storage,
       }
     })
+    if(outcome.ok){try{await flushOutbox()}catch{console.error('[erp/mail] durable outbox requires retry/reconciliation')}}
+    return outcome
   })
 }

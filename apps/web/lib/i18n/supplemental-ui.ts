@@ -1,4 +1,5 @@
 export const supplementalUi: Record<string, { en: string; hi: string }> = {
+  'الديمو غير متاح': {en: 'Demo preview is unavailable', hi: 'डेमो पूर्वावलोकन उपलब्ध नहीं है'},
   'العمليات والإجراءات': { en: 'Actions', hi: 'कार्रवाइयाँ' },
   'المعلومات والتقارير': { en: 'Information & reports', hi: 'जानकारी और रिपोर्ट' },
   'لا توجد دفعة لهذا الأمر. أكمل الإنتاج أولاً لإنشاء الدفعة.': { en: 'This order has no production lot. Complete production first to create one.', hi: 'इस आदेश में उत्पादन बैच नहीं है। बैच बनाने के लिए पहले उत्पादन पूरा करें।' },

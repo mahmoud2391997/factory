@@ -18,7 +18,14 @@ const configuredMode = value('APP_MODE').toLowerCase()
 const demo = configuredMode === 'demo' && !hasDatabase
 const placeholder = /^(change[-_ ]?me|replace[-_ ]?me|your[-_ ]?secret|secret|test|example|password)$/i
 
-if (!production || demo) process.exit(0)
+if (!production) process.exit(0)
+if (!['production', 'demo'].includes(configuredMode)) {
+ console.error('APP_MODE must explicitly be production or demo.'); process.exit(1)
+}
+if (configuredMode === 'demo' && hasDatabase) {
+ console.error('Demo mode cannot use a database connection.'); process.exit(1)
+}
+if (demo) process.exit(0)
 
 const errors = []
 if (!hasDatabase) errors.push('DATABASE_URL (or a supported Postgres URL alias) is required outside demo mode.')

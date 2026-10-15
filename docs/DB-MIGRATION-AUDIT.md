@@ -1,3 +1,5 @@
+> Update 2026-10-15: clean local migration and drift checks have now run; see docs/RELEASE.md and docs/PRODUCTION-READINESS.md. Earlier UNVERIFIED statements below describe the historical environment. The 17-model owner decision remains open.
+
 # Prisma schema and migration audit
 
 Audited against `packages/database/prisma/schema.prisma` and the SQL files under `packages/database/prisma/migrations` on 2026-10-04.
