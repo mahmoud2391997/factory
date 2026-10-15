@@ -1,5 +1,6 @@
 'use client'
 
+import { useAuth } from '@/components/providers/auth-provider'
 import { CodeInput } from '@/components/erp/code-input'
 
 import { useMemo, useState } from 'react'
@@ -1516,21 +1517,42 @@ function Reports({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Notifications({ ctx }: { ctx: LiveCtx }) {
+  const { user } = useAuth()
   const { language } = useLanguage()
   const uiLabel = (value: string) => translateUiText(language, value)
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; message: string } | null>(null)
+  const [reviewOnly, setReviewOnly] = useState(false)
+  const [reviewId, setReviewId] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const [nonDeliveryConfirmed, setNonDeliveryConfirmed] = useState(false)
+  const canReview = ctx.permissions.includes('notifications.read') && user?.roles.some(role => role.key === 'GM')
   return (<LocalizedContent>{(
     <Card title={uiLabel('الإشعارات')} hint={uiLabel('نقص المخزون وطلبات الاعتماد تُرسل بالبريد عند ضبط SMTP، وتظهر هنا فوراً.')}>
+      {canReview ? <label className="mb-3 flex gap-2"><input type="checkbox" checked={reviewOnly} onChange={event => setReviewOnly(event.target.checked)} />{uiLabel('عرض جميع رسائل البريد التي تحتاج مراجعة')}</label> : null}
       <div className="space-y-3">
         {ctx.state.notifications.length === 0 ? <p className="text-sm text-[#788983]">{uiLabel('لا توجد إشعارات')}</p> : null}
-        {ctx.state.notifications.slice(0, 40).map((item) => (
+        {(reviewOnly && canReview ? ctx.state.notifications.filter(item => item.emailStatus === 'sending' || item.emailStatus === 'uncertain') : ctx.state.notifications.slice(0, 40)).map((item) => (
           <div key={item.id} className={`flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${item.kind === 'LOW_STOCK' ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'border-[#edf2ef]'}`} >
             <Link href="/notifications" className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e127c]">
               <div className="font-bold">{uiLabel(item.title)}</div>
               <div className="text-sm text-[#788983]">{uiLabel(item.body)}</div>
-              <div className="mt-1 text-xs text-[#97a49f]">{uiLabel(statusLabel(item.kind))} — {uiLabel('بريد')}: {uiLabel(item.emailStatus === 'sent' ? 'أُرسل' : item.emailStatus === 'pending' ? 'بانتظار الإرسال' : 'لم يُضبط البريد')}</div>
+              <div className="mt-1 text-xs text-[#97a49f]">{uiLabel(statusLabel(item.kind))} — {uiLabel('بريد')}: {uiLabel(item.emailStatus === 'sent' ? 'أُرسل' : item.emailStatus === 'pending' ? 'بانتظار الإرسال' : item.emailStatus === 'sending' ? 'قيد الإرسال — لا تكرر' : item.emailStatus === 'uncertain' ? 'التسليم غير مؤكد — يلزم مراجعة' : 'لم يُضبط البريد')}</div>
             </Link>
             {!item.read ? <GhostButton type="button" disabled={ctx.pending} aria-label={`${uiLabel('تمت القراءة')}: ${uiLabel(item.title)}`} onClick={async () => { setFeedback(null); const result = await ctx.act('markNotificationRead', { id: item.id }); setFeedback({ id: item.id, ok: result.ok, message: uiLabel(result.message) }) }}>{uiLabel('تمت القراءة')}</GhostButton> : <Badge tone="good">{uiLabel('مقروء')}</Badge>}
+            {canReview && (item.emailStatus === 'sending' || item.emailStatus === 'uncertain') ? <div className="space-y-2">
+              <GhostButton type="button" disabled={ctx.pending} onClick={() => { setReviewId(item.id); setReason(''); setNonDeliveryConfirmed(false); setFeedback(null) }}>{uiLabel('مراجعة تسليم البريد')}</GhostButton>
+              {reviewId === item.id ? <fieldset disabled={ctx.pending} className="space-y-2 rounded-lg border p-3">
+                <legend>{uiLabel('قرار المدير بعد فحص التسليم')}</legend>
+                <p className="text-sm">{uiLabel('تحقق من سجلات مزود البريد قبل اتخاذ القرار. عدم اليقين لا يعني عدم التسليم. الإرسال الجاري لا يُراجع قبل مرور 15 دقيقة.')}</p>
+                <label className="block">{uiLabel('سبب المراجعة دون بيانات شخصية')}<textarea required minLength={10} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} className="block w-full rounded border p-2" /></label>
+                <label className="flex gap-2"><input type="checkbox" checked={nonDeliveryConfirmed} onChange={event => setNonDeliveryConfirmed(event.target.checked)} />{uiLabel('تحققت من عدم تسليم الرسالة وأن الإرسال السابق توقف؛ أوافق على إعادة المحاولة')}</label>
+                {(['delivered', 'requeue'] as const).map(resolution => <GhostButton key={resolution} type="button" disabled={ctx.pending || reason.trim().length < 10 || (resolution === 'requeue' && !nonDeliveryConfirmed)} onClick={async () => {
+                  const result = await ctx.act('resolveNotificationEmail', { id: item.id, expectedStatus: item.emailStatus, expectedAttempts: item.emailAttempts ?? 0, resolution, reason, nonDeliveryConfirmed })
+                  setFeedback({ id: item.id, ok: result.ok, message: uiLabel(result.message) }); if (result.ok) setReviewId(null)
+                }}>{uiLabel(resolution === 'delivered' ? 'تأكيد أن البريد تم تسليمه' : 'إعادة المحاولة بعد التحقق')}</GhostButton>)}
+                <GhostButton type="button" onClick={() => setReviewId(null)}>{uiLabel('إلغاء')}</GhostButton>
+              </fieldset> : null}
+            </div> : null}
             {feedback?.id === item.id ? <p role={feedback.ok ? 'status' : 'alert'} aria-live={feedback.ok ? 'polite' : 'assertive'} className={`text-sm ${feedback.ok ? 'text-[#1e127c]' : 'text-[#b91c1c]'}`}>{feedback.message}</p> : null}
           </div>
         ))}

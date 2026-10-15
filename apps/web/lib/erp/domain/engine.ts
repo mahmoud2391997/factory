@@ -724,6 +724,7 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createPayroll: 'payroll.manage',
     decidePayroll: 'payroll.approve',
     payPayroll: 'payroll.pay',
+    resolveNotificationEmail: 'notifications.read',
     markNotificationRead: 'notifications.read',
     scanBarcode: 'barcode.scan',
     setRolePermissions: 'users.manage',
@@ -988,6 +989,8 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return decidePayroll(state, actor, command.input, clock)
     case 'payPayroll':
       return payPayroll(state, actor, command.input, clock)
+    case 'resolveNotificationEmail':
+      return resolveNotificationEmail(state, actor, command.input, clock)
     case 'markNotificationRead':
       return markNotificationRead(state, actor, command.input, clock)
     case 'scanBarcode':
@@ -3209,6 +3212,24 @@ function decideLeaveRequest(state: ErpState, actor: Actor, input: Extract<Comman
   const employee = state.employees.find((item) => item.id === request.employeeId)
   audit(state, actor, clock, input.decision === 'APPROVED' ? 'اعتماد إجازة' : 'رفض إجازة', 'leaveRequest', request.id, employee?.nameAr ?? '')
   return ok(state, input.decision === 'APPROVED' ? 'تم اعتماد الإجازة' : 'تم رفض الإجازة')
+}
+
+function resolveNotificationEmail(state: ErpState, actor: Actor, input: Extract<Command, { action: 'resolveNotificationEmail' }>['input'], clock: Clock): CommandResult {
+  if (actor.role !== 'GM' || !actor.permissions.includes('notifications.read')) return fail('المراجعة متاحة للمدير العام فقط')
+  const note = state.notifications.find(item => item.id === input.id && item.roles.includes(actor.role))
+  if (!note) return fail('الإشعار غير موجود أو غير متاح')
+  if (!['sending', 'uncertain'].includes(note.emailStatus) || note.emailStatus !== input.expectedStatus || (note.emailAttempts ?? 0) !== input.expectedAttempts) return fail('تغيرت حالة البريد؛ حدّث الصفحة قبل المراجعة')
+  const reason = typeof input.reason === 'string' ? input.reason.trim() : ''
+  if (reason.length < 10 || reason.length > 500) return fail('اكتب سبب المراجعة بين 10 و500 حرف دون بيانات شخصية')
+  if (input.resolution !== 'delivered' && input.resolution !== 'requeue') return fail('قرار المراجعة غير صالح')
+  // Never race a live SMTP call. Legacy claims without a timestamp remain held for manual investigation.
+  const claimedAt = Date.parse(note.emailClaimedAt ?? '')
+  if (note.emailStatus === 'sending' && (!Number.isFinite(claimedAt) || Date.parse(clock.now()) - claimedAt < 15 * 60_000)) return fail('الإرسال قيد التنفيذ أو يحتاج تحقيقًا؛ لا تراجع قبل مرور 15 دقيقة على حجز الإرسال')
+  if (input.resolution === 'requeue' && input.nonDeliveryConfirmed !== true) return fail('يجب تأكيد التحقق من عدم تسليم البريد قبل إعادة المحاولة')
+  const previousStatus = note.emailStatus
+  note.emailStatus = input.resolution === 'delivered' ? 'sent' : 'pending'
+  audit(state, actor, clock, 'مراجعة إرسال بريد', 'notification', note.id, JSON.stringify({ previousStatus, attempts: note.emailAttempts ?? 0, resolution: input.resolution, nonDeliveryConfirmed: input.nonDeliveryConfirmed === true, reason }))
+  return ok(state, input.resolution === 'delivered' ? 'تم تسجيل تأكيد التسليم' : 'أعيد البريد إلى قائمة الانتظار بعد المراجعة')
 }
 
 function markNotificationRead(state: ErpState, actor: Actor, input: Extract<Command, { action: 'markNotificationRead' }>['input'], clock: Clock): CommandResult {

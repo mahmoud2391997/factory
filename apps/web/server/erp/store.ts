@@ -27,7 +27,7 @@ async function getErpDocuments() {
 import { writeDatabaseArchive, writeFileArchive } from './archive-store'
 import { resolveErpDataDir } from './data-dir'
 import { configuredMailSender } from './mailer'
-import {dispatchOutbox} from './outbox'
+import {dispatchOutbox, settleOutboxAttempt} from './outbox'
 
 const DOC_ID = 'main'
 
@@ -307,8 +307,8 @@ export async function loadStateWithNotifications() {
 async function flushOutbox(){
  const send=await configuredMailSender();if(!send)return;
  await dispatchOutbox({
-  claim:()=>commitWithRetry(async()=>{const loaded=await loadState();const note=loaded.state.notifications.find(n=>n.emailStatus==='pending');if(!note)return null;note.emailStatus='sending';note.emailAttempts=(note.emailAttempts??0)+1;await persist(loaded.state,loaded.storage);return {id:note.id,status:'sending' as const,attempts:note.emailAttempts,state:loaded.state}}),
-  finish:(id,status)=>commitWithRetry(async()=>{const loaded=await loadState();const note=loaded.state.notifications.find(n=>n.id===id);if(note?.emailStatus==='sending'){note.emailStatus=status;await persist(loaded.state,loaded.storage)}})
+  claim:()=>commitWithRetry(async()=>{const loaded=await loadState();const note=loaded.state.notifications.find(n=>n.emailStatus==='pending');if(!note)return null;note.emailStatus='sending';note.emailClaimedAt=new Date().toISOString();note.emailAttempts=(note.emailAttempts??0)+1;await persist(loaded.state,loaded.storage);return {id:note.id,status:'sending' as const,attempts:note.emailAttempts,state:loaded.state}}),
+  finish:(id,status,attempts)=>commitWithRetry(async()=>{const loaded=await loadState();const note=loaded.state.notifications.find(n=>n.id===id);if(settleOutboxAttempt(note,attempts,status)){await persist(loaded.state,loaded.storage)}})
  },send);
 }
 export async function deliverNotificationOutbox(){return enqueue(flushOutbox)}

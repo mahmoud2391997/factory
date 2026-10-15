@@ -180,3 +180,55 @@ test('reading an active alert never recreates it, including after every recipien
   assert.equal(escalation.read, false)
   assert.deepEqual(escalation.readBy, [])
 })
+
+function reviewFixture(status: 'sending' | 'uncertain' = 'uncertain') {
+  const state = emptyState('email-review')
+  addNotification(state, ['GM'])
+  Object.assign(state.notifications[0], { emailStatus: status, emailAttempts: 1, emailClaimedAt: '2026-09-29T07:00:00.000Z' })
+  return state
+}
+function review(state: ErpState, userId = 'user-gm', overrides: Record<string, unknown> = {}) {
+  return applyCommand(state, actor(state, userId), { action: 'resolveNotificationEmail', input: { id: 'ntf-test', expectedStatus: 'uncertain', expectedAttempts: 1, resolution: 'requeue', reason: 'Provider logs verified non-delivery', nonDeliveryConfirmed: true, ...overrides } } as Parameters<typeof applyCommand>[2], createClock(NOW))
+}
+test('outbox reconciliation denies other roles even with notification permission', () => {
+  const state = reviewFixture(); state.rolePermissions.ACCOUNTANT = [...state.rolePermissions.GM]
+  assert.equal(review(state, 'user-acc').ok, false)
+  assert.equal(state.notifications[0].emailStatus, 'uncertain')
+})
+test('outbox requeue requires reason, non-delivery attestation and exact attempt/status', () => {
+  for (const input of [{ reason: '' }, { nonDeliveryConfirmed: false }, { expectedAttempts: 0 }, { expectedStatus: 'sending' }]) assert.equal(review(reviewFixture(), 'user-gm', input).ok, false)
+})
+test('outbox explicit requeue preserves delivery identity and records operator decision once', () => {
+  const original = reviewFixture(); const result = review(original); assert.ok(result.ok)
+  assert.equal(result.state.notifications[0].id, 'ntf-test'); assert.equal(result.state.notifications[0].emailStatus, 'pending'); assert.equal(result.state.notifications[0].emailAttempts, 1)
+  const audit = result.state.auditLogs[0]; assert.equal(audit.userId, 'user-gm'); assert.equal(audit.entityId, 'ntf-test')
+  assert.equal(JSON.parse(audit.detail).nonDeliveryConfirmed, true)
+  assert.equal(review(result.state).ok, false); assert.equal(result.state.auditLogs.length, 1)
+})
+test('outbox delivery confirmation and claim cooling interval prevent blind re-sends', () => {
+  let state = reviewFixture('sending'); state.notifications[0].emailClaimedAt = NOW
+  assert.equal(review(state, 'user-gm', { expectedStatus: 'sending' }).ok, false)
+  state = reviewFixture('sending'); delete state.notifications[0].emailClaimedAt
+  assert.equal(review(state, 'user-gm', { expectedStatus: 'sending' }).ok, false)
+  state = reviewFixture('sending')
+  const result = review(state, 'user-gm', { expectedStatus: 'sending', resolution: 'delivered', nonDeliveryConfirmed: false }); assert.ok(result.ok); assert.equal(result.state.notifications[0].emailStatus, 'sent')
+})
+test('outbox reconciliation requires notification permission even for GM and blocks hidden notifications', () => {
+  const denied = reviewFixture(); denied.rolePermissions.GM = denied.rolePermissions.GM.filter(permission => permission !== 'notifications.read')
+  assert.equal(review(denied).ok, false)
+  const hidden = reviewFixture(); hidden.notifications[0].roles = ['ACCOUNTANT']
+  assert.equal(review(hidden).ok, false)
+})
+test('reviewed non-delivery flows through one durable retry with the same delivery identifier', async () => {
+  const { dispatchOutbox, settleOutboxAttempt } = await import('@/server/erp/outbox')
+  const reviewed = review(reviewFixture()); assert.ok(reviewed.ok)
+  const row = reviewed.state.notifications[0]; const deliveredIds: string[] = []
+  const store = {
+    claim: async () => { if (row.emailStatus !== 'pending') return null; row.emailStatus = 'sending'; row.emailAttempts = (row.emailAttempts ?? 0) + 1; return { id: row.id, status: 'sending' as const, attempts: row.emailAttempts } },
+    finish: async (_id: string, status: 'sent' | 'uncertain', attempts: number) => { settleOutboxAttempt(row, attempts, status) },
+  }
+  await dispatchOutbox(store, async message => { deliveredIds.push(message.id) })
+  await dispatchOutbox(store, async () => assert.fail('already delivered'))
+  assert.deepEqual(deliveredIds, ['ntf-test']); assert.equal(row.emailAttempts, 2); assert.equal(row.emailStatus, 'sent')
+  assert.equal(settleOutboxAttempt(row, 1, 'uncertain'), false)
+})

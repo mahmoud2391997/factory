@@ -628,6 +628,7 @@ export type Notification = {
   readBy?: string[]
   read: boolean
   emailStatus: 'pending' | 'sending' | 'sent' | 'skipped' | 'uncertain'
+  emailClaimedAt?: string
   emailAttempts?: number
   at: string
 }
@@ -1219,6 +1220,7 @@ export type Command =
   | { action: 'createPayroll'; input: { month: string; lines: Array<{ employeeId: string; overtimeHours?: number; allowances?: number; deductions?: number }> } }
   | { action: 'decidePayroll'; input: { id: string; decision: 'APPROVED' | 'REJECTED' } }
   | { action: 'payPayroll'; input: { id: string } }
+  | { action: 'resolveNotificationEmail'; input: { id: string; expectedStatus: 'sending' | 'uncertain'; expectedAttempts: number; resolution: 'delivered' | 'requeue'; reason: string; nonDeliveryConfirmed?: boolean } }
   | { action: 'markNotificationRead'; input: { id: string } }
   | { action: 'scanBarcode'; input: { code: string } }
   | { action: 'setRolePermissions'; input: { role: RoleKey; permissions: string[] } }

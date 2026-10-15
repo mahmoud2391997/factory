@@ -91,6 +91,7 @@ const COMMAND_ACTIONS: Record<Command['action'], true> = {
   createPayroll: true,
   decidePayroll: true,
   payPayroll: true,
+  resolveNotificationEmail: true,
   markNotificationRead: true,
   scanBarcode: true,
   setRolePermissions: true,
