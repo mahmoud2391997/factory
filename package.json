@@ -29,7 +29,8 @@
     "test:browser": "node scripts/browser-regression.cjs",
     "prebuild:web": "node scripts/check-build-mode.mjs && pnpm db:generate",
     "predeploy": "sh scripts/predeploy.sh",
-    "test:ui-acceptance": "APP_MODE=production pnpm build:web && node scripts/ui-acceptance.cjs"
+    "test:ui-acceptance": "APP_MODE=production pnpm build:web && node scripts/ui-acceptance.cjs",
+    "test:mail-journey": "node scripts/test-mail-journey.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
