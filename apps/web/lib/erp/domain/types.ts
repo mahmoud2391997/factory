@@ -831,6 +831,9 @@ export type ScaleReading = {
   timestamp: string
   operatorId: string
   scaleId: string
+  /** Optional manual gross/tare measurements, in kilograms. actualQty is the net. */
+  grossQty?: number
+  tareQty?: number
   eventId?: string
   usedForProduction?: boolean
 }
@@ -1249,7 +1252,7 @@ export type Command =
   | { action: 'approveSupplierCommunication'; input: { id: string } }
   | { action: 'markSupplierCommunicationDelivered'; input: { id: string; providerMessageId: string } }
   | { action: 'markSupplierCommunicationFailed'; input: { id: string; error: string } }
-  | { action: 'recordScaleReading'; input: { materialId: string; productionOrderId: string; actualQty: number; scaleId: string; eventId?: string } }
+  | { action: 'recordScaleReading'; input: { materialId: string; productionOrderId: string; actualQty: number; scaleId: string; grossQty?: number; tareQty?: number; eventId?: string } }
   | { action: 'createDistributionPoint'; input: { code: string; nameAr: string; location: string; managerId: string; phone: string } }
   | { action: 'closeDistributionDay'; input: { pointId: string; date: string; openingStock: Record<string, number>; sales: Record<string, number>; returns: Record<string, number>; closingStock: Record<string, number>; cash: number; transfers: number } }
   | { action: 'advanceInvoiceDelivery'; input: { invoiceId: string; step: DeliveryStep; notes?: string; deliveryProof?: { recipientName: string; recipientPhone?: string; location?: { lat: number; lng: number } } } }

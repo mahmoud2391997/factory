@@ -4940,6 +4940,17 @@ function markSupplierCommunicationFailed(state: ErpState, actor: Actor, input: E
 }
 
 function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordScaleReading' }>['input'], clock: Clock): CommandResult {
+  if (!Number.isFinite(input.actualQty) || input.actualQty < 0 || input.actualQty > Number.MAX_SAFE_INTEGER / 1000) return fail('وزن الميزان غير صحيح')
+  const hasGrossTare = input.grossQty !== undefined || input.tareQty !== undefined
+  if (hasGrossTare) {
+    if (typeof input.grossQty !== 'number' || typeof input.tareQty !== 'number'
+      || !Number.isFinite(input.grossQty) || !Number.isFinite(input.tareQty)
+      || input.grossQty < 0 || input.tareQty < 0 || input.tareQty > input.grossQty
+      || input.grossQty > Number.MAX_SAFE_INTEGER / 1000 || input.tareQty > Number.MAX_SAFE_INTEGER / 1000) {
+      return fail('أدخل وزناً إجمالياً ووزن فارغ صحيحين؛ وزن الفارغ لا يزيد على الإجمالي')
+    }
+    if (qty(input.actualQty) !== qty(input.grossQty - input.tareQty)) return fail('الوزن الصافي لا يطابق الإجمالي ناقص الفارغ')
+  }
   const existing = input.eventId
     ? state.scaleReadings.find((reading) => reading.scaleId === input.scaleId && reading.eventId === input.eventId)
     : undefined
@@ -4947,6 +4958,8 @@ function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Comman
     const sameReading = existing.materialId === input.materialId
       && existing.productionOrderId === input.productionOrderId
       && existing.actualQty === qty(input.actualQty)
+      && existing.grossQty === (hasGrossTare ? qty(input.grossQty!) : undefined)
+      && existing.tareQty === (hasGrossTare ? qty(input.tareQty!) : undefined)
     return sameReading ? ok(state, 'تم تسجيل قراءة الميزان مسبقاً') : fail('معرف الحدث مستخدم لقراءة أخرى')
   }
   const material = state.materials.find((item) => item.id === input.materialId)
@@ -4958,7 +4971,6 @@ function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Comman
   if (!expected) return fail('المادة ليست ضمن وصفة أمر الإنتاج')
   if (typeof input.scaleId !== 'string' || !input.scaleId.trim()) return fail('معرف الميزان مطلوب')
   if (input.eventId !== undefined && !/^[A-Za-z0-9._:-]{1,128}$/.test(input.eventId)) return fail('معرف حدث الميزان غير صحيح')
-  if (!Number.isFinite(input.actualQty) || input.actualQty < 0) return fail('وزن الميزان غير صحيح')
 
   const variance = qty(input.actualQty - expected.expectedQty)
   const reading: ScaleReading = {
@@ -4971,12 +4983,13 @@ function recordScaleReading(state: ErpState, actor: Actor, input: Extract<Comman
     timestamp: clock.now(),
     operatorId: actor.id,
     scaleId: input.scaleId,
+    ...(hasGrossTare ? { grossQty: qty(input.grossQty!), tareQty: qty(input.tareQty!) } : {}),
     eventId: input.eventId,
     usedForProduction: true,
   }
 
   state.scaleReadings.unshift(reading)
-  audit(state, actor, clock, 'قراءة ميزان', 'scaleReading', reading.id, `${material.nameAr}: ${input.actualQty} كجم`)
+  audit(state, actor, clock, 'قراءة ميزان', 'scaleReading', reading.id, `${material.nameAr}: صافي ${qty(input.actualQty)} كجم${hasGrossTare ? `؛ إجمالي ${qty(input.grossQty!)}؛ فارغ ${qty(input.tareQty!)}` : ''}؛ ميزان ${input.scaleId.trim()}`)
   return ok(state, 'تم تسجيل قراءة الميزان')
 }
 

@@ -2891,28 +2891,37 @@ function ScaleReadings({ ctx }: { ctx: LiveCtx }) {
   const [productionOrderId, setProductionOrderId] = useState(firstOpenOrder?.id ?? '')
   const [actualQty, setActualQty] = useState('')
   const [scaleId, setScaleId] = useState('MANUAL')
+  const [weightMode, setWeightMode] = useState<'NET' | 'GROSS_TARE'>('NET')
+  const [grossQty, setGrossQty] = useState('')
+  const [tareQty, setTareQty] = useState('')
+  const netQty = grossQty !== '' && tareQty !== '' ? Math.round((Number(grossQty) - Number(tareQty)) * 1000) / 1000 : null
   const productionOrder = ctx.state.productionOrders.find((item) => item.id === productionOrderId)
   const expected = productionOrder?.expected.find((item) => item.materialId === materialId)
   return (<LocalizedContent>{(
-    <Card title="قراءات الميزان" hint="تُحسب الكمية المتوقعة من وصفة أمر الإنتاج. قراءة الميزان الأخيرة لكل مادة تُستخدم تلقائياً عند إكمال الأمر.">
+    <Card title="قراءات الميزان" hint="يمكن تسجيل الوزن يدوياً الآن دون توصيل جهاز. أدخل الصافي مباشرة أو احسبه من الإجمالي ناقص وزن الفارغ. القراءة الأخيرة لكل مادة تُستخدم عند إكمال أمر الإنتاج.">
       {can(ctx.permissions, 'scale.manage') ? <FormDialog title="تسجيل قراءة ميزان" openLabel={translateUiText(language, 'قراءة جديدة')}>
         {(close) => <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
           event.preventDefault()
-          const result = await ctx.act('recordScaleReading', { materialId, productionOrderId, actualQty: Number(actualQty), scaleId })
-          if (result.ok) { setActualQty(''); close() }
+          const result = await ctx.act('recordScaleReading', { materialId, productionOrderId, actualQty: weightMode === 'GROSS_TARE' ? netQty ?? Number.NaN : Number(actualQty), scaleId, ...(weightMode === 'GROSS_TARE' ? { grossQty: Number(grossQty), tareQty: Number(tareQty) } : {}) })
+          if (result.ok) { setActualQty(''); setGrossQty(''); setTareQty(''); close() }
         }}>
           <Field label="أمر الإنتاج"><SelectInput value={productionOrderId} onChange={(event) => { const id = event.target.value; setProductionOrderId(id); setMaterialId(ctx.state.productionOrders.find((order) => order.id === id)?.expected[0]?.materialId ?? '') }}>{ctx.state.productionOrders.filter((item) => item.status === 'RELEASED').map((item) => <option key={item.id} value={item.id}>{item.number}</option>)}</SelectInput> <DependencyLink field="productionOrders" /></Field>
           <Field label="المادة الخام"><SelectInput value={materialId} onChange={(event) => setMaterialId(event.target.value)}>{(productionOrder?.expected ?? []).map((line) => <option key={line.materialId} value={line.materialId}>{materialName(ctx.state, line.materialId)}</option>)}</SelectInput></Field>
           <Field label="الوزن المتوقع من الوصفة (كجم)"><TextInput value={expected ? qtyFmt(expected.expectedQty) : ''} readOnly /></Field>
-          <Field label="الوزن الفعلي (كجم)"><TextInput type="number" min="0" step="0.001" value={actualQty} onChange={(event) => setActualQty(event.target.value)} required /></Field>
+          <Field label="طريقة إدخال الوزن"><SelectInput value={weightMode} onChange={(event) => setWeightMode(event.target.value as 'NET' | 'GROSS_TARE')}><option value="NET">الوزن الصافي مباشرة</option><option value="GROSS_TARE">الإجمالي ووزن الفارغ</option></SelectInput></Field>
+          {weightMode === 'NET' ? <Field label="الوزن الفعلي (كجم)"><TextInput type="number" min="0" step="0.001" value={actualQty} onChange={(event) => setActualQty(event.target.value)} required /></Field> : <>
+            <Field label="الوزن الإجمالي (كجم)"><TextInput type="number" min="0" step="0.001" value={grossQty} onChange={(event) => setGrossQty(event.target.value)} required /></Field>
+            <Field label="وزن الفارغ (كجم)"><TextInput type="number" min="0" max={grossQty === '' ? undefined : Number(grossQty)} step="0.001" value={tareQty} onChange={(event) => setTareQty(event.target.value)} required /></Field>
+            <Field label="الوزن الصافي المحسوب (كجم)"><TextInput value={netQty === null ? '' : String(netQty)} readOnly /></Field>
+          </>}
           <Field label="معرف الميزان"><TextInput value={scaleId} onChange={(event) => setScaleId(event.target.value)} required /></Field>
           <div className="flex items-end"><PrimaryButton disabled={ctx.pending || !materialId || !productionOrderId || !expected}>تسجيل</PrimaryButton></div>
         </form>}
       </FormDialog> : <p className="text-sm text-[#6b7280]">لا تملك صلاحية تسجيل قراءات الميزان.</p>}
-      <DataTable columns={['الوقت', 'المادة', 'أمر الإنتاج', 'المتوقع', 'الفعلي', 'الفارق', 'الميزان', 'المسجل']} rows={(ctx.state.scaleReadings ?? []).map((reading) => [
+      <DataTable columns={['الوقت', 'المادة', 'أمر الإنتاج', 'المتوقع', 'الصافي', 'الإجمالي', 'الفارغ', 'الفارق', 'الميزان', 'المسجل']} rows={(ctx.state.scaleReadings ?? []).map((reading) => [
         reading.timestamp.slice(0, 16).replace('T', ' '), materialName(ctx.state, reading.materialId),
         ctx.state.productionOrders.find((item) => item.id === reading.productionOrderId)?.number ?? '—',
-        qtyFmt(reading.expectedQty), qtyFmt(reading.actualQty), qtyFmt(reading.variance), reading.scaleId,
+        qtyFmt(reading.expectedQty), qtyFmt(reading.actualQty), reading.grossQty === undefined ? '—' : qtyFmt(reading.grossQty), reading.tareQty === undefined ? '—' : qtyFmt(reading.tareQty), qtyFmt(reading.variance), reading.scaleId,
         ctx.state.users.find((user) => user.id === reading.operatorId)?.fullName ?? reading.operatorId,
       ])} />
     </Card>
