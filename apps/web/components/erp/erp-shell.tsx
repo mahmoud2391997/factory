@@ -867,7 +867,7 @@ export function ErpShell() {
         </div>
       </div>
 
-      {toast ? <div role="status" className="fixed bottom-5 start-5 z-50 rounded-lg bg-[#1f1f1f] px-4 py-3 text-xs font-medium text-white shadow-xl">{uiLabel(toast)}<button type="button" aria-label={uiLabel('إغلاق')} className="ms-3 min-h-8 text-white/90 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>×</button></div> : null}
+      {toast ? <div role="status" className="fixed bottom-5 start-5 z-40 rounded-lg bg-[#1f1f1f] px-4 py-3 text-xs font-medium text-white shadow-xl">{uiLabel(toast)}<button type="button" aria-label={uiLabel('إغلاق')} className="ms-3 min-h-8 text-white/90 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" onClick={() => setToast('')}>×</button></div> : null}
     </main>
   )
 }
