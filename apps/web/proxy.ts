@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { mutationOriginAllowed } from './server/auth/request-origin'
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
+  if (!mutationOriginAllowed(req)) return NextResponse.json({ success: false, message: 'Request origin rejected' }, { status: 403 })
 
   const allowWithoutSession =
     pathname.startsWith('/login') ||
