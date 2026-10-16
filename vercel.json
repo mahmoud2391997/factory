@@ -7,7 +7,8 @@
   "outputDirectory": "apps/web/.next",
   "git": {
     "deploymentEnabled": {
-      "prod-readiness/**": false
+      "prod-readiness/**": false,
+      "main": false
     }
   }
 }
