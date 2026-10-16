@@ -30,7 +30,8 @@
     "prebuild:web": "node scripts/check-build-mode.mjs && pnpm db:generate",
     "predeploy": "sh scripts/predeploy.sh",
     "test:ui-acceptance": "APP_MODE=production pnpm build:web && node scripts/ui-acceptance.cjs",
-    "test:mail-journey": "node scripts/test-mail-journey.cjs"
+    "test:mail-journey": "node scripts/test-mail-journey.cjs",
+    "guides:roles": "tsx --tsconfig apps/web/tsconfig.json scripts/generate-role-guides.mts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
