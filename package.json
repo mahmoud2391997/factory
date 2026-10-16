@@ -28,7 +28,8 @@
     "benchmark:storage": "node scripts/performance-baseline.mjs",
     "test:browser": "node scripts/browser-regression.cjs",
     "prebuild:web": "node scripts/check-build-mode.mjs && pnpm db:generate",
-    "predeploy": "sh scripts/predeploy.sh"
+    "predeploy": "sh scripts/predeploy.sh",
+    "guides:roles": "tsx --tsconfig apps/web/tsconfig.json scripts/generate-role-guides.mts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
