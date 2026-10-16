@@ -31,7 +31,8 @@
     "predeploy": "sh scripts/predeploy.sh",
     "test:ui-acceptance": "APP_MODE=production pnpm build:web && node scripts/ui-acceptance.cjs",
     "test:mail-journey": "node scripts/test-mail-journey.cjs",
-    "guides:roles": "tsx --tsconfig apps/web/tsconfig.json scripts/generate-role-guides.mts"
+    "guides:roles": "tsx --tsconfig apps/web/tsconfig.json scripts/generate-role-guides.mts",
+    "benchmark:http": "node scripts/benchmark-http.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
