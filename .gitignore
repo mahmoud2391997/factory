@@ -30,3 +30,5 @@ packages/workforce-database/src/generated
 # Operational data and local backups
 data/
 apps/web/data/
+
+/artifacts/
