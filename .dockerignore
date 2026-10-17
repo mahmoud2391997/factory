@@ -18,3 +18,9 @@ node_modules
 /owner-testing-guide-ar.pdf
 /riwaq-production-*.jpg
 /docs/*.pdf
+
+.local
+**/.local
+playwright-report
+test-results
+docs/PRODUCTION-READINESS.md
