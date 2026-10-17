@@ -376,6 +376,8 @@ export type Balance = {
   receivedAt: string
   /** Returned goods remain valued stock but cannot be issued or transferred before QC. */
   quarantined?: boolean
+  /** Exact monetary remainder for returned stock; preserve across partial issues/transfers. */
+  carryingValue?: number
 }
 
 export type LedgerType =
@@ -1068,6 +1070,8 @@ export type ProductionLot = {
   marginPct?: number
   deliveries: Array<{
     invoiceId?: string
+    /** Exact original invoice line; legacy delivery records may not contain it. */
+    invoiceLineIndex?: number
     withdrawalId?: string
     customerId?: string
     qty: number

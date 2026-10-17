@@ -172,7 +172,7 @@ export function stockRows(state: ReportState) {
         code: material?.code ?? product?.code ?? '',
         nameAr: material?.nameAr ?? product?.nameAr ?? row.itemId,
         unit: material?.unit ?? product?.unit ?? '',
-        value: money(row.qty * row.unitCost),
+        value: row.carryingValue ?? money(row.qty * row.unitCost),
       }
     })
     .sort((a, b) => a.warehouse.localeCompare(b.warehouse) || a.nameAr.localeCompare(b.nameAr, 'ar'))
@@ -602,11 +602,12 @@ export type ProfitabilityRow = {
 }
 
 /** Revenue booked on a lot delivery, read from the invoice line that names the lot. */
-function deliveryRevenue(state: ReportState, lot: NonNullable<ReportState['lots']>[number], delivery: { invoiceId?: string; withdrawalId?: string; qty: number }): number {
+function deliveryRevenue(state: ReportState, lot: NonNullable<ReportState['lots']>[number], delivery: { invoiceId?: string; invoiceLineIndex?: number; withdrawalId?: string; qty: number }): number {
   if (!delivery.invoiceId) return 0
   const invoice = state.invoices.find((item) => item.id === delivery.invoiceId)
   if (!invoice) return 0
-  const line = invoice.lines.find((item) => item.batchNo === lot.lotNo) ?? invoice.lines.find((item) => item.productId === lot.productId)
+  const exactLine = delivery.invoiceLineIndex !== undefined ? invoice.lines[delivery.invoiceLineIndex] : undefined
+  const line = exactLine?.productId === lot.productId ? exactLine : invoice.lines.find((item) => item.batchNo === lot.lotNo) ?? invoice.lines.find((item) => item.productId === lot.productId)
   if (!line) return 0
   return money(delivery.qty * line.unitPrice)
 }

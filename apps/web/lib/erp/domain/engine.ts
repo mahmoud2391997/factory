@@ -153,9 +153,10 @@ function purposeNeedsApproval(purpose: PurchasePurpose | undefined): boolean {
   return purpose === 'MAINTENANCE' || purpose === 'SPARE_PART'
 }
 
-function invoiceUnitPrice(state: ErpState, lot: ProductionLot, invoiceId: string) {
+function invoiceUnitPrice(state: ErpState, lot: ProductionLot, invoiceId: string, invoiceLineIndex?: number) {
   const invoice = state.invoices.find((item) => item.id === invoiceId)
   if (!invoice) return 0
+  if (invoiceLineIndex !== undefined && invoice.lines[invoiceLineIndex]?.productId === lot.productId) return invoice.lines[invoiceLineIndex]!.unitPrice
   const matches = (batchNo: string) => batchNo.split(',').map((part) => part.trim()).includes(lot.lotNo)
   const line =
     invoice.lines.find((item) => item.productId === lot.productId && matches(item.batchNo)) ??
@@ -168,7 +169,7 @@ function refreshLotSale(state: ErpState, lot: ProductionLot) {
   let sold = 0
   for (const delivery of lot.deliveries) {
     if (!delivery.invoiceId) continue
-    net = money(net + delivery.qty * invoiceUnitPrice(state, lot, delivery.invoiceId))
+    net = money(net + delivery.qty * invoiceUnitPrice(state, lot, delivery.invoiceId, delivery.invoiceLineIndex))
     sold = qty(sold + delivery.qty)
   }
   for (const item of state.salesReturns ?? []) {
@@ -387,6 +388,7 @@ function upsertBalance(
     unitCost: number
     expiryDate?: string | null
     receivedAt?: string
+    carryingValueDelta?: number
   },
 ) {
   let row = state.balances.find(
@@ -411,6 +413,7 @@ function upsertBalance(
     state.balances.push(row)
   }
   const prev = row.qty
+  const previousCarryingValue = row.carryingValue ?? money(prev * row.unitCost)
   const next = qty(row.qty + input.qtyDelta)
   if (next < -0.0001) return { error: 'الكمية غير كافية في المستودع' as const, prev, row }
   if (input.qtyDelta > 0) {
@@ -418,6 +421,10 @@ function upsertBalance(
     const cost = input.unitCost
     row.unitCost = prev + incoming === 0 ? money(cost) : money((prev * row.unitCost + incoming * cost) / (prev + incoming))
     if (input.expiryDate) row.expiryDate = input.expiryDate
+  }
+  if (row.carryingValue !== undefined || input.carryingValueDelta !== undefined) {
+    row.carryingValue = money(previousCarryingValue + (input.carryingValueDelta ?? money(input.qtyDelta * input.unitCost)))
+    if (next > 0) row.unitCost = row.carryingValue / next
   }
   row.qty = next
   return { prev, next, row }
@@ -451,7 +458,7 @@ function addLedger(
     itemId: input.itemId,
     batchNo: input.batchNo,
     qty: qty(input.qty),
-    unitCost: money(input.unitCost),
+    unitCost: input.unitCost,
     prevQty: qty(input.prevQty),
     newQty: qty(input.newQty),
     refType: input.refType,
@@ -476,6 +483,7 @@ function issueBatch(
     refId: string
   },
 ) {
+  if (!Number.isFinite(input.qty) || input.qty <= 0) return { error: 'كمية الصرف غير صحيحة' }
   const row = state.balances.find(
     (item) =>
       item.warehouse === input.warehouse &&
@@ -489,7 +497,16 @@ function issueBatch(
     return { error: `الرصيد غير كافٍ للدفعة ${input.batchNo}` }
   }
   const prev = row.qty
-  row.qty = qty(row.qty - input.qty)
+  const remainingQty = qty(row.qty - input.qty)
+  const trackedValue = row.carryingValue
+  const cost = trackedValue === undefined ? money(input.qty * row.unitCost)
+    : remainingQty === 0 ? trackedValue : money(trackedValue * input.qty / prev)
+  const issuedUnitCost = trackedValue === undefined ? row.unitCost : cost / input.qty
+  row.qty = remainingQty
+  if (trackedValue !== undefined) {
+    row.carryingValue = money(trackedValue - cost)
+    if (remainingQty > 0) row.unitCost = row.carryingValue / remainingQty
+  }
   addLedger(state, clock, actor, {
     type: input.type,
     warehouse: input.warehouse,
@@ -497,13 +514,13 @@ function issueBatch(
     itemId: input.itemId,
     batchNo: input.batchNo,
     qty: -input.qty,
-    unitCost: row.unitCost,
+    unitCost: issuedUnitCost,
     prevQty: prev,
     newQty: row.qty,
     refType: input.refType,
     refId: input.refId,
   })
-  return { unitCost: row.unitCost, cost: money(input.qty * row.unitCost) }
+  return { unitCost: issuedUnitCost, cost }
 }
 
 function fifoIssue(
@@ -2245,6 +2262,7 @@ function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { 
       unitCost: unitCost ?? 0,
       expiryDate: source?.expiryDate ?? null,
       receivedAt: source?.receivedAt,
+      ...(source?.carryingValue !== undefined && 'cost' in issued ? { carryingValueDelta: issued.cost } : {}),
     })
     if ('error' in posted && posted.error) return fail(posted.error)
     if (!posted.row || posted.prev == null || posted.next == null) return fail('تعذر تحديث رصيد الوجهة')
@@ -2269,8 +2287,9 @@ function transferStock(state: ErpState, actor: Actor, input: Extract<Command, { 
 }
 
 function requestAdjustment(state: ErpState, actor: Actor, input: Extract<Command, { action: 'requestAdjustment' }>['input'], clock: Clock): CommandResult {
+  if (returnBatchProtected(state, input.batchNo)) return fail('لا يمكن تعديل دفعة مرتجع معلقة أو محجورة')
   if (!input.reason.trim()) return fail('سبب التعديل مطلوب')
-  if (input.qtyDelta === 0) return fail('كمية التعديل لا يمكن أن تكون صفراً')
+  if (!Number.isFinite(input.qtyDelta) || qty(input.qtyDelta) === 0 || qty(input.qtyDelta) !== input.qtyDelta) return fail('كمية التعديل لا يمكن أن تكون صفراً')
   const exists = input.itemType === 'MATERIAL' ? findMaterial(state, input.itemId) : findProduct(state, input.itemId)
   if (!exists) return fail('الصنف غير موجود')
   const at = clock.now()
@@ -2304,6 +2323,7 @@ function decideAdjustment(state: ErpState, actor: Actor, input: Extract<Command,
     audit(state, actor, clock, 'رفض تعديل مخزون', 'stockAdjustment', adjustment.id, adjustment.number)
     return ok(state, `تم رفض ${adjustment.number}`)
   }
+  if (returnBatchProtected(state, adjustment.batchNo)) return fail('لا يمكن تعديل دفعة مرتجع معلقة أو محجورة')
   const account = adjustment.itemType === 'PRODUCT' ? '1300' : '1100'
   if (adjustment.qtyDelta > 0) {
     const unitCost = adjustment.unitCost
@@ -2852,7 +2872,7 @@ function confirmInvoice(state: ErpState, actor: Actor, input: Extract<Command, {
   if (!invoice) return fail('الفاتورة غير موجودة')
   if (invoice.status !== 'DRAFT') return fail('الفاتورة مؤكدة بالفعل')
   let cogs = 0
-  for (const line of invoice.lines) {
+  for (const [invoiceLineIndex, line] of invoice.lines.entries()) {
     const issued = fifoIssue(state, clock, actor, {
       warehouse: 'WH_FG',
       itemType: 'PRODUCT',
@@ -2875,6 +2895,7 @@ function confirmInvoice(state: ErpState, actor: Actor, input: Extract<Command, {
       for (const issuedLine of issued.lines) {
         recordLotDelivery(state, line.productId, issuedLine.batchNo, {
           invoiceId: invoice.id,
+          invoiceLineIndex,
           customerId: invoice.customerId,
           qty: issuedLine.qty,
           at: clock.now(),
@@ -4568,6 +4589,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   const seeSalary = canAny(permissions, ['employees.read', 'employees.manage'])
   const seePayroll = canAny(permissions, ['payroll.manage', 'payroll.approve', 'payroll.pay'])
   const seeJournals = canAny(permissions, ['accounting.read', 'accounting.manage'])
+  const seeCosts = seeJournals || permissions.includes('production.cost.approve')
   const seeAudit = permissions.includes('audit.read')
   const seeAttendance = canAny(permissions, ['attendance.read', 'attendance.manage'])
   const seeQuality = canAny(permissions, ['qc.read', 'qc.manage', 'qc.release'])
@@ -4611,8 +4633,8 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     customers: seeSales || permissions.includes('recipes.custom') ? state.customers : [],
     warehouses: seeInventory || seeProduction || seePurchasing ? state.warehouses : [],
     recipes: seeProduction ? state.recipes : [],
-    balances: seeInventory || seeProduction || seeSales ? state.balances : [],
-    ledger: seeInventory ? state.ledger : [],
+    balances: seeInventory || seeProduction || seeSales ? state.balances.map(item => ({ ...item, unitCost: seeCosts ? item.unitCost : 0, ...(item.carryingValue === undefined ? {} : { carryingValue: seeCosts ? item.carryingValue : 0 }) })) : [],
+    ledger: seeInventory ? state.ledger.map(item => ({ ...item, unitCost: seeCosts ? item.unitCost : 0 })) : [],
     ledgerBaselines: seeInventory ? state.ledgerBaselines : [],
     journalOpenings: seeJournals ? state.journalOpenings : [],
     purchaseRequests: seePurchasing ? state.purchaseRequests : [],
@@ -4622,12 +4644,12 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     transfers: seeInventory ? state.transfers : [],
     adjustments: seeInventory ? state.adjustments : [],
     productionOrders: seeProduction || seeQuality || seePackaging || seeScale ? state.productionOrders : [],
-    lots: seeProduction || seeQuality || seeSales || seePackaging || seeScale ? state.lots : [],
+    lots: seeProduction || seeQuality || seeSales || seePackaging || seeScale ? state.lots.map(lot => seeCosts ? lot : ({ ...lot, totalCost: 0, costPerTon: 0, marginPerTon: undefined, marginPct: undefined, materials: lot.materials.map(item => ({ ...item, unitCost: 0 })), costLines: lot.costLines.map(item => ({ ...item, amount: 0 })), pendingCostLines: lot.pendingCostLines?.map(item => ({ ...item, amount: 0 })) })) : [],
     stoppages: seeProduction ? state.stoppages : [],
-    invoices: seeSales ? state.invoices.map(invoice => ({ ...invoice, lines: invoice.lines.map(line => ({ ...line, allocations: line.allocations?.map(item => ({ ...item, unitCost: seeJournals || permissions.includes('production.cost.approve') ? item.unitCost : 0 })) })) })) : [],
+    invoices: seeSales ? state.invoices.map(invoice => ({ ...invoice, lines: invoice.lines.map(line => ({ ...line, unitCost: seeCosts ? line.unitCost : 0, allocations: line.allocations?.map(item => ({ ...item, unitCost: seeCosts ? item.unitCost : 0 })) })) })) : [],
     payments: seeSales ? state.payments : [],
-    withdrawals: seeSales ? state.withdrawals : [],
-    salesReturns: seeSales ? (state.salesReturns ?? []).map(item => ({ ...item, cost: seeJournals || permissions.includes('production.cost.approve') ? item.cost : 0 })) : seeQuality || seeInventory ? (state.salesReturns ?? []).map(item => ({ ...item, net: 0, vat: 0, total: 0, cost: 0, refunds: [] })) : [],
+    withdrawals: seeSales ? state.withdrawals.map(item => seeCosts ? item : ({ ...item, totalCost: 0, lines: item.lines.map(line => ({ ...line, unitCost: 0 })) })) : [],
+    salesReturns: seeSales ? (state.salesReturns ?? []).map(item => ({ ...item, cost: seeCosts ? item.cost : 0 })) : seeQuality || seeInventory ? (state.salesReturns ?? []).map(item => ({ ...item, net: 0, vat: 0, total: 0, cost: 0, refunds: [] })) : [],
     expenses: canAny(permissions, ['expenses.manage', 'expenses.approve']) ? state.expenses : [],
     tripCostAllocations: seeVehicleServices ? state.tripCostAllocations : [],
     obligations: seeObligations ? state.obligations : [],
@@ -5494,7 +5516,8 @@ function decideSalesReturn(state: ErpState, actor: Actor, input: Extract<Command
     if (input.received !== true || typeof input.receiptReference !== 'string' || !input.receiptReference.trim() || input.receiptReference.trim().length > 200) return fail('أكد استلام البضاعة وسجل مرجع الاستلام قبل إصدار الإشعار')
     note.receiptReference = input.receiptReference.trim(); note.receivedAt = clock.now()
     if (money((invoice.creditedAmount ?? 0) + note.total) > invoice.total) return fail('الإشعار الدائن يتجاوز قيمة الفاتورة')
-    const stock = upsertBalance(state, clock, { warehouse: 'WH_FG', itemType: 'PRODUCT', itemId: note.productId, batchNo: note.returnBatchNo, qtyDelta: note.qty, unitCost: note.qty ? note.cost / note.qty : 0 })
+    if (state.balances.some(item => item.batchNo === note.returnBatchNo)) return fail('دفعة المرتجع مستخدمة مسبقاً؛ راجع دليل الاستلام')
+    const stock = upsertBalance(state, clock, { warehouse: 'WH_FG', itemType: 'PRODUCT', itemId: note.productId, batchNo: note.returnBatchNo, qtyDelta: note.qty, unitCost: note.qty ? note.cost / note.qty : 0, carryingValueDelta: note.cost })
     if ('error' in stock) return fail(stock.error!)
     stock.row.quarantined = true
     addLedger(state, clock, actor, { type: 'SALES_RETURN', warehouse: 'WH_FG', itemType: 'PRODUCT', itemId: note.productId, batchNo: note.returnBatchNo, qty: note.qty, unitCost: stock.row.unitCost, prevQty: stock.prev, newQty: stock.next!, refType: 'salesReturn', refId: note.id, notes: note.sourceBatchNo })
@@ -5543,4 +5566,10 @@ function recordSalesReturnRefund(state: ErpState, actor: Actor, input: Extract<C
   postJournal(state, clock, `رد ${note.number}`, 'salesReturnRefund', id, [{ accountCode: '1400', debit: input.amount, credit: 0 }, { accountCode: '1500', debit: 0, credit: input.amount }])
   audit(state, actor, clock, 'تسجيل رد مبلغ مرتجع', 'salesReturnRefund', id, `${note.number}; ${input.amount}; ${input.reference.trim()}`)
   return ok(state, 'تم تسجيل رد المبلغ دفترياً دون تنفيذ تحويل بنكي')
+}
+
+
+function returnBatchProtected(state: ErpState, batchNo: string) {
+  const note = state.salesReturns?.find(item => item.returnBatchNo === batchNo.trim())
+  return Boolean(note && (note.status !== 'APPROVED' || note.quality !== 'PASSED')) || state.balances.some(item => item.batchNo === batchNo.trim() && item.quarantined)
 }

@@ -1,4 +1,7 @@
 export const supplementalUi: Record<string, { en: string; hi: string }> = {
+  'كمية الصرف غير صحيحة': { en: 'Invalid issue quantity', hi: 'निकासी मात्रा अमान्य है' },
+  'لا يمكن تعديل دفعة مرتجع معلقة أو محجورة': { en: 'A pending or quarantined returned batch cannot be adjusted', hi: 'लंबित या अलग रखे वापसी बैच का समायोजन नहीं हो सकता' },
+  'دفعة المرتجع مستخدمة مسبقاً؛ راجع دليل الاستلام': { en: 'Returned batch is already in use; check the receipt evidence', hi: 'वापसी बैच पहले उपयोग में है; प्राप्ति प्रमाण जाँचें' },
   'مرجع استلام البضاعة المرتجعة': { en: 'Returned goods receipt reference', hi: 'वापस माल प्राप्ति का संदर्भ' },
   'مرجع استلام البضاعة المرتجعة:': { en: 'Returned goods receipt reference:', hi: 'वापस माल प्राप्ति का संदर्भ:' },
   'أؤكد استلام البضاعة فعلياً؛ الاعتماد يضيفها إلى المخزون المحجور': { en: 'I confirm physical receipt of the goods; approval adds them to quarantined stock', hi: 'मैं माल की वास्तविक प्राप्ति की पुष्टि करता हूँ; मंजूरी उसे अलग स्टॉक में जोड़ती है' },
