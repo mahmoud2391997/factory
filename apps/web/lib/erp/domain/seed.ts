@@ -1,3 +1,4 @@
+import {defaultInventoryCategories} from './inventory-categories'
 import { erpNow } from './clock'
 import { applyCommand } from './engine'
 import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS_VERSION } from './permissions'
@@ -41,6 +42,7 @@ export function createClock(startIso = seedClockStart()): Clock & { advance: (ho
 export function emptyState(passwordHash: string): ErpState {
   return {
     schemaVersion: SCHEMA_VERSION,
+    inventoryCategories: defaultInventoryCategories(),
     permissionsVersion: PERMISSIONS_VERSION,
     revision: 0,
     company: {
