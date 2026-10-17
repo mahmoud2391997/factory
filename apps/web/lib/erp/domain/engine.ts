@@ -1,3 +1,4 @@
+import {applyInventoryCategoryCommand,inventoryCategoryList} from './inventory-categories'
 import { applyArchive, planArchive } from './archive'
 import { erpNowIso } from './clock'
 import { money, qty, round3 } from './money'
@@ -688,6 +689,9 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     return fail('يجب تغيير كلمة المرور قبل استخدام النظام')
   }
   const map: Record<Command['action'], string> = {
+    createInventoryCategory: 'settings.update',
+    updateInventoryCategory: 'settings.update',
+    assignInventoryCategory: 'settings.update',
     createMaterial: 'inventory.read',
     createProduct: 'production.read',
     createSupplier: 'purchasing.po.create',
@@ -829,6 +833,10 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
 
 function run(state: ErpState, actor: Actor, command: Command, clock: Clock): CommandResult {
   switch (command.action) {
+    case 'createInventoryCategory':
+    case 'updateInventoryCategory':
+    case 'assignInventoryCategory':
+      return applyInventoryCategoryCommand(state,actor,command,clock)
     case 'updateMaintenanceSchedule':
       return updateMaintenanceSchedule(state, actor, command.input, clock)
     case 'updateMaintenanceRecord':
@@ -4570,6 +4578,7 @@ export function publicState(state: ErpState, permissions: readonly string[], use
   return {
     ...state,
     idempotency: [],
+    inventoryCategories: canAny(permissions,['settings.read','settings.update','inventory.read','production.read','packaging.read','packaging.manage','spareparts.read','spareparts.manage'])?inventoryCategoryList(state):[],
     users: state.users.filter((user) => user.id === userId || canAny(permissions, ['users.read', 'users.manage', 'fleet.manage'])).map(({ passwordHash: _password, ...user }) => user),
     rolePermissions: Object.fromEntries(Object.entries(state.rolePermissions).map(([role, values]) => [role,
       canAny(permissions, ['roles.read', 'roles.manage', 'users.manage']) || role === currentUser?.role ? values : [],

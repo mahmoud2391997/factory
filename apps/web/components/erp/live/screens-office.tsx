@@ -1,4 +1,5 @@
 'use client'
+import {InventoryCategorySettings} from './inventory-category-settings'
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { CodeInput } from '@/components/erp/code-input'
@@ -1657,6 +1658,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
           <p role="note" className="text-xs leading-5 text-[#7c8c86]">{backupDownloadNotice(language)}</p>
         ) : null}
       </form>
+      <InventoryCategorySettings ctx={ctx}/>
     </Card>
   )}</LocalizedContent>)
 }

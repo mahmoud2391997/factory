@@ -11,6 +11,9 @@ export const maxDuration = 60
 
 /** Typed as a total record so adding a Command action without listing it here fails the build. */
 const COMMAND_ACTIONS: Record<Command['action'], true> = {
+  createInventoryCategory: true,
+  updateInventoryCategory: true,
+  assignInventoryCategory: true,
   updateMaterial: true,
   deleteMaterial: true,
   updateProduct: true,

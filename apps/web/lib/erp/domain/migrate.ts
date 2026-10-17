@@ -1,3 +1,4 @@
+import {defaultInventoryCategories} from './inventory-categories'
 import { money, qty } from './money'
 import { PERMISSIONS_INTRODUCED, PERMISSIONS_RETIRED, PERMISSIONS_VERSION, type Permission, type RoleKey } from './permissions'
 import type { ErpState, ProductionLot } from './types'
@@ -113,6 +114,7 @@ export function migrateErpState(state: ErpState): ErpState {
   if (state.schemaVersion != null && state.schemaVersion > SCHEMA_VERSION) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
+  state.inventoryCategories ??= defaultInventoryCategories()
   state.lots ??= []
   state.qualitySamples ??= []
   state.qualityHolds ??= []

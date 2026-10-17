@@ -25,6 +25,13 @@ export type QcLimits = {
   maxPhosphorus?: number
 }
 
+export type InventoryCategory = {id:string;code:string;nameAr:string;active:boolean}
+export type InventoryItemKind = 'MATERIAL' | 'PRODUCT' | 'PACKAGING' | 'SPARE_PART'
+export type InventoryCategoryCommand =
+ | {action:'createInventoryCategory';input:{code:string;nameAr:string}}
+ | {action:'updateInventoryCategory';input:{id:string;code?:string;nameAr?:string;active?:boolean}}
+ | {action:'assignInventoryCategory';input:{itemKind:InventoryItemKind;itemId:string;categoryId:string|null}}
+
 export type Company = {
   nameAr: string
   nameEn: string
@@ -105,6 +112,8 @@ export type Account = {
 }
 
 export type Material = {
+  /** Administrative classification; independent of technical/nutritional categories. */
+  inventoryCategoryId?: string
   id: string
   code: string
   nameAr: string
@@ -121,6 +130,8 @@ export type Material = {
 }
 
 export type Product = {
+  /** Administrative classification; independent of technical/nutritional categories. */
+  inventoryCategoryId?: string
   id: string
   code: string
   nameAr: string
@@ -702,6 +713,8 @@ export type NutritionalComparison = {
 
 /** Spare parts inventory item. */
 export type SparePart = {
+  /** Administrative classification; independent of technical/nutritional categories. */
+  inventoryCategoryId?: string
   id: string
   code: string
   nameAr: string
@@ -730,6 +743,8 @@ export type SparePartUsage = {
 
 /** Packaging materials inventory item. */
 export type PackagingMaterial = {
+  /** Administrative classification; independent of technical/nutritional categories. */
+  inventoryCategoryId?: string
   id: string
   code: string
   nameAr: string
@@ -1079,6 +1094,7 @@ export type QualityHold = {
 }
 
 export type ErpState = {
+  inventoryCategories?: InventoryCategory[]
   schemaVersion: number
   /** Last applied default-permission introduction. Missing means 0. */
   permissionsVersion?: number
@@ -1187,6 +1203,7 @@ export type Clock = {
 }
 
 export type Command =
+  | InventoryCategoryCommand
   | { action: 'createMaterial'; input: { code: string; nameAr: string; category: string; unit?: string; minQty: number; vatTreatment?: VatTreatment; barcode?: string } }
   | { action: 'createProduct'; input: { code: string; nameAr: string; unit?: string; salePrice: number; vatTreatment?: VatTreatment; barcode?: string; bagKg?: number; varianceWarningPct?: number; varianceCriticalPct?: number } }
   | { action: 'createSupplier'; input: { nameAr: string; vatNumber?: string; phone?: string; email?: string; address?: string } }
