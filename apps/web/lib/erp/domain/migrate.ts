@@ -140,7 +140,8 @@ export function migrateErpState(state: ErpState): ErpState {
     state.schemaVersion !== 9 &&
     state.schemaVersion !== 10 &&
     state.schemaVersion !== 11 &&
-    state.schemaVersion !== 12
+    state.schemaVersion !== 12 &&
+    state.schemaVersion !== 13
   ) {
     throw new Error('إصدار بيانات المصنع غير مدعوم')
   }
@@ -332,6 +333,15 @@ export function migrateErpState(state: ErpState): ErpState {
   if (state.schemaVersion === 12) {
     for (const notification of state.notifications) notification.readBy ??= []
     state.schemaVersion = 13
+  }
+
+  // v13 -> v14: invoice returns and precise carried inventory values require
+  // compatible issue/transfer logic. The version marker keeps older binaries
+  // from silently opening these documents. No legacy item is reclassified.
+  if (state.schemaVersion === 13) {
+    state.salesReturns ??= []
+    state.inventoryCategories ??= defaultInventoryCategories()
+    state.schemaVersion = 14
   }
 
   return mergeRolePermissions(state)

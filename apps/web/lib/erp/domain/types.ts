@@ -1,6 +1,6 @@
 import type { Permission, RoleKey } from './permissions'
 
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 
 export type WarehouseKey = 'WH_RAW' | 'WH_MFG' | 'WH_FG'
 export type ItemType = 'MATERIAL' | 'PRODUCT'

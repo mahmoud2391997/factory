@@ -175,3 +175,19 @@ test('v12 notification reads keep their global meaning and initialize per-user r
   assert.deepEqual(Reflect.get(migrated.notifications[0]!, 'readBy'), [])
   assert.deepEqual(Reflect.get(migrated.notifications[1]!, 'readBy'), [])
 })
+
+
+test('v13 return upgrade preserves the original backup and survives JSON reopen', () => {
+  const original = emptyState('migration-v13-backup')
+  original.schemaVersion = 13
+  delete original.salesReturns
+  delete original.inventoryCategories
+  const backup = JSON.stringify(original)
+  const upgraded = migrateErpState(JSON.parse(backup))
+  assert.equal(upgraded.schemaVersion, 14)
+  assert.deepEqual(upgraded.salesReturns, [])
+  assert.ok(upgraded.inventoryCategories?.length)
+  assert.equal(JSON.stringify(original), backup)
+  assert.equal(original.schemaVersion, 13)
+  assert.equal(JSON.stringify(migrateErpState(JSON.parse(JSON.stringify(upgraded)))), JSON.stringify(upgraded))
+})
