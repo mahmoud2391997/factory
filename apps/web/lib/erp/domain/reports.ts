@@ -1,6 +1,7 @@
 import { erpNowIso } from './clock'
 import { approvedTripTransportCost, COST_LABEL } from './costing'
 import { almostEqual, money, qty } from './money'
+import { invoiceOutstanding, returnOriginBatch } from './invoice-balance'
 import type { ErpState, ItemType, SalesInvoice, WarehouseKey } from './types'
 
 type ReportState = Omit<ErpState, 'users'> & { users: Array<unknown> }
@@ -128,7 +129,7 @@ export function vatReturn(state: ReportState, month?: string) {
   const output = money(
     state.invoices
       .filter((invoice) => invoice.status !== 'DRAFT' && inMonth(invoice.issuedAt))
-      .reduce((sum, invoice) => sum + invoice.vatAmount, 0),
+      .reduce((sum, invoice) => sum + invoice.vatAmount, 0) - (state.salesReturns ?? []).filter(item => item.status === 'APPROVED' && item.decidedAt && inMonth(item.decidedAt)).reduce((sum, item) => sum + item.vat, 0),
   )
   const inputEntries = state.journals.filter((entry) => entry.refType === 'goodsReceipt' || entry.refType === 'expense')
   const inputPurchases = money(
@@ -180,13 +181,13 @@ export function stockRows(state: ReportState) {
 export function itemOnHand(state: ReportState, itemType: ItemType, itemId: string, warehouse?: WarehouseKey) {
   return qty(
     state.balances
-      .filter((row) => row.itemType === itemType && row.itemId === itemId && (!warehouse || row.warehouse === warehouse))
+      .filter((row) => !row.quarantined && row.itemType === itemType && row.itemId === itemId && (!warehouse || row.warehouse === warehouse))
       .reduce((sum, row) => sum + row.qty, 0),
   )
 }
 
 function openInvoice(invoice: SalesInvoice) {
-  return invoice.status === 'DRAFT' || invoice.status === 'CONFIRMED' || invoice.status === 'PARTIAL'
+  return invoice.status === 'DRAFT' || invoiceOutstanding(invoice) > 0
 }
 
 type FactorySnapshot = Pick<
@@ -199,6 +200,7 @@ type FactorySnapshot = Pick<
       | 'lots'
       | 'qualitySamples'
       | 'payments'
+      | 'salesReturns'
       | 'products'
       | 'suppliers'
       | 'vehicles'
@@ -221,6 +223,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
   for (const invoice of state.invoices) {
     if (invoice.status !== 'DRAFT') activity.add(muscatDay(invoice.issuedAt))
   }
+  for (const item of state.salesReturns ?? []) if (item.status === 'APPROVED' && item.decidedAt) activity.add(muscatDay(item.decidedAt))
   const days = [...activity].sort().reverse()
   const eligible = days.filter((day) => day <= requested)
   const day = eligible[0] ?? days[0] ?? requested
@@ -241,8 +244,12 @@ export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
   const todayInvoices = state.invoices.filter((invoice) => salesOn(invoice, (iso) => muscatDay(iso) === day))
   const monthInvoices = state.invoices.filter((invoice) => salesOn(invoice, (iso) => muscatDay(iso).slice(0, 7) === month && muscatDay(iso) <= day))
   const openInvoices = state.invoices.filter(openInvoice)
-  const soldKg = qty(todayInvoices.reduce((sum, invoice) => sum + invoice.lines.reduce((lineSum, line) => lineSum + line.qty, 0), 0))
-  const soldNet = salesNet(todayInvoices)
+  const soldKg = qty(todayInvoices.reduce((sum, invoice) => sum + invoice.lines.reduce((lineSum, line) => lineSum + line.qty, 0), 0) - (state.salesReturns ?? []).filter(item => item.status === 'APPROVED' && item.decidedAt && muscatDay(item.decidedAt) === day).reduce((sum, item) => sum + item.qty, 0))
+  const credits = (state.salesReturns ?? []).filter(item => item.status === 'APPROVED' && item.decidedAt)
+  const creditNet = (match: (iso: string) => boolean) => money(credits.filter(item => match(item.decidedAt!)).reduce((sum, item) => sum + item.net, 0))
+  const todayNet = money(salesNet(todayInvoices) - creditNet(iso => muscatDay(iso) === day))
+  const monthNet = money(salesNet(monthInvoices) - creditNet(iso => muscatDay(iso).slice(0, 7) === month && muscatDay(iso) <= day))
+  const soldNet = todayNet
   const costPerTon = actualKg > 0 ? money((producedCost / actualKg) * 1000) : 0
   const avgPricePerTon = soldKg > 0 ? money((soldNet / soldKg) * 1000) : 0
 
@@ -349,7 +356,7 @@ export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
   const aging = { d0_30: 0, d31_60: 0, d61: 0 }
   for (const invoice of openInvoices) {
     const age = daysBetween(muscatDay(invoice.issuedAt), day)
-    const outstanding = money(invoice.total - invoice.paidAmount)
+    const outstanding = money(invoiceOutstanding(invoice))
     if (age <= 30) aging.d0_30 = money(aging.d0_30 + outstanding)
     else if (age <= 60) aging.d31_60 = money(aging.d31_60 + outstanding)
     else aging.d61 = money(aging.d61 + outstanding)
@@ -361,17 +368,17 @@ export function factoryStatus(state: FactorySnapshot, nowIso = erpNowIso()) {
     shifted: day !== requested,
     production: { plannedKg, actualKg, executionPct },
     sales: {
-      today: salesNet(todayInvoices),
+      today: todayNet,
       todayCount: todayInvoices.length,
-      month: salesNet(monthInvoices),
+      month: monthNet,
       monthCount: monthInvoices.length,
       openCount: openInvoices.length,
-      openOutstanding: money(openInvoices.reduce((sum, invoice) => sum + (invoice.total - invoice.paidAmount), 0)),
+      openOutstanding: money(openInvoices.reduce((sum, invoice) => sum + (invoiceOutstanding(invoice)), 0)),
       openOrders: openInvoices.map((invoice) => ({
         id: invoice.id,
         number: invoice.number,
         customer: state.customers.find((item) => item.id === invoice.customerId)?.nameAr ?? invoice.customerId,
-        outstanding: money(invoice.total - invoice.paidAmount),
+        outstanding: money(invoiceOutstanding(invoice)),
         status: invoice.status,
       })),
     },
@@ -545,7 +552,7 @@ export function traceLot(state: ReportState, lotNo: string) {
     .map((delivery) => (delivery.customerId ? (state.customers.find((item) => item.id === delivery.customerId) ?? null) : null))
     .filter((item, index, list): item is NonNullable<typeof item> => Boolean(item) && list.findIndex((other) => other?.id === item?.id) === index)
   const samples = (state.qualitySamples ?? []).filter((item) => item.type === 'FINISHED_PRODUCT' && item.lotNo === lot.lotNo)
-  return { lot, product, operator, operatorName, rawBatches, suppliers, customers, deliveries: lot.deliveries, samples }
+  return { lot, product, operator, operatorName, rawBatches, suppliers, customers, deliveries: lot.deliveries, samples, returns: (state.salesReturns ?? []).filter(item => item.status === 'APPROVED' && returnOriginBatch(state, item.sourceBatchNo) === lotNo) }
 }
 
 export function productionCostSummary(state: ReportState, fromDay?: string, toDay?: string) {
@@ -649,6 +656,19 @@ export function profitabilityReport(state: ReportState, groupBy: ProfitabilityGr
         row.revenue = money(row.revenue + deliveryRevenue(state, lot, delivery))
       }
     }
+  }
+  for (const note of state.salesReturns ?? []) {
+    if (note.status !== 'APPROVED') continue
+    const invoice = state.invoices.find(item => item.id === note.invoiceId)
+    const lot = lots.find(item => item.lotNo === returnOriginBatch(state, note.sourceBatchNo))
+    if (!invoice || !lot) continue
+    const customer = state.customers.find(item => item.id === invoice.customerId)
+    const key = groupBy === 'CUSTOMER' ? invoice.customerId : groupBy === 'PRODUCT' ? note.productId : muscatDay(lot.manufacturedAt).slice(0, 7)
+    const label = groupBy === 'CUSTOMER' ? customer?.nameAr ?? key : groupBy === 'PRODUCT' ? state.products.find(item => item.id === note.productId)?.nameAr ?? key : key
+    const row = ensure(key, label)
+    row.soldQty = qty(row.soldQty - note.qty)
+    row.revenue = money(row.revenue - note.net)
+    if (groupBy === 'CUSTOMER') { row.outputKg = qty(row.outputKg - note.qty); row.cost = money(row.cost - note.cost) }
   }
   return [...rows.entries()]
     .map(([key, row]) => {

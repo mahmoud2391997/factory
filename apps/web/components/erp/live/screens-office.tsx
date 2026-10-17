@@ -1576,6 +1576,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
   const { language } = useLanguage()
   const isVercelBuild = process.env.NEXT_PUBLIC_APP_ENV === 'vercel'
   const company = ctx.state.company
+  const [returnWindowDays, setReturnWindowDays] = useState(company.returnWindowDays?.toString() ?? '')
   const [form, setForm] = useState({
     ...company,
     bagUnitCost: company.bagUnitCost ?? 0,
@@ -1597,7 +1598,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
     <Card title="إعدادات الشركة" hint="هذه البيانات تُطبع على الفاتورة الضريبية وأمر الشراء.">
       <form className="grid gap-3 md:grid-cols-2" onSubmit={async (event) => {
         event.preventDefault()
-        await ctx.act('updateCompany', { ...form, packagingMaterialId: form.packagingMaterialId || undefined })
+        await ctx.act('updateCompany', { ...form, returnWindowDays: returnWindowDays === '' ? null : Number(returnWindowDays), packagingMaterialId: form.packagingMaterialId || undefined })
       }}>
         <Field label="اسم المصنع"><TextInput value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} /></Field>
         <Field label="الاسم الإنجليزي"><TextInput value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></Field>
@@ -1631,6 +1632,7 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
           <span>يتطلب فحص الجودة قبل تحويل الخام للتصنيع أو بيع المنتج</span>
         </label>
         <Field label="حد انحراف المرافق %"><TextInput type="number" min="0" step="1" value={form.utilityVarianceThresholdPct} onChange={(e) => setForm({ ...form, utilityVarianceThresholdPct: Number(e.target.value) })} /></Field>
+        <Field label="مدة مرتجعات الفواتير (يوم)"><TextInput type="number" min="0" step="1" placeholder="غير مفعلة حتى تحديد المدة" value={returnWindowDays} onChange={e => setReturnWindowDays(e.target.value)} /></Field>
         <Field label="رصيد الإجازات السنوية (يوم)"><TextInput type="number" min="0" step="1" value={form.annualLeaveEntitlementDays} onChange={(e) => setForm({ ...form, annualLeaveEntitlementDays: Number(e.target.value) })} /></Field>
         <div className="space-y-2 md:col-span-2">
           <div className="text-sm font-medium text-[#1f1f1f]">حدود اعتماد أوامر الشراء</div>

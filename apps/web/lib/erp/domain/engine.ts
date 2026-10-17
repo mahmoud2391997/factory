@@ -1,6 +1,7 @@
 import { applyArchive, planArchive } from './archive'
 import { erpNowIso } from './clock'
 import { money, qty, round3 } from './money'
+import { invoiceOutstanding, returnOriginBatch } from './invoice-balance'
 import { ALLOCATED_COST_TYPES, allocateCostType, approvedTripTransportCost, buildLotCostLines, COST_LABEL, packagingCostLine, transportCostBreakdown, type CostContext } from './costing'
 import { inProcessQcBlock, latestSample, lotQcBlock, rawBatchQcBlock, releasesBlock, suggestQcResult } from './qc'
 import { calculateLotNutrition, calculateRecipeNutrition, compareNutrition } from './nutrition'
@@ -169,6 +170,9 @@ function refreshLotSale(state: ErpState, lot: ProductionLot) {
     net = money(net + delivery.qty * invoiceUnitPrice(state, lot, delivery.invoiceId))
     sold = qty(sold + delivery.qty)
   }
+  for (const item of state.salesReturns ?? []) {
+    if (item.status === 'APPROVED' && returnOriginBatch(state, item.sourceBatchNo) === lot.lotNo) { net = money(net - item.net); sold = qty(sold - item.qty) }
+  }
   if (sold <= 0) {
     delete lot.salePricePerTon
     delete lot.marginPerTon
@@ -181,7 +185,8 @@ function refreshLotSale(state: ErpState, lot: ProductionLot) {
 }
 
 function recordLotDelivery(state: ErpState, productId: string, batchNo: string, delivery: ProductionLot['deliveries'][number]) {
-  const lot = state.lots?.find((item) => item.lotNo === batchNo && item.productId === productId)
+  const origin = returnOriginBatch(state, batchNo)
+  const lot = state.lots?.find((item) => item.lotNo === origin && item.productId === productId)
   if (!lot) return
   lot.deliveries.push(delivery)
   refreshLotSale(state, lot)
@@ -192,11 +197,11 @@ function autoMatchBankTransaction(state: ErpState, transaction: BankTransaction)
   if (transaction.type === 'CREDIT') {
     // Try to match with customer payment
     for (const invoice of state.invoices) {
-      if (invoice.status === 'PAID') continue
+      if (invoiceOutstanding(invoice) <= 0 && invoice.status !== 'DRAFT') continue
       const customer = state.customers.find((c) => c.id === invoice.customerId)
       if (!customer) continue
       // Match by customer name in description or approximate amount
-      if (transaction.description.includes(customer.nameAr) || Math.abs(transaction.amount - (invoice.total - invoice.paidAmount)) < 1) {
+      if (transaction.description.includes(customer.nameAr) || Math.abs(transaction.amount - (invoiceOutstanding(invoice))) < 1) {
         return { type: 'INVOICE', id: invoice.id }
       }
     }
@@ -359,6 +364,7 @@ function onHand(state: ErpState, warehouse: WarehouseKey, itemType: ItemType, it
     state.balances
       .filter(
         (row) =>
+          !row.quarantined &&
           row.warehouse === warehouse &&
           row.itemType === itemType &&
           row.itemId === itemId &&
@@ -477,6 +483,7 @@ function issueBatch(
       item.batchNo === input.batchNo &&
       item.qty > 0,
   )
+  if (row?.quarantined) return { error: 'المرتجع محجور حتى اجتياز فحص الجودة' }
   if (!row || row.qty + 0.0001 < input.qty) {
     return { error: `الرصيد غير كافٍ للدفعة ${input.batchNo}` }
   }
@@ -521,6 +528,7 @@ function fifoIssue(
     .filter(
       (item) =>
         item.warehouse === input.warehouse &&
+        !item.quarantined &&
         item.itemType === input.itemType &&
         item.itemId === input.itemId &&
         item.qty > 0,
@@ -716,6 +724,10 @@ function authorize(actor: Actor, command: Command): CommandResult | null {
     createInvoice: 'sales.create',
     confirmInvoice: 'sales.confirm',
     recordPayment: 'sales.payments.manage',
+    createSalesReturn: 'sales.create',
+    decideSalesReturn: 'sales.confirm',
+    decideSalesReturnQuality: 'qc.manage',
+    recordSalesReturnRefund: 'sales.payments.manage',
     createWithdrawal: 'sales.create',
     createExpense: 'expenses.manage',
     decideExpense: 'expenses.approve',
@@ -971,6 +983,10 @@ function run(state: ErpState, actor: Actor, command: Command, clock: Clock): Com
       return createInvoice(state, actor, command.input, clock)
     case 'confirmInvoice':
       return confirmInvoice(state, actor, command.input, clock)
+    case 'createSalesReturn': return createSalesReturn(state, actor, command.input, clock)
+    case 'decideSalesReturn': return decideSalesReturn(state, actor, command.input, clock)
+    case 'decideSalesReturnQuality': return decideSalesReturnQuality(state, actor, command.input, clock)
+    case 'recordSalesReturnRefund': return recordSalesReturnRefund(state, actor, command.input, clock)
     case 'recordPayment':
       return recordPayment(state, actor, command.input, clock)
     case 'createWithdrawal':
@@ -1848,6 +1864,10 @@ function bounded(value: number | undefined, min: number, max: number, message: s
 }
 
 function updateCompany(state: ErpState, actor: Actor, input: Extract<Command, { action: 'updateCompany' }>['input'], clock: Clock): CommandResult {
+  if (Object.prototype.hasOwnProperty.call(input, 'returnWindowDays')) {
+    if (actor.role !== 'GM' && (input.returnWindowDays ?? null) !== (state.company.returnWindowDays ?? null)) return fail('المدير العام فقط يحدد سياسة المرتجعات')
+    if (input.returnWindowDays !== null && (!Number.isSafeInteger(input.returnWindowDays) || input.returnWindowDays! < 0)) return fail('حدد مدة مرتجعات صحيحة بالأيام أو اتركها غير مفعلة')
+  }
   const invalid =
     bounded(input.vatRatePct, 0, 100, 'نسبة الضريبة يجب أن تكون بين 0 و 100') ||
     bounded(input.varianceThresholdPct, 0, 100, 'حد الانحراف يجب أن يكون بين 0 و 100') ||
@@ -2841,6 +2861,7 @@ function confirmInvoice(state: ErpState, actor: Actor, input: Extract<Command, {
     if (!('error' in issued)) {
       cogs = money(cogs + issued.cost)
       line.batchNo = issued.lines.map((item) => item.batchNo).join(', ')
+      line.allocations = issued.lines.map(item => ({ batchNo: item.batchNo, qty: item.qty, unitCost: item.unitCost }))
       line.unitCost = line.qty > 0 ? money(issued.cost / line.qty) : 0
       
       for (const issuedLine of issued.lines) {
@@ -2874,8 +2895,8 @@ function recordPayment(state: ErpState, actor: Actor, input: Extract<Command, { 
   if (invoice.status === 'DRAFT') return fail('أكّد الفاتورة قبل التحصيل')
   const amount = money(input.amount)
   if (amount <= 0) return fail('مبلغ التحصيل غير صحيح')
-  const outstanding = money(invoice.total - invoice.paidAmount)
-  if (amount - outstanding > 0.001) return fail(`المبلغ أكبر من المتبقي (${outstanding} ر.ع.)`)
+  const outstanding = money(invoiceOutstanding(invoice))
+  if (amount > Math.max(0, outstanding)) return fail(`المبلغ أكبر من المتبقي (${outstanding} ر.ع.)`)
   const at = clock.now()
   const payment = {
     id: clock.id('pay'),
@@ -2888,7 +2909,7 @@ function recordPayment(state: ErpState, actor: Actor, input: Extract<Command, { 
   }
   state.payments.unshift(payment)
   invoice.paidAmount = money(invoice.paidAmount + amount)
-  invoice.status = invoice.total - invoice.paidAmount <= 0.001 ? 'PAID' : 'PARTIAL'
+  invoice.status = invoiceOutstanding(invoice) <= 0 ? (invoice.creditedAmount ? 'CREDITED' : 'PAID') : 'PARTIAL'
   postJournal(state, clock, `تحصيل ${payment.number}`, 'salesPayment', payment.id, [
     { accountCode: '1500', debit: amount, credit: 0 },
     { accountCode: '1400', debit: 0, credit: amount },
@@ -4594,9 +4615,10 @@ export function publicState(state: ErpState, permissions: readonly string[], use
     productionOrders: seeProduction || seeQuality || seePackaging || seeScale ? state.productionOrders : [],
     lots: seeProduction || seeQuality || seeSales || seePackaging || seeScale ? state.lots : [],
     stoppages: seeProduction ? state.stoppages : [],
-    invoices: seeSales ? state.invoices : [],
+    invoices: seeSales ? state.invoices.map(invoice => ({ ...invoice, lines: invoice.lines.map(line => ({ ...line, allocations: line.allocations?.map(item => ({ ...item, unitCost: seeJournals || permissions.includes('production.cost.approve') ? item.unitCost : 0 })) })) })) : [],
     payments: seeSales ? state.payments : [],
     withdrawals: seeSales ? state.withdrawals : [],
+    salesReturns: seeSales ? (state.salesReturns ?? []).map(item => ({ ...item, cost: seeJournals || permissions.includes('production.cost.approve') ? item.cost : 0 })) : seeQuality || seeInventory ? (state.salesReturns ?? []).map(item => ({ ...item, net: 0, vat: 0, total: 0, cost: 0, refunds: [] })) : [],
     expenses: canAny(permissions, ['expenses.manage', 'expenses.approve']) ? state.expenses : [],
     tripCostAllocations: seeVehicleServices ? state.tripCostAllocations : [],
     obligations: seeObligations ? state.obligations : [],
@@ -5407,3 +5429,109 @@ function minutesBetween(start: string, end: string): number {
 }
 
 export { hoursBetween, INVENTORY_ACCOUNT, calculateLotNutrition, calculateRecipeNutrition, compareNutrition, autoMatchBankTransaction, calculateLandedCost }
+
+/** Returns retain the original invoice and reserve both invoice-line and physical-batch quantities. */
+function createSalesReturn(state: ErpState, actor: Actor, input: Extract<Command, { action: 'createSalesReturn' }>['input'], clock: Clock): CommandResult {
+  if (typeof input.requestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(input.requestId) || typeof input.reason !== 'string' || !input.reason.trim() || input.reason.trim().length > 1000) return fail('مرجع الطلب والسبب مطلوبان')
+  const returns = state.salesReturns ??= []
+  const replay = returns.find(item => item.requestId === input.requestId)
+  if (replay) return replay.invoiceId === input.invoiceId && replay.invoiceLineIndex === input.invoiceLineIndex && replay.sourceBatchNo === input.sourceBatchNo && replay.qty === qty(input.qty) && replay.reason === input.reason.trim()
+    ? ok(state, 'طلب المرتجع مسجل مسبقاً') : fail('مرجع الطلب مستخدم لمرتجع مختلف')
+  const windowDays = state.company.returnWindowDays
+  if (!Number.isSafeInteger(windowDays) || windowDays == null || windowDays < 0) return fail('حدد مدة المرتجعات في الإعدادات أولاً')
+  const invoice = state.invoices.find(item => item.id === input.invoiceId)
+  if (!invoice || invoice.status === 'DRAFT') return fail('اختر فاتورة مؤكدة')
+  const muscatDate = (iso: string) => new Date(Date.parse(iso) + 4 * 3600_000).toISOString().slice(0, 10)
+  const age = Math.round((Date.parse(muscatDate(clock.now())) - Date.parse(muscatDate(invoice.issuedAt))) / 86400_000)
+  if (age < 0 || age > windowDays) return fail('الفاتورة خارج مدة المرتجعات المسموحة')
+  const line = Number.isInteger(input.invoiceLineIndex) && input.invoiceLineIndex >= 0 ? invoice.lines[input.invoiceLineIndex] : undefined
+  if (!line || !Number.isFinite(input.qty) || input.qty <= 0 || input.qty !== qty(input.qty)) return fail('بند الفاتورة أو كمية المرتجع غير صحيحة')
+  const sold = line.allocations
+    ? line.allocations.filter(item => item.batchNo === input.sourceBatchNo).map(item => ({ qty: -item.qty, unitCost: item.unitCost }))
+    : state.ledger.filter(entry => entry.type === 'SALE' && entry.refId === invoice.id && entry.itemId === line.productId && entry.batchNo === input.sourceBatchNo)
+  const batchQty = qty(sold.reduce((sum, entry) => sum - entry.qty, 0))
+  if (batchQty <= 0) return fail('الدفعة لا تتبع الفاتورة')
+  const reserved = returns.filter(item => item.invoiceId === invoice.id && item.status !== 'REJECTED')
+  const lineReserved = reserved.filter(item => item.invoiceLineIndex === input.invoiceLineIndex)
+  const remaining = qty(line.qty - lineReserved.reduce((sum, item) => sum + item.qty, 0))
+  const batchReserved = (line.allocations ? lineReserved : reserved).filter(item => item.productId === line.productId && item.sourceBatchNo === input.sourceBatchNo)
+  const batchRemaining = qty(batchQty - batchReserved.reduce((sum, item) => sum + item.qty, 0))
+  if (input.qty > remaining || input.qty > batchRemaining) return fail('كمية المرتجع تتجاوز الكمية المباعة غير المرتجعة')
+  // The final partial return receives only the original uncredited rounding remainder.
+  const netLeft = money(line.net - lineReserved.reduce((sum, item) => sum + item.net, 0))
+  const vatLeft = money(line.vat - lineReserved.reduce((sum, item) => sum + item.vat, 0))
+  const net = input.qty === remaining ? netLeft : Math.min(netLeft, money(line.net * input.qty / line.qty))
+  const vat = input.qty === remaining ? vatLeft : Math.min(vatLeft, money(line.vat * input.qty / line.qty))
+  const soldCost = money(sold.reduce((sum, entry) => sum - entry.qty * entry.unitCost, 0))
+  const previousCost = money(batchReserved.reduce((sum, item) => sum + item.cost, 0))
+  const cost = input.qty === batchRemaining ? money(soldCost - previousCost) : Math.min(money(soldCost - previousCost), money(soldCost * input.qty / batchQty))
+  const at = clock.now(), id = clock.id('ret'), number = nextNumber(state, 'CN', at)
+  returns.unshift({ id, number, requestId: input.requestId, invoiceId: invoice.id, invoiceLineIndex: input.invoiceLineIndex,
+    productId: line.productId, sourceBatchNo: input.sourceBatchNo, returnBatchNo: `RET-${id}`, qty: input.qty,
+    net, vat, total: money(net + vat), cost, reason: input.reason.trim().slice(0, 1000), windowDays,
+    status: 'PENDING_APPROVAL', createdBy: actor.id, createdAt: at, quality: 'QUARANTINED', refunds: [] })
+  audit(state, actor, clock, 'طلب مرتجع فاتورة', 'salesReturn', id, `${number}; ${invoice.number}; ${input.sourceBatchNo}; ${input.qty}`)
+  return ok(state, 'تم تسجيل المرتجع بانتظار مدير عام آخر', { id })
+}
+
+function decideSalesReturn(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decideSalesReturn' }>['input'], clock: Clock): CommandResult {
+  const note = state.salesReturns?.find(item => item.id === input.id)
+  if (!note || actor.role !== 'GM' || note.createdBy === actor.id) return fail('يجب اعتماد المرتجع بواسطة مدير عام غير منشئ الطلب')
+  if (!['APPROVED', 'REJECTED'].includes(input.decision) || typeof input.note !== 'string' || !input.note.trim()) return fail('القرار والسبب مطلوبان')
+  if (note.status !== 'PENDING_APPROVAL') return note.status === input.decision ? ok(state, 'تم اتخاذ القرار مسبقاً') : fail('المرتجع محسوم بالفعل')
+  const invoice = state.invoices.find(item => item.id === note.invoiceId)
+  if (!invoice || invoice.status === 'DRAFT') return fail('الفاتورة غير موجودة')
+  if (input.decision === 'APPROVED') {
+    if (input.received !== true || typeof input.receiptReference !== 'string' || !input.receiptReference.trim() || input.receiptReference.trim().length > 200) return fail('أكد استلام البضاعة وسجل مرجع الاستلام قبل إصدار الإشعار')
+    note.receiptReference = input.receiptReference.trim(); note.receivedAt = clock.now()
+    if (money((invoice.creditedAmount ?? 0) + note.total) > invoice.total) return fail('الإشعار الدائن يتجاوز قيمة الفاتورة')
+    const stock = upsertBalance(state, clock, { warehouse: 'WH_FG', itemType: 'PRODUCT', itemId: note.productId, batchNo: note.returnBatchNo, qtyDelta: note.qty, unitCost: note.qty ? note.cost / note.qty : 0 })
+    if ('error' in stock) return fail(stock.error!)
+    stock.row.quarantined = true
+    addLedger(state, clock, actor, { type: 'SALES_RETURN', warehouse: 'WH_FG', itemType: 'PRODUCT', itemId: note.productId, batchNo: note.returnBatchNo, qty: note.qty, unitCost: stock.row.unitCost, prevQty: stock.prev, newQty: stock.next!, refType: 'salesReturn', refId: note.id, notes: note.sourceBatchNo })
+    postJournal(state, clock, note.number, 'salesReturn', note.id, [
+      { accountCode: '4100', debit: note.net, credit: 0 }, { accountCode: '2200', debit: note.vat, credit: 0 }, { accountCode: '1400', debit: 0, credit: note.total },
+      { accountCode: '1300', debit: note.cost, credit: 0 }, { accountCode: '5100', debit: 0, credit: note.cost },
+    ])
+    invoice.creditedAmount = money((invoice.creditedAmount ?? 0) + note.total)
+    invoice.status = invoiceOutstanding(invoice) <= 0 ? 'CREDITED' : invoice.paidAmount > 0 || invoice.creditedAmount > 0 ? 'PARTIAL' : 'CONFIRMED'
+  }
+  note.status = input.decision; note.decidedBy = actor.id; note.decidedAt = clock.now(); note.decisionNote = input.note.trim().slice(0, 1000)
+  const originLot = state.lots?.find(item => item.lotNo === returnOriginBatch(state, note.sourceBatchNo))
+  if (originLot) refreshLotSale(state, originLot)
+  audit(state, actor, clock, 'قرار مرتجع فاتورة', 'salesReturn', note.id, `${note.number}; ${input.decision}; ${note.decisionNote}; ${note.receiptReference ?? '—'}`)
+  return ok(state, input.decision === 'APPROVED' ? 'تم إصدار الإشعار الدائن وحجر المخزون' : 'تم رفض المرتجع')
+}
+
+function decideSalesReturnQuality(state: ErpState, actor: Actor, input: Extract<Command, { action: 'decideSalesReturnQuality' }>['input'], clock: Clock): CommandResult {
+  const note = state.salesReturns?.find(item => item.id === input.id)
+  if (!note || note.status !== 'APPROVED' || !['PASSED', 'FAILED'].includes(input.result) || typeof input.note !== 'string' || !input.note.trim()) return fail('اختر مرتجعاً معتمداً وسجل نتيجة الفحص وسببها')
+  if (note.quality !== 'QUARANTINED') return note.quality === input.result ? ok(state, 'تم تسجيل نتيجة الفحص مسبقاً') : fail('نتيجة الفحص محسومة')
+  const stock = state.balances.find(item => item.batchNo === note.returnBatchNo && item.itemId === note.productId && item.warehouse === 'WH_FG')
+  if (!stock || !stock.quarantined || stock.qty !== note.qty) return fail('رصيد المرتجع المحجور غير متطابق')
+  stock.quarantined = input.result !== 'PASSED'
+  note.quality = input.result; note.qualityBy = actor.id; note.qualityAt = clock.now(); note.qualityNote = input.note.trim().slice(0, 1000)
+  audit(state, actor, clock, 'فحص مرتجع فاتورة', 'salesReturn', note.id, `${note.number}; ${input.result}; ${note.qualityNote}`)
+  return ok(state, input.result === 'PASSED' ? 'تم فحص المرتجع وإتاحته للمخزون' : 'تم رفض الجودة واستمرار الحجر')
+}
+
+function recordSalesReturnRefund(state: ErpState, actor: Actor, input: Extract<Command, { action: 'recordSalesReturnRefund' }>['input'], clock: Clock): CommandResult {
+  const note = state.salesReturns?.find(item => item.id === input.id)
+  if (!note || note.status !== 'APPROVED') return fail('اختر إشعاراً دائناً معتمداً')
+  if (typeof input.requestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(input.requestId) || typeof input.reference !== 'string' || !input.reference.trim() || input.reference.trim().length > 200 || !Number.isFinite(input.amount) || input.amount <= 0 || money(input.amount) !== input.amount) return fail('مبلغ الرد ومرجع العملية مطلوبان')
+  const replay = note.refunds.find(item => item.requestId === input.requestId)
+  if (replay) return replay.amount === input.amount && replay.reference === input.reference.trim() ? ok(state, 'رد المبلغ مسجل مسبقاً') : fail('مرجع الطلب مستخدم لرد مختلف')
+  if ((state.salesReturns ?? []).some(item => item.refunds.some(refund => refund.requestId === input.requestId || refund.reference === input.reference.trim()))) return fail('مرجع رد المبلغ مستخدم مسبقاً')
+  const invoice = state.invoices.find(item => item.id === note.invoiceId)!
+  const previousRefunds = money(note.refunds.reduce((sum, item) => sum + item.amount, 0))
+  const refundable = Math.min(money(note.total - previousRefunds), money(invoice.paidAmount - (invoice.refundedAmount ?? 0)), Math.max(0, -invoiceOutstanding(invoice)))
+  if (input.amount > refundable) return fail('مبلغ الرد يتجاوز الرصيد الدائن المدفوع المتاح')
+  const bank = money([...state.journals.flatMap(item => item.lines), ...(state.journalOpenings ?? [])].filter(item => item.accountCode === '1500').reduce((sum, item) => sum + item.debit - item.credit, 0))
+  if (input.amount > bank) return fail('الرصيد البنكي الدفتري غير كافٍ')
+  const id = clock.id('refund')
+  note.refunds.push({ id, requestId: input.requestId, amount: input.amount, reference: input.reference.trim().slice(0, 200), at: clock.now(), createdBy: actor.id })
+  invoice.refundedAmount = money((invoice.refundedAmount ?? 0) + input.amount)
+  postJournal(state, clock, `رد ${note.number}`, 'salesReturnRefund', id, [{ accountCode: '1400', debit: input.amount, credit: 0 }, { accountCode: '1500', debit: 0, credit: input.amount }])
+  audit(state, actor, clock, 'تسجيل رد مبلغ مرتجع', 'salesReturnRefund', id, `${note.number}; ${input.amount}; ${input.reference.trim()}`)
+  return ok(state, 'تم تسجيل رد المبلغ دفترياً دون تنفيذ تحويل بنكي')
+}

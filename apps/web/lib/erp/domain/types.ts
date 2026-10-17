@@ -83,6 +83,8 @@ export type Company = {
    * note is required (keeps pre-existing documents behaving exactly as before).
    */
   varianceReasonCodes?: string[]
+  /** Unset disables new customer returns. 0 permits the invoice day only. */
+  returnWindowDays?: number | null
 }
 
 export type AppUser = {
@@ -361,6 +363,8 @@ export type Balance = {
   unitCost: number
   expiryDate: string | null
   receivedAt: string
+  /** Returned goods remain valued stock but cannot be issued or transferred before QC. */
+  quarantined?: boolean
 }
 
 export type LedgerType =
@@ -370,6 +374,7 @@ export type LedgerType =
   | 'PRODUCTION_CONSUMPTION'
   | 'PRODUCTION_OUTPUT'
   | 'SALE'
+  | 'SALES_RETURN'
   | 'WITHDRAWAL'
   | 'ADJUSTMENT'
 
@@ -507,7 +512,7 @@ export type SalesInvoice = {
   id: string
   number: string
   customerId: string
-  status: 'DRAFT' | 'CONFIRMED' | 'PARTIAL' | 'PAID'
+  status: 'DRAFT' | 'CONFIRMED' | 'PARTIAL' | 'PAID' | 'CREDITED'
   issuedAt: string
   notes: string
   lines: Array<{
@@ -521,12 +526,47 @@ export type SalesInvoice = {
     total: number
     batchNo: string
     unitCost: number
+    /** Immutable issue evidence retained even after ledger archival. */
+    allocations?: Array<{ batchNo: string; qty: number; unitCost: number }>
   }>
   subtotal: number
   vatAmount: number
   total: number
   paidAmount: number
+  creditedAmount?: number
+  refundedAmount?: number
   createdBy: string
+}
+
+export type SalesReturn = {
+  id: string
+  number: string
+  requestId: string
+  invoiceId: string
+  invoiceLineIndex: number
+  productId: string
+  sourceBatchNo: string
+  returnBatchNo: string
+  qty: number
+  net: number
+  vat: number
+  total: number
+  cost: number
+  reason: string
+  windowDays: number
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  createdBy: string
+  createdAt: string
+  decidedBy?: string
+  decidedAt?: string
+  decisionNote?: string
+  receiptReference?: string
+  receivedAt?: string
+  quality: 'QUARANTINED' | 'PASSED' | 'FAILED'
+  qualityBy?: string
+  qualityAt?: string
+  qualityNote?: string
+  refunds: Array<{ id: string; requestId: string; amount: number; reference: string; at: string; createdBy: string }>
 }
 
 export type SalesPayment = {
@@ -1109,6 +1149,7 @@ export type ErpState = {
   invoices: SalesInvoice[]
   payments: SalesPayment[]
   withdrawals: Withdrawal[]
+  salesReturns?: SalesReturn[]
   expenses: Expense[]
   journals: JournalEntry[]
   attendance: Attendance[]
@@ -1187,6 +1228,10 @@ export type Clock = {
 }
 
 export type Command =
+  | { action: 'createSalesReturn'; input: { requestId: string; invoiceId: string; invoiceLineIndex: number; sourceBatchNo: string; qty: number; reason: string } }
+  | { action: 'decideSalesReturn'; input: { id: string; decision: 'APPROVED' | 'REJECTED'; note: string; received?: boolean; receiptReference?: string } }
+  | { action: 'decideSalesReturnQuality'; input: { id: string; result: 'PASSED' | 'FAILED'; note: string } }
+  | { action: 'recordSalesReturnRefund'; input: { id: string; requestId: string; amount: number; reference: string } }
   | { action: 'createMaterial'; input: { code: string; nameAr: string; category: string; unit?: string; minQty: number; vatTreatment?: VatTreatment; barcode?: string } }
   | { action: 'createProduct'; input: { code: string; nameAr: string; unit?: string; salePrice: number; vatTreatment?: VatTreatment; barcode?: string; bagKg?: number; varianceWarningPct?: number; varianceCriticalPct?: number } }
   | { action: 'createSupplier'; input: { nameAr: string; vatNumber?: string; phone?: string; email?: string; address?: string } }

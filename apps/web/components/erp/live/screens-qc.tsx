@@ -1,5 +1,7 @@
 'use client'
 
+import { SalesReturns } from './sales-returns'
+
 import { LocalizedContent } from '@/lib/i18n/localized-content'
 
 import { useMemo, useState } from 'react'
@@ -111,7 +113,7 @@ export function QcLimitsEditor({ ctx, itemType }: { ctx: LiveCtx; itemType: 'MAT
 }
 
 export function QualityScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveCtx }) {
-  if (entityKey === 'qualitySample') return (<LocalizedContent>{<Samples ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'qualitySample') return (<LocalizedContent><div className="space-y-4"><Samples ctx={ctx} /><SalesReturns ctx={ctx} qualityOnly /></div></LocalizedContent>)
   if (entityKey === 'supplierQuality') return (<LocalizedContent>{<SupplierQuality ctx={ctx} />}</LocalizedContent>)
   return null
 }

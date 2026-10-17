@@ -5,6 +5,8 @@ import { LocalizedContent } from '@/lib/i18n/localized-content'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
+import { invoiceOutstanding } from '@/lib/erp/domain/invoice-balance'
+
 import { barcodeSvg } from '@/lib/erp/domain/barcode'
 import { COST_LABEL } from '@/lib/erp/domain/costing'
 import { recallReport, traceLot } from '@/lib/erp/domain/reports'
@@ -12,7 +14,7 @@ import type { Company } from '@/lib/erp/domain/types'
 import type { PublicState } from '@/components/erp/live/ctx'
 import { materialName, moneyFmt, productName, qtyFmt, statusLabel } from '@/components/erp/live/format'
 
-export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' | 'recall' | 'delivery' }) {
+export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' | 'recall' | 'delivery' | 'credit-note' }) {
   const params = useParams<{ id?: string; lotNo?: string }>()
   const [state, setState] = useState<PublicState | null>(null)
   const [recallData, setRecallData] = useState<{ company: Company; report: ReturnType<typeof recallReport> } | null>(null)
@@ -61,6 +63,7 @@ export function PrintDoc({ kind }: { kind: 'invoice' | 'po' | 'labels' | 'lot' |
           طباعة
         </button>
       </div>
+      {kind === 'credit-note' ? <CreditNote state={state} id={params.id ?? ''} /> : null}
       {kind === 'invoice' ? <Invoice state={state} id={params.id ?? ''} /> : null}
       {kind === 'po' ? <PurchaseOrder state={state} id={params.id ?? ''} /> : null}
       {kind === 'labels' ? <Labels state={state} /> : null}
@@ -131,6 +134,9 @@ function Invoice({ state, id }: { state: PublicState; id: string }) {
       <p>ضريبة القيمة المضافة: {moneyFmt(invoice.vatAmount)}</p>
       <p style={{ fontWeight: 800 }}>الإجمالي المستحق: {moneyFmt(invoice.total)}</p>
       <p>المحصّل: {moneyFmt(invoice.paidAmount)}</p>
+      <p>الإشعارات الدائنة: {moneyFmt(invoice.creditedAmount ?? 0)}</p>
+      <p>المردود نقداً: {moneyFmt(invoice.refundedAmount ?? 0)}</p>
+      <p>رصيد العميل: {moneyFmt(invoiceOutstanding(invoice))}</p>
       <p style={{ marginTop: 24, fontSize: 12 }}>
         فاتورة صادرة بالريال العُماني (ثلاثة أرقام عشرية) ومهيأة لمتطلبات فاتورة ضريبة القيمة المضافة في سلطنة عُمان. المعاملة الضريبية لكل صنف قابلة للتهيئة داخل النظام.
       </p>
@@ -349,4 +355,18 @@ function RecallReportDocument({ company, report }: { company: Company; report: R
       </table>
     </article>
   )}</LocalizedContent>)
+}
+
+
+function CreditNote({ state, id }: { state: PublicState; id: string }) {
+  const note = state.salesReturns?.find(item => item.id === id && item.status === 'APPROVED')
+  const invoice = state.invoices.find(item => item.id === note?.invoiceId)
+  if (!note || !invoice) return <p>الإشعار الدائن غير متاح</p>
+  return <LocalizedContent><article><Letterhead company={state.company} />
+    <h1>إشعار دائن</h1><p>{note.number}</p><p>{invoice.number} — {note.decidedAt?.slice(0, 10)}</p>
+    <p>{state.customers.find(item => item.id === invoice.customerId)?.nameAr}</p>
+    <table><thead><tr><th>المنتج</th><th>دفعة البيع الأصلية</th><th>كمية المرتجع</th><th>الصافي</th><th>الضريبة</th><th>الإشعار الدائن</th></tr></thead><tbody><tr>
+      <td>{productName(state, note.productId)}</td><td>{note.sourceBatchNo}</td><td>{qtyFmt(note.qty)}</td><td>{moneyFmt(note.net)}</td><td>{moneyFmt(note.vat)}</td><td>{moneyFmt(note.total)}</td>
+    </tr></tbody></table><p>{note.reason}</p><p>مرجع استلام البضاعة المرتجعة: {note.receiptReference}</p><p>الفاتورة الأصلية محفوظة؛ رد المبلغ له تسجيل مستقل.</p>
+  </article></LocalizedContent>
 }

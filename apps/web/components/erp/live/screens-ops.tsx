@@ -1,5 +1,8 @@
 'use client'
 
+import { SalesReturns } from './sales-returns'
+import { invoiceOutstanding } from '@/lib/erp/domain/invoice-balance'
+
 import { CodeInput } from '@/components/erp/code-input'
 
 import { LocalizedContent } from '@/lib/i18n/localized-content'
@@ -1243,7 +1246,7 @@ function Balances({ ctx, materialsOnly }: { ctx: LiveCtx; materialsOnly: boolean
   return (<LocalizedContent>{(
     <Card title={materialsOnly ? 'دفعات المواد' : 'أرصدة المخزون'} extra={<ExportLinks href={`/api/erp/export?kind=stock${materialsOnly ? '&itemType=MATERIAL' : ''}`} />}>
       <DataTable
-        columns={['المستودع', 'الصنف', 'الدفعة', 'الكمية', ...(includeCosts ? ['التكلفة', 'القيمة'] : []), 'الصلاحية']}
+        columns={['المستودع', 'الصنف', 'الدفعة', 'الكمية', ...(includeCosts ? ['التكلفة', 'القيمة'] : []), 'الصلاحية', 'الحالة']}
         rows={rows.map((row) => [
           WAREHOUSE_LABEL[row.warehouse],
           row.nameAr,
@@ -1251,6 +1254,7 @@ function Balances({ ctx, materialsOnly }: { ctx: LiveCtx; materialsOnly: boolean
           qtyFmt(row.qty),
           ...(includeCosts ? [moneyFmt(row.unitCost), moneyFmt(row.value)] : []),
           row.expiryDate ?? '—',
+          row.quarantined ? 'محجور' : 'متاح',
         ])}
       />
     </Card>
@@ -3208,7 +3212,7 @@ export function SalesScreens({ entityKey, ctx }: { entityKey: string; ctx: LiveC
   if (entityKey === 'customer') return (<LocalizedContent>{<Customers ctx={ctx} />}</LocalizedContent>)
   if (entityKey === 'salesInvoice') return (<LocalizedContent>{<Invoices ctx={ctx} />}</LocalizedContent>)
   if (entityKey === 'salesPayment') return (<LocalizedContent>{<Payments ctx={ctx} />}</LocalizedContent>)
-  if (entityKey === 'withdrawal') return (<LocalizedContent>{<Withdrawals ctx={ctx} />}</LocalizedContent>)
+  if (entityKey === 'withdrawal') return (<LocalizedContent><div className="space-y-4"><SalesReturns ctx={ctx} /><Withdrawals ctx={ctx} /></div></LocalizedContent>)
   if (entityKey === 'distribution') return (<LocalizedContent>{<DistributionHub ctx={ctx} />}</LocalizedContent>)
   if (entityKey === 'distributionPoint') return (<LocalizedContent>{<DistributionPoints ctx={ctx} />}</LocalizedContent>)
   if (entityKey === 'distributionClosing') return (<LocalizedContent>{<DistributionClosings ctx={ctx} />}</LocalizedContent>)
@@ -3368,13 +3372,15 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
         }
       >
         <DataTable
-          columns={['الرقم', 'العميل', 'الضريبة', 'الإجمالي', 'المحصّل', 'الحالة', '']}
+          columns={['الرقم', 'العميل', 'الضريبة', 'الإجمالي', 'الإشعارات الدائنة', 'المحصّل', 'رصيد العميل', 'الحالة', '']}
           rows={ctx.state.invoices.map((invoice) => [
             invoice.number,
             partyName(ctx.state.customers, invoice.customerId),
             moneyFmt(invoice.vatAmount),
             moneyFmt(invoice.total),
+            moneyFmt(invoice.creditedAmount ?? 0),
             moneyFmt(invoice.paidAmount),
+            moneyFmt(invoiceOutstanding(invoice)),
             <Badge key={invoice.id} tone={toneForStatus(invoice.status)}>{statusLabel(invoice.status)}</Badge>,
             <span key={`${invoice.id}-a`} className="flex flex-wrap gap-2">
               <Link className="text-sm font-bold text-[#1e127c]" href={`/print/invoice/${invoice.id}`} target="_blank" rel="noreferrer">طباعة</Link>
@@ -3408,7 +3414,7 @@ function Invoices({ ctx }: { ctx: LiveCtx }) {
 }
 
 function Payments({ ctx }: { ctx: LiveCtx }) {
-  const open = ctx.state.invoices.filter((invoice) => invoice.status === 'CONFIRMED' || invoice.status === 'PARTIAL')
+  const open = ctx.state.invoices.filter((invoice) => invoice.status !== 'DRAFT' && invoiceOutstanding(invoice) > 0)
   const [invoiceId, setInvoiceId] = useState(open[0]?.id ?? '')
   const [amount, setAmount] = useState('')
   return (<LocalizedContent>{(
@@ -3428,7 +3434,7 @@ function Payments({ ctx }: { ctx: LiveCtx }) {
               }}>
                 <Field label="الفاتورة">
                   <SelectInput value={invoiceId} onChange={(e) => setInvoiceId(e.target.value)}>
-                    {open.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} — متبقي {moneyFmt(invoice.total - invoice.paidAmount)}</option>)}
+                    {open.map((invoice) => <option key={invoice.id} value={invoice.id}>{invoice.number} — متبقي {moneyFmt(invoiceOutstanding(invoice))}</option>)}
                   </SelectInput>
                 </Field>
                 <Field label="المبلغ"><TextInput type="number" min="0.001" step="0.001" value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
@@ -3451,7 +3457,7 @@ function Withdrawals({ ctx }: { ctx: LiveCtx }) {
   return (<LocalizedContent>{(
     <div className="space-y-4">
       <Card
-        title="السحوبات"
+        title="السحوبات الداخلية"
         hint="يخصم من المنتجات النهائية ويُحمَّل على مصروفات التشغيل بدون ضريبة مبيعات."
         extra={
           <FormDialog title="سحب داخلي" openLabel="سحب جديد">

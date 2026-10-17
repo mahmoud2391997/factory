@@ -1,8 +1,9 @@
-export type ExportKind = 'journals' | 'invoices' | 'vat' | 'trial' | 'payroll' | 'stock' | 'lots' | 'pnl' | 'documents'
+export type ExportKind = 'credit-notes' | 'journals' | 'invoices' | 'vat' | 'trial' | 'payroll' | 'stock' | 'lots' | 'pnl' | 'documents'
 
 const EXPORT_KINDS = new Set<ExportKind>([
   'journals',
   'invoices',
+  'credit-notes',
   'vat',
   'trial',
   'payroll',
@@ -25,7 +26,7 @@ export function canExport(kind: ExportKind, permissions: readonly string[]) {
   if (kind === 'payroll') return hasAny(permissions, ['payroll.manage', 'payroll.approve', 'payroll.pay'])
   if (kind === 'stock') return hasAny(permissions, ['inventory.read', 'warehouses.read'])
   if (kind === 'lots') return hasAny(permissions, ['production.read', 'accounting.read'])
-  if (kind === 'invoices') return hasAny(permissions, ['sales.read', 'accounting.read', 'accounting.manage'])
+  if (kind === 'invoices' || kind === 'credit-notes') return hasAny(permissions, ['sales.read', 'accounting.read', 'accounting.manage'])
   return hasAny(permissions, ['accounting.read', 'accounting.manage'])
 }
 

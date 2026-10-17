@@ -242,6 +242,10 @@ export function LotsScreen({ ctx, detail }: { ctx: LiveCtx; detail?: boolean }) 
                 delivery.unallocatedNote ? `${delivery.at.slice(0, 16).replace('T', ' ')} — ${delivery.unallocatedNote}` : delivery.at.slice(0, 16).replace('T', ' '),
               ])}
             />
+            {trace.returns.length ? <DataTable
+              columns={['الإشعار الدائن', 'دفعة البيع الأصلية', 'دفعة المرتجع', 'كمية المرتجع', 'الجودة', 'مرجع استلام البضاعة المرتجعة']}
+              rows={trace.returns.map(item => [item.number, item.sourceBatchNo, item.returnBatchNo, qtyFmt(item.qty), statusLabel(item.quality), item.receiptReference ?? '—'])}
+            /> : null}
           </div>
         </Card>
       ) : null}

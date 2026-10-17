@@ -1,3 +1,5 @@
+import { invoiceOutstanding } from '@/lib/erp/domain/invoice-balance'
+
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { lotExportRows, profitAndLoss, stockRows, trialBalance, vatReturn } from '@/lib/erp/domain/reports'
@@ -43,7 +45,7 @@ export async function GET(req: NextRequest) {
     }
   } else if (kind === 'invoices') {
     name = 'Invoices'
-    rows = [['الفاتورة', 'التاريخ', 'العميل', 'الحالة', 'الخاضع', 'الضريبة', 'الإجمالي', 'المحصّل']]
+    rows = [['الفاتورة', 'التاريخ', 'العميل', 'الحالة', 'الخاضع', 'الضريبة', 'الإجمالي', 'المحصّل', 'الإشعارات الدائنة', 'المردود نقداً', 'رصيد العميل']]
     for (const invoice of state.invoices) {
       const customer = state.customers.find((item) => item.id === invoice.customerId)
       rows.push([
@@ -55,8 +57,15 @@ export async function GET(req: NextRequest) {
         invoice.vatAmount,
         invoice.total,
         invoice.paidAmount,
+        invoice.creditedAmount ?? 0,
+        invoice.refundedAmount ?? 0,
+        invoiceOutstanding(invoice),
       ])
     }
+  } else if (kind === 'credit-notes') {
+    name = 'CreditNotes'
+    rows = [['الرقم', 'الفاتورة', 'التاريخ', 'الحالة', 'الكمية', 'الصافي', 'الضريبة', 'الإشعار الدائن', 'المردود نقداً', 'الجودة']]
+    for (const note of state.salesReturns ?? []) rows.push([note.number, state.invoices.find(item => item.id === note.invoiceId)?.number ?? note.invoiceId, note.decidedAt ?? note.createdAt, note.status, note.qty, note.net, note.vat, note.total, note.refunds.reduce((sum, item) => sum + item.amount, 0), note.quality])
   } else if (kind === 'vat') {
     name = 'VAT'
     const month = req.nextUrl.searchParams.get('month') || undefined
