@@ -1,4 +1,5 @@
 export const supplementalUi: Record<string, { en: string; hi: string }> = {
+  'تعذر تعديل تكلفة دفعة صُرف جزء منها. يلزم اعتماد سياسة التسوية المحاسبية للتكاليف المتأخرة أولاً.': { en: 'Cannot change the cost of a batch after stock has been issued. Approve an accounting policy for late cost adjustments first.', hi: 'स्टॉक जारी होने के बाद बैच की लागत नहीं बदल सकते। पहले देर से लागत समायोजन की लेखांकन नीति मंजूर करें।' },
   'كمية الصرف غير صحيحة': { en: 'Invalid issue quantity', hi: 'निकासी मात्रा अमान्य है' },
   'لا يمكن تعديل دفعة مرتجع معلقة أو محجورة': { en: 'A pending or quarantined returned batch cannot be adjusted', hi: 'लंबित या अलग रखे वापसी बैच का समायोजन नहीं हो सकता' },
   'دفعة المرتجع مستخدمة مسبقاً؛ راجع دليل الاستلام': { en: 'Returned batch is already in use; check the receipt evidence', hi: 'वापसी बैच पहले उपयोग में है; प्राप्ति प्रमाण जाँचें' },

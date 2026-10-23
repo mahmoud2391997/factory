@@ -28,6 +28,7 @@ import { writeDatabaseArchive, writeFileArchive } from './archive-store'
 import { resolveErpDataDir } from './data-dir'
 import { configuredMailSender } from './mailer'
 import {dispatchOutbox, settleOutboxAttempt} from './outbox'
+import { databaseAttachmentStore, validateAttachmentId } from './private-attachments'
 
 const DOC_ID = 'main'
 
@@ -59,13 +60,13 @@ function statePath() {
 }
 
 function attachmentPath(id: string) {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
-    throw new Error('INVALID_ATTACHMENT_ID')
-  }
+  validateAttachmentId(id)
   return path.join(dataDir(), 'document-attachments', `${id}.bin`)
 }
 
 export async function writePrivateAttachment(id: string, bytes: Uint8Array) {
+  const database = await privateAttachmentDatabase()
+  if (database) return database.write(id, bytes)
   const file = attachmentPath(id)
   const dir = path.dirname(file)
   await mkdir(dir, { recursive: true, mode: 0o700 })
@@ -74,6 +75,12 @@ export async function writePrivateAttachment(id: string, bytes: Uint8Array) {
 }
 
 export async function readPrivateAttachment(id: string) {
+  const database = await privateAttachmentDatabase()
+  if (database) {
+    const bytes = await database.read(id)
+    if (bytes || process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) return bytes
+    // Existing on-site file attachments remain readable until explicitly migrated.
+  }
   try {
     return await readFile(attachmentPath(id))
   } catch (error) {
@@ -83,7 +90,19 @@ export async function readPrivateAttachment(id: string) {
 }
 
 export async function removePrivateAttachment(id: string) {
+  const database = await privateAttachmentDatabase()
+  if (database) {
+    await database.remove(id)
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) return
+  }
   await rm(attachmentPath(id), { force: true })
+}
+
+async function privateAttachmentDatabase() {
+  if (isDemoMode()) return null
+  if (!ensureDatabaseUrlEnv()) throw new Error('DATABASE_UNAVAILABLE')
+  const { getDb } = await import('@/server/db')
+  return databaseAttachmentStore(await getDb())
 }
 
 let queue: Promise<unknown> = Promise.resolve()

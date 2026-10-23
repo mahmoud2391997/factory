@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { inspectDocumentAttachment } from '@/lib/erp/domain/document-attachments'
 import {
   attachmentRequestTooLargeMessage,
-  attachmentStorageUnavailableMessage,
   attachmentTooLargeMessage,
   getAttachmentRequestLanguage,
   getAttachmentUploadLimits,
@@ -49,13 +48,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sa
         message: attachmentTooLargeMessage(language, isVercel),
         code: 'ATTACHMENT_TOO_LARGE',
       }, { status: 413 })
-    }
-    if (isVercel) {
-      return NextResponse.json({
-        success: false,
-        message: attachmentStorageUnavailableMessage(language),
-        code: 'ATTACHMENT_STORAGE_UNAVAILABLE',
-      }, { status: 503 })
     }
 
     const bytes = new Uint8Array(await value.arrayBuffer())

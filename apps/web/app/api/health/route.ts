@@ -28,6 +28,12 @@ export async function GET() {
       const { getDb } = await import('@/server/db')
       const db = await getDb()
       await db.$queryRaw`SELECT 1`
+      const storage = await db.$queryRaw<{ ready: boolean }[]>`
+        SELECT has_table_privilege(current_user, '"PrivateAttachment"', 'SELECT')
+          AND has_table_privilege(current_user, '"PrivateAttachment"', 'INSERT')
+          AND has_table_privilege(current_user, '"PrivateAttachment"', 'DELETE') AS ready
+      `
+      if (!storage[0]?.ready) throw new Error('ATTACHMENT_STORAGE_UNAVAILABLE')
       databaseReachable = true
       bootstrapped = Boolean(await db.erpDocument.findUnique({ where: { id: 'main' }, select: { id: true } }))
     } catch {
@@ -48,6 +54,6 @@ export async function GET() {
         demoMode: false,
       },
     },
-    { status: ok ? 200 : 503 },
+    { status: ok ? 200 : 503, headers: { 'cache-control': 'no-store' } },
   )
 }

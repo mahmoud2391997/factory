@@ -2555,7 +2555,9 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   const totalCost = money(costLines.reduce((sum, line) => sum + line.amount, 0))
   const extraCost = money(totalCost - rawCost)
   const outputQty = actualOutputKg
-  const unitCost = outputQty > 0 ? money(totalCost / outputQty) : 0
+  // Unit rates are not currency totals. Keep their precision and carry the exact
+  // batch value so the final issue consumes any remaining baisa.
+  const unitCost = outputQty > 0 ? totalCost / outputQty : 0
   const lotNo = nextLotNo(state, clock.now())
 
   const posted = upsertBalance(state, clock, {
@@ -2565,6 +2567,7 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
     batchNo: lotNo,
     qtyDelta: outputQty,
     unitCost,
+    carryingValueDelta: totalCost,
   })
   if ('error' in posted && posted.error) return fail(posted.error)
   if (!posted.row || posted.prev == null || posted.next == null) return fail('تعذر إضافة المنتج النهائي')
@@ -2666,6 +2669,14 @@ function completeProduction(state: ErpState, actor: Actor, input: Extract<Comman
   return ok(state, pendingCostLines.length > 0 ? `اكتمل ${order.number} وتم إنشاء الدفعة ${lotNo}، وبعض بنود التكلفة بانتظار الاعتماد` : `اكتمل ${order.number} وتم إنشاء الدفعة ${lotNo}`)
 }
 
+const ISSUED_LOT_COST_ERROR = 'تعذر تعديل تكلفة دفعة صُرف جزء منها. يلزم اعتماد سياسة التسوية المحاسبية للتكاليف المتأخرة أولاً.'
+
+function lotHasIssues(state: ErpState, lot: ProductionLot) {
+  const remaining = state.balances.filter(row => row.itemType === 'PRODUCT' && row.itemId === lot.productId && row.batchNo === lot.lotNo)
+    .reduce((sum, row) => sum + row.qty, 0)
+  return qty(remaining) !== qty(lot.actualOutputKg)
+}
+
 function syncLotValuation(state: ErpState, lot: ProductionLot) {
   const totalCost = money(lot.costLines.reduce((sum, line) => sum + line.amount, 0))
   lot.totalCost = totalCost
@@ -2674,12 +2685,18 @@ function syncLotValuation(state: ErpState, lot: ProductionLot) {
   const order = state.productionOrders.find((item) => item.id === lot.productionOrderId)
   if (order) {
     order.totalCost = totalCost
-    order.unitCost = lot.actualOutputKg > 0 ? money(totalCost / lot.actualOutputKg) : 0
+    order.unitCost = lot.actualOutputKg > 0 ? totalCost / lot.actualOutputKg : 0
   }
-  const row = state.balances.find(
-    (item) => item.warehouse === 'WH_FG' && item.itemType === 'PRODUCT' && item.itemId === lot.productId && item.batchNo === lot.lotNo,
+  const rows = state.balances.filter(
+    (item) => item.itemType === 'PRODUCT' && item.itemId === lot.productId && item.batchNo === lot.lotNo && item.qty > 0,
   )
-  if (row) row.unitCost = inventoryCost > 0 && lot.actualOutputKg > 0 ? money(inventoryCost / lot.actualOutputKg) : row.unitCost
+  let allocated = 0
+  rows.forEach((row, index) => {
+    row.carryingValue = index === rows.length - 1 ? money(inventoryCost - allocated)
+      : money(inventoryCost * row.qty / lot.actualOutputKg)
+    allocated = money(allocated + row.carryingValue)
+    row.unitCost = row.carryingValue / row.qty
+  })
   refreshLotSale(state, lot)
 }
 
@@ -2705,6 +2722,9 @@ function decideProductionCost(
   const index = (lot.pendingCostLines ?? []).findIndex((line) => line.id === input.lineId)
   if (index < 0) return fail('بند التكلفة غير موجود أو اعتُمد')
   const pending = lot.pendingCostLines![index]!
+  // Do not silently invent whether late costs reprice historical sales, returns,
+  // internal withdrawals or current-period expense. Keep the pending item intact.
+  if (lotHasIssues(state, lot)) return fail(ISSUED_LOT_COST_ERROR)
   lot.pendingCostLines = lot.pendingCostLines!.filter((line) => line.id !== pending.id)
   if (input.decision === 'APPROVED') {
     lot.costLines.push({ type: pending.type, amount: pending.amount })
@@ -2806,6 +2826,7 @@ function recalculateLotCosts(
     const after = money(lot.costLines.reduce((sum, line) => sum + line.amount, 0))
     const delta = money(after - before)
     if (delta !== 0) {
+      if (lotHasIssues(state, lot)) return fail(ISSUED_LOT_COST_ERROR)
       syncLotValuation(state, lot)
       postCostAdjustment(state, clock, `إعادة حساب تكلفة ${lot.lotNo}`, lot.id, delta)
       changed += 1
@@ -3985,7 +4006,15 @@ function decideTripCostAllocation(
       const index = lot.costLines.findIndex((costLine) => costLine.type === 'TRANSPORT')
       if (index >= 0) lot.costLines[index] = breakdown.line
       else lot.costLines.push(breakdown.line)
-      syncLotValuation(state, lot)
+      if (inboundDelta !== 0 && lotHasIssues(state, lot)) return fail(ISSUED_LOT_COST_ERROR)
+      // Outbound delivery expense does not revalue stock. Only the inbound delta
+      // changes the inventory basis; avoid resetting issued stock at full cost.
+      if (inboundDelta !== 0) syncLotValuation(state, lot)
+      else {
+        lot.totalCost = money(lot.costLines.reduce((sum, item) => sum + item.amount, 0))
+        lot.costPerTon = lot.actualOutputKg > 0 ? money(lot.totalCost / lot.actualOutputKg * 1000) : 0
+        refreshLotSale(state, lot)
+      }
       postCostAdjustment(state, clock, `تسوية نقل المصنع ${lot.lotNo} عند اعتماد الرحلة ${trip.id}`, lot.id, inboundDelta)
       postJournal(state, clock, `نقل الفاتورة من الرحلة ${trip.id} للدفعة ${lot.lotNo}`, 'tripCostAllocation', allocation.id, [
         { accountCode: '5100', debit: line.amount, credit: 0 },

@@ -140,6 +140,14 @@ model ArchiveRecord {
   @@index([kind, at])
 }
 
+/// Private attachment bytes. Access always goes through the authorized ERP routes.
+/// Included in PostgreSQL backups, outside the revisioned business document.
+model PrivateAttachment {
+  id        String   @id
+  bytes     Bytes
+  createdAt DateTime @default(now())
+}
+
 model WarehouseLocation {
   id          String    @id @default(cuid())
   warehouseId String

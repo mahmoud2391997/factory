@@ -40,7 +40,7 @@
     "tsx": "^4.23.15"
   },
   "dependencies": {
-    "next": "16.3.8"
+    "next": "16.4.1"
   },
   "pnpm": {
     "overrides": {
