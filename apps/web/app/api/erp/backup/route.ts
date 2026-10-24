@@ -39,6 +39,10 @@ export async function GET(req: NextRequest) {
       'content-disposition': `attachment; filename="gulf-feed-backup-${new Date().toISOString().slice(0, 10)}.json"`,
       'cache-control': 'private, no-store',
       'x-erp-backup-mode': process.env.VERCEL ? 'download-only' : 'download-and-local-copy',
+      // Keep the existing JSON contract; make its recovery limits machine-readable.
+      'x-erp-export-scope': 'active-document-only',
+      'x-erp-export-excludes': 'attachment-bytes,archived-records',
+      'x-erp-full-recovery-backup': 'false',
     },
   })
 }

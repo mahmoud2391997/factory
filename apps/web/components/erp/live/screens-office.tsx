@@ -1575,7 +1575,6 @@ function Audit({ ctx }: { ctx: LiveCtx }) {
 
 function Settings({ ctx }: { ctx: LiveCtx }) {
   const { language } = useLanguage()
-  const isVercelBuild = process.env.NEXT_PUBLIC_APP_ENV === 'vercel'
   const company = ctx.state.company
   const [returnWindowDays, setReturnWindowDays] = useState(company.returnWindowDays?.toString() ?? '')
   const [form, setForm] = useState({
@@ -1654,10 +1653,10 @@ function Settings({ ctx }: { ctx: LiveCtx }) {
         <div className="flex flex-wrap gap-2">
           <PrimaryButton disabled={ctx.pending || !can(ctx.permissions, 'settings.update')}>حفظ</PrimaryButton>
           {can(ctx.permissions, 'settings.update') ? <GhostButton type="button" onClick={() => ctx.act('archiveHistory', { olderThanDays: 90 })}>أرشفة السجلات الأقدم من 90 يوماً</GhostButton> : null}
-          {can(ctx.permissions, 'settings.read') ? <a className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3 text-sm font-semibold" href="/api/erp/backup">تنزيل نسخة احتياطية</a> : null}
+          {can(ctx.permissions, 'settings.read') ? <a className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3 text-sm font-semibold" href="/api/erp/backup" aria-describedby="system-export-scope">تصدير بيانات النظام (JSON)</a> : null}
         </div>
-        {isVercelBuild && can(ctx.permissions, 'settings.read') ? (
-          <p role="note" className="text-xs leading-5 text-[#7c8c86]">{backupDownloadNotice(language)}</p>
+        {can(ctx.permissions, 'settings.read') ? (
+          <p id="system-export-scope" role="note" className="text-xs leading-5 text-[#7c8c86]">{backupDownloadNotice(language)}</p>
         ) : null}
       </form>
       <InventoryCategorySettings ctx={ctx}/>

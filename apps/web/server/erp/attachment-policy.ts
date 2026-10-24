@@ -41,36 +41,36 @@ export function attachmentRequestTooLargeMessage(language: AttachmentLanguage) {
 
 export function attachmentStorageUnavailableMessage(language: AttachmentLanguage) {
   const messages: Record<AttachmentLanguage, string> = {
-    ar: 'رفع المرفقات غير متاح على Vercel حالياً لأن ملفات النظام مؤقتة. لم يتم حفظ أي مرفق. اختر تخزيناً دائماً قبل تفعيل الرفع.',
-    en: 'Attachment uploads are unavailable on Vercel because its filesystem is temporary. No attachment was saved. Configure durable storage before enabling uploads.',
-    hi: 'Vercel पर अटैचमेंट अपलोड अभी उपलब्ध नहीं हैं क्योंकि इसका फ़ाइल सिस्टम अस्थायी है। कोई अटैचमेंट सहेजा नहीं गया। अपलोड चालू करने से पहले स्थायी स्टोरेज कॉन्फ़िगर करें।',
+    ar: 'تعذر حفظ المرفق في التخزين الخاص. تحقق من اتصال قاعدة البيانات وترحيل جدول المرفقات وصلاحياته ثم أعد المحاولة.',
+    en: 'The attachment could not be saved to private storage. Check the database connection, attachment migration and permissions, then retry.',
+    hi: 'अटैचमेंट निजी स्टोरेज में सहेजा नहीं जा सका। डेटाबेस कनेक्शन, अटैचमेंट माइग्रेशन और अनुमतियाँ जाँचें, फिर कोशिश करें।',
   }
   return messages[language]
 }
 
 export function attachmentDownloadUnavailableMessage(language: AttachmentLanguage) {
   const messages: Record<AttachmentLanguage, string> = {
-    ar: 'سجل المرفق موجود، لكن ملفه غير متاح لأن ملفات Vercel مؤقتة. اضبط تخزيناً دائماً للمرفقات ثم أعد المحاولة.',
-    en: 'The attachment record exists, but its file is unavailable because Vercel storage is temporary. Configure durable attachment storage and try again.',
-    hi: 'अटैचमेंट का रिकॉर्ड मौजूद है, लेकिन Vercel का स्टोरेज अस्थायी होने के कारण फ़ाइल उपलब्ध नहीं है। स्थायी अटैचमेंट स्टोरेज कॉन्फ़िगर करके फिर प्रयास करें।',
+    ar: 'سجل المرفق موجود، لكن تعذر قراءة ملفه من التخزين الخاص. تحقق من اتصال قاعدة البيانات وترحيل المرفقات وصلاحيات القراءة. إذا كان الملف مفقوداً، راجع النسخة الكاملة قبل الاستعادة.',
+    en: 'The attachment record exists, but its file could not be read from private storage. Check the database connection, attachment migration and read permissions. If bytes are missing, review a full backup before restoring.',
+    hi: 'अटैचमेंट का रिकॉर्ड मौजूद है, लेकिन निजी स्टोरेज से फ़ाइल नहीं पढ़ी जा सकी। डेटाबेस कनेक्शन, माइग्रेशन और पढ़ने की अनुमतियाँ जाँचें। फ़ाइल गायब हो तो पुनर्स्थापना से पहले पूर्ण बैकअप की जाँच करें।',
   }
   return messages[language]
 }
 
 export function backupUnavailableMessage(language: AttachmentLanguage) {
   const messages: Record<AttachmentLanguage, string> = {
-    ar: 'تعذر إنشاء نسخة الاحتياطية على Vercel مؤقتاً. لم يتم إنشاء ملف؛ تحقق من اتصال قاعدة البيانات ثم أعد المحاولة.',
-    en: 'The backup could not be generated on Vercel. No file was created; check the database connection and try again.',
-    hi: 'Vercel पर बैकअप नहीं बन सका। कोई फ़ाइल नहीं बनाई गई; डेटाबेस कनेक्शन जाँचें और फिर प्रयास करें।',
+    ar: 'تعذر تصدير بيانات النظام. لم يتم إنشاء ملف؛ تحقق من اتصال قاعدة البيانات ثم أعد المحاولة.',
+    en: 'System data could not be exported. No file was created; check the database connection and try again.',
+    hi: 'सिस्टम डेटा निर्यात नहीं हो सका। कोई फ़ाइल नहीं बनाई गई; डेटाबेस कनेक्शन जाँचें और फिर प्रयास करें।',
   }
   return messages[language]
 }
 
 export function backupDownloadNotice(language: AttachmentLanguage) {
   const messages: Record<AttachmentLanguage, string> = {
-    ar: 'احفظ ملف JSON الذي تم تنزيله؛ قرص Vercel المحلي مؤقت ولا يُعد نسخة احتياطية دائمة.',
-    en: 'Save the downloaded JSON file; Vercel’s local disk is temporary and is not a durable backup.',
-    hi: 'डाउनलोड की गई JSON फ़ाइल सुरक्षित रखें; Vercel की स्थानीय डिस्क अस्थायी है और स्थायी बैकअप नहीं है।',
+    ar: 'هذا تصدير JSON لبيانات النظام حسب صلاحياتك؛ لا يشمل ملفات المرفقات أو السجلات المؤرشفة، وليس نسخة استرجاع كاملة. النسخة الكاملة تتطلب نسخ قاعدة PostgreSQL بما فيها المرفقات والأرشيف، وأي ملفات قديمة، وحفظها خارج الاستضافة مع اختبار الاستعادة. تنزيل الملف لا يفعّل نسخاً دورياً أو خارجياً.',
+    en: 'This JSON exports system data allowed by your permissions. It excludes attachment bytes and archived records and is not a full recovery backup. Full recovery requires a PostgreSQL backup including attachments and archives, any legacy files, off-host storage and a tested restore. Downloading does not enable scheduled or offsite backups.',
+    hi: 'यह JSON आपकी अनुमतियों के अनुसार सिस्टम डेटा निर्यात करता है। इसमें अटैचमेंट फ़ाइलें और संग्रहित रिकॉर्ड शामिल नहीं हैं; यह पूर्ण रिकवरी बैकअप नहीं है। पूर्ण रिकवरी के लिए अटैचमेंट और अभिलेख सहित PostgreSQL बैकअप, पुरानी फ़ाइलें, होस्ट से बाहर सुरक्षित संग्रह और परीक्षित पुनर्स्थापना चाहिए। डाउनलोड करने से नियमित या ऑफसाइट बैकअप चालू नहीं होता।',
   }
   return messages[language]
 }
